@@ -16,3 +16,6 @@ assieme = "assieme.cli:main"
 
 [tool.setuptools]
 packages = ["assieme"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
