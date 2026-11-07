@@ -1,0 +1,16 @@
+name = "builder-reviewer"
+label = "Builder + reviewer"
+
+[[role]]
+name = "builder"
+agent = "claude"
+job = "Writes the change and its tests"
+brief = "../briefs/builder.md"
+
+[[role]]
+name = "reviewer"
+agent = "claude"
+job = "Reads every diff before it merges"
+brief = "../briefs/reviewer.md"
+checkout = "read-only"
+parent = "builder"

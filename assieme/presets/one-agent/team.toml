@@ -1,0 +1,8 @@
+name = "one-agent"
+label = "One agent"
+
+[[role]]
+name = "builder"
+agent = "claude"
+job = "Does the whole task"
+brief = "../briefs/builder.md"

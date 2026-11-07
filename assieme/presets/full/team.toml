@@ -1,0 +1,45 @@
+name = "full"
+label = "Planner, 3 builders, reviewer, tester"
+
+[[role]]
+name = "planner"
+agent = "claude"
+job = "Splits the work and hands it out"
+brief = "../briefs/planner.md"
+checkout = "read-only"
+
+[[role]]
+name = "builder-1"
+agent = "claude"
+job = "Builds one piece at a time"
+brief = "../briefs/builder.md"
+parent = "planner"
+
+[[role]]
+name = "builder-2"
+agent = "claude"
+job = "Builds one piece at a time"
+brief = "../briefs/builder.md"
+parent = "planner"
+
+[[role]]
+name = "builder-3"
+agent = "claude"
+job = "Builds one piece at a time"
+brief = "../briefs/builder.md"
+parent = "planner"
+
+[[role]]
+name = "reviewer"
+agent = "claude"
+job = "Reads every diff before it merges"
+brief = "../briefs/reviewer.md"
+checkout = "read-only"
+parent = "planner"
+
+[[role]]
+name = "tester"
+agent = "claude"
+job = "Writes tests and runs the full suite"
+brief = "../briefs/tester.md"
+parent = "planner"
