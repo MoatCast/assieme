@@ -136,3 +136,77 @@ class SendTargetTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+def hc_wake(m, sender, text='note'):
+    return prompt(m, f'<hc from="t1 {sender}">{sender}: {text}</hc>')
+
+
+class StallTest(unittest.TestCase):
+    """F2: a team where nobody moves but work is open, and the chain of who waits on whom."""
+
+    def run_team(self, rows_by_agent):
+        with tempfile.TemporaryDirectory() as root:
+            c = os.path.join(root, 'claude')
+            for name, rows in rows_by_agent.items():
+                write(os.path.join(c, f'-Users-x-team-{name}', 's.jsonl'), rows)
+            agents = status.collect(c, os.path.join(root, 'none'), NOW)
+            return agents, status.stalls(agents, NOW)
+
+    def chain(self, builder_rows):
+        return self.run_team({
+            'builder': builder_rows,
+            'coord': [hc_wake(19, 'builder'), tool(16, 'c1', command='hc send steward "need a ruling"'),
+                      result(16, 'c1'), done(15)],
+            'steward': [hc_wake(14, 'coord'), tool(10, 's1', name='AskUserQuestion')],
+            'loner': [prompt(30), done(29)],
+        })
+
+    def test_chain_ends_at_permission_prompt(self):
+        agents, stalls = self.chain([prompt(25), tool(21, 'b1', command='hc send coord "suite done"'),
+                                     result(21, 'b1'), done(20)])
+        by = {a.name: a for a in agents}
+        self.assertEqual((by['builder'].waits_on, by['coord'].waits_on, by['steward'].waits_on),
+                         (['coord'], ['steward'], ['you']))
+        self.assertEqual(len(stalls), 1)
+        self.assertEqual(stalls[0]['team'], ['builder', 'coord', 'steward'])  # loner is not on the team
+        self.assertIn('2 agents wait on steward (builder, coord); steward waits on you', stalls[0]['text'])
+        self.assertIn('Team stalled for 10 min', status.to_text(agents, NOW))
+
+    def test_no_stall_while_someone_works(self):
+        _, stalls = self.chain([prompt(25), tool(21, 'b1', command='hc send coord "suite done"'),
+                                result(21, 'b1'), tool(1, 'b2', command='pytest')])
+        self.assertEqual(stalls, [])
+
+    def test_hc_wait_on_a_stuck_agent(self):
+        agents, stalls = self.run_team({
+            'coord': [prompt(30), tool(29, 'c1', command='hc send builder "build it"'), result(29, 'c1'),
+                      tool(18, 'c2', command='hc wait builder')],
+            'builder': [hc_wake(28, 'coord'), tool(20, 'b1', command='cargo build')],
+        })
+        by = {a.name: a for a in agents}
+        self.assertEqual((by['coord'].state, by['coord'].waits_on), ('working', ['builder']))
+        self.assertIn('1 agent waits on builder (coord); builder is stuck', stalls[0]['text'])
+
+    def test_team_that_is_simply_done_is_not_stalled(self):
+        _, stalls = self.run_team({
+            'coord': [prompt(30), tool(29, 'c1', command='hc send builder "build it"'), result(29, 'c1'), done(28),
+                      hc_wake(24, 'builder'), done(23)],
+            'builder': [hc_wake(27, 'coord'), tool(26, 'b1', command='hc send coord "built"'), result(26, 'b1'), done(25)],
+        })
+        self.assertEqual(stalls, [])  # coord read builder's report and finished: a report, not a request
+
+    def test_lost_report_is_a_stall(self):
+        _, stalls = self.run_team({
+            'coord': [prompt(30), tool(29, 'c1', command='hc send builder "build it"'), result(29, 'c1'), done(28)],
+            'builder': [hc_wake(27, 'coord'), tool(26, 'b1', command='hc send coord "built"'), result(26, 'b1'), done(25)],
+        })
+        self.assertIn('coord never started on its message', stalls[0]['text'])
+
+
+class RootTest(unittest.TestCase):
+    def test_loop(self):
+        a, b = status.Agent('a', 'x', ''), status.Agent('b', 'x', '')
+        a.waits_on, b.waits_on = ['b'], ['a']
+        self.assertEqual(status._root(a, {'a': a, 'b': b}), (a, True))
+        self.assertIn('a and b wait on each other', status._blocker(a, True))

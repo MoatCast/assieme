@@ -46,6 +46,17 @@ Each agent active in the last 12 hours (`--hours`) gets one state, read from its
 | working | in a turn, with the running tool named |
 | idle | turn over |
 
+**Stall alarm.** Agents that message each other form a team. When nobody on a team is making progress but work
+is open, the top line says so and traces the chain of who waits on whom, for example:
+
+```
+!! Team stalled for 10 min: 2 agents wait on steward (builder, coord); steward waits on you (asked 10 min ago)
+```
+
+An agent waits on another when its last message went there and nothing came back, or when it runs `hc wait` on
+it. A report that the receiver read and finished with does not count as waiting. Chains end at a person, a stuck
+agent, a message that never started a turn, or two agents waiting on each other.
+
 When herdr-core is installed, the HERDR column shows herdr's own status for the same terminal (`unreported`
 when the agent never told herdr). Use `--no-herdr` to skip it. Command arguments are hidden unless `--show-text`.
 
