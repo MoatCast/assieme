@@ -17,14 +17,15 @@ See [DESIGN.md](DESIGN.md) and [ROADMAP.md](ROADMAP.md).
 
 ## Start
 
-Python 3.10+. From this folder, with [uv](https://docs.astral.sh/uv/):
+Python 3.10+. Install it once with [uv](https://docs.astral.sh/uv/), giving the path to this folder:
 
 ```bash
-uvx --from . wakegraph
+uv tool install --editable ~/path/to/agent-wakegraph
 ```
 
-That's it: it finds Claude Code, Codex and herdr by itself. To keep it installed, run `uv tool install .` or
-`pipx install .`, then just `wakegraph`.
+Then run `wakegraph` from anywhere. It finds Claude Code, Codex and herdr by itself. `--editable` means changes
+to this folder take effect without reinstalling. Remove it with `uv tool uninstall wakegraph`. (`pipx install
+--editable <path>` works too.)
 
 ## The live view
 
