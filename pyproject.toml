@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Who woke whom in multi-agent coding teams, what each wake cost, and which commands keep being refused."
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
