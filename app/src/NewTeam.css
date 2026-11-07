@@ -1,0 +1,60 @@
+/* New team, from Paper "C — New team: this Mac" and "C — New team: recommended setup". */
+.newteam { position: fixed; inset: 0; background: var(--quiet-fog); display: flex; justify-content: center;
+  overflow: auto; padding: 28px 16px 24px; box-sizing: border-box; z-index: 10; }
+.newteam .panel { width: 760px; max-width: 100%; align-self: flex-start; background: var(--quiet-surface);
+  border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-panel); box-shadow: 0 8px 30px #1b24330f;
+  display: flex; flex-direction: column; }
+.newteam header { padding: 24px 32px 14px; display: flex; flex-direction: column; gap: 6px; }
+.newteam h1 { margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em; color: #000; }
+.newteam h2 { margin: 0 0 4px; font-size: 15px; line-height: 20px; font-weight: 600; }
+.newteam header p { margin: 0; color: var(--quiet-slate); font-size: 14px; line-height: 18px; }
+.newteam .body { padding: 4px 32px 24px; display: flex; flex-direction: column; gap: 16px; }
+.newteam .field { display: flex; flex-direction: column; gap: 8px; }
+.newteam .label { font-size: 13px; line-height: 16px; font-weight: 600; color: #000; }
+.newteam .row { display: flex; justify-content: space-between; align-items: baseline; }
+.newteam button { font: inherit; cursor: pointer; background: none; border: 0; color: inherit; padding: 0; }
+.newteam button:disabled { cursor: default; opacity: 0.45; }
+.newteam .box { border: 1px solid var(--quiet-control); border-radius: 14px; padding: 10px 12px;
+  font-size: 14px; line-height: 18px; display: flex; align-items: center; gap: 10px; text-align: left; }
+.newteam input.box { font: inherit; font-size: 14px; outline-color: var(--quiet-ink); }
+.newteam .grow { flex: 1; }
+.newteam .muted { color: var(--quiet-slate); font-size: 13px; line-height: 16px; }
+.newteam .small { font-size: 12px; color: var(--quiet-mute); }
+.newteam .good { color: var(--quiet-working); font-size: 12px; font-weight: 400; }
+.newteam .error { margin: 0; color: var(--quiet-needs-you); font-size: 13px; line-height: 16px; }
+.newteam .where { display: flex; gap: 10px; }
+.newteam .option { flex: 1; cursor: pointer; }
+.newteam .option.on { border: 1.5px solid var(--quiet-ink); }
+.newteam .option.off { cursor: default; }
+.newteam .option input { accent-color: var(--quiet-ink); margin: 0; }
+.newteam .option b { font-weight: 500; }
+.newteam .option small { display: block; color: var(--quiet-slate); font-size: 12px; line-height: 16px; }
+.newteam .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.newteam .chip { border: 1px solid var(--quiet-control); border-radius: 999px; padding: 7px 12px;
+  color: var(--quiet-slate); font-size: 13px; line-height: 16px; }
+.newteam .chip.on { background: var(--quiet-ink); border-color: var(--quiet-ink); color: var(--quiet-on-ink); font-weight: 500; }
+.newteam .link { display: inline-flex; align-items: center; gap: 6px; color: var(--quiet-ink); font-size: 13px; font-weight: 500; }
+.newteam .agents { border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); display: flex; flex-direction: column; }
+.newteam .agent + .agent, .newteam .agents .add { border-top: 1px solid var(--quiet-line); }
+.newteam .agent .line { display: flex; align-items: center; gap: 14px; padding: 6px 14px; min-height: 26px; }
+.newteam .agent .error { padding: 0 14px 8px; }
+.newteam .name { width: 96px; flex-shrink: 0; border: 0; padding: 4px 0; font: 550 13px/16px var(--quiet-font-mono); color: #000;
+  background: none; outline-color: var(--quiet-control); }
+.newteam .switch { display: flex; flex-shrink: 0; padding: 2px; background: #f0f2f4; border-radius: 999px; }
+.newteam .switch button { padding: 3px 9px; border-radius: 999px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.newteam .switch button.on { background: var(--quiet-surface); box-shadow: 0 1px 2px #1b24331a; color: #000; font-weight: 500; }
+.newteam .job { flex: 1; min-width: 0; color: var(--quiet-slate); font-size: 13px; line-height: 16px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.newteam .remove { width: 20px; flex-shrink: 0; color: var(--quiet-mute); font-size: 16px; }
+.newteam .brief { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.newteam textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner);
+  padding: 10px 12px; font: 13px/18px var(--quiet-font-mono); resize: vertical; }
+.newteam .add { display: flex; align-items: center; gap: 8px; padding: 10px 14px; color: var(--quiet-slate); font-size: 13px; }
+.newteam .sheet { border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); padding: 16px;
+  display: flex; flex-direction: column; gap: 12px; background: var(--quiet-fog); }
+.newteam .actions { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
+.newteam footer { border-top: 1px solid var(--quiet-line); padding: 16px 32px; display: flex; align-items: center; gap: 14px; }
+.newteam .safe { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--quiet-slate); font-size: 13px; }
+.newteam .quiet { padding: 9px 12px; color: var(--quiet-slate); font-size: 14px; line-height: 18px; }
+.newteam .primary { background: var(--quiet-ink); color: var(--quiet-on-ink); border-radius: 999px; padding: 9px 18px;
+  font-size: 14px; line-height: 18px; font-weight: 500; }
