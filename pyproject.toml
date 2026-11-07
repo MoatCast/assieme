@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wakegraph"
+version = "0.1.0"
+description = "Who woke whom in multi-agent coding teams, what each wake cost, and which commands keep being refused."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+wakegraph = "wakegraph.cli:main"
+
+[tool.setuptools]
+packages = ["wakegraph"]
