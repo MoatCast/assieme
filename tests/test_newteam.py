@@ -1,4 +1,5 @@
 """New team in the app: presets, checks, saving, background start and Help me choose."""
+import json
 import os
 import shutil
 import subprocess
@@ -253,3 +254,85 @@ class StarterTest(unittest.TestCase):
         with self.assertRaises(newteam.NewTeamError) as e:
             self.starter().start(self.repo, 't', [], {})
         self.assertEqual(e.exception.field, 'roles')
+
+
+GOOD = {'roles': [{'name': 'builder', 'kind': 'builder', 'agent': 'claude', 'job': 'Fix it'},
+                  {'name': 'reviewer', 'kind': 'reviewer', 'agent': 'claude', 'job': 'Check it'}],
+        'why': 'Small change.'}
+ASK = dict(project='/p', size='feature', review='every', budget='lean')
+
+
+class SuggestTest(unittest.TestCase):
+    def run_with(self, stdout='', code=0, stderr='', which=ALL):
+        self.calls = []
+
+        def run(argv, **kw):
+            self.calls.append((argv, kw))
+            return subprocess.CompletedProcess(argv, code, stdout, stderr)
+        return newteam.suggest(**ASK, run=run, which=which)
+
+    def fails(self, message, **kw):
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.run_with(**kw)
+        self.assertEqual(e.exception.field, 'suggest')
+        self.assertEqual(e.exception.message, message)
+
+    def test_valid_reply(self):
+        out = self.run_with(json.dumps(GOOD))
+        self.assertEqual(out['why'], 'Small change.')
+        b, r = out['roles']
+        self.assertEqual((b['name'], b['agent'], b['job'], b['checkout'], b['parent']), ('builder', 'claude', 'Fix it', 'branch', None))
+        self.assertEqual(r['checkout'], 'read-only')
+        self.assertEqual(b['brief'], newteam.kind_brief('builder'))
+        newteam.validate(out['roles'])
+
+    def test_planner_is_parent(self):
+        g = {'roles': [{'name': 'planner', 'kind': 'planner', 'agent': 'claude', 'job': 'Plans'}] + GOOD['roles'], 'why': ''}
+        self.assertEqual([r['parent'] for r in self.run_with(json.dumps(g))['roles']], [None, 'planner', 'planner'])
+
+    def test_claude_wrapper_and_fence(self):
+        text = 'Here is the team:\n```json\n' + json.dumps(GOOD) + '\n```'
+        out = self.run_with(json.dumps({'type': 'result', 'result': text}))
+        self.assertEqual([r['name'] for r in out['roles']], ['builder', 'reviewer'])
+
+    def test_bad_replies(self):
+        pre = "Couldn't get a suggestion: "
+        self.fails(pre + "the answer wasn't a team.", stdout='hello')
+        chef = {'roles': [{'name': 'c', 'kind': 'chef', 'agent': 'claude', 'job': 'x'}], 'why': ''}
+        self.fails(pre + "unknown role kind 'chef'.", stdout=json.dumps(chef))
+        self.fails(pre + 'no agents in the answer.', stdout=json.dumps({'roles': [], 'why': ''}))
+        many = {'roles': [dict(GOOD['roles'][0], name=f'b{i}') for i in range(9)], 'why': ''}
+        self.fails(pre + 'more than 8 agents.', stdout=json.dumps(many))
+        codex = {'roles': [dict(GOOD['roles'][0], agent='codex')], 'why': ''}
+        self.fails(pre + 'it chose codex, which is not installed.', stdout=json.dumps(codex),
+                   which=lambda c: '/bin/claude' if c == 'claude' else None)
+
+    def test_cli_failure(self):
+        self.fails("Couldn't get a suggestion: Please run /login", code=1, stderr='x\nPlease run /login\n')
+
+    def test_timeout(self):
+        def run(argv, **kw):
+            raise subprocess.TimeoutExpired(argv, 170)
+        with self.assertRaises(newteam.NewTeamError) as e:
+            newteam.suggest(**ASK, run=run, which=ALL)
+        self.assertEqual(e.exception.message, "Couldn't get a suggestion: no answer within 3 minutes.")
+
+    def test_prefers_claude_then_codex(self):
+        self.run_with(json.dumps(GOOD))
+        self.assertEqual(self.calls[0][0][:2], ['claude', '-p'])
+        codex = {'roles': [dict(GOOD['roles'][0], agent='codex')], 'why': ''}
+        self.run_with(json.dumps(codex), which=lambda c: '/bin/codex' if c == 'codex' else None)
+        argv = self.calls[0][0]
+        self.assertEqual(argv[:2], ['codex', 'exec'])
+        self.assertIn('read-only', argv)
+        self.fails('Install Claude Code or Codex, then reopen New team.', which=lambda c: None)
+
+    def test_runs_in_project_with_clean_env_and_timeout(self):
+        with mock.patch.dict(os.environ, {'CLAUDECODE': '1'}):
+            self.run_with(json.dumps(GOOD))
+        kw = self.calls[0][1]
+        self.assertEqual((kw['cwd'], kw['timeout']), ('/p', 170))
+        self.assertNotIn('CLAUDECODE', kw['env'])
+        prompt = kw['input']
+        for words in ('a feature', 'every change', 'lean', 'planner', 'reviewer', 'JSON'):
+            self.assertIn(words, prompt)

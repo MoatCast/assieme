@@ -132,7 +132,8 @@ def _serve():
                                                           starting=starter.records()),
                  'project.check': newteam.project_check,
                  'team.presets': lambda: newteam.presets(),
-                 'team.start': starter.start},
+                 'team.start': starter.start,
+                 'team.suggest': newteam.suggest},
                 tick=lambda: live.watch_once(claude, codex))
     return 0
 

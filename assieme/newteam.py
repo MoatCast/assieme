@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import threading
 import time
 import tomllib
@@ -192,3 +193,84 @@ class Starter:
             self.recs = [r for r in self.recs if not r['done'] or now - r['done_at'] <= KEEP_DONE_S]
             return [{k: v for k, v in r.items() if k != 'done_at'} | {'roles': [dict(x) for x in r['roles']]}
                     for r in self.recs]
+
+
+SUGGEST_TIMEOUT_S = 170
+MAX_ROLES = 8
+_WORDS = {'size': {'small': 'a small fix', 'feature': 'a feature', 'large': 'a large change'},
+          'review': {'every': 'every change', 'end': 'just the end result'},
+          'budget': {'lean': 'keep it lean (fewer agents, cheaper)', 'fast': 'speed matters more than cost'}}
+_KIND_JOBS = {'planner': 'reads the project, splits the task and hands out pieces; never edits',
+              'builder': 'makes one change at a time with tests, on its own branch',
+              'reviewer': 'reads every diff and gives a verdict; never edits',
+              'tester': 'writes tests and runs the full suite, on its own branch'}
+
+
+def _prompt(size, review, budget, agents):
+    kinds = '\n'.join(f'- {k}: {v}' for k, v in _KIND_JOBS.items())
+    return (f'Suggest an agent team for the code in this folder. Read enough of the project to judge it.\n\n'
+            f'The change is {_WORDS["size"].get(size, size)}. The person wants to review '
+            f'{_WORDS["review"].get(review, review)}. Budget: {_WORDS["budget"].get(budget, budget)}.\n\n'
+            f'Role kinds you can use:\n{kinds}\n\n'
+            f'Use 1 to {MAX_ROLES} agents. Each agent is "claude" or "codex"; only these are installed: '
+            f'{", ".join(agents)}. Names use lower-case letters, digits and dashes, and differ.\n\n'
+            'Reply with only one JSON object: {"roles": [{"name": "...", "kind": "...", "agent": "...", '
+            '"job": "one short line"}], "why": "one sentence"}')
+
+
+def _team_from(text, installed):
+    try:
+        outer = json.loads(text)
+        if isinstance(outer, dict) and isinstance(outer.get('result'), str):
+            text = outer['result']  # Claude Code's --output-format json wraps the answer
+    except ValueError:
+        pass
+    start, end = text.find('{'), text.rfind('}')
+    try:
+        data = json.loads(text[start:end + 1]) if start != -1 else None
+    except ValueError:
+        data = None
+    if not isinstance(data, dict) or not isinstance(data.get('roles'), list):
+        raise ValueError("the answer wasn't a team.")
+    raw = data['roles']
+    if not raw:
+        raise ValueError('no agents in the answer.')
+    if len(raw) > MAX_ROLES:
+        raise ValueError(f'more than {MAX_ROLES} agents.')
+    planner = next((r.get('name') for r in raw if isinstance(r, dict) and r.get('kind') == 'planner'), None)
+    roles = []
+    for r in raw:
+        kind = r.get('kind') if isinstance(r, dict) else None
+        if kind not in KINDS:
+            raise ValueError(f'unknown role kind {kind!r}.')
+        if r.get('agent') not in installed:
+            raise ValueError(f"it chose {r.get('agent')}, which is not installed.")
+        roles.append({'name': str(r.get('name', '')), 'agent': r['agent'], 'job': str(r.get('job', '')),
+                      'checkout': KINDS[kind][1], 'parent': planner if kind != 'planner' else None,
+                      'brief': kind_brief(kind)})
+    return {'roles': roles, 'why': str(data.get('why', ''))}
+
+
+def suggest(project, size, review, budget, run=subprocess.run, which=shutil.which):
+    """Help me choose: the person's own Claude Code (else Codex), read-only in the project, suggests a team."""
+    installed = [a for a in preset.AGENTS if which(launch.CLIS[a])]
+    if not installed:
+        raise NewTeamError('suggest', 'Install Claude Code or Codex, then reopen New team.')
+    if installed[0] == 'claude':
+        argv = ['claude', '-p', '--output-format', 'json', '--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'Bash']
+    else:
+        argv = ['codex', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '-']
+    pre = "Couldn't get a suggestion: "
+    try:
+        # The prompt goes on stdin: --disallowedTools takes every argument after it.
+        r = run(argv, input=_prompt(size, review, budget, installed), cwd=project, env=runtime.clean_env(os.environ),
+                capture_output=True, text=True, timeout=SUGGEST_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        raise NewTeamError('suggest', pre + 'no answer within 3 minutes.') from None
+    if r.returncode != 0:
+        last = ([x for x in (r.stderr or r.stdout or '').splitlines() if x.strip()] or [f'exit {r.returncode}'])[-1]
+        raise NewTeamError('suggest', pre + last.strip())
+    try:
+        return _team_from(r.stdout or '', installed)
+    except ValueError as e:
+        raise NewTeamError('suggest', pre + str(e)) from None
