@@ -68,11 +68,26 @@ def _text_of(content):
 
 
 def _strip_common_prefix(names):
-    """'-Users-me-src-team-a', '-Users-me-src-team-b' -> 'a', 'b'. Keeps a lone name whole."""
-    if len(names) < 2:
-        return {n: n.lstrip('-') or n for n in names}
-    cut = os.path.commonprefix(names).rfind('-') + 1
-    return {n: n[cut:] or n for n in names}
+    """Project folder names -> short agent names.
+
+    '-Users-me-src-team-a', '-Users-me-src-team-b' -> 'a', 'b'. Folders are grouped by their first two parts below
+    the home folder, so one unrelated project doesn't stop a team's names from shortening. A project alone in its
+    group keeps its last two parts ('-Users-me-Developer-agent-wakegraph' -> 'agent-wakegraph').
+    """
+    home = re.sub(r'[^A-Za-z0-9]', '-', os.path.expanduser('~')) + '-'
+    base = {n: (n[len(home):] if n.startswith(home) else n).strip('-') or n for n in names}
+    groups = collections.defaultdict(list)
+    for n in names:
+        groups[tuple(base[n].split('-')[:2])].append(n)
+    out = {}
+    for group in groups.values():
+        if len(group) == 1:
+            out[group[0]] = '-'.join(base[group[0]].split('-')[-2:])
+            continue
+        cut = os.path.commonprefix([base[n] for n in group]).rfind('-') + 1
+        for n in group:
+            out[n] = base[n][cut:] or base[n]
+    return out
 
 
 def claude_code(root, since, show_text=False, user_settings=None, cwd_rules=None, extra_rules=()):

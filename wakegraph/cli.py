@@ -1,16 +1,20 @@
-"""wakegraph report --hours 24 [--json|--md]"""
+"""wakegraph            live view (the default)
+wakegraph status     one snapshot of team health
+wakegraph report     who woke whom, what it cost, what was refused
+"""
 import argparse
 import datetime as dt
 import os
 import sys
 import time
 
-from . import adapters, report, rules, status
+from . import adapters, live, report, rules, status
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog='wakegraph', description='Who woke whom in multi-agent coding teams, and what it cost.')
-    sub = p.add_subparsers(dest='cmd', required=True)
+    p = argparse.ArgumentParser(prog='wakegraph', description='Run with no command for the live view: team health, '
+                                'what needs you, and one-key fixes. Commands give snapshots and reports.')
+    sub = p.add_subparsers(dest='cmd')  # no command: the live view
     r = sub.add_parser('report', help='summarise the last N hours of local agent logs')
     r.add_argument('--hours', type=float, default=24)
     fmt = r.add_mutually_exclusive_group()
@@ -32,6 +36,8 @@ def main(argv=None):
     s.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
     s.add_argument('--show-text', action='store_true', help='show command arguments (off: program names only)')
     args = p.parse_args(argv)
+    if args.cmd is None:
+        return live.run(os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions'))
     if args.cmd == 'status':
         return _status(args)
 
@@ -56,7 +62,7 @@ def _status(args):
     while True:
         now = status.now_utc()
         agents = status.collect(args.claude_dir, args.codex_dir, now, args.hours, args.show_text,
-                                None if args.no_herdr else status.herdr_terminals())
+                                None if args.no_herdr else status.herdr_terminals(), status.running_cwds())
         out = status.to_json(agents, now) + '\n' if args.json else status.to_text(agents, now)
         if not args.watch:
             sys.stdout.write(out)

@@ -1,30 +1,56 @@
 # wakegraph
 
-Who woke whom in your multi-agent coding team, what each wake cost, and which commands keep being refused.
+Keeps a team of coding agents moving, so you don't have to keep asking "Status".
 
-wakegraph reads the logs your agents already write (Claude Code, its subagents and Agent Teams, Codex, herdr
-`hc` messages, or any tool that emits a simple JSONL) and reports:
+wakegraph reads the logs your agents already write (Claude Code with its subagents and Agent Teams, Codex,
+herdr `hc` messages) and tells you, in plain words:
 
-- **Who woke whom**: every sender -> receiver pair, the channel, and how many wakes.
-- **What each wake cost**: the receiver's input tokens over its calls in that turn (context x calls).
-- **Empty wakes**: wakes the receiver answered in at most 2 calls, i.e. it had nothing to do.
-- **Refusal loops**: commands a permission rule or sandbox kept refusing.
+- **what needs you**: an agent waiting on your answer, a stuck agent, a whole team stalled and who it waits on;
+- **what it costs**: who woke whom, and how many tokens went on wake-ups that did no work;
+- **what keeps being refused**, which rule did it, and a narrower rule to use instead.
 
-Local only, no telemetry, standard library only, message text hidden by default. See [DESIGN.md](DESIGN.md).
+Every alert comes with a fix. When wakegraph can carry the fix out itself (today: nudging a stuck agent through
+herdr), it takes one key and a confirmation. Nothing acts on its own.
 
-## Install
+Local only, no telemetry, no config, standard library only, message text hidden by default.
+See [DESIGN.md](DESIGN.md) and [ROADMAP.md](ROADMAP.md).
 
-Python 3.10+.
+## Start
+
+Python 3.10+. From this folder, with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-pip install .
+uvx --from . wakegraph
 ```
 
-## Use
+That's it: it finds Claude Code, Codex and herdr by itself. To keep it installed, run `uv tool install .` or
+`pipx install .`, then just `wakegraph`.
+
+## The live view
+
+`wakegraph` with no command opens a view that refreshes every 5 seconds:
+
+```
+wakegraph  14:02  1 stuck, 1 waiting on you, 6 idle, 3 exited
+
+!! Team stalled for 10 min: 2 agents wait on steward (builder, coord); steward waits on you (asked 10 min ago)
+Needs attention:
+  [1] steward waits on you: asked 10 min ago  -> answer it in hc attach t2
+  [2] builder is stuck: silent 18 min, last Bash: pytest  -> press 2 to nudge
+
+Last 24 h: wakes that did no work cost 414M tokens (30% of input). Cut first: builder -> coord (82M).
+```
+
+Press a number to act on that alert. wakegraph shows the exact message it will send and waits for `y`. Every
+action is logged to `~/.local/state/wakegraph/actions.jsonl` and listed in the view. `q` quits.
+Piped into another program, it prints one snapshot instead.
+
+## Commands
 
 ```bash
-wakegraph report --hours 24          # Markdown (default)
-wakegraph report --hours 24 --json
+wakegraph status            # one snapshot: one line per agent, alerts first
+wakegraph status --watch    # the same, refreshing every 5 s
+wakegraph report --hours 24 # who woke whom, what it cost, what was refused (Markdown; --json for data)
 ```
 
 ### Live health
@@ -45,6 +71,7 @@ Each agent active in the last 12 hours (`--hours`) gets one state, read from its
 | waiting on subagents | its turn ended but subagents are still running |
 | working | in a turn, with the running tool named |
 | idle | turn over |
+| exited | its session is closed: no Claude Code or Codex process runs in its folder |
 
 **Stall alarm.** Agents that message each other form a team. When nobody on a team is making progress but work
 is open, the top line says so and traces the chain of who waits on whom, for example:

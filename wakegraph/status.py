@@ -21,7 +21,8 @@ SUBAGENT_WINDOW = 3600      # unfinished subagents older than this are abandoned
 ASK_TOOLS = {'AskUserQuestion', 'ExitPlanMode'}
 TAIL_BYTES = 512 * 1024
 
-ORDER = ['stuck', 'waiting on you', 'idle, work waiting', 'waiting on subagents', 'working', 'idle']
+ORDER = ['stuck', 'waiting on you', 'idle, work waiting', 'waiting on subagents', 'working', 'idle', 'exited']
+EXIT_GRACE = 120            # an agent seen this recently is never called exited
 
 
 def _tail_rows(path, size=TAIL_BYTES):
@@ -93,6 +94,7 @@ class Agent:
         self.thread = self.parent_thread = None
         self.children = []
         self.herdr = None
+        self.cwd = None           # working folder, to tell a running agent from a closed one
 
     def as_dict(self, now):
         return {'agent': self.name, 'source': self.source, 'state': self.state, 'detail': self.detail,
@@ -106,6 +108,7 @@ def _claude(agent, rows, show_text):
             continue
         msg = o.get('message') or {}
         content = msg.get('content')
+        agent.cwd = o.get('cwd') or agent.cwd
         if o.get('type') == 'assistant':
             agent.last = ts
             for b in content if isinstance(content, list) else []:
@@ -207,7 +210,7 @@ def _ago(seconds):
     return f'{m} min' if m < 120 else f'{m // 60} h'
 
 
-def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None):
+def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, running=None):
     """Read recent logs -> list of Agent with health states. herdr: optional `hc ls --json` terminals."""
     cutoff = now.timestamp() - hours * 3600
     agents = []
@@ -265,6 +268,11 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None):
         elif a.state == 'idle' and lost:
             a.state, a.detail = 'stuck', f'subagent {lost[0].detail}'
 
+    if running is not None:  # a folder with no Claude or Codex process: the session was closed
+        for a in agents:
+            if (a.cwd and a.cwd not in running and (now - a.last).total_seconds() > EXIT_GRACE
+                    and a.state in ('idle', 'stuck', 'idle, work waiting')):
+                a.state, a.detail = 'exited', ''
     alias = _aliases(agents, herdr)
     _work_waiting(agents, now, alias)
     if herdr:
@@ -356,12 +364,15 @@ def to_text(agents, now):
     head, alerts = summary(agents)
     lines = [f"wakegraph status  {now.astimezone().strftime('%H:%M')}  {head}"]
     lines += [f"  !! {s['text']}" for s in stalls(agents, now)] + [f'  ! {x}' for x in alerts] + ['']
+    return '\n'.join(lines + table(agents, now)) + '\n'
+
+
+def table(agents, now):
     rows = [('STATE', 'AGENT', 'FOR', 'DETAIL', 'HERDR')]
     for a in agents:
         rows.append((a.state, a.name, _ago((now - a.last).total_seconds()), a.detail, a.herdr or '-'))
     widths = [max(len(r[i]) for r in rows) for i in range(4)]
-    lines += ['  '.join(c.ljust(w) for c, w in zip(r[:4], widths)) + '  ' + r[4] for r in rows]
-    return '\n'.join(lines) + '\n'
+    return ['  '.join(c.ljust(w) for c, w in zip(r[:4], widths)) + '  ' + r[4] for r in rows]
 
 
 def to_json(agents, now):
@@ -406,8 +417,9 @@ def _wait_edges(agents, alias):
         changed = False
         for a in agents:
             x = alias.get(a.waits_on[0]) if a.waits_on and a.state == 'idle' else None
-            if x and x.state == 'idle' and not x.waits_on and any(
-                    w_ts >= a.sent_at and alias.get(w) is a for w_ts, w in x.wakes):
+            if x and x.state == 'idle' and not x.waits_on and (
+                    any(w_ts >= a.sent_at and alias.get(w) is a for w_ts, w in x.wakes)
+                    or (x.turn_start and x.turn_start > a.sent_at)):  # it has had a turn since: nothing pending
                 a.waits_on, changed = [], True
 
 
@@ -445,6 +457,9 @@ def stalls(agents, now):
                    if others else '')
             parts.append(who + _blocker(r, looped))
         out.append({'team': sorted(a.name for a in team), 'quiet_seconds': int(quiet),
+                    'roots': [{'agent': r.name, 'state': r.state, 'looped': looped,
+                               'waiting': sorted(d.name for d in deps if d is not r)}
+                              for (r, looped), deps in roots.items()],
                     'text': f"Team stalled for {_ago(quiet)}: " + '; '.join(parts)})
     return out
 
@@ -465,8 +480,36 @@ def _blocker(r, looped):
         return f'{r.name} waits on you ({r.detail})'
     if r.state == 'stuck':
         return f'{r.name} is stuck ({r.detail})'
+    if r.state == 'exited':
+        return f'{r.name} has exited (its session is closed)'
     if r.state == 'idle, work waiting':
         return f'{r.name} never started on its message ({r.detail})'
     if looped:
         return f'{r.name} and {r.waits_on[0]} wait on each other'
     return f'{r.name} is idle with nothing to do'
+
+
+def running_cwds():
+    """Working folders of running Claude Code and Codex processes, or None when that can't be told. Never fatal."""
+    try:
+        ps = subprocess.run(['ps', '-axo', 'pid=,command='], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    pids = [line.split(None, 1)[0] for line in ps.splitlines()
+            if re.search(r'(^|/)(claude|codex)(\s|$)', (line.strip().split(None, 1) + [''])[1])]
+    if not pids:
+        return set()
+    if os.path.isdir('/proc'):  # Linux
+        out = set()
+        for pid in pids:
+            try:
+                out.add(os.readlink(f'/proc/{pid}/cwd'))
+            except OSError:
+                pass
+        return out
+    try:  # macOS: one lsof call for all of them
+        res = subprocess.run(['lsof', '-a', '-d', 'cwd', '-p', ','.join(pids), '-Fn'],
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return {ln[1:] for ln in res.stdout.splitlines() if ln.startswith('n')}

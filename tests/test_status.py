@@ -210,3 +210,35 @@ class RootTest(unittest.TestCase):
         a.waits_on, b.waits_on = ['b'], ['a']
         self.assertEqual(status._root(a, {'a': a, 'b': b}), (a, True))
         self.assertIn('a and b wait on each other', status._blocker(a, True))
+
+
+class ExitedAndExpiryTest(unittest.TestCase):
+    def test_closed_session_is_exited_not_stuck(self):
+        with tempfile.TemporaryDirectory() as root:
+            c, x = team(root)
+            for name in ('b', 'g'):
+                path = os.path.join(c, f'-Users-x-team-{name}', 's.jsonl')
+                rows = [json.loads(l) for l in open(path)]
+                for r in rows:
+                    r['cwd'] = f'/w/{name}'
+                write(path, rows)
+            by = {a.name: a for a in status.collect(c, x, NOW, running={'/w/g'})}
+        self.assertEqual((by['b'].state, by['g'].state), ('exited', 'idle'))
+
+    def test_old_request_expires_once_receiver_had_a_turn(self):
+        agents, stalls = StallTest().run_team({
+            'review': [prompt(300), tool(299, 'r1', command='hc send coord "please re-check"'), result(299, 'r1'), done(298)],
+            'coord': [prompt(60), done(59)],  # a later turn, started by someone else
+        })
+        self.assertEqual({a.name: a.waits_on for a in agents}['review'], [])
+        self.assertEqual(stalls, [])
+
+
+class NamesTest(unittest.TestCase):
+    def test_unrelated_project_does_not_spoil_team_names(self):
+        from wakegraph.adapters import _strip_common_prefix
+        home = __import__('re').sub(r'[^A-Za-z0-9]', '-', os.path.expanduser('~'))
+        names = [f'{home}-Developer-Team-coord', f'{home}-Developer-Team-Alpha', f'{home}-Developer-agent-wakegraph',
+                 f'{home}--codex-worktrees-x-Site']
+        self.assertEqual(sorted(_strip_common_prefix(names).values()),
+                         ['Alpha', 'agent-wakegraph', 'coord', 'x-Site'])
