@@ -1,0 +1,119 @@
+"""The Terminals view: one pane per Assieme agent, with its state, the needs-you strip, and the buttons that act.
+
+Panes are built from `hc`'s terminal rows (hook status, folder, program), the log agents `status.collect` finds,
+matched by worktree folder, the same suggestions as the command-line live view (`live.suggest`), the menu on the
+agent's screen, and suggested answers to a plain-word question (`answers.Answers`).
+"""
+import hashlib
+import os
+
+from . import live, prompts, status, team
+
+URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
+ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
+CHANGED = 'This question changed. Take a look.'
+
+
+def _real(path):
+    return os.path.realpath(path) if path else None
+
+
+def match(rows, agents):
+    """Terminal address -> the most recent log agent working in that terminal's folder."""
+    out = {}
+    for r in rows:
+        here = [a for a in agents if a.cwd and _real(a.cwd) == _real(r.get('cwd'))]
+        if here:
+            out[r['address']] = max(here, key=lambda a: a.last.timestamp() if a.last else 0)
+    return out
+
+
+def _id(*parts):
+    return hashlib.sha1(repr(parts).encode()).hexdigest()[:10]
+
+
+def _state(r, a, waiting_roots):
+    hook = (r.get('status') or {}).get('state')
+    if r.get('state') == 'finished':
+        return 'exited'
+    if hook == 'blocked' or (a and a.state == 'waiting on you'):
+        return 'asking'
+    if a and a.state == 'stuck':
+        return 'stuck'
+    if a and (a.state == 'idle, work waiting' or a.name in waiting_roots):
+        return 'waiting'
+    if hook == 'working' or (a and a.state == 'working'):
+        return 'working'
+    return 'idle'
+
+
+def _since(r, a, state, now):
+    when = None
+    if a:
+        when = (a.ask_since if state == 'asking' else None) or a.last
+    if when:
+        return max(0, int((now - when).total_seconds()))
+    if r.get('status_ms'):
+        return max(0, int(now.timestamp() - r['status_ms'] / 1000))
+    return None
+
+
+def _cap(text):
+    return text[:1].upper() + text[1:] if text else text
+
+
+def _button(role, kind, label, send):
+    return {'id': _id(role, kind, label, send), 'label': label, 'kind': kind, 'send': send}
+
+
+def _fix(role, buttons, text):
+    return {'id': _id(role, text, tuple(b['id'] for b in buttons)), 'text': text, 'buttons': buttons}
+
+
+def view(team_name, rows, agents, now, read, answers):
+    rows = sorted(rows, key=lambda r: r.get('created_ms') or 0)
+    matched = match(rows, agents)
+    addr = {a.name: t for t, a in matched.items()}
+    stalls = status.stalls(agents, now)
+    queue = status.owner_queue(agents, now)
+    roots = {root['agent'] for st in stalls for root in st.get('roots', []) if root.get('waiting')}
+    holds = {q['agent']: q['blocks'] for q in queue}
+    suggestions = [s for s in live.suggest(agents, stalls, addr, queue, now=now) if s.action in ACTIONS]
+    out, strip = [], []
+    for r in rows:
+        role = (r.get('labels') or {}).get(team.ROLE) or r['address']
+        a = matched.get(r['address'])
+        state = _state(r, a, roots)
+        argv0 = os.path.basename((r.get('argv') or [''])[0])
+        p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
+             'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None}
+        if state == 'exited':
+            lines = [x.strip() for x in (read(r['address']) or '').splitlines() if x.strip()]
+            p['detail'] = lines[-1] if lines else ''
+        elif state == 'asking':
+            screen = read(r['address']) or ''
+            menu, q = prompts.menu(screen), None
+            buttons = [_button(role, 'menu', label, str(n)) for n, label in menu]
+            if not menu:
+                q = prompts.question(screen)
+                got = answers.get(f'{team_name}/{role}/{_id(q)}', q, r.get('cwd')) if q else None
+                buttons = [_button(role, 'answer', x, x) for x in got or []]
+            buttons.append(_button(role, 'reply', 'Reply', None))
+            blocks = holds.get(a.name, []) if a else []
+            p['detail'] = f'Holding up {len(blocks)} agent{"s" * (len(blocks) != 1)}' if blocks else 'Waiting for you'
+            p['fix'] = _fix(role, buttons, q or (a.ask_kind if a and a.ask_kind else 'Waiting for you'))
+            strip.append({'role': role, 'text': f'{role} is asking: {q or (a and a.ask_kind) or "an answer"}'})
+        else:
+            s = next((s for s in suggestions if a and s.agent == a.name), None)
+            if state in ('stuck', 'waiting'):
+                p['detail'] = _cap(a.detail if a and a.detail else (s.text if s else ''))
+                verb = 'seems stuck' if state == 'stuck' else 'has work waiting'
+                strip.append({'role': role, 'text': f'{role} {verb}' + (f': {a.detail}' if a and a.detail else '')})
+            if s:
+                label = {'nudge': 'Ask it to try another way' if state == 'stuck' else 'Nudge',
+                         'compact': 'Compact', 'tell': 'Tell it to stop retrying'}[s.action]
+                p['detail'] = p['detail'] or _cap(s.text)
+                p['fix'] = _fix(role, [_button(role, 'action', label, s.message)], s.text)
+        out.append(p)
+    strip.sort(key=lambda x: URGENT.index(next(p['state'] for p in out if p['role'] == x['role'])))
+    return {'team': team_name, 'panes': out, 'strip': strip}

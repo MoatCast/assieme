@@ -1,0 +1,133 @@
+"""Terminals panes: each Assieme agent's state, the needs-you strip, fixes, menus and suggested answers."""
+import datetime as dt
+import os
+import unittest
+
+from assieme import panes, team
+from assieme.status import Agent
+
+NOW = dt.datetime(2026, 11, 7, 12, 0, tzinfo=dt.timezone.utc)
+MS = int(NOW.timestamp() * 1000)
+WT = '/p/.assieme/worktrees'
+
+
+def fixture(name):
+    with open(os.path.join(os.path.dirname(__file__), 'fixtures', 'screens', name)) as f:
+        return f.read()
+
+
+def row(role, status='idle', state='live', agent='claude', created=0, status_ago_s=30):
+    return {'address': f't-{role}', 'state': state, 'status': {'state': status}, 'status_ms': MS - status_ago_s * 1000,
+            'cwd': f'{WT}/{role}', 'argv': [agent, '--settings', '{}'], 'created_ms': created,
+            'labels': {team.TEAM: 'shop', team.ROLE: role}}
+
+
+def log_agent(name, role, state='idle', last_ago_s=10, **kw):
+    a = Agent(name, 'claude-code', f'/logs/{name}.jsonl')
+    a.cwd, a.state, a.last = f'{WT}/{role}', state, NOW - dt.timedelta(seconds=last_ago_s)
+    for k, v in kw.items():
+        setattr(a, k, v)
+    return a
+
+
+class FakeAnswers:
+    def __init__(self, result=None):
+        self.result, self.asked = result, []
+
+    def get(self, key, question, cwd):
+        self.asked.append((key, question, cwd))
+        return self.result
+
+
+QUESTION = '⏺ Split into parts.\n\n  Before part 4: behind a flag,\n  or straight to main?\n\n───\n❯ \n───\n'
+
+
+def view(rows, agents=(), screens=None, answers=None):
+    screens = screens or {}
+    return panes.view('shop', rows, list(agents), NOW, lambda a: screens.get(a, '⏺ ok\n'), answers or FakeAnswers())
+
+
+def pane(v, role):
+    return next(p for p in v['panes'] if p['role'] == role)
+
+
+class MatchTest(unittest.TestCase):
+    def test_match_by_worktree(self):
+        a = log_agent('x', 'builder')
+        self.assertEqual(panes.match([row('builder'), row('reviewer')], [a]), {'t-builder': a})
+
+    def test_match_prefers_most_recent(self):
+        old, new = log_agent('old', 'builder', last_ago_s=900), log_agent('new', 'builder', last_ago_s=5)
+        self.assertIs(panes.match([row('builder')], [old, new])['t-builder'], new)
+
+
+class ViewTest(unittest.TestCase):
+    def test_states(self):
+        rows = [row('a', 'blocked', created=1), row('b', created=2), row('c', created=3), row('d', 'working', created=4),
+                row('e', created=5), row('f', state='finished', created=6)]
+        agents = [log_agent('B', 'b', 'stuck', detail='same failure 4 times'), log_agent('C', 'c', 'idle, work waiting')]
+        v = view(rows, agents)
+        self.assertEqual([(p['role'], p['state'], p['live']) for p in v['panes']],
+                         [('a', 'asking', True), ('b', 'stuck', True), ('c', 'waiting', True), ('d', 'working', True),
+                          ('e', 'idle', True), ('f', 'exited', False)])
+        self.assertEqual(pane(v, 'a')['agent'], 'claude')
+
+    def test_log_waiting_on_you_is_asking(self):
+        v = view([row('a')], [log_agent('A', 'a', 'waiting on you', ask_since=NOW - dt.timedelta(minutes=12))])
+        self.assertEqual((pane(v, 'a')['state'], pane(v, 'a')['since_s']), ('asking', 720))
+
+    def test_strip_order(self):
+        rows = [row('w', created=1), row('s', created=2), row('q', 'blocked', created=3)]
+        agents = [log_agent('W', 'w', 'idle, work waiting'), log_agent('S', 's', 'stuck', detail='loops')]
+        v = view(rows, agents, screens={'t-q': QUESTION})
+        self.assertEqual([s['role'] for s in v['strip']], ['q', 's', 'w'])
+        self.assertEqual(v['strip'][0]['text'], 'q is asking: Before part 4: behind a flag, or straight to main?')
+
+    def test_menu_buttons(self):
+        v = view([row('a', 'blocked')], screens={'t-a': fixture('claude_permission.txt')})
+        b = pane(v, 'a')['fix']['buttons']
+        self.assertEqual([(x['kind'], x['send']) for x in b], [('menu', '1'), ('menu', '2'), ('menu', '3'), ('reply', None)])
+        self.assertEqual(b[0]['label'], 'Yes')
+
+    def test_answers_pending_gives_reply_only(self):
+        ans = FakeAnswers(None)
+        v = view([row('a', 'blocked')], screens={'t-a': QUESTION}, answers=ans)
+        self.assertEqual([x['kind'] for x in pane(v, 'a')['fix']['buttons']], ['reply'])
+        key, question, cwd = ans.asked[0]
+        self.assertEqual((question, cwd), ('Before part 4: behind a flag, or straight to main?', f'{WT}/a'))
+        self.assertTrue(key.startswith('shop/a/'))
+
+    def test_answer_buttons(self):
+        v = view([row('a', 'blocked')], screens={'t-a': QUESTION}, answers=FakeAnswers(['Behind a flag', 'To main']))
+        b = pane(v, 'a')['fix']['buttons']
+        self.assertEqual([(x['kind'], x['label'], x['send']) for x in b],
+                         [('answer', 'Behind a flag', 'Behind a flag'), ('answer', 'To main', 'To main'), ('reply', 'Reply', None)])
+
+    def test_actions_from_suggestions(self):
+        stuck = log_agent('S', 's', 'stuck', detail='same failure')
+        v = view([row('s')], [stuck])
+        b = pane(v, 's')['fix']['buttons']
+        self.assertEqual((b[0]['kind'], b[0]['label']), ('action', 'Ask it to try another way'))
+        self.assertTrue(b[0]['send'].startswith('assieme:'))
+        big = log_agent('B', 'b', 'idle', context=200_000)
+        big.peers = {log_agent('X', 'x')}
+        b = pane(view([row('b')], [big]), 'b')['fix']['buttons']
+        self.assertEqual((b[0]['label'], b[0]['send']), ('Compact', '/compact'))
+        refused = log_agent('R', 'r', 'working', refused=[(NOW, 'git push', 'deny rule', '')] * 2)
+        b = pane(view([row('r', 'working')], [refused]), 'r')['fix']['buttons']
+        self.assertEqual(b[0]['label'], 'Tell it to stop retrying')
+
+    def test_exited_pane(self):
+        p = pane(view([row('a', state='finished')], screens={'t-a': 'work\nError: boom\n\n'}), 'a')
+        self.assertEqual((p['fix'], p['detail']), (None, 'Error: boom'))
+
+    def test_ids_stable(self):
+        s = {'t-a': fixture('claude_permission.txt')}
+        f1, f2 = pane(view([row('a', 'blocked')], screens=s), 'a')['fix'], pane(view([row('a', 'blocked')], screens=s), 'a')['fix']
+        self.assertEqual(f1, f2)
+        f3 = pane(view([row('a', 'blocked')], screens={'t-a': fixture('claude_question.txt')}), 'a')['fix']
+        self.assertNotEqual(f1['id'], f3['id'])
+
+    def test_unmatched_role_still_has_pane(self):
+        p = pane(view([row('a', 'working', status_ago_s=90)]), 'a')
+        self.assertEqual((p['state'], p['since_s'], p['fix']), ('working', 90, None))
