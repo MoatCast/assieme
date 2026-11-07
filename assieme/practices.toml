@@ -1,0 +1,71 @@
+# The built-in team practices (ROADMAP "Built-in team practices"). One list feeds New team's Recommended setup
+# and the rules added to every agent's brief. A group is on unless a team sets it to false in [practices].
+version = 1
+
+[[group]]
+id = "messages"
+title = "Fewer, cheaper messages"
+summary = "Short notes, long briefs saved as files, a fresh start between tasks."
+rules = [
+  "End every report with one line: done, blocked, or needs a decision.",
+  "Put anything longer than a few lines in a file and send a short note that says \"Read <file> and do it\".",
+  "Treat each task as a fresh start: never rely on an earlier conversation; every brief you write must stand on its own.",
+]
+
+[[group]]
+id = "safety"
+title = "Safe by default"
+summary = "One command at a time, no pushes or downloads, rules that match the program run."
+rules = [
+  "Run one action per shell command. If a command is refused, report it; never retry it in another form.",
+  "Never push, tag, change repository settings, add dependencies, download files, or open the keychain or secret folders.",
+  "A rule about a program is about running it, not mentioning it: you may discuss git push, never run it.",
+]
+
+[[group]]
+id = "reviews"
+title = "Careful reviews"
+summary = "Fresh read-only reviewers, a fixed handoff, tests never weakened to pass."
+rules = [
+  "Reviewers read and never edit; a review's first line is the verdict.",
+  "Never weaken a test or a threshold to make it pass.",
+  "Hand off with: the commit, the commands run with their results, the tests with their counts, and open issues.",
+]
+
+[[group]]
+id = "stopping"
+title = "Know when to stop"
+summary = "Two fix attempts, clear stop rules."
+rules = [
+  "Try at most 2 repairs for a failing check, writing down the cause before each rerun; then stop and report.",
+  "Stop and report when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict.",
+]
+
+[[group]]
+id = "machine"
+title = "Easy on your Mac"
+summary = "Leave 2 cores free, offline installs, only the relevant tests until the end."
+rules = [
+  "Leave 2 CPU cores free when running tests, and install from the lockfile without going online.",
+  "While iterating, run only the relevant tests; run the full set once, on the final version, as the evidence.",
+]
+
+[[basic]]
+title = "Each builder has its own branch"
+detail = "Every builder works in its own git worktree and branch, so no two agents edit the same files."
+
+[[basic]]
+title = "Reviewers and planners only read"
+detail = "Read-only roles start without edit tools (Claude Code) or in the read-only sandbox (Codex)."
+
+[[basic]]
+title = "No message before an agent is ready"
+detail = "An agent gets its brief only after it reports its first status, so nothing is lost while it starts."
+
+[[basic]]
+title = "Trust is yours to give"
+detail = "Assieme answers an agent's \"trust this folder\" prompt only after you agree, never by guessing."
+
+[[basic]]
+title = "A clean start"
+detail = "Agents start without settings leaked from the shell or another agent session."

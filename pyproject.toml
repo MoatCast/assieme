@@ -17,5 +17,8 @@ assieme = "assieme.cli:main"
 [tool.setuptools]
 packages = ["assieme"]
 
+[tool.setuptools.package-data]
+assieme = ["practices.toml", "presets/*/*", "presets/briefs/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

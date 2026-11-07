@@ -4,6 +4,7 @@ import tomllib
 from dataclasses import dataclass, field
 
 AGENTS = ('claude', 'codex')
+PRACTICES = os.path.join(os.path.dirname(__file__), 'practices.toml')
 CHECKOUTS = ('branch', 'read-only')
 
 
@@ -20,6 +21,7 @@ class Role:
     model: str | None = None
     checkout: str = 'branch'
     parent: str | None = None
+    job: str = ''
 
 
 @dataclass
@@ -57,7 +59,22 @@ def _parents_first(roles):
     return out
 
 
-def load(folder):
+def practices(path=PRACTICES):
+    with open(path, 'rb') as f:
+        data = tomllib.load(f)
+    return {'groups': data.get('group', []), 'basics': data.get('basic', [])}
+
+
+def _groups():  # `load`'s `practices` argument hides the function inside it
+    return practices()['groups']
+
+
+def _practice_rules(chosen):
+    lines = [f'- {rule}' for g in _groups() if chosen.get(g['id'], True) is not False for rule in g['rules']]
+    return '\n\n## Team practices\n\n' + '\n'.join(lines) + '\n' if lines else ''
+
+
+def load(folder, practices=True):
     path = os.path.join(folder, 'team.toml')
     try:
         with open(path, 'rb') as f:
@@ -90,10 +107,18 @@ def load(folder):
                 brief = _body(f.read())
         except FileNotFoundError:
             raise PresetError(f'role {r!r}: brief file not found: {brief_path}') from None
-        roles.append(Role(r, agent, brief_path, brief, raw.get('model'), checkout, raw.get('parent')))
+        roles.append(Role(r, agent, brief_path, brief, raw.get('model'), checkout, raw.get('parent'), raw.get('job', '')))
     if not roles:
         raise PresetError(f'{path}: the team has no roles ([[role]] tables)')
     for r in roles:
         if r.parent and r.parent not in names:
             raise PresetError(f'role {r.name!r}: parent {r.parent!r} is not a role in this team')
-    return Team(name, project, dict(data.get('practices', {})), _parents_first(roles))
+    chosen = dict(data.get('practices', {}))
+    unknown = set(chosen) - {g['id'] for g in _groups()}
+    if unknown:
+        raise PresetError(f'{path}: unknown practice {", ".join(sorted(unknown))}')
+    if practices:
+        extra = _practice_rules(chosen)
+        for r in roles:
+            r.brief = r.brief.rstrip('\n') + extra
+    return Team(name, project, chosen, _parents_first(roles))

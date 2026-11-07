@@ -26,7 +26,7 @@ checkout = "read-only"
 BRIEF = '---\ndescription: x\n---\n{body}\n'
 
 
-class PresetTest(unittest.TestCase):
+class _Folder(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp()
 
@@ -40,6 +40,8 @@ class PresetTest(unittest.TestCase):
             with open(os.path.join(self.d, b), 'w') as f:
                 f.write(BRIEF.format(body=f'You are the {b[:-3]}.'))
 
+
+class PresetTest(_Folder):
     def test_loads_example_team(self):
         self.write(TEAM.format(project=self.d))
         t = preset.load(self.d)
@@ -51,7 +53,7 @@ class PresetTest(unittest.TestCase):
         self.assertEqual(t.roles[0].checkout, 'read-only')
         self.assertEqual(t.roles[0].model, 'opus')
         self.assertIsNone(t.roles[1].model)
-        self.assertEqual(t.roles[0].brief.strip(), 'You are the coordinator.')
+        self.assertTrue(t.roles[0].brief.startswith('You are the coordinator.'))
 
     def test_project_tilde_and_relative(self):
         self.write(TEAM.format(project='~/x'))
@@ -86,4 +88,43 @@ class PresetTest(unittest.TestCase):
 
     def test_missing_team_toml(self):
         with self.assertRaisesRegex(preset.PresetError, 'team.toml'):
+            preset.load(self.d)
+
+
+class PracticesTest(_Folder):
+    def test_job_read(self):
+        self.write(TEAM.format(project=self.d).replace('agent = "codex"', 'agent = "codex"\njob = "Writes the code"'))
+        roles = {r.name: r for r in preset.load(self.d).roles}
+        self.assertEqual(roles['builder-1'].job, 'Writes the code')
+        self.assertEqual(roles['coordinator'].job, '')
+
+    def test_practices_on_by_default(self):
+        self.write(TEAM.format(project=self.d))
+        tm = preset.load(self.d)
+        for g in preset.practices()['groups']:
+            self.assertIn(g['rules'][0], tm.roles[0].brief)
+        self.assertIn('Team practices', tm.roles[0].brief)
+
+    def test_practice_off(self):
+        self.write(TEAM.format(project=self.d) + '\n[practices]\nreviews = false\n')
+        tm = preset.load(self.d)
+        groups = {g['id']: g for g in preset.practices()['groups']}
+        for r in tm.roles:
+            for rule in groups['reviews']['rules']:
+                self.assertNotIn(rule, r.brief)
+            self.assertIn(groups['safety']['rules'][0], r.brief)
+
+    def test_load_without_practices(self):
+        self.write(TEAM.format(project=self.d))
+        self.assertNotIn('Team practices', preset.load(self.d, practices=False).roles[0].brief)
+
+    def test_practices_list_shape(self):
+        p = preset.practices()
+        self.assertEqual([g['id'] for g in p['groups']], ['messages', 'safety', 'reviews', 'stopping', 'machine'])
+        self.assertTrue(all(g['title'] and g['summary'] and g['rules'] for g in p['groups']))
+        self.assertTrue(p['basics'])
+
+    def test_unknown_practice_id_rejected(self):
+        self.write(TEAM.format(project=self.d) + '\n[practices]\ntypo = false\n')
+        with self.assertRaisesRegex(preset.PresetError, 'typo'):
             preset.load(self.d)
