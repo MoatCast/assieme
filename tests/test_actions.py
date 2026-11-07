@@ -108,3 +108,31 @@ class CodexContextTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CodexCompactTest(unittest.TestCase):
+    def rows(self, extra):
+        return [{'timestamp': ago(30), 'type': 'session_meta', 'payload': {'id': 'B', 'cwd': '/w/b3', 'source': 'cli'}},
+                {'timestamp': ago(30), 'type': 'event_msg', 'payload': {'type': 'task_started'}},
+                {'timestamp': ago(29), 'type': 'event_msg', 'payload': {'type': 'token_count', 'info': {
+                    'last_token_usage': {'input_tokens': 221_000}}}},
+                {'timestamp': ago(29), 'type': 'event_msg', 'payload': {'type': 'task_complete'}},
+                {'timestamp': ago(20), 'type': 'event_msg', 'payload': {'type': 'task_started'}}] + extra
+
+    def collect(self, extra, herdr=None):
+        with tempfile.TemporaryDirectory() as root:
+            write(os.path.join(root, 'codex', 'rollout-b.jsonl'), self.rows(extra))
+            [a] = status.collect(os.path.join(root, 'none'), os.path.join(root, 'codex'), NOW, herdr=herdr)
+        return a
+
+    def test_open_turn_alone_looks_stuck(self):
+        self.assertEqual(self.collect([]).state, 'stuck')
+
+    def test_herdr_done_wins_over_an_open_turn(self):
+        a = self.collect([], herdr=[{'address': 't5', 'cwd': '/w/b3', 'state': 'live', 'status': {'state': 'done'}}])
+        self.assertEqual((a.state, a.herdr, a.detail), ('idle', 'done', 'herdr: done'))
+
+    def test_compacted_row_resets_context(self):
+        a = self.collect([{'type': 'compacted', 'payload': {'message': 'summary'}},
+                          {'timestamp': ago(19), 'type': 'event_msg', 'payload': {'type': 'task_complete'}}])
+        self.assertEqual((a.state, a.context), ('idle', 0))

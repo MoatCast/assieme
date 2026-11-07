@@ -169,6 +169,9 @@ def _note_wake(agent, ts, text):
 def _codex(agent, rows, show_text):
     for o in rows:
         p = o.get('payload') or {}
+        if o.get('type') == 'compacted':  # history was summarised: the old context size no longer applies
+            agent.context = 0
+            continue
         if o.get('type') == 'session_meta':
             agent.thread = p.get('id')
             src = p.get('source') if isinstance(p.get('source'), dict) else {}
@@ -374,6 +377,9 @@ def _apply_herdr(agents, terminals):
             continue
         st = t.get('status') if isinstance(t.get('status'), dict) else {}
         a.herdr = st.get('state') or 'unreported'  # the agent never sent herdr its status
+        if a.herdr in ('idle', 'done') and a.state in ('working', 'stuck') and not a.pending:
+            # the agent itself told herdr it finished; Codex can leave a turn open in its log (seen after /compact)
+            a.state, a.detail = 'idle', 'herdr: done'
         if a.herdr == 'blocked' and a.state in ('working', 'stuck', 'idle'):
             a.state, a.detail = 'waiting on you', f"herdr: {st.get('kind') or 'prompt'}"
             a.ask_kind = {'permission': 'a permission prompt', 'question': 'a question', 'auth': 'a sign-in'}.get(
