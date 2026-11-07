@@ -1,6 +1,7 @@
 // The only module that talks to Tauri. Screens import this; switching to another shell rewrites only this file
 // and the native bridge behind it.
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export type Agent = {
   agent: string;
@@ -30,7 +31,33 @@ export type Snapshot = {
   queue: unknown[];
   stalls: unknown[];
   teams: TeamRow[];
+  starting: Starting[];
 };
+
+export type AgentKind = "claude" | "codex";
+
+/** One agent in the New team form, in the brain's shape. */
+export type RoleDraft = {
+  name: string;
+  agent: AgentKind;
+  job: string;
+  checkout: "branch" | "read-only";
+  parent: string | null;
+  brief: string;
+};
+
+export type Preset = { id: string; label: string; roles: RoleDraft[] };
+export type PracticeGroup = { id: string; title: string; summary: string; rules: string[] };
+export type Practices = { groups: PracticeGroup[]; basics: { title: string; detail: string }[] };
+export type Starting = {
+  team: string;
+  project: string;
+  done: boolean;
+  error: string | null;
+  roles: { role: string; state: string; detail: string }[];
+};
+export type TeamForm = { project: string; task: string; roles: RoleDraft[]; practices: Record<string, boolean> };
+export type Suggestion = { roles: RoleDraft[]; why: string };
 
 export type TerminalHandle = {
   input(text: string): Promise<unknown>;
@@ -38,7 +65,30 @@ export type TerminalHandle = {
   close(): Promise<unknown>;
 };
 
-export const snapshot = () => invoke<Snapshot>("brain_call", { method: "brain.snapshot", params: {} });
+const brain = <T>(method: string, params: object = {}) => invoke<T>("brain_call", { method, params });
+
+export const snapshot = () => brain<Snapshot>("brain.snapshot");
+export const checkProject = (path: string) => brain<{ ok: boolean; reason?: string }>("project.check", { path });
+export const teamPresets = () =>
+  brain<{ presets: Preset[]; practices: Practices; last: Preset | null }>("team.presets");
+export const startTeam = (form: TeamForm) => brain<{ team: string }>("team.start", form);
+/** Help me choose runs the person's own agent, so it may take minutes. */
+export const suggestTeam = (a: { project: string; size: string; review: string; budget: string }) =>
+  invoke<Suggestion>("brain_call", { method: "team.suggest", params: a, timeoutS: 180 });
+
+export async function pickFolder(): Promise<string | null> {
+  const p = await open({ directory: true, multiple: false });
+  return typeof p === "string" ? p : null;
+}
+
+const FIELD = /^(project|roles|role:\d+|start|suggest): ([\s\S]*)$/;
+
+/** The brain's New team errors read "<field>: <message>"; anything else belongs above the Start button. */
+export function fieldOf(error: unknown): { field: string; message: string } {
+  const text = error instanceof Error ? error.message : String(error);
+  const m = FIELD.exec(text);
+  return m ? { field: m[1], message: m[2] } : { field: "start", message: text };
+}
 
 /** Attach to a terminal in the `assieme` session; other sessions are read-only (`readTerminal`). */
 export async function openTerminal(

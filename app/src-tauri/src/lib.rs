@@ -17,10 +17,16 @@ struct Streams {
     open: Mutex<HashMap<u32, Stream>>,
 }
 
+/// How long a brain call may take: 20 s, unless the page asks for longer (Help me choose waits for an agent).
+fn timeout_for(timeout_s: Option<u64>) -> std::time::Duration {
+    std::time::Duration::from_secs(timeout_s.unwrap_or(20))
+}
+
 #[tauri::command]
-async fn brain_call(method: String, params: Value) -> Result<Value, String> {
+async fn brain_call(method: String, params: Value, timeout_s: Option<u64>) -> Result<Value, String> {
     // Socket I/O blocks: keep it off the async workers so a slow brain can't stall terminal commands.
-    tauri::async_runtime::spawn_blocking(move || bridge::call_at(&bridge::brain_socket(), &method, params))
+    let timeout = timeout_for(timeout_s);
+    tauri::async_runtime::spawn_blocking(move || bridge::call_at_with(&bridge::brain_socket(), &method, params, timeout))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -101,6 +107,7 @@ async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Streams::default())
         .invoke_handler(tauri::generate_handler![
             brain_call,
@@ -114,4 +121,16 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::timeout_for;
+    use std::time::Duration;
+
+    #[test]
+    fn brain_calls_wait_20s_unless_told() {
+        assert_eq!(timeout_for(None), Duration::from_secs(20));
+        assert_eq!(timeout_for(Some(180)), Duration::from_secs(180));
+    }
 }

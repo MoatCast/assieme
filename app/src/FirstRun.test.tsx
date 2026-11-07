@@ -26,6 +26,7 @@ const SNAP: Snapshot = {
   ],
   alerts: [], queue: [], stalls: [],
   teams: [{ team: "demo", role: "coordinator", address: "t3", state: "live", status: "idle", briefed: true }],
+  starting: [],
 };
 
 const flush = () => act(async () => {});
