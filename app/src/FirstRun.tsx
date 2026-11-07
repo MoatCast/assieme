@@ -69,8 +69,11 @@ export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
     { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected, so fixes can be sent" },
   ];
 
-  // A team shows here while it starts, or when its start failed; once started it shows in the live list.
-  const starting = (snap?.starting ?? []).filter((t) => !t.done || t.error);
+  // A team shows here while it starts, if its start failed, or while an agent needs you or didn't come up.
+  const settled = ["running", "already-running"];
+  const starting = (snap?.starting ?? []).filter(
+    (t) => !t.done || t.error || t.roles.some((r) => !settled.includes(r.state)),
+  );
 
   return (
     <div className="first-run">

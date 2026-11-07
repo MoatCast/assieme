@@ -226,3 +226,30 @@ test("errors go back to their field; success closes", async () => {
   fireEvent.click(screen.getByText("Back"));
   expect(screen.getByText("New team")).toBeTruthy();
 });
+
+test("renaming an agent keeps the agents that report to it", async () => {
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await toSetup();
+  fireEvent.click(screen.getByText("Back"));
+  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
+  fireEvent.click(screen.getByText("Next"));
+  fireEvent.click(screen.getByText("Start 2 agents"));
+  await flush();
+  const sent = b.startTeam.mock.calls[0][0].roles;
+  expect(sent.map((x: RoleDraft) => [x.name, x.parent])).toEqual([["lead", null], ["reviewer", "lead"]]);
+});
+
+test("a cancelled suggestion never replaces the agents", async () => {
+  let answer: (v: unknown) => void = () => {};
+  b.suggestTeam.mockReturnValue(new Promise((res) => (answer = res)));
+  await open();
+  await fillProjectAndTask();
+  fireEvent.click(screen.getByText("Help me choose"));
+  fireEvent.click(screen.getByText("Suggest a team"));
+  fireEvent.click(screen.getByText("Cancel", { selector: ".sheet button" }));
+  fireEvent.click(screen.getByText("Builder + reviewer"));
+  answer({ roles: [r("solo")], why: "late" });
+  await flush();
+  expect(names()).toEqual(["builder", "reviewer"]);
+  expect(screen.queryByText("late")).toBeNull();
+});

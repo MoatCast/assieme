@@ -51,7 +51,7 @@ test("suggestTeam waits up to 3 minutes; other calls keep the default", async ()
   expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "team.suggest", params: a, timeoutS: 180 });
   const form = { project: "/p", task: "t", roles: [], practices: {} };
   await bridge.startTeam(form);
-  expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "team.start", params: form });
+  expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "team.start", params: form, timeoutS: 120 });
   await bridge.checkProject("/p");
   expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "project.check", params: { path: "/p" } });
   await bridge.teamPresets();

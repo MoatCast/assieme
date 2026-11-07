@@ -71,7 +71,9 @@ export const snapshot = () => brain<Snapshot>("brain.snapshot");
 export const checkProject = (path: string) => brain<{ ok: boolean; reason?: string }>("project.check", { path });
 export const teamPresets = () =>
   brain<{ presets: Preset[]; practices: Practices; last: Preset | null }>("team.presets");
-export const startTeam = (form: TeamForm) => brain<{ team: string }>("team.start", form);
+/** Start creates a git worktree per agent before it answers, which can take a while on a large repository. */
+export const startTeam = (form: TeamForm) =>
+  invoke<{ team: string }>("brain_call", { method: "team.start", params: form, timeoutS: 120 });
 /** Help me choose runs the person's own agent, so it may take minutes. */
 export const suggestTeam = (a: { project: string; size: string; review: string; budget: string }) =>
   invoke<Suggestion>("brain_call", { method: "team.suggest", params: a, timeoutS: 180 });

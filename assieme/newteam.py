@@ -112,7 +112,7 @@ def save(project, roles, practices, name, teams):
     if os.path.isdir(folder):
         shutil.rmtree(folder)
     os.makedirs(folder)
-    q = json.dumps
+    q = lambda v: json.dumps(v, ensure_ascii=False)  # ASCII escapes would split emoji into surrogates TOML rejects
     out = [f'name = {q(name)}', f'project = {q(os.path.abspath(project))}', '']
     if practices:
         out += ['[practices]'] + [f'{k} = {"true" if v else "false"}' for k, v in practices.items()] + ['']
@@ -135,7 +135,7 @@ class Starter:
 
     def __init__(self, rt, teams, thread=threading.Thread, now=time.time, which=shutil.which):
         self.rt, self.teams, self.thread, self.now, self.which = rt, teams, thread, now, which
-        self.lock, self.recs = threading.Lock(), []
+        self.lock, self.recs, self.busy = threading.Lock(), [], {}  # busy: project → name, while checks run
 
     def _live_names(self):
         try:
@@ -143,16 +143,29 @@ class Starter:
         except runtime.RuntimeError_:
             return set()  # the assieme core isn't running yet: no live teams
 
+    def _project_of(self, name):
+        try:
+            with open(os.path.join(self.teams, name, 'team.toml'), 'rb') as f:
+                return tomllib.load(f).get('project')
+        except (OSError, tomllib.TOMLDecodeError):
+            return None  # started from the command line, or the folder is gone
+
     def start(self, project, task, roles, practices):
         validate(roles)
         check = project_check(project)
         if not check['ok']:
             raise NewTeamError('project', check['reason'])
         project = os.path.abspath(project)
-        with self.lock:
-            if any(r['project'] == project and not r['done'] for r in self.recs):
+        live = self._live_names()
+        with self.lock:  # held only for bookkeeping: git work below must not block records()
+            if project in self.busy or any(r['project'] == project and not r['done'] for r in self.recs):
                 raise NewTeamError('start', 'This team is still starting.')
-            name = team_name(project, self._live_names())
+            running = sorted(n for n in live if self._project_of(n) == project)
+            if running:  # a second team here would share the first team's worktrees
+                raise NewTeamError('project', f'This project already has a running team: {running[0]}. Stop it first.')
+            taken = live | set(self.busy.values()) | {r['team'] for r in self.recs if not r['done']}
+            name = self.busy[project] = team_name(project, taken)
+        try:
             folder = save(project, roles, practices, name, self.teams)
             try:
                 tm = preset.load(folder)
@@ -166,8 +179,14 @@ class Starter:
                     worktree.ensure(tm, r)
             except worktree.WorktreeError as e:
                 raise NewTeamError('start', str(e)) from None
-            rec = {'team': name, 'project': project, 'done': False, 'error': None, 'done_at': None,
-                   'roles': [{'role': r['name'], 'state': 'starting', 'detail': ''} for r in roles]}
+        except Exception:
+            with self.lock:
+                self.busy.pop(project, None)
+            raise
+        rec = {'team': name, 'project': project, 'done': False, 'error': None, 'done_at': None,
+               'roles': [{'role': r['name'], 'state': 'starting', 'detail': ''} for r in roles]}
+        with self.lock:
+            self.busy.pop(project, None)
             self.recs.append(rec)
         self.thread(target=lambda: self._run(rec, tm, task), daemon=True).start()
         return {'team': name}

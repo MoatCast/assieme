@@ -152,8 +152,23 @@ test("a start error shows on the team", async () => {
 });
 
 test("done teams without errors fall back to the live list", async () => {
-  snapshot.mockResolvedValue(STARTING({ done: true }));
+  snapshot.mockResolvedValue(STARTING({ done: true, roles: [
+    { role: "builder", state: "running", detail: "" },
+    { role: "reviewer", state: "already-running", detail: "" },
+  ] }));
   render(<FirstRun pollMs={5000} />);
   await flush();
   expect(screen.queryByTestId("starting-shop")).toBeNull();
+});
+
+test("a finished start keeps roles that need you or quit", async () => {
+  snapshot.mockResolvedValue(STARTING({ done: true, roles: [
+    { role: "builder", state: "running", detail: "" },
+    { role: "reviewer", state: "needs-you", detail: "codex wants you to review its hooks once: hc attach t2" },
+  ] }));
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  const card = screen.getByTestId("starting-shop");
+  expect(within(card).getByText("Running")).toBeTruthy();
+  expect(within(card).getByText(/review its hooks once/)).toBeTruthy();
 });

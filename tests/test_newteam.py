@@ -128,6 +128,11 @@ class CheckSaveTest(unittest.TestCase):
         self.assertTrue(tm.roles[0].brief.startswith(roles[0]['brief']))
         self.assertEqual(tm.practices, {'reviews': False})
 
+    def test_save_round_trips_emoji(self):
+        roles = [role(job='fix 🐛')]
+        tm = preset.load(newteam.save(self.repo, roles, {}, 'shop', self.teams))
+        self.assertEqual(tm.roles[0].job, 'fix 🐛')
+
     def test_save_replaces_old_folder(self):
         newteam.save(self.repo, [role('old')], {}, 'shop', self.teams)
         folder = newteam.save(self.repo, [role('new')], {}, 'shop', self.teams)
@@ -336,3 +341,32 @@ class SuggestTest(unittest.TestCase):
         prompt = kw['input']
         for words in ('a feature', 'every change', 'lean', 'planner', 'reviewer', 'JSON'):
             self.assertIn(words, prompt)
+
+
+class StarterSharingTest(StarterTest):
+    def test_second_team_on_same_project_refused(self):
+        s = self.starter()
+        s.start(self.repo, 't', ROLES, {})
+        self.manual.run_all()
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.starter(Rt(live=['repo'])).start(self.repo, 't', ROLES, {})
+        self.assertEqual((e.exception.field, e.exception.message),
+                         ('project', 'This project already has a running team: repo. Stop it first.'))
+
+    def test_same_name_while_starting_gets_suffix(self):
+        other = git_repo(os.path.join(self.d, 'b', 'repo'))
+        s = self.starter()
+        self.assertEqual(s.start(self.repo, 't', ROLES, {}), {'team': 'repo'})
+        self.assertEqual(s.start(other, 't', ROLES, {}), {'team': 'repo-2'})
+
+    def test_records_not_blocked_by_git_work(self):
+        s = self.starter()
+        seen = []
+        real = newteam.worktree.ensure
+
+        def slow(tm, r):
+            seen.append(s.lock.acquire(blocking=False) and (s.lock.release() or True))
+            return real(tm, r)
+        with mock.patch('assieme.newteam.worktree.ensure', side_effect=slow):
+            s.start(self.repo, 't', ROLES, {})
+        self.assertEqual(seen, [True, True])

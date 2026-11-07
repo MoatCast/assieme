@@ -62,7 +62,10 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
   };
 
   const edit = (i: number, change: Partial<RoleDraft>) => {
-    setRoles(roles.map((r, j) => (j === i ? { ...r, ...change } : r)));
+    const old = roles[i].name;
+    const renamed = change.name !== undefined && change.name !== old;
+    // Agents that report to a renamed one follow the new name: the form has no other way to fix their parent.
+    setRoles(roles.map((r, j) => (j === i ? { ...r, ...change } : renamed && r.parent === old ? { ...r, parent: change.name! } : r)));
     setEdited(true);
     setRoleErrors({});
   };

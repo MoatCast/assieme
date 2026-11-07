@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fieldOf, suggestTeam, type Suggestion } from "./bridge";
 
 type Q = { key: "size" | "review" | "budget"; label: string; options: [string, string][] };
@@ -18,16 +18,23 @@ export default function HelpMeChoose({ project, agent, onDone, onCancel }: {
   const [answers, setAnswers] = useState({ size: "feature", review: "every", budget: "lean" });
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState("");
+  const gone = useRef(false); // set on Cancel or close: a late answer must not replace the person's agents
+  useEffect(() => () => void (gone.current = true), []);
+  const cancel = () => {
+    gone.current = true;
+    onCancel();
+  };
 
   const ask = async () => {
     setAsking(true);
     setError("");
     try {
-      onDone(await suggestTeam({ project, ...answers }));
+      const s = await suggestTeam({ project, ...answers });
+      if (!gone.current) onDone(s);
     } catch (e) {
-      setError(fieldOf(e).message);
+      if (!gone.current) setError(fieldOf(e).message);
     } finally {
-      setAsking(false);
+      if (!gone.current) setAsking(false);
     }
   };
 
@@ -50,7 +57,7 @@ export default function HelpMeChoose({ project, agent, onDone, onCancel }: {
       {error && <p className="error">{error}</p>}
       <div className="actions">
         {asking && <span className="muted">Asking {agent}…</span>}
-        <button type="button" className="quiet" onClick={onCancel}>Cancel</button>
+        <button type="button" className="quiet" onClick={cancel}>Cancel</button>
         <button type="button" className="primary" disabled={asking} onClick={ask}>Suggest a team</button>
       </div>
     </div>
