@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import FirstRun from "./FirstRun";
+import Shell from "./Shell";
 import { serviceInstall, serviceRunning } from "./bridge";
 import "./tokens.css";
 
@@ -44,7 +44,7 @@ export default function App() {
           </div>
         </div>
       )}
-      <FirstRun pollMs={5000} />
+      <Shell />
     </>
   );
 }

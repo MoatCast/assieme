@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { snapshot, type Agent, type Snapshot } from "./bridge";
 import NewTeam from "./NewTeam";
 import Terminal from "./Terminal";
@@ -26,11 +26,14 @@ function Check({ ok }: { ok: boolean }) {
 }
 
 /** First run: the agents found on this Mac, grouped by project folder, and a live terminal for any of them. */
-export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
+/** onSnapshot: the shell reuses this poll for its team list (one snapshot poll for the whole app). */
+export default function FirstRun({ pollMs = 5000, onSnapshot }: { pollMs?: number; onSnapshot?: (s: Snapshot) => void }) {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
   const [creating, setCreating] = useState(false);
+  const report = useRef(onSnapshot);
+  report.current = onSnapshot;
 
   useEffect(() => {
     let stopped = false;
@@ -41,6 +44,7 @@ export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
         const s = await snapshot();
         if (!stopped) {
           setSnap(s);
+          report.current?.(s);
           setOffline(false);
         }
       } catch {

@@ -8,7 +8,7 @@ vi.mock("./bridge", () => ({
   serviceInstall: () => serviceInstall(),
   snapshot: () => new Promise(() => {}),
 }));
-vi.mock("./FirstRun", () => ({ default: () => <div>first run</div> }));
+vi.mock("./Shell", () => ({ default: () => <div>first run</div> }));
 
 import App from "./App";
 
