@@ -9,8 +9,8 @@ from assieme.preset import Role
 EVENTS = ['PermissionRequest', 'SessionStart', 'Stop', 'UserPromptSubmit']
 
 
-def role(agent, model=None, checkout='branch'):
-    return Role('builder-1', agent, 'b.md', 'SECRET BRIEF TEXT', model, checkout)
+def role(agent, model=None, checkout='branch', effort=None):
+    return Role('builder-1', agent, 'b.md', 'SECRET BRIEF TEXT', model, checkout, effort=effort)
 
 
 class LaunchTest(unittest.TestCase):
@@ -67,3 +67,31 @@ class LaunchTest(unittest.TestCase):
     def test_missing_clis(self):
         roles = [role('claude'), role('codex'), role('codex')]
         self.assertEqual(launch.missing_clis(roles, which=lambda c: None if c == 'codex' else '/bin/' + c), ['codex'])
+
+
+class ModelEffortTest(unittest.TestCase):
+    def test_claude_model_and_effort(self):
+        a = launch.argv(role('claude', model='opus', effort='high'))
+        self.assertEqual(a[a.index('--model') + 1], 'opus')
+        self.assertEqual(a[a.index('--effort') + 1], 'high')
+
+    def test_codex_model_and_effort(self):
+        a = launch.argv(role('codex', model='gpt-6-luna', effort='xhigh'))
+        self.assertEqual(a[a.index('-m') + 1], 'gpt-6-luna')
+        values = [a[i + 1] for i, x in enumerate(a) if x == '-c']
+        self.assertEqual(tomllib.loads(next(v for v in values if v.startswith('model_reasoning_effort'))),
+                         {'model_reasoning_effort': 'xhigh'})
+
+    def test_defaults_add_nothing(self):
+        self.assertNotIn('--effort', launch.argv(role('claude')))
+        self.assertFalse(any(x.startswith('model_reasoning_effort') for x in launch.argv(role('codex'))))
+        self.assertNotIn('-m', launch.argv(role('codex')))
+
+    def test_check_model_effort(self):
+        ok = launch.check_model_effort
+        self.assertIsNone(ok('claude', 'opus', 'max'))
+        self.assertIsNone(ok('codex', 'gpt-6.1-sol', 'ultra'))
+        self.assertIsNone(ok('claude', None, None))
+        self.assertEqual(ok('claude', None, 'ultra'), 'Claude Code has no thinking effort "ultra".')
+        self.assertEqual(ok('codex', 'gpt"; rm', None), 'Model names use letters, digits, dots and dashes.')
+        self.assertEqual(ok('claude', 'a b', None), 'Model names use letters, digits, dots and dashes.')

@@ -43,7 +43,7 @@ def kind_brief(kind):
 
 def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
-            'brief': r.brief}
+            'brief': r.brief, 'model': r.model, 'effort': r.effort}
 
 
 def _as_preset(folder, id_, label=None):
@@ -67,7 +67,35 @@ def presets(teams=None):
             break
         except (preset.PresetError, OSError):
             continue  # a half-written or hand-edited folder: try the next one
-    return {'presets': builtin, 'practices': preset.practices(), 'last': last}
+    return {'presets': builtin, 'practices': preset.practices(), 'last': last, 'models': model_options()}
+
+
+CLAUDE_MODELS = (('fable', 'Fable'), ('opus', 'Opus'), ('sonnet', 'Sonnet'))  # Claude Code's own aliases
+
+
+def _codex_cache():
+    return os.path.join(os.environ.get('CODEX_HOME') or os.path.expanduser('~/.codex'), 'models_cache.json')
+
+
+def model_options(codex_cache=None):
+    """The models and thinking efforts New team offers. Codex's come from the list Codex keeps on this Mac
+    (an internal file: if it's missing or changes shape, Codex agents get their default only)."""
+    claude = list(launch.EFFORTS['claude'])
+    codex = []
+    try:
+        with open(codex_cache or _codex_cache()) as f:
+            for m in json.load(f).get('models', []):
+                slug = m.get('slug') or ''
+                levels = [x.get('effort') for x in m.get('supported_reasoning_levels') or [] if isinstance(x, dict)]
+                if launch.MODEL.match(slug):
+                    codex.append({'id': slug, 'label': slug,
+                                  'efforts': [e for e in launch.EFFORTS['codex'] if e in levels]})
+    except (OSError, ValueError, AttributeError, TypeError):
+        codex = []
+    common = [e for e in launch.EFFORTS['codex'] if codex and all(e in m['efforts'] for m in codex)]
+    return {'claude': {'models': [{'id': i, 'label': n, 'efforts': claude} for i, n in CLAUDE_MODELS],
+                       'efforts': claude},
+            'codex': {'models': codex, 'efforts': common}}
 
 
 def project_check(path):
@@ -96,6 +124,9 @@ def validate(roles):
             raise NewTeamError(field, f"Reports to {r['parent']!r}, which isn't in this team.")
         if not (r.get('brief') or '').strip():
             raise NewTeamError(field, 'Every agent needs a brief.')
+        problem = launch.check_model_effort(r['agent'], r.get('model'), r.get('effort'))
+        if problem:
+            raise NewTeamError(field, problem)
 
 
 def team_name(project, taken):
@@ -119,8 +150,9 @@ def save(project, roles, practices, name, teams):
     for r in roles:
         out += ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
                 f'checkout = {q(r.get("checkout", "branch"))}']
-        if r.get('parent'):
-            out.append(f'parent = {q(r["parent"])}')
+        for key in ('parent', 'model', 'effort'):
+            if r.get(key):
+                out.append(f'{key} = {q(r[key])}')
         out.append('')
         with open(os.path.join(folder, f'{r["name"]}.md'), 'w') as f:
             f.write(r['brief'].rstrip('\n') + '\n')

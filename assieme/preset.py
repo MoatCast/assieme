@@ -1,6 +1,8 @@
 """Team presets: a folder with team.toml and one Markdown brief per role (briefs use hc's template format)."""
 import os
 import tomllib
+
+from . import launch
 from dataclasses import dataclass, field
 
 AGENTS = ('claude', 'codex')
@@ -22,6 +24,7 @@ class Role:
     checkout: str = 'branch'
     parent: str | None = None
     job: str = ''
+    effort: str | None = None
 
 
 @dataclass
@@ -107,7 +110,11 @@ def load(folder, practices=True):
                 brief = _body(f.read())
         except FileNotFoundError:
             raise PresetError(f'role {r!r}: brief file not found: {brief_path}') from None
-        roles.append(Role(r, agent, brief_path, brief, raw.get('model'), checkout, raw.get('parent'), raw.get('job', '')))
+        problem = launch.check_model_effort(agent, raw.get('model'), raw.get('effort'))
+        if problem:
+            raise PresetError(f'{path}: role {r!r}: {problem}')
+        roles.append(Role(r, agent, brief_path, brief, raw.get('model'), checkout, raw.get('parent'), raw.get('job', ''),
+                          raw.get('effort')))
     if not roles:
         raise PresetError(f'{path}: the team has no roles ([[role]] tables)')
     for r in roles:

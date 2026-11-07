@@ -45,7 +45,7 @@ class PresetsTest(unittest.TestCase):
         self.assertEqual([r['name'] for r in full],
                          ['planner', 'builder-1', 'builder-2', 'builder-3', 'reviewer', 'tester'])
         self.assertTrue(all(r['job'] and r['brief'] and 'Team practices' not in r['brief'] for r in full))
-        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief'})
+        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief', 'model', 'effort'})
         self.assertIsNone(full[0]['parent'])
         self.assertEqual(full[4]['checkout'], 'read-only')
         self.assertEqual([g['id'] for g in p['practices']['groups']][0], 'messages')
@@ -132,6 +132,16 @@ class CheckSaveTest(unittest.TestCase):
         roles = [role(job='fix 🐛')]
         tm = preset.load(newteam.save(self.repo, roles, {}, 'shop', self.teams))
         self.assertEqual(tm.roles[0].job, 'fix 🐛')
+
+    def test_save_round_trips_model_and_effort(self):
+        roles = [role(model='opus', effort='high'), role('other')]
+        tm = preset.load(newteam.save(self.repo, roles, {}, 'shop', self.teams))
+        self.assertEqual([(r.model, r.effort) for r in tm.roles], [('opus', 'high'), (None, None)])
+
+    def test_validate_model_and_effort(self):
+        self.assertField([role(model='a b')], 'role:0', 'Model names use letters, digits, dots and dashes.')
+        self.assertField([role(effort='ultra')], 'role:0', 'Claude Code has no thinking effort "ultra".')
+        newteam.validate([role(agent='codex', model='gpt-6.1-sol', effort='ultra')])
 
     def test_save_replaces_old_folder(self):
         newteam.save(self.repo, [role('old')], {}, 'shop', self.teams)
@@ -370,3 +380,39 @@ class StarterSharingTest(StarterTest):
         with mock.patch('assieme.newteam.worktree.ensure', side_effect=slow):
             s.start(self.repo, 't', ROLES, {})
         self.assertEqual(seen, [True, True])
+
+
+class ModelOptionsTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def test_claude_and_codex_options(self):
+        cache = os.path.join(self.d, 'models_cache.json')
+        with open(cache, 'w') as f:
+            json.dump({'models': [
+                {'slug': 'gpt-6.1-sol', 'supported_reasoning_levels': [{'effort': e} for e in ('low', 'medium', 'high', 'xhigh', 'max', 'ultra')]},
+                {'slug': 'gpt-6-luna', 'supported_reasoning_levels': [{'effort': e} for e in ('low', 'medium', 'high', 'xhigh', 'max')]},
+                {'slug': 'bad name!', 'supported_reasoning_levels': []},
+            ]}, f)
+        o = newteam.model_options(codex_cache=cache)
+        self.assertEqual([m['id'] for m in o['claude']['models']], ['fable', 'opus', 'sonnet'])
+        self.assertEqual(o['claude']['efforts'], ['low', 'medium', 'high', 'xhigh', 'max'])
+        self.assertEqual([m['id'] for m in o['codex']['models']], ['gpt-6.1-sol', 'gpt-6-luna'])
+        self.assertEqual(o['codex']['models'][1]['efforts'], ['low', 'medium', 'high', 'xhigh', 'max'])
+        self.assertEqual(o['codex']['efforts'], ['low', 'medium', 'high', 'xhigh', 'max'])  # levels every model has
+
+    def test_codex_cache_missing_or_broken(self):
+        self.assertEqual(newteam.model_options(codex_cache=os.path.join(self.d, 'none.json'))['codex'],
+                         {'models': [], 'efforts': []})
+        bad = os.path.join(self.d, 'bad.json')
+        with open(bad, 'w') as f:
+            f.write('{not json')
+        self.assertEqual(newteam.model_options(codex_cache=bad)['codex'], {'models': [], 'efforts': []})
+
+    def test_presets_include_models_and_role_fields(self):
+        p = newteam.presets(teams=self.d)
+        self.assertIn('claude', p['models'])
+        self.assertEqual({(r['model'], r['effort']) for r in p['presets'][0]['roles']}, {(None, None)})

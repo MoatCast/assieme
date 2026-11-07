@@ -128,3 +128,16 @@ class PracticesTest(_Folder):
         self.write(TEAM.format(project=self.d) + '\n[practices]\ntypo = false\n')
         with self.assertRaisesRegex(preset.PresetError, 'typo'):
             preset.load(self.d)
+
+
+class ModelEffortPresetTest(_Folder):
+    def test_effort_read(self):
+        self.write(TEAM.format(project=self.d).replace('model = "opus"', 'model = "opus"\neffort = "high"'))
+        roles = {r.name: r for r in preset.load(self.d).roles}
+        self.assertEqual((roles['coordinator'].model, roles['coordinator'].effort), ('opus', 'high'))
+        self.assertIsNone(roles['builder-1'].effort)
+
+    def test_bad_effort_rejected(self):
+        self.write(TEAM.format(project=self.d).replace('model = "opus"', 'model = "opus"\neffort = "huge"'))
+        with self.assertRaisesRegex(preset.PresetError, 'coordinator.*huge'):
+            preset.load(self.d)
