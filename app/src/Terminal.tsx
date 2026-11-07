@@ -72,6 +72,10 @@ export default function Terminal({ session, address, typing: startTyping = false
         if (String(e).includes("finished")) {
           setReconnecting(false);
           setFinished(true); // nothing to reattach to: stop retrying
+          // A pane opened after the agent quit still shows how it ended.
+          void readTerminal(session, address)
+            .then((text) => !stopped && term.write(text.replace(/\r?\n/g, "\r\n")))
+            .catch(() => {});
           return;
         }
         setReconnecting(true);

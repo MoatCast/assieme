@@ -143,3 +143,22 @@ test("polls one call at a time every 3 s", async () => {
   await act(async () => vi.advanceTimersByTime(3000));
   expect(b.teamView).toHaveBeenCalledTimes(2);
 });
+
+test("a fix pressed once can't be pressed again until it changes; the view refreshes at once", async () => {
+  await show();
+  expect(b.teamView).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText("Ask it to try another way"));
+  await flush();
+  expect(b.teamView).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByText("Ask it to try another way"));
+  await flush();
+  expect(b.paneAct).toHaveBeenCalledTimes(1);
+  expect((screen.getByText("Ask it to try another way") as HTMLButtonElement).disabled).toBe(true);
+});
+
+test("brain offline shows Reconnecting", async () => {
+  b.teamView.mockRejectedValue("no brain");
+  render(<Terminals team="shop" pollMs={3000} onNewTeam={() => {}} />);
+  await flush();
+  expect(screen.getByText("Reconnecting…")).toBeTruthy();
+});

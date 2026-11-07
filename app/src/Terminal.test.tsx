@@ -157,3 +157,14 @@ test("typing prop opens ready to type", async () => {
   expect(lastOpen!.observe).toBe(false);
   expect(screen.queryByText("Type here")).toBeNull();
 });
+
+test("a pane opened after its agent finished shows the last screen", async () => {
+  openTerminal.mockRejectedValueOnce("t9 has finished");
+  readTerminal.mockResolvedValueOnce("last words\nError: boom");
+  render(<Terminal session="assieme" address="t9" />);
+  await flush();
+  await flush();
+  expect(readTerminal).toHaveBeenCalledWith("assieme", "t9");
+  expect(xterms[0].written.join("")).toContain("Error: boom");
+  expect(screen.getByText("This agent has finished.")).toBeTruthy();
+});

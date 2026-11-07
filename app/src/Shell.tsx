@@ -40,7 +40,12 @@ export default function Shell() {
         <div className="tabs" role="tablist">
           {([["first-run", "First run"], ["terminals", "Terminals"]] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""}
-              onClick={() => setTab(id)}>{label}</button>
+              onClick={() => {
+                // Terminals opens on the neediest team and stays there: switching under the person would move
+                // focus, and typing, to another team's agent.
+                if (id === "terminals" && !(picked && names.includes(picked))) setPicked(neediest);
+                setTab(id);
+              }}>{label}</button>
           ))}
         </div>
       </div>
@@ -50,7 +55,7 @@ export default function Shell() {
       </div>
       {tab === "terminals" && (
         <div className="shell-page">
-          <Terminals team={team} pollMs={3000} onNewTeam={() => setCreating(true)} />
+          <Terminals key={team ?? ""} team={team} pollMs={3000} onNewTeam={() => setCreating(true)} />
         </div>
       )}
       {creating && (

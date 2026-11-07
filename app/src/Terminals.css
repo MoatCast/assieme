@@ -40,3 +40,4 @@
 .terminals .focus { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
 .terminals .focus .pane { flex: 1; }
 .terminals .back { align-self: flex-start; color: var(--quiet-slate); font-size: 13px; }
+.terminals .offline { align-self: flex-start; color: var(--quiet-waste); font-size: 13px; }

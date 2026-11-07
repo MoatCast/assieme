@@ -2,12 +2,15 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Snapshot } from "./bridge";
 
-const snap = vi.hoisted(() => ({ current: null as Snapshot | null }));
+const snap = vi.hoisted(() => ({ current: null as Snapshot | null, report: null as ((s: Snapshot) => void) | null }));
 vi.mock("./FirstRun", async () => {
   const { useEffect } = await import("react");
   return {
     default: ({ onSnapshot }: { onSnapshot?: (s: Snapshot) => void }) => {
-      useEffect(() => { if (snap.current) onSnapshot?.(snap.current); }, [onSnapshot]);
+      useEffect(() => {
+        snap.report = onSnapshot ?? null;
+        if (snap.current) onSnapshot?.(snap.current);
+      }, [onSnapshot]);
       return <div>first run screen</div>;
     },
   };
@@ -79,4 +82,13 @@ test("New team from the empty Terminals opens New team", async () => {
   fireEvent.click(screen.getByRole("tab", { name: "Terminals" }));
   fireEvent.click(screen.getByText("empty new team"));
   expect(screen.getByText("new team screen")).toBeTruthy();
+});
+
+test("the team stays fixed while Terminals is open", async () => {
+  render(<Shell />);
+  await flush();
+  fireEvent.click(screen.getByRole("tab", { name: "Terminals" }));
+  expect(screen.getByText("terminals for beta")).toBeTruthy();
+  act(() => snap.report!(SNAP([row("alpha", "a", "blocked"), row("alpha", "b", "blocked"), row("beta", "b", "blocked")])));
+  expect(screen.getByText("terminals for beta")).toBeTruthy();
 });
