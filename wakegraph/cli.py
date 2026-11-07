@@ -9,10 +9,13 @@ import os
 import sys
 import time
 
-from . import adapters, live, report, rules, status
+from . import adapters, live, quiet, report, rules, status
 
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ['shim']:  # the hc stand-in: hc's own flags must reach it untouched
+        return quiet.shim_main(argv[1:])
     p = argparse.ArgumentParser(prog='wakegraph', description='Run with no command for the live view: team health, '
                                 'what needs you, and one-key fixes. Commands give snapshots and reports.')
     sub = p.add_subparsers(dest='cmd')  # no command: the live view
@@ -36,9 +39,13 @@ def main(argv=None):
     s.add_argument('--claude-dir', default=os.path.expanduser('~/.claude/projects'))
     s.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
     s.add_argument('--show-text', action='store_true', help='show command arguments (off: program names only)')
+    t = sub.add_parser('team', help='quiet send: put the hc stand-in on (or off) for your agents')
+    t.add_argument('switch', choices=['on', 'off', 'status'])
     w = sub.add_parser('watch', help='no screen: a desktop notification when something needs you or a team stalls')
     w.add_argument('--hours', type=float, default=12)
     args = p.parse_args(argv)
+    if args.cmd == 'team':
+        return _team(args.switch)
     if args.cmd == 'watch':
         return live.watch(os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions'), args.hours)
     if args.cmd is None:
@@ -78,3 +85,27 @@ def _status(args):
             time.sleep(args.watch)
         except KeyboardInterrupt:
             return 0
+
+
+def _team(switch):
+    if switch == 'on':
+        d = quiet.install()
+        print(f"""Quiet send is installed.
+
+Agents pick it up when their PATH starts with this folder. Add this line to the script that starts your
+agents, before it starts them, then restart them:
+
+    export PATH="{d}:$PATH"
+
+Nothing changes until you also mark a pair quiet in the live view (`wakegraph`, then the pair's number).
+Undo with `wakegraph team off`.""")
+    elif switch == 'off':
+        quiet.uninstall()
+        print('Quiet send is off: the hc stand-in is removed. Held notes are still delivered while wakegraph runs.')
+    else:
+        ps, held = quiet.pairs(), quiet.held()
+        print(f"stand-in installed: {'yes' if os.path.exists(os.path.join(quiet.shim_dir(), 'hc')) else 'no'}")
+        print(f"deliverer running: {'yes' if quiet.deliverer_alive() else 'no (start wakegraph or wakegraph watch)'}")
+        print(f"quiet pairs: {', '.join(p['label'] for p in ps) or 'none'}")
+        print(f"notes held: {sum(len(v) for v in held.values())}")
+    return 0

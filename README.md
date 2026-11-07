@@ -57,7 +57,28 @@ carry names only, never message text, and items older than 2 hours never pop up.
 | tell | the same command was refused twice in 30 minutes | which rule refused it, and to stop retrying (the alert also shows the narrower rule for you) |
 | compact | a team agent is idle with 150K+ tokens of context, which every wake re-reads | `/compact` |
 
+| make it quiet | a pair is one of the costliest senders of wakes that did no work | nothing: it turns on quiet send for that pair |
+
 A fix you carried out stays hidden for 15 minutes.
+
+### Quiet send
+
+Most wakes between agents are routine notes ("suite done") that the receiver only has to read. On a quiet pair,
+those notes are held and handed over as one batch while the receiver is busy anyway, so they join its current
+turn instead of starting a new one. If the receiver stays idle for 20 minutes, the batch goes anyway: one wake
+instead of many. Questions (ending in `?`) and notes starting with `URGENT` or `!` always go at once, and an agent
+can force any note with `hc send --now`. A failed delivery stays held, nothing is dropped.
+
+Agents keep typing `hc send`. Turn it on once:
+
+```bash
+wakegraph team on      # installs the hc stand-in and prints the one PATH line for your agents' start script
+wakegraph team status  # stand-in installed? deliverer running? which pairs are quiet, how many notes held
+wakegraph team off     # removes it
+```
+
+Then mark pairs quiet in the live view. Held notes are delivered by `wakegraph` or `wakegraph watch`; when
+neither is running, the stand-in passes every note straight through.
 
 Press a number to act on an alert. wakegraph shows the exact message it will send and waits for `y`. Every
 action is logged to `~/.local/state/wakegraph/actions.jsonl` and listed in the view. `q` quits.

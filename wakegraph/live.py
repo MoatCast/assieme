@@ -13,7 +13,7 @@ import sys
 import time
 from dataclasses import dataclass
 
-from . import adapters, report, rules, status
+from . import adapters, quiet, report, rules, status
 
 REFRESH = 5               # seconds between redraws
 COST_EVERY = 600          # seconds between recomputing the 24 h cost line
@@ -22,7 +22,7 @@ WATCH_EVERY = 15          # seconds between checks in `wakegraph watch`
 COMPACT_AT = 150_000      # A2: suggest compacting an idle agent whose context is at least this big
 REFUSAL_WINDOW = 30 * 60  # A5: two refusals of the same command within this window trigger the breaker
 ACTED_HIDE = 15 * 60      # a fix you just carried out stays hidden this long
-ACTIONS = {'nudge': 'nudge', 'compact': 'compact', 'tell': 'tell'}  # action -> word on the key hint
+ACTIONS = {'nudge': 'nudge', 'compact': 'compact', 'tell': 'tell', 'quiet': 'make it quiet'}  # action -> key hint
 
 
 @dataclass
@@ -34,6 +34,7 @@ class Suggestion:
     message: str = ''     # what the nudge says
     hint: str = ''        # the fix, when it is the person's to make
     yours: bool = False   # a decision only the owner can make
+    pair: tuple = None    # quiet: (from_cwd, to_cwd, label)
 
 
 def log_path():
@@ -51,7 +52,7 @@ def addresses(agents, terminals):
     return out
 
 
-def suggest(agents, stalls, addr, queue=(), done=(), now=None):
+def suggest(agents, stalls, addr, queue=(), done=(), now=None, send_less=()):
     """Alerts -> suggestions, most urgent first: stall blockers, what waits on you, stuck agents, lost messages,
     refusal loops, then oversized contexts. done: (agent, action) pairs carried out recently, kept hidden."""
     by = {a.name: a for a in agents}
@@ -104,7 +105,23 @@ def suggest(agents, stalls, addr, queue=(), done=(), now=None):
         if a.state == 'idle' and a.context >= COMPACT_AT and a.peers:  # a one-off session won't be woken: leave it
             add(Suggestion(f'{a.name} holds {a.context // 1000}K tokens of context; every wake re-reads it',
                            a.name, addr.get(a.name), 'compact', '/compact'))
+    for x in send_less:  # A3: the costliest empty pairs can be made quiet with one key
+        f, t = _find(agents, x['from']), _find(agents, x['to'])
+        if f and t and f.cwd and t.cwd and not quiet.is_quiet(f.cwd, t.cwd):
+            add(Suggestion(f"{x['from']} -> {x['to']}: {x['empty']} of {x['wakes']} wakes did no work "
+                           f"({x['empty_tokens'] / 1e6:.0f}M tokens in 24 h)", f.name, action='quiet',
+                           pair=(f.cwd, t.cwd, f"{x['from']} -> {x['to']}")))
     return out
+
+
+def _find(agents, name):
+    """Report and status may shorten names differently; fall back to the last part of the name."""
+    exact = [a for a in agents if a.name == name]
+    if exact:
+        return exact[0]
+    tail = name.split('-')[-1].split(':')[-1]
+    near = [a for a in agents if a.name.split('-')[-1].split(':')[-1] == tail]
+    return near[0] if len(near) == 1 else None
 
 
 def _nudge_text(a):
@@ -123,7 +140,10 @@ def run_action(s, runner=None, log=None, now=None):
     """Carry out a suggestion's action (all of them send s.message with `hc send`). Returns (ok, detail) and logs it."""
     if s.action not in ACTIONS:
         return False, 'nothing to do automatically'
-    if not s.address:
+    if s.action == 'quiet':
+        quiet.set_pair(*s.pair)
+        ok, detail = True, f"{s.pair[2]} is quiet: its notes now wait for the receiver's next turn"
+    elif not s.address:
         ok, detail = False, 'not running in herdr, so wakegraph cannot reach it'
     else:
         runner = runner or (lambda cmd: subprocess.run(cmd, capture_output=True, text=True, timeout=60))
@@ -173,16 +193,16 @@ def cost_line(claude_dir, codex_dir, now):
     r = report.aggregate(sessions, now, 24)
     total = sum(a['tokens'] for a in r['agents'].values())
     if not total:
-        return ''
+        return '', []
     line = (f"Last 24 h: wakes that did no work cost {r['empty_tokens'] / 1e6:.0f}M tokens "
             f"({100 * r['empty_tokens'] / total:.0f}% of input).")
     if r['send_less']:
         x = r['send_less'][0]
         line += f" Cut first: {x['from']} -> {x['to']} ({x['empty_tokens'] / 1e6:.0f}M). Details: wakegraph report"
-    return line
+    return line, r['send_less']
 
 
-def render(agents, stalls, suggestions, now, cost='', actions=(), prompt=''):
+def render(agents, stalls, suggestions, now, cost='', actions=(), prompt='', quiet_line=''):
     head, _ = status.summary(agents)
     lines = [f"wakegraph  {now.astimezone().strftime('%H:%M')}  {head}", '']
     lines += [f"!! {s['text']}" for s in stalls]
@@ -195,11 +215,13 @@ def render(agents, stalls, suggestions, now, cost='', actions=(), prompt=''):
         lines += ['Other alerts:']
         for i, s in other:
             word = ACTIONS.get(s.action, 'act')
-            fix = f'press {i} to {word}' if s.address else f'{word} it yourself (not in herdr)'
+            fix = f'press {i} to {word}' if s.address or s.action == 'quiet' else f'{word} it yourself (not in herdr)'
             lines.append(f'  [{i}] {s.text}  -> {fix}')
     lines += ['']
     if cost:
         lines += [cost, '']
+    if quiet_line:
+        lines += [quiet_line, '']
     lines += status.table(agents, now)
     if actions:
         lines += ['', 'Recent actions:']
@@ -213,6 +235,7 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
     """The interactive loop. Without a terminal (piped output), print one snapshot and stop."""
     user_settings = os.path.expanduser('~/.claude/settings.json')
     running_rules = {}
+    cost = {'line': '', 'send_less': [], 'at': None}
 
     def rules_for(cwd):
         return rules.load(cwd, user_settings) + running_rules.get(cwd, [])
@@ -221,18 +244,24 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
         running_rules.clear()
         running_rules.update(rules.running_settings())
         now = status.now_utc()
+        if cost['at'] is None or (now - cost['at']).total_seconds() > COST_EVERY:
+            cost['line'], cost['send_less'] = cost_line(claude_dir, codex_dir, now)
+            cost['at'] = now
         terminals = status.herdr_terminals() if use_herdr else None
         agents = status.collect(claude_dir, codex_dir, now, hours, herdr=terminals, running=status.running_cwds(),
                                 rules_for=rules_for)
+        for to, n, why in quiet.deliver(agents):
+            _log(log_path(), {'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': 'deliver', 'agent': to,
+                              'address': to, 'reason': why, 'ok': True, 'detail': f'{n} quiet note(s)'})
         stalls = status.stalls(agents, now)
         queue = status.owner_queue(agents, now)
         announce(queue, stalls, now)
-        return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals), queue, acted(now), now)
+        return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals), queue, acted(now), now,
+                                            cost['send_less'])
 
-    cost, cost_at = '', None
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         now, agents, stalls, sugg = snapshot()
-        sys.stdout.write(render(agents, stalls, sugg, now, prompt=' '))
+        sys.stdout.write(render(agents, stalls, sugg, now, cost['line'], prompt=' ', quiet_line=quiet_line()))
         return 0
 
     import select
@@ -245,10 +274,8 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
     try:
         while True:
             now, agents, stalls, sugg = snapshot()
-            if cost_at is None or (now - cost_at).total_seconds() > COST_EVERY:
-                cost, cost_at = cost_line(claude_dir, codex_dir, now), now
             draw = lambda prompt='': sys.stdout.write('\033[H\033[2J' + render(
-                agents, stalls, sugg, now, cost, recent_actions(), prompt or note))
+                agents, stalls, sugg, now, cost['line'], recent_actions(), prompt or note, quiet_line()))
             draw()
             sys.stdout.flush()
             ready, _, _ = select.select([sys.stdin], [], [], REFRESH)
@@ -260,20 +287,36 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
                 return 0
             if key.isdigit() and 0 < int(key) <= min(9, len(sugg)):
                 s = sugg[int(key) - 1]
-                if not (s.action and s.address):
+                if not (s.action and (s.address or s.action == 'quiet')):
                     note = f'[{key}] has no action wakegraph can take: {s.hint or "it is not running in herdr"}'
                     continue
-                draw(f'{s.action.capitalize()} {s.agent} ({s.address}) by sending:\n  "{s.message}"\nSend it? [y/N]')
+                if s.action == 'quiet':
+                    draw(f"Make {s.pair[2]} quiet? Its routine notes will wait for the receiver's next turn "
+                         "(questions and URGENT notes still go at once). [y/N]")
+                else:
+                    draw(f'{s.action.capitalize()} {s.agent} ({s.address}) by sending:\n  "{s.message}"\nSend it? [y/N]')
                 sys.stdout.flush()
                 if sys.stdin.read(1).lower() == 'y':
                     ok, detail = run_action(s)
-                    note = f"{'Sent' if ok else 'Failed'}: {s.action} {s.agent} ({detail})"
+                    note = f"{'Done' if ok else 'Failed'}: {s.action} {s.agent} ({detail})"
                 else:
                     note = 'Cancelled.'
     except KeyboardInterrupt:
         return 0
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def quiet_line():
+    """One line on quiet send: which pairs are quiet, what is held, and whether agents can use it yet."""
+    ps = quiet.pairs()
+    if not ps:
+        return ''
+    n = sum(len(v) for v in quiet.held().values())
+    line = f"Quiet send: {len(ps)} pair{'s' if len(ps) > 1 else ''} quiet ({', '.join(p['label'] for p in ps)}); {n} note(s) held."
+    if not os.path.exists(os.path.join(quiet.shim_dir(), 'hc')):
+        line += ' Agents are not using it yet: run `wakegraph team on`.'
+    return line
 
 
 def notify(title, body, runner=None):
@@ -341,6 +384,8 @@ def watch(claude_dir, codex_dir, hours=12, use_herdr=True):
                                     running=status.running_cwds())
             for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now):
                 print(f"{now.astimezone().strftime('%H:%M')}  {title}: {body}", flush=True)
+            for to, n, why in quiet.deliver(agents):
+                print(f"{now.astimezone().strftime('%H:%M')}  delivered {n} quiet note(s) to {to} ({why})", flush=True)
             time.sleep(WATCH_EVERY)
     except KeyboardInterrupt:
         return 0
