@@ -10,6 +10,7 @@ export type Agent = {
   seconds: number | null;
   herdr: string | null;
   cwd: string | null;
+  herdr_address: string | null;
 };
 
 export type TeamRow = {

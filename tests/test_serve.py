@@ -140,3 +140,20 @@ class CliServeTest(unittest.TestCase):
         self.assertEqual(sock, '/s/b.sock')
         self.assertEqual(sorted(handlers), ['brain.snapshot'])
         self.assertTrue(callable(srv.call_args.kwargs['tick']))
+
+
+class HerdrAddressTest(unittest.TestCase):
+    def test_apply_herdr_records_terminal_address(self):
+        from assieme import status
+        a = agent('builder', '/p')
+        status._apply_herdr([a], [{'cwd': '/p', 'state': 'live', 'address': 't9', 'status': {'state': 'idle'}}])
+        self.assertEqual(a.herdr_address, 't9')
+
+    def test_snapshot_passes_herdr_address(self):
+        a = agent('builder', '/p')
+        a.herdr_address = 't9'
+        with mock.patch.object(serve.status, 'collect', return_value=[a]), \
+             mock.patch.object(serve.status, 'herdr_terminals', return_value=[]), \
+             mock.patch.object(serve.status, 'running_cwds', return_value=set()):
+            s = serve.snapshot('/c', '/x', NOW, FakeRt(), which=lambda c: '/bin/' + c)
+        self.assertEqual(s['agents'][0]['herdr_address'], 't9')

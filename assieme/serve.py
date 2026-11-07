@@ -31,7 +31,7 @@ def snapshot(claude_dir, codex_dir, now, rt, which=shutil.which, hours=12):
         teams = []  # the assieme core isn't running: no Assieme teams yet
     return {'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'clis': {k: bool(which(v)) for k, v in CLIS.items()},
-            'agents': [a.as_dict(now) | {'cwd': a.cwd} for a in agents],
+            'agents': [a.as_dict(now) | {'cwd': a.cwd, 'herdr_address': a.herdr_address} for a in agents],
             'alerts': alerts, 'queue': status.owner_queue(agents, now), 'stalls': status.stalls(agents, now),
             'teams': teams}
 

@@ -95,6 +95,7 @@ class Agent:
         self.thread = self.parent_thread = None
         self.children = []
         self.herdr = None
+        self.herdr_address = None  # its terminal in the user's own herdr, for a read-only view
         self.cwd = None           # working folder, to tell a running agent from a closed one
         self.asked = False        # its latest reply ends with a question
         self.turn_by = None       # who started its current or last turn: an agent name or HUMAN
@@ -377,6 +378,7 @@ def _apply_herdr(agents, terminals):
             continue
         st = t.get('status') if isinstance(t.get('status'), dict) else {}
         a.herdr = st.get('state') or 'unreported'  # the agent never sent herdr its status
+        a.herdr_address = t.get('address')
         if a.herdr in ('idle', 'done') and a.state in ('working', 'stuck') and not a.pending:
             # the agent itself told herdr it finished; Codex can leave a turn open in its log (seen after /compact)
             a.state, a.detail = 'idle', 'herdr: done'

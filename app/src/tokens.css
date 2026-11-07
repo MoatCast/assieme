@@ -1,0 +1,31 @@
+/* The Paper "C · Quiet" design tokens (file "Assieme"). Light only for now. */
+:root {
+  --quiet-bg: #ffffff;
+  --quiet-surface: #ffffff;
+  --quiet-fog: #f4f5f7;
+  --quiet-line: #e3e6ea;
+  --quiet-control: #d5dae0;
+  --quiet-ink: #1b2433;
+  --quiet-on-ink: #ffffff;
+  --quiet-slate: #5e6773;
+  --quiet-mute: #7d8692;
+  --quiet-working: #3e8e5e;
+  --quiet-waste: #c98a1b;
+  --quiet-needs-you: #c8432b;
+  --quiet-needs-you-tint: #fbf1ee;
+  --quiet-radius-control: 999px;
+  --quiet-radius-card: 18px;
+  --quiet-radius-panel: 24px;
+  --quiet-radius-inner: 12px;
+  --quiet-font-ui: system-ui, -apple-system, sans-serif;
+  --quiet-font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--quiet-bg);
+  color: var(--quiet-ink);
+  font-family: var(--quiet-font-ui);
+  -webkit-font-smoothing: antialiased;
+}
