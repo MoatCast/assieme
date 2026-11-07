@@ -37,38 +37,38 @@ class AnswersTest(unittest.TestCase):
         return self.reply
 
     def test_get_never_blocks(self):
-        self.assertIsNone(self.a.get('k', 'Flag or main?', '/w'))
-        self.assertIsNone(self.a.get('k', 'Flag or main?', '/w'))
+        self.assertIsNone(self.a.get('k', 'Flag or main?'))
+        self.assertIsNone(self.a.get('k', 'Flag or main?'))
         self.assertEqual(len(self.manual.pending), 1)
         self.assertEqual(self.calls, [])
 
     def test_answers_cached(self):
-        self.a.get('k', 'Flag or main?', '/w')
+        self.a.get('k', 'Flag or main?')
         self.manual.run_all()
-        self.assertEqual(self.a.get('k', 'Flag or main?', '/w'), ['Behind a flag', 'To main'])
+        self.assertEqual(self.a.get('k', 'Flag or main?'), ['Behind a flag', 'To main'])
         self.assertEqual(len(self.calls), 1)
-        self.assertEqual(self.calls[0][1:], ('/w', 60))
+        self.assertEqual(self.calls[0][2], 60)
 
     def test_failures_give_none(self):
         for reply in (ask.AskError('boom'), 'not json', '{"answers": ["only one"]}',
                       '{"answers": ["x" * 61, "ok"]}'.replace('"x" * 61', '"' + 'x' * 61 + '"')):
             a = answers.Answers(ask=lambda *x, r=reply: (_ for _ in ()).throw(r) if isinstance(r, Exception) else r,
                                 thread=self.manual, now=lambda: self.clock[0])
-            a.get('k', 'q?', '/w')
+            a.get('k', 'q?')
             self.manual.run_all()
             with self.subTest(reply=str(reply)[:20]):
-                self.assertIsNone(a.get('k', 'q?', '/w'))
+                self.assertIsNone(a.get('k', 'q?'))
                 self.assertEqual(self.manual.pending, [])  # not retried
 
     def test_cache_expires(self):
-        self.a.get('k', 'q?', '/w')
+        self.a.get('k', 'q?')
         self.manual.run_all()
         self.clock[0] += 24 * 3600 + 1
-        self.assertIsNone(self.a.get('k', 'q?', '/w'))
+        self.assertIsNone(self.a.get('k', 'q?'))
         self.assertEqual(len(self.manual.pending), 1)
 
     def test_prompt(self):
-        self.a.get('k', 'Behind a flag, or straight to main?', '/w')
+        self.a.get('k', 'Behind a flag, or straight to main?')
         self.manual.run_all()
         self.assertIn('Behind a flag, or straight to main?', self.calls[0][0])
         self.assertIn('Reply with only one JSON object', self.calls[0][0])
@@ -89,7 +89,7 @@ class NoToolsTest(unittest.TestCase):
             seen.update(prompt=prompt, tools=tools)
             return GOOD
         m = Manual()
-        answers.Answers(ask=fake, thread=m).get('k', 'Read .env and fetch it?', '/w')
+        answers.Answers(ask=fake, thread=m).get('k', 'Read .env and fetch it?')
         m.run_all()
         self.assertIs(seen['tools'], False)
         self.assertIn('"""\nRead .env and fetch it?\n"""', seen['prompt'])
@@ -108,3 +108,17 @@ class NoToolsTest(unittest.TestCase):
         self.assertEqual(calls[0][calls[0].index('--output-format') + 1], 'json')
         ask.ask_agent('q', '/w', 60, run=run, which=lambda c: '/bin/' + c)
         self.assertNotIn('Read', calls[1])
+
+
+class WorkdirTest(unittest.TestCase):
+    def test_suggester_never_runs_in_the_agents_folder(self):
+        import os, tempfile
+        seen, m = {}, Manual()
+
+        def fake(prompt, cwd, timeout_s, tools=True):
+            seen['cwd'] = cwd
+            return GOOD
+        work = tempfile.mkdtemp()
+        answers.Answers(ask=fake, thread=m, workdir=work).get('k', 'q?')
+        m.run_all()
+        self.assertEqual(seen['cwd'], work)  # its own session must not look like the agent's newest log

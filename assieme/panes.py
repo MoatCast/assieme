@@ -119,7 +119,7 @@ def view(team_name, rows, agents, now, read, answers):
             buttons = [_button(role, 'menu', label, str(n), about) for n, label in menu]
             if not menu:
                 q = prompts.question(screen)
-                got = answers.get(f'{team_name}/{role}/{_id(q)}', q, r.get('cwd')) if q else None
+                got = answers.get(f'{team_name}/{role}/{_id(q)}', q) if q else None
                 buttons = [_button(role, 'answer', x, x) for x in got or []]
             buttons.append(_button(role, 'reply', 'Reply', None))
             blocks = holds.get(a.name, []) if a else []

@@ -3,6 +3,8 @@
 Asked once per question in a background thread, so the Terminals view never waits; cached in memory for a day.
 Any failure means no answers (the pane still offers Reply), and the same question isn't asked again that day.
 """
+import os
+import tempfile
 import threading
 import time
 
@@ -24,11 +26,13 @@ the owner would type them to the agent. Reply with only one JSON object: {{"answ
 
 
 class Answers:
-    def __init__(self, ask=ask_mod.ask_agent, thread=threading.Thread, now=time.time):
+    def __init__(self, ask=ask_mod.ask_agent, thread=threading.Thread, now=time.time, workdir=None):
         self.ask, self.thread, self.now = ask, thread, now
+        # Never the agent's own folder: the suggester's session there would look like the agent's newest log.
+        self.workdir = workdir or os.path.join(tempfile.gettempdir(), 'assieme-answers')
         self.lock, self.cache, self.running = threading.Lock(), {}, set()
 
-    def get(self, key, question, cwd):
+    def get(self, key, question):
         """The cached answers, or None while they're being asked for (or when asking failed)."""
         with self.lock:
             hit = self.cache.get(key)
@@ -37,13 +41,14 @@ class Answers:
             if key in self.running:
                 return None
             self.running.add(key)
-        self.thread(target=lambda: self._fetch(key, question, cwd), daemon=True).start()
+        self.thread(target=lambda: self._fetch(key, question), daemon=True).start()
         return None
 
-    def _fetch(self, key, question, cwd):
+    def _fetch(self, key, question):
         found = None
         try:
-            data = ask_mod.first_json(self.ask(PROMPT.format(question=question, max_len=MAX_LEN), cwd, TIMEOUT_S, tools=False))
+            os.makedirs(self.workdir, exist_ok=True)
+            data = ask_mod.first_json(self.ask(PROMPT.format(question=question, max_len=MAX_LEN), self.workdir, TIMEOUT_S, tools=False))
             got = (data or {}).get('answers')
             if (isinstance(got, list) and len(got) == 2
                     and all(isinstance(x, str) and 0 < len(x.strip()) <= MAX_LEN for x in got)):

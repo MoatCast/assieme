@@ -34,8 +34,8 @@ class FakeAnswers:
     def __init__(self, result=None):
         self.result, self.asked = result, []
 
-    def get(self, key, question, cwd):
-        self.asked.append((key, question, cwd))
+    def get(self, key, question):
+        self.asked.append((key, question))
         return self.result
 
 
@@ -93,8 +93,8 @@ class ViewTest(unittest.TestCase):
         ans = FakeAnswers(None)
         v = view([row('a', 'blocked')], screens={'t-a': QUESTION}, answers=ans)
         self.assertEqual([x['kind'] for x in pane(v, 'a')['fix']['buttons']], ['reply'])
-        key, question, cwd = ans.asked[0]
-        self.assertEqual((question, cwd), ('Before part 4: behind a flag, or straight to main?', f'{WT}/a'))
+        key, question = ans.asked[0]
+        self.assertEqual(question, 'Before part 4: behind a flag, or straight to main?')
         self.assertTrue(key.startswith('shop/a/'))
 
     def test_answer_buttons(self):
