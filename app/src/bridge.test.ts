@@ -73,3 +73,12 @@ test("fieldOf splits the brain's field from its message", () => {
   expect(bridge.fieldOf("no method 'x'")).toEqual({ field: "start", message: "no method 'x'" });
   expect(bridge.fieldOf(new Error("roles: Add at least one agent."))).toEqual({ field: "roles", message: "Add at least one agent." });
 });
+
+test("teamView and paneAct call the brain", async () => {
+  invoke.mockResolvedValue({ team: "shop", panes: [], strip: [] });
+  await bridge.teamView("shop");
+  expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "team.view", params: { team: "shop" } });
+  const a = { team: "shop", role: "planner", fix: "f1", button: "b2" };
+  await bridge.paneAct(a);
+  expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "pane.act", params: a });
+});

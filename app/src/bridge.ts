@@ -123,5 +123,22 @@ export async function openTerminal(
 export const readTerminal = (session: string, address: string) =>
   invoke<string>("terminal_read", { session, address });
 
+export type PaneButton = { id: string; label: string; kind: "menu" | "answer" | "action" | "reply" };
+export type Pane = {
+  role: string;
+  agent: AgentKind;
+  address: string;
+  state: "asking" | "stuck" | "waiting" | "working" | "idle" | "exited";
+  since_s: number | null;
+  detail: string;
+  live: boolean;
+  fix: { id: string; text: string; buttons: PaneButton[] } | null;
+};
+export type TeamView = { team: string; panes: Pane[]; strip: { role: string; text: string }[] };
+
+export const teamView = (team: string) => brain<TeamView>("team.view", { team });
+export const paneAct = (a: { team: string; role: string; fix: string; button: string }) =>
+  brain<{ ok: boolean; detail: string }>("pane.act", a);
+
 export const serviceRunning = () => invoke<boolean>("service_running");
 export const serviceInstall = () => invoke<void>("service_install");

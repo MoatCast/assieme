@@ -150,3 +150,10 @@ test("a finished agent stops retrying", async () => {
   });
   expect(openTerminal).toHaveBeenCalledTimes(2);
 });
+
+test("typing prop opens ready to type", async () => {
+  render(<Terminal session="assieme" address="t1" typing />);
+  await flush();
+  expect(lastOpen!.observe).toBe(false);
+  expect(screen.queryByText("Type here")).toBeNull();
+});

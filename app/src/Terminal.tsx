@@ -6,14 +6,15 @@ import { CanvasAddon } from "@xterm/addon-canvas";
 import "@xterm/xterm/css/xterm.css";
 import { openTerminal, readTerminal, type TerminalHandle } from "./bridge";
 
-type Props = { session: string; address: string };
+/** typing: open ready to type (focus and Reply) instead of watch-only. */
+type Props = { session: string; address: string; typing?: boolean };
 
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 /** One agent's terminal. `assieme` agents stream live (watch first, "Type here" to type); others are read-only. */
-export default function Terminal({ session, address }: Props) {
+export default function Terminal({ session, address, typing: startTyping = false }: Props) {
   const box = useRef<HTMLDivElement>(null);
-  const [typing, setTyping] = useState(false);
+  const [typing, setTyping] = useState(startTyping);
   const [slowDrawing, setSlowDrawing] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [finished, setFinished] = useState(false);
