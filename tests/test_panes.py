@@ -225,3 +225,16 @@ class ReviewFixTest(unittest.TestCase):
         f2 = pane(view([row('a', 'blocked')], screens={'t-a': s1.replace('note.txt', 'b.py')}), 'a')['fix']
         self.assertNotEqual(f1['id'], f2['id'])
         self.assertNotEqual(f1['buttons'][0]['id'], f2['buttons'][0]['id'])
+
+
+class EarlierRunTest(unittest.TestCase):
+    def test_roles_from_an_earlier_run_are_hidden(self):
+        old = [row('reviewer', state='finished', created=1_000), row('perm', state='finished', created=2_000)]
+        now = [row('menu', 'blocked', created=5_000_000), row('plain', created=5_003_000),
+               row('quit', state='finished', created=5_004_000)]
+        self.assertEqual([p['role'] for p in view(old + now)['panes']], ['menu', 'plain', 'quit'])
+
+    def test_a_stopped_team_shows_its_last_run(self):
+        rows = [row('old', state='finished', created=1_000), row('a', state='finished', created=9_000_000),
+                row('b', state='finished', created=9_010_000)]
+        self.assertEqual([p['role'] for p in view(rows)['panes']], ['a', 'b'])

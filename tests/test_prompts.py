@@ -103,3 +103,13 @@ class MenuPointerTest(unittest.TestCase):
         self.assertEqual(prompts.menu(a), prompts.menu(b))
         self.assertNotEqual(prompts.menu_context(a), prompts.menu_context(b))
         self.assertIn('Do you want to create note.txt?', prompts.menu_context(a))
+
+
+class TallScreenTest(unittest.TestCase):
+    """Claude Code draws at the top of a tall screen (120 rows here) and leaves the rest blank."""
+
+    def test_menu_and_question_on_a_tall_screen(self):
+        tall = fixture('claude_question.txt') + '\n' * 85 + '──\n'
+        self.assertEqual(prompts.menu(tall), [(1, 'Tabs'), (2, 'Spaces')])
+        q = '⏺ Should the file be named hello.txt or greeting.txt?\n\n───\n❯ \n───\n' + '\n' * 90 + '──\n'
+        self.assertEqual(prompts.question(q), 'Should the file be named hello.txt or greeting.txt?')

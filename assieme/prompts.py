@@ -24,9 +24,18 @@ def hook_review(screen):
     return 'Hooks need review' in screen
 
 
+def _tail(screen, n=40):
+    """The last n lines that matter: runs of blank lines squeezed to one (a tall screen is mostly blank)."""
+    out = []
+    for line in screen.splitlines():
+        if line.strip() or (out and out[-1].strip()):
+            out.append(line)
+    return out[-n:]
+
+
 def _block(screen):
     """(items, index of item 1, lines) for the last numbered block on screen, or ([], None, lines)."""
-    lines = screen.splitlines()[-40:]
+    lines = _tail(screen)
     found, pointer, first = [], False, None
     for i in range(len(lines) - 1, -1, -1):
         m = ITEM.match(lines[i])
@@ -73,7 +82,7 @@ BOX = re.compile(r'^\s*([❯›]|─{3,})')
 
 def question(screen):
     """The agent's last message, when its last paragraph is a question, as one line; else None."""
-    lines = screen.splitlines()[-40:]
+    lines = _tail(screen)
     start = max((i for i, l in enumerate(lines) if AGENT_TEXT.match(l)), default=None)
     if start is None:
         return None

@@ -67,6 +67,16 @@ def _button(role, kind, label, send, about=''):
     return {'id': _id(role, kind, label, send, about), 'label': label, 'kind': kind, 'send': send}
 
 
+RUN_GAP_MS = 120_000  # agents of one start are created within seconds of each other
+
+
+def _current_run(rows):
+    """The rows of the team's latest start: `hc` keeps finished terminals of earlier runs under the same name."""
+    live = [r.get('created_ms') or 0 for r in rows if r.get('state') == 'live']
+    since = (min(live) if live else max((r.get('created_ms') or 0 for r in rows), default=0)) - RUN_GAP_MS
+    return [r for r in rows if r.get('state') == 'live' or (r.get('created_ms') or 0) >= since]
+
+
 def _latest(rows):
     """One row per role: the live terminal, else the newest (a restarted team keeps its old, finished rows)."""
     best = {}
@@ -83,7 +93,7 @@ def _fix(role, buttons, text):
 
 
 def view(team_name, rows, agents, now, read, answers):
-    rows = sorted(_latest(rows), key=lambda r: r.get('created_ms') or 0)
+    rows = sorted(_latest(_current_run(rows)), key=lambda r: r.get('created_ms') or 0)
     matched = match(rows, agents)
     addr = {a.name: t for t, a in matched.items()}
     stalls = status.stalls(agents, now)
