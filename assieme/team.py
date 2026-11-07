@@ -73,7 +73,8 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, clock):
             deadline = clock.monotonic() + FIRST_STATUS_S
         elif prompts.hook_review(screen):
             return Started(role.name, t, 'needs-you',
-                           f'{role.agent} wants you to review its hooks once: HC_SESSION=assieme hc attach {t}')
+                           f'{role.agent} wants you to review its hooks once: '
+                           f'HC_SESSION={getattr(rt, "session", "assieme")} HC_SOCKET={rt.sock} hc attach {t}')
         if clock.monotonic() >= deadline:
             return Started(role.name, t, 'not-reporting', _tail(rt, t))
         clock.sleep(1)

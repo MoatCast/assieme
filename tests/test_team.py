@@ -30,6 +30,7 @@ class FakeRuntime:
         self.finished, self.existing = set(finished), list(existing)
         self.started, self.sent, self.keyed, self.killed, self.gets = [], [], [], [], {}
         self.role_of = {}
+        self.sock = '/s/assieme/hc.sock'
 
     def start(self, argv, cwd, labels, name=None, parent=None):
         t = f't{len(self.started) + 1}'
@@ -133,7 +134,7 @@ class StartTest(unittest.TestCase):
         rt = FakeRuntime(screens={'builder-1': [HOOKS]}, statuses={'builder-1': [None]})
         out = self.start(rt, demo(Role('builder-1', 'codex', 'b.md', 'x')))
         self.assertEqual(out[0].state, 'needs-you')
-        self.assertIn('hc attach t1', out[0].note)
+        self.assertIn('HC_SESSION=assieme HC_SOCKET=/s/assieme/hc.sock hc attach t1', out[0].note)
         self.assertEqual((rt.keyed, rt.sent), ([], []))
 
     def test_not_reporting_after_60s(self):
