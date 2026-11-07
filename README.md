@@ -72,9 +72,9 @@ can force any note with `hc send --now`. A failed delivery stays held, nothing i
 Agents keep typing `hc send`. Turn it on once:
 
 ```bash
-assieme team on      # installs the hc stand-in and prints the one PATH line for your agents' start script
-assieme team status  # stand-in installed? deliverer running? which pairs are quiet, how many notes held
-assieme team off     # removes it
+assieme quiet on     # installs the hc stand-in and prints the one PATH line for your agents' start script
+assieme quiet status # stand-in installed? deliverer running? which pairs are quiet, how many notes held
+assieme quiet off    # removes it
 ```
 
 Then mark pairs quiet in the live view. Held notes are delivered by `assieme` or `assieme watch`; when
@@ -92,6 +92,22 @@ assieme status --watch    # the same, refreshing every 5 s
 assieme watch             # no screen: just the notifications, for a background tab
 assieme report --hours 24 # who woke whom, what it cost, what was refused (Markdown; --json for data)
 ```
+
+### Start a team
+
+A preset is a folder with a `team.toml` (the team's name, project and roles: Claude Code or Codex, model, parent,
+`checkout = "branch"` or `"read-only"`) and one Markdown brief per role. Each agent gets its own git worktree under
+`<project>/.assieme/worktrees/<role>`, runs in its own `hc` session (`HC_SESSION=assieme`, separate from herdr),
+and gets its brief once its first turn has ended. Needs `hc` (herdr-core) installed.
+
+```bash
+assieme team start ~/presets/checkout --task "Add retries to the payment client"
+assieme team status checkout    # one line per agent: terminal, live or finished, idle/working/blocked
+assieme team stop checkout
+```
+
+Assieme asks once per project before answering an agent's "trust this folder?" prompt. Codex asks you to review
+Assieme's status hooks once; `assieme team start` prints the command to open that agent and answer it.
 
 ### Live health
 

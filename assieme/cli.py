@@ -2,14 +2,17 @@
 assieme status     one snapshot of team health
 assieme watch      notifications only, no screen
 assieme report     who woke whom, what it cost, what was refused
+assieme team       start, list and stop a team from a preset
+assieme quiet      quiet send: the hc stand-in on or off
 """
 import argparse
 import datetime as dt
+import json
 import os
 import sys
 import time
 
-from . import adapters, live, quiet, report, rules, status
+from . import adapters, live, preset, quiet, report, rules, runtime, status, team, worktree
 
 
 def main(argv=None):
@@ -39,13 +42,26 @@ def main(argv=None):
     s.add_argument('--claude-dir', default=os.path.expanduser('~/.claude/projects'))
     s.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
     s.add_argument('--show-text', action='store_true', help='show command arguments (off: program names only)')
-    t = sub.add_parser('team', help='quiet send: put the hc stand-in on (or off) for your agents')
-    t.add_argument('switch', choices=['on', 'off', 'status'])
+    q = sub.add_parser('quiet', help='quiet send: put the hc stand-in on (or off) for your agents')
+    q.add_argument('switch', choices=['on', 'off', 'status'])
+    t = sub.add_parser('team', help='start, list and stop a team of agents from a preset')
+    tsub = t.add_subparsers(dest='team_cmd', required=True)
+    ts = tsub.add_parser('start', help='start every role in a preset folder (team.toml plus briefs)')
+    ts.add_argument('preset')
+    ts.add_argument('--task', help='sent to every agent after its brief')
+    ts.add_argument('--only', metavar='ROLE', help='start just this role (for example to retry it)')
+    tl = tsub.add_parser('status', help='the agents of one team, or of every team')
+    tl.add_argument('name', nargs='?')
+    tl.add_argument('--json', action='store_true')
+    tk = tsub.add_parser('stop', help='stop every running agent of a team')
+    tk.add_argument('name')
     w = sub.add_parser('watch', help='no screen: a desktop notification when something needs you or a team stalls')
     w.add_argument('--hours', type=float, default=12)
     args = p.parse_args(argv)
+    if args.cmd == 'quiet':
+        return _quiet(args.switch)
     if args.cmd == 'team':
-        return _team(args.switch)
+        return _team(args)
     if args.cmd == 'watch':
         return live.watch(os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions'), args.hours)
     if args.cmd is None:
@@ -87,7 +103,42 @@ def _status(args):
             return 0
 
 
-def _team(switch):
+def _ask(question):
+    try:
+        return input(f'{question} [y/N] ').strip().lower() in ('y', 'yes')
+    except EOFError:
+        return False
+
+
+def _team(args):
+    rt = runtime.Runtime()
+    try:
+        if args.team_cmd == 'stop':
+            print(f'stopped {team.stop(rt, args.name)} agents')
+        elif args.team_cmd == 'status':
+            rows = team.status(rt, args.name)
+            if args.json:
+                print(json.dumps(rows, indent=2))
+            elif not rows:
+                print('no Assieme teams running' + (f' named {args.name}' if args.name else ''))
+            for r in rows if not args.json else []:
+                print(f"{r['team']:<20} {r['role'] or '?':<16} {r['address']:<6} {r['state']:<9} {r['status'] or '-'}")
+        else:
+            tm = preset.load(args.preset)
+            for s in team.start(tm, args.task, rt, _ask, only=args.only):
+                print(f'{s.role:<16} {s.state}' + (f'  {s.address}' if s.address else ''))
+                if s.note:
+                    print('\n'.join('    ' + line for line in s.note.splitlines()))
+                if s.state in ('exited', 'not-reporting'):
+                    print(f'    retry: assieme team start {args.preset} --only {s.role}')
+    except (preset.PresetError, worktree.WorktreeError, team.TeamError, runtime.RuntimeError_) as e:
+        hint = getattr(e, 'hint', '')
+        print(f'assieme: {e}' + (f' ({hint})' if hint else ''), file=sys.stderr)
+        return 1
+    return 0
+
+
+def _quiet(switch):
     if switch == 'on':
         d = quiet.install()
         print(f"""Quiet send is installed.
@@ -98,7 +149,7 @@ agents, before it starts them, then restart them:
     export PATH="{d}:$PATH"
 
 Nothing changes until you also mark a pair quiet in the live view (`assieme`, then the pair's number).
-Undo with `assieme team off`.""")
+Undo with `assieme quiet off`.""")
     elif switch == 'off':
         quiet.uninstall()
         print('Quiet send is off: the hc stand-in is removed. Held notes are still delivered while assieme runs.')
