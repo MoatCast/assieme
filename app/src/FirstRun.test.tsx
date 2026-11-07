@@ -92,3 +92,13 @@ test("reconnecting then recovers", async () => {
   expect(screen.queryByText("Reconnecting…")).toBeNull();
   expect(screen.getByTestId("project-checkout-service")).toBeTruthy();
 });
+
+test("one snapshot call at a time", async () => {
+  snapshot.mockReturnValue(new Promise(() => {}));
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  await act(async () => {
+    vi.advanceTimersByTime(20000);
+  });
+  expect(snapshot).toHaveBeenCalledTimes(1);
+});

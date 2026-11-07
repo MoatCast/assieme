@@ -39,14 +39,24 @@ pub fn hc_socket(session: &str) -> PathBuf {
     }
 }
 
-/// One JSON-RPC call, one line each way. An error reply becomes `Err(message)`.
-pub fn call_at(sock: &Path, method: &str, params: Value) -> Result<Value, String> {
+/// Like `call_at`, giving up when the service doesn't answer within `timeout`.
+pub fn call_at_with(sock: &Path, method: &str, params: Value, timeout: std::time::Duration) -> Result<Value, String> {
     let mut s = connect(sock)?;
+    s.set_read_timeout(Some(timeout)).map_err(|e| e.to_string())?;
+    s.set_write_timeout(Some(timeout)).map_err(|e| e.to_string())?;
     let req = json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
     s.write_all(format!("{req}\n").as_bytes()).map_err(|e| e.to_string())?;
     let mut line = String::new();
-    BufReader::new(&s).read_line(&mut line).map_err(|e| e.to_string())?;
+    BufReader::new(&s).read_line(&mut line).map_err(|e| match e.kind() {
+        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut => format!("{method} timed out"),
+        _ => e.to_string(),
+    })?;
     reply_result(serde_json::from_str(&line).map_err(|e| format!("bad reply: {e}"))?)
+}
+
+/// One JSON-RPC call, one line each way. An error reply becomes `Err(message)`.
+pub fn call_at(sock: &Path, method: &str, params: Value) -> Result<Value, String> {
+    call_at_with(sock, method, params, std::time::Duration::from_secs(20))
 }
 
 /// A terminal's screen and history as text: the only access to sessions other than `assieme`.
@@ -292,6 +302,20 @@ mod tests {
         let sock = temp_sock("brain-err");
         let _rx = fake_line_server(&sock, "{\"id\":1,\"error\":{\"message\":\"nope\"}}\n");
         assert_eq!(call_at(&sock, "brain.snapshot", serde_json::json!({})).unwrap_err(), "nope");
+    }
+
+    #[test]
+    fn brain_call_times_out() {
+        let sock = temp_sock("brain-slow");
+        let listener = UnixListener::bind(&sock).unwrap();
+        std::thread::spawn(move || {
+            let (_s, _) = listener.accept().unwrap();
+            std::thread::sleep(Duration::from_secs(5)); // never answers in time
+        });
+        let t = std::time::Instant::now();
+        let err = call_at_with(&sock, "brain.snapshot", serde_json::json!({}), Duration::from_millis(300)).unwrap_err();
+        assert!(t.elapsed() < Duration::from_secs(2), "took {:?}", t.elapsed());
+        assert!(err.contains("timed out"), "{err}");
     }
 
     #[test]

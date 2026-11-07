@@ -28,6 +28,8 @@ export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
 
   useEffect(() => {
     let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // One call at a time: the next poll is scheduled only after this one answers.
     const poll = async () => {
       try {
         const s = await snapshot();
@@ -38,12 +40,12 @@ export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
       } catch {
         if (!stopped) setOffline(true);
       }
+      if (!stopped) timer = setTimeout(poll, pollMs);
     };
     void poll();
-    const timer = setInterval(poll, pollMs);
     return () => {
       stopped = true;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, [pollMs]);
 

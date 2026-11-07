@@ -16,6 +16,7 @@ export default function Terminal({ session, address }: Props) {
   const [typing, setTyping] = useState(false);
   const [slowDrawing, setSlowDrawing] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [finished, setFinished] = useState(false);
   const live = session === "assieme";
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function Terminal({ session, address }: Props) {
       try {
         handle = await openTerminal(address, term.cols, term.rows, !typing, (b) => term.write(b), () => {
           if (stopped) return;
+          void handle?.close(); // release the bridge's side of the lost stream
           handle = null;
           setReconnecting(true);
           retry = setTimeout(connect, BACKOFF_MS[Math.min(attempt++, BACKOFF_MS.length - 1)]);
@@ -64,8 +66,13 @@ export default function Terminal({ session, address }: Props) {
           attempt = 0;
           setReconnecting(false);
         }
-      } catch {
+      } catch (e) {
         if (stopped) return;
+        if (String(e).includes("finished")) {
+          setReconnecting(false);
+          setFinished(true); // nothing to reattach to: stop retrying
+          return;
+        }
         setReconnecting(true);
         retry = setTimeout(connect, BACKOFF_MS[Math.min(attempt++, BACKOFF_MS.length - 1)]);
       }
@@ -102,6 +109,7 @@ export default function Terminal({ session, address }: Props) {
           </button>
         )}
         {reconnecting && <span className="terminal-note">Reconnecting…</span>}
+        {finished && <span className="terminal-note">This agent has finished.</span>}
         {slowDrawing && <span className="terminal-note">Fast drawing is off for this terminal.</span>}
         {!live && <span className="terminal-note">Read-only: this agent runs in your own herdr.</span>}
       </div>

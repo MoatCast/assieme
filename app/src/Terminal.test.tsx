@@ -124,3 +124,29 @@ test("reattaches after the stream closes", async () => {
   });
   expect(openTerminal).toHaveBeenCalledTimes(2);
 });
+
+test("a lost stream is released before reconnecting", async () => {
+  vi.useFakeTimers();
+  render(<Terminal session="assieme" address="t3" />);
+  await flush();
+  act(() => lastOpen!.onClose("lost"));
+  expect(handle.close).toHaveBeenCalledTimes(1);
+});
+
+test("a finished agent stops retrying", async () => {
+  vi.useFakeTimers();
+  render(<Terminal session="assieme" address="t3" />);
+  await flush();
+  openTerminal.mockRejectedValueOnce("t3 has finished");
+  act(() => lastOpen!.onClose("lost"));
+  await act(async () => {
+    vi.advanceTimersByTime(1000);
+  });
+  await flush();
+  expect(screen.getByText("This agent has finished.")).toBeTruthy();
+  expect(screen.queryByText("Reconnecting…")).toBeNull();
+  await act(async () => {
+    vi.advanceTimersByTime(60000);
+  });
+  expect(openTerminal).toHaveBeenCalledTimes(2);
+});

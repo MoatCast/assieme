@@ -19,7 +19,10 @@ struct Streams {
 
 #[tauri::command]
 async fn brain_call(method: String, params: Value) -> Result<Value, String> {
-    bridge::call_at(&bridge::brain_socket(), &method, params)
+    // Socket I/O blocks: keep it off the async workers so a slow brain can't stall terminal commands.
+    tauri::async_runtime::spawn_blocking(move || bridge::call_at(&bridge::brain_socket(), &method, params))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -77,7 +80,9 @@ async fn terminal_close(streams: State<'_, Streams>, id: u32) -> Result<(), Stri
 /// Read-only text of a terminal in any session: the only access to sessions other than `assieme`.
 #[tauri::command]
 async fn terminal_read(session: String, address: String) -> Result<String, String> {
-    bridge::read_text_at(&bridge::hc_socket(&session), &address)
+    tauri::async_runtime::spawn_blocking(move || bridge::read_text_at(&bridge::hc_socket(&session), &address))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
