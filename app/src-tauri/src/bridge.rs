@@ -313,3 +313,29 @@ mod tests {
         assert_eq!((req["method"].as_str(), req["params"]["terminal"].as_str()), (Some("terminal.read"), Some("t4")));
     }
 }
+
+/// Against a real hc: `ASSIEME_REAL_TERMINAL=t5 cargo test --lib real_hc -- --ignored`.
+#[cfg(test)]
+mod real {
+    use super::*;
+    use std::sync::{Arc, Mutex, mpsc};
+    use std::time::Duration;
+
+    #[test]
+    #[ignore]
+    fn real_hc_stream() {
+        let address = std::env::var("ASSIEME_REAL_TERMINAL").expect("set ASSIEME_REAL_TERMINAL");
+        let got = Arc::new(Mutex::new(Vec::new()));
+        let g = got.clone();
+        let (tx, rx) = mpsc::channel();
+        let s = Stream::open(&hc_socket("assieme"), &address, 100, 30, true, move |b| g.lock().unwrap().extend(b), move |w| {
+            let _ = tx.send(w);
+        })
+        .unwrap();
+        std::thread::sleep(Duration::from_secs(4));
+        let text = String::from_utf8_lossy(&got.lock().unwrap()).to_string();
+        assert!(text.contains("tick"), "no live output: {text:?}");
+        s.close();
+        assert!(rx.recv_timeout(Duration::from_secs(3)).is_ok(), "close not reported");
+    }
+}
