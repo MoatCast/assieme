@@ -1,0 +1,52 @@
+"""One git worktree per role, under <project>/.assieme/worktrees/<role>. Uses the git command."""
+import os
+import subprocess
+
+
+class WorktreeError(RuntimeError):
+    pass
+
+
+def _git(cwd, *args):
+    return subprocess.run(['git', '-C', cwd, *args], capture_output=True, text=True)
+
+
+def check_repo(project):
+    r = _git(project, 'rev-parse', '--show-toplevel')
+    if r.returncode != 0:
+        raise WorktreeError(f'{project} is not a git repository. Make it one with: git init {project} '
+                            '(and make a first commit)')
+
+
+def _exclude(project):
+    path = _git(project, 'rev-parse', '--git-path', 'info/exclude').stdout.strip()
+    path = os.path.join(project, path) if not os.path.isabs(path) else path
+    lines = open(path).read().splitlines() if os.path.exists(path) else []
+    if '.assieme/' not in lines:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'a') as f:
+            f.write(('\n' if lines and lines[-1] else '') + '.assieme/\n')
+
+
+def ensure(team, role):
+    """The role's worktree path: created on first use, reused while clean, never reset."""
+    check_repo(team.project)
+    path = os.path.join(team.project, '.assieme', 'worktrees', role.name)
+    branch = f'assieme/{team.name}/{role.name}'
+    _exclude(team.project)
+    if os.path.isdir(path):
+        dirty = _git(path, 'status', '--porcelain').stdout.strip()
+        if dirty:
+            raise WorktreeError(f'{path} has uncommitted changes. Commit or remove them, then start again.')
+        return path
+    if role.checkout == 'read-only':
+        args = ['worktree', 'add', '--detach', path, 'HEAD']
+    else:
+        if _git(team.project, 'rev-parse', '--verify', '--quiet', f'refs/heads/{branch}').returncode == 0:
+            raise WorktreeError(f'branch {branch} already exists but has no worktree at {path}. '
+                                f'Delete it (git branch -D {branch}) or rename the team.')
+        args = ['worktree', 'add', '-b', branch, path]
+    r = _git(team.project, *args)
+    if r.returncode != 0:
+        raise WorktreeError(f'git {" ".join(args)} failed: {r.stderr.strip()}')
+    return path
