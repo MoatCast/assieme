@@ -88,7 +88,8 @@ def question(screen):
         return None
     body = [AGENT_TEXT.match(lines[start]).group(1)]
     for l in lines[start + 1:]:
-        if BOX.match(l):
+        # The message's own lines are indented; the CLI's status lines ("✻ Brewed for 3s") and the input box aren't.
+        if BOX.match(l) or (l.strip() and not l[:1].isspace()):
             break
         body.append(l.strip())
     paragraphs = [' '.join(p.split()) for p in '\n'.join(body).split('\n\n') if p.strip()]

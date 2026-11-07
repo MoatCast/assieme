@@ -113,3 +113,11 @@ class TallScreenTest(unittest.TestCase):
         self.assertEqual(prompts.menu(tall), [(1, 'Tabs'), (2, 'Spaces')])
         q = '⏺ Should the file be named hello.txt or greeting.txt?\n\n───\n❯ \n───\n' + '\n' * 90 + '──\n'
         self.assertEqual(prompts.question(q), 'Should the file be named hello.txt or greeting.txt?')
+
+
+class StatusLinesTest(unittest.TestCase):
+    def test_question_followed_by_claude_status_lines(self):
+        screen = ('  - Leave 2 CPU cores free.\n\n⏺ Should the file be named hello.txt or greeting.txt?\n\n'
+                  '✻ Brewed for 3s · done 8:31 PM\n\n● full  $0.25  last $0.25  4s\n\n' + '─' * 40 +
+                  '\n❯\xa0\n' + '─' * 40 + '\n  ⏵⏵ auto mode on (shift+tab to cycle)\n')
+        self.assertEqual(prompts.question(screen), 'Should the file be named hello.txt or greeting.txt?')
