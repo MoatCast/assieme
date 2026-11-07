@@ -32,7 +32,7 @@ def _claude(role):
 
 
 def _codex(role):
-    a = ['codex']
+    a = ['codex', '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
     for e, s in HOOKS.items():
         # A JSON string is a valid TOML basic string.
         a += ['-c', f'hooks.{e}=[{{hooks=[{{type="command",command={json.dumps(hook_command(s))}}}]}}]']

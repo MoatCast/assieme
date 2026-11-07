@@ -27,11 +27,17 @@ class LaunchTest(unittest.TestCase):
     def test_codex_hooks_are_valid_toml(self):
         a = launch.argv(role('codex'))
         self.assertEqual(a[0], 'codex')
-        values = [a[i + 1] for i, x in enumerate(a) if x == '-c']
+        values = [a[i + 1] for i, x in enumerate(a) if x == '-c' and a[i + 1].startswith('hooks.')]
         events = sorted(next(iter(tomllib.loads(v)['hooks'])) for v in values)
         self.assertEqual(events, EVENTS)
         stop = next(tomllib.loads(v) for v in values if 'Stop' in tomllib.loads(v)['hooks'])
         self.assertTrue(stop['hooks']['Stop'][0]['hooks'][0]['command'].endswith('-m assieme.hook idle'))
+
+    def test_codex_skips_update_prompt(self):
+        # A real run stopped at Codex's "Update available" screen; agents must start without it.
+        a = launch.argv(role('codex'))
+        values = [a[i + 1] for i, x in enumerate(a) if x == '-c']
+        self.assertIn('check_for_update_on_startup=false', values)
 
     def test_read_only(self):
         a = launch.argv(role('claude', checkout='read-only'))
