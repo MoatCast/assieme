@@ -113,7 +113,33 @@ def view(team_name, rows, agents, now, read, answers):
                 label = {'nudge': 'Ask it to try another way' if state == 'stuck' else 'Nudge',
                          'compact': 'Compact', 'tell': 'Tell it to stop retrying'}[s.action]
                 p['detail'] = p['detail'] or _cap(s.text)
-                p['fix'] = _fix(role, [_button(role, 'action', label, s.message)], s.text)
+                p['fix'] = _fix(role, [dict(_button(role, 'action', label, s.message), action=s.action)], s.text)
         out.append(p)
     strip.sort(key=lambda x: URGENT.index(next(p['state'] for p in out if p['role'] == x['role'])))
     return {'team': team_name, 'panes': out, 'strip': strip}
+
+
+def act(team_name, role, fix, button, view_now, rt, log=None, now=None):
+    """Carry out one button, only if it is still on the pane right now (the person may have answered in the
+    terminal meanwhile). Menus press the digit; answers and actions are sent as a message. Every press is logged."""
+    p = next((x for x in view_now()['panes'] if x['role'] == role), None)
+    f = p and p['fix']
+    b = f and f['id'] == fix and next((x for x in f['buttons'] if x['id'] == button), None)
+    if not b:
+        return {'ok': False, 'detail': CHANGED}
+    if b['kind'] == 'reply':
+        return {'ok': True, 'detail': ''}  # the app opens the pane for typing
+    action = b.get('action') or b['kind']  # nudge, compact or tell; menu; answer
+    try:
+        if b['kind'] == 'menu':
+            rt.keys(p['address'], [b['send']])
+            ok, detail = True, f"pressed {b['send']}"
+        else:
+            rt.send(p['address'], b['send'])
+            ok, detail = True, 'sent'
+    except Exception as e:  # a failed press is a message on the pane, never a dead brain call
+        ok, detail = False, str(e)[:120]
+    live._log(log or live.log_path(), {'at': (now or status.now_utc()).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                                       'action': action, 'agent': role, 'address': p['address'], 'team': team_name,
+                                       'reason': f['text'], 'ok': ok, 'detail': detail})
+    return {'ok': ok, 'detail': detail}

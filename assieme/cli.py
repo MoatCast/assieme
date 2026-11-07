@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-from . import adapters, live, newteam, preset, quiet, report, rules, runtime, serve, service, status, team, worktree
+from . import adapters, answers, live, newteam, panes, preset, quiet, report, rules, runtime, serve, service, status, team, worktree
 
 
 def main(argv=None):
@@ -127,13 +127,23 @@ def _serve():
     claude, codex = os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions')
     rt = runtime.Runtime()
     starter = newteam.Starter(rt, newteam.teams_dir())
+    suggested = answers.Answers()
+
+    def team_view(team_name):
+        now = status.now_utc()
+        rows = [r for r in rt.list({team.TEAM: team_name}, all=True) if (r.get('labels') or {}).get(team.TEAM) == team_name]
+        agents = status.collect(claude, codex, now, running=status.running_cwds())
+        return panes.view(team_name, rows, agents, now, lambda a: rt.read(a, lines=40), suggested)
     serve.serve(serve.brain_socket_path(),
                 {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
                                                           starting=starter.records()),
                  'project.check': newteam.project_check,
                  'team.presets': lambda: newteam.presets(),
                  'team.start': starter.start,
-                 'team.suggest': newteam.suggest},
+                 'team.suggest': newteam.suggest,
+                 'team.view': lambda team: team_view(team),
+                 'pane.act': lambda team, role, fix, button: panes.act(team, role, fix, button,
+                                                                       lambda: team_view(team), rt)},
                 tick=lambda: live.watch_once(claude, codex))
     return 0
 

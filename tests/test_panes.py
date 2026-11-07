@@ -131,3 +131,77 @@ class ViewTest(unittest.TestCase):
     def test_unmatched_role_still_has_pane(self):
         p = pane(view([row('a', 'working', status_ago_s=90)]), 'a')
         self.assertEqual((p['state'], p['since_s'], p['fix']), ('working', 90, None))
+
+
+class FakeRt:
+    def __init__(self, fail=None):
+        self.keys_sent, self.sent, self.fail = [], [], fail
+
+    def keys(self, t, keys):
+        self.keys_sent.append((t, keys))
+
+    def send(self, t, text, timeout_s=30):
+        if self.fail:
+            raise self.fail
+        self.sent.append((t, text))
+
+
+class ActTest(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.log = os.path.join(tempfile.mkdtemp(), 'actions.jsonl')
+        self.screens = {'t-a': fixture('claude_permission.txt')}
+        self.rows = [row('a', 'blocked')]
+        self.now_view = lambda: view(self.rows, screens=self.screens,
+                                     answers=FakeAnswers(['Behind a flag', 'To main']))
+
+    def logged(self):
+        import json
+        with open(self.log) as f:
+            return [json.loads(x) for x in f]
+
+    def act(self, rt, fix, button):
+        return panes.act('shop', 'a', fix, button, self.now_view, rt, log=self.log)
+
+    def test_act_menu_presses_digit(self):
+        f = pane(self.now_view(), 'a')['fix']
+        rt = FakeRt()
+        self.assertEqual(self.act(rt, f['id'], f['buttons'][1]['id']), {'ok': True, 'detail': 'pressed 2'})
+        self.assertEqual(rt.keys_sent, [('t-a', ['2'])])
+        e = self.logged()[0]
+        self.assertEqual((e['action'], e['agent'], e['ok']), ('menu', 'a', True))
+
+    def test_act_refuses_changed_menu(self):
+        f = pane(self.now_view(), 'a')['fix']
+        self.screens['t-a'] = fixture('claude_question.txt')
+        rt = FakeRt()
+        self.assertEqual(self.act(rt, f['id'], f['buttons'][0]['id']), {'ok': False, 'detail': panes.CHANGED})
+        self.assertEqual(rt.keys_sent, [])
+
+    def test_act_answer_and_action_send(self):
+        self.screens['t-a'] = QUESTION
+        f = pane(self.now_view(), 'a')['fix']
+        rt = FakeRt()
+        self.assertTrue(self.act(rt, f['id'], f['buttons'][1]['id'])['ok'])
+        self.assertEqual(rt.sent, [('t-a', 'To main')])
+        self.rows = [row('a')]
+        stuck = log_agent('A', 'a', 'stuck', detail='loops')
+        self.now_view = lambda: view(self.rows, [stuck])
+        f = pane(self.now_view(), 'a')['fix']
+        self.assertTrue(self.act(rt, f['id'], f['buttons'][0]['id'])['ok'])
+        self.assertTrue(rt.sent[-1][1].startswith('assieme:'))
+        self.assertEqual([e['action'] for e in self.logged()], ['answer', 'nudge'])
+
+    def test_act_reply_does_nothing(self):
+        f = pane(self.now_view(), 'a')['fix']
+        rt = FakeRt()
+        self.assertEqual(self.act(rt, f['id'], f['buttons'][-1]['id']), {'ok': True, 'detail': ''})
+        self.assertEqual((rt.keys_sent, rt.sent), ([], []))
+
+    def test_act_failure_reported(self):
+        from assieme import runtime
+        self.screens['t-a'] = QUESTION
+        f = pane(self.now_view(), 'a')['fix']
+        r = self.act(FakeRt(fail=runtime.RuntimeError_('unavailable', 'no core')), f['id'], f['buttons'][0]['id'])
+        self.assertEqual(r, {'ok': False, 'detail': 'no core'})
+        self.assertFalse(self.logged()[0]['ok'])
