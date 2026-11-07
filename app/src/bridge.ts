@@ -44,7 +44,14 @@ export type RoleDraft = {
   checkout: "branch" | "read-only";
   parent: string | null;
   brief: string;
+  /** null: the agent's own default, as in the person's terminal. */
+  model?: string | null;
+  effort?: string | null;
 };
+
+export type ModelChoice = { id: string; label: string; efforts: string[] };
+/** Per CLI: the models offered and the efforts offered when the model is left at Default. */
+export type ModelOptions = Record<AgentKind, { models: ModelChoice[]; efforts: string[] }>;
 
 export type Preset = { id: string; label: string; roles: RoleDraft[] };
 export type PracticeGroup = { id: string; title: string; summary: string; rules: string[] };
@@ -70,7 +77,7 @@ const brain = <T>(method: string, params: object = {}) => invoke<T>("brain_call"
 export const snapshot = () => brain<Snapshot>("brain.snapshot");
 export const checkProject = (path: string) => brain<{ ok: boolean; reason?: string }>("project.check", { path });
 export const teamPresets = () =>
-  brain<{ presets: Preset[]; practices: Practices; last: Preset | null }>("team.presets");
+  brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions }>("team.presets");
 /** Start creates a git worktree per agent before it answers, which can take a while on a large repository. */
 export const startTeam = (form: TeamForm) =>
   invoke<{ team: string }>("brain_call", { method: "team.start", params: form, timeoutS: 120 });

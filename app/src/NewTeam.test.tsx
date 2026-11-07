@@ -29,12 +29,21 @@ export const PRACTICES = {
   basics: [1, 2, 3, 4, 5].map((i) => ({ title: `Basic ${i}`, detail: "d" })),
 };
 
+const LEVELS = ["low", "medium", "high", "xhigh", "max"];
+const MODELS = {
+  claude: { models: [{ id: "fable", label: "Fable", efforts: LEVELS }, { id: "opus", label: "Opus", efforts: LEVELS }], efforts: LEVELS },
+  codex: {
+    models: [{ id: "gpt-6.1-sol", label: "gpt-6.1-sol", efforts: [...LEVELS, "ultra"] }, { id: "gpt-6-luna", label: "gpt-6-luna", efforts: LEVELS }],
+    efforts: LEVELS,
+  },
+};
+
 const flush = () => act(async () => {});
 const both = { claude: true, codex: true };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null });
+  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS });
   b.checkProject.mockResolvedValue({ ok: true });
   b.pickFolder.mockResolvedValue("/Users/me/shop");
 });
@@ -252,4 +261,38 @@ test("a cancelled suggestion never replaces the agents", async () => {
   await flush();
   expect(names()).toEqual(["builder", "reviewer"]);
   expect(screen.queryByText("late")).toBeNull();
+});
+
+const efforts = () => Array.from((screen.getByLabelText("Thinking effort") as HTMLSelectElement).options).map((o) => o.text);
+
+test("model menu shows Default, then the choice, and it reaches Start", async () => {
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await open();
+  await fillProjectAndTask();
+  const menu = screen.getByRole("button", { name: "Model and effort for builder" });
+  expect(menu.textContent).toBe("Default");
+  fireEvent.click(menu);
+  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "opus" } });
+  fireEvent.change(screen.getByLabelText("Thinking effort"), { target: { value: "xhigh" } });
+  expect(menu.textContent).toBe("Opus · Extra high");
+  fireEvent.click(screen.getByText("Next"));
+  fireEvent.click(screen.getByText("Start 1 agent"));
+  await flush();
+  expect(b.startTeam.mock.calls[0][0].roles[0]).toMatchObject({ model: "opus", effort: "xhigh" });
+});
+
+test("codex efforts follow the chosen model; switching agent resets the choice", async () => {
+  await open();
+  const menu = screen.getByRole("button", { name: "Model and effort for builder" });
+  fireEvent.click(menu);
+  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "opus" } });
+  fireEvent.click(screen.getByRole("button", { name: "Codex" }));
+  expect(menu.textContent).toBe("Default");
+  expect(efforts()).toEqual(["Default", "Low", "Medium", "High", "Extra high", "Max"]);
+  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-6.1-sol" } });
+  expect(efforts()).toContain("Ultra");
+  fireEvent.change(screen.getByLabelText("Thinking effort"), { target: { value: "ultra" } });
+  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-6-luna" } });
+  expect(efforts()).not.toContain("Ultra");
+  expect(menu.textContent).toBe("gpt-6-luna");
 });

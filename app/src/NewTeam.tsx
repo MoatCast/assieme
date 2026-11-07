@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { checkProject, fieldOf, pickFolder, startTeam, teamPresets, type Practices, type Preset, type RoleDraft } from "./bridge";
+import { checkProject, fieldOf, pickFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type RoleDraft } from "./bridge";
 import HelpMeChoose from "./HelpMeChoose";
+import ModelMenu, { choiceLabel } from "./ModelMenu";
 import RecommendedSetup from "./RecommendedSetup";
 import "./NewTeam.css";
 
@@ -27,6 +28,8 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
   const [roles, setRoles] = useState<RoleDraft[]>([]);
   const [edited, setEdited] = useState(false);
   const [briefOf, setBriefOf] = useState<number | null>(null);
+  const [modelOf, setModelOf] = useState<number | null>(null);
+  const [models, setModels] = useState<ModelOptions | null>(null);
   const [roleErrors, setRoleErrors] = useState<Record<number, string>>({});
   const [helping, setHelping] = useState(false);
   const [why, setWhy] = useState("");
@@ -44,6 +47,7 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
       const all = p.last ? [...p.presets, p.last] : p.presets;
       setPresets(all);
       setPractices(p.practices);
+      setModels(p.models);
       setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, true])));
       if (all.length) {
         setChosen(all[0].id);
@@ -64,6 +68,8 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
   const edit = (i: number, change: Partial<RoleDraft>) => {
     const old = roles[i].name;
     const renamed = change.name !== undefined && change.name !== old;
+    // Model names belong to one CLI: switching Claude Code / Codex goes back to that agent's defaults.
+    if (change.agent && change.agent !== roles[i].agent) change = { ...change, model: null, effort: null };
     // Agents that report to a renamed one follow the new name: the form has no other way to fix their parent.
     setRoles(roles.map((r, j) => (j === i ? { ...r, ...change } : renamed && r.parent === old ? { ...r, parent: change.name! } : r)));
     setEdited(true);
@@ -82,6 +88,7 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
   };
 
   const remove = (i: number) => {
+    setModelOf(null);
     const gone = roles[i].name;
     setRoles(roles.filter((_, j) => j !== i).map((r) => (r.parent === gone ? { ...r, parent: null } : r)));
     setEdited(true);
@@ -224,10 +231,19 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
                         ))}
                       </div>
                       <span className="job">{r.job}</span>
+                      {models && (
+                        <button type="button" className="choice" aria-label={`Model and effort for ${r.name}`}
+                          aria-expanded={modelOf === i} onClick={() => setModelOf(modelOf === i ? null : i)}>
+                          {choiceLabel(r, models)}
+                        </button>
+                      )}
                       <button type="button" className="link" onClick={() => setBriefOf(briefOf === i ? null : i)}>Brief</button>
                       <button type="button" className="remove" aria-label="Remove agent" onClick={() => remove(i)}>×</button>
                     </div>
                     {roleErrors[i] && <p className="error">{roleErrors[i]}</p>}
+                    {modelOf === i && models && (
+                      <ModelMenu role={r} options={models} onChange={(c) => edit(i, c)} />
+                    )}
                     {briefOf === i && (
                       <div className="brief">
                         <textarea aria-label={`Brief for ${r.name}`} value={r.brief} rows={8}
