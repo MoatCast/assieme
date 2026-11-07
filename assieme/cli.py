@@ -1,7 +1,7 @@
-"""wakegraph            live view (the default)
-wakegraph status     one snapshot of team health
-wakegraph watch      notifications only, no screen
-wakegraph report     who woke whom, what it cost, what was refused
+"""assieme            live view (the default)
+assieme status     one snapshot of team health
+assieme watch      notifications only, no screen
+assieme report     who woke whom, what it cost, what was refused
 """
 import argparse
 import datetime as dt
@@ -16,7 +16,7 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ['shim']:  # the hc stand-in: hc's own flags must reach it untouched
         return quiet.shim_main(argv[1:])
-    p = argparse.ArgumentParser(prog='wakegraph', description='Run with no command for the live view: team health, '
+    p = argparse.ArgumentParser(prog='assieme', description='Run with no command for the live view: team health, '
                                 'what needs you, and one-key fixes. Commands give snapshots and reports.')
     sub = p.add_subparsers(dest='cmd')  # no command: the live view
     r = sub.add_parser('report', help='summarise the last N hours of local agent logs')
@@ -97,15 +97,15 @@ agents, before it starts them, then restart them:
 
     export PATH="{d}:$PATH"
 
-Nothing changes until you also mark a pair quiet in the live view (`wakegraph`, then the pair's number).
-Undo with `wakegraph team off`.""")
+Nothing changes until you also mark a pair quiet in the live view (`assieme`, then the pair's number).
+Undo with `assieme team off`.""")
     elif switch == 'off':
         quiet.uninstall()
-        print('Quiet send is off: the hc stand-in is removed. Held notes are still delivered while wakegraph runs.')
+        print('Quiet send is off: the hc stand-in is removed. Held notes are still delivered while assieme runs.')
     else:
         ps, held = quiet.pairs(), quiet.held()
         print(f"stand-in installed: {'yes' if os.path.exists(os.path.join(quiet.shim_dir(), 'hc')) else 'no'}")
-        print(f"deliverer running: {'yes' if quiet.deliverer_alive() else 'no (start wakegraph or wakegraph watch)'}")
+        print(f"deliverer running: {'yes' if quiet.deliverer_alive() else 'no (start assieme or assieme watch)'}")
         print(f"quiet pairs: {', '.join(p['label'] for p in ps) or 'none'}")
         print(f"notes held: {sum(len(v) for v in held.values())}")
     return 0

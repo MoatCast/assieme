@@ -5,7 +5,7 @@ import os
 import tempfile
 import unittest
 
-from wakegraph import adapters, report, rules
+from assieme import adapters, report, rules
 
 DENIED = 'Permission to use Bash with command {} has been denied.'
 

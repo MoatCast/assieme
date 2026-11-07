@@ -3,11 +3,11 @@
 How it fits together:
 - The owner marks a sender -> receiver pair quiet (one key in the live view). Pairs live in quiet.json.
 - Agents keep typing `hc send`. A small `hc` shim, put ahead of the real `hc` on the agents' PATH by
-  `wakegraph team on`, holds notes on quiet pairs in a queue and passes everything else to the real hc.
-- The live view and `wakegraph watch` deliver held notes as one batch while the receiver is busy (so the note
+  `assieme team on`, holds notes on quiet pairs in a queue and passes everything else to the real hc.
+- The live view and `assieme watch` deliver held notes as one batch while the receiver is busy (so the note
   joins its current turn), or after MAX_HOLD if it stays idle: one wake instead of many.
 
-Safety: questions and URGENT/! notes always go now, `--now` forces it, and when no wakegraph loop is running
+Safety: questions and URGENT/! notes always go now, `--now` forces it, and when no assieme loop is running
 (no heartbeat for ALIVE_FOR seconds) the shim passes everything straight through. Nothing is dropped: a failed
 delivery stays queued.
 """
@@ -26,7 +26,7 @@ ALIVE_FOR = 60            # a loop that touched the heartbeat this recently is r
 
 def state_dir():
     base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
-    return os.path.join(base, 'wakegraph')
+    return os.path.join(base, 'assieme')
 
 
 def _path(*parts):
@@ -138,7 +138,7 @@ def shim_main(argv, run=subprocess.run, cwd=None, now=None):
     """`hc ...` as the agents see it. Returns the exit code. Only `hc send` on a quiet pair is ever held."""
     hc = real_hc()
     if not hc:
-        sys.stderr.write('wakegraph: real hc not found on PATH\n')
+        sys.stderr.write('assieme: real hc not found on PATH\n')
         return 127
     passthrough = lambda args: run([hc] + args).returncode
     if not argv or argv[0] != 'send':
@@ -171,7 +171,7 @@ def shim_main(argv, run=subprocess.run, cwd=None, now=None):
 # --- delivery ------------------------------------------------------------------------------------------------
 
 def batch_text(notes):
-    lines = [f"wakegraph: {len(notes)} quiet note{'s' if len(notes) > 1 else ''} held while you were busy:"]
+    lines = [f"assieme: {len(notes)} quiet note{'s' if len(notes) > 1 else ''} held while you were busy:"]
     for n in notes:
         lines.append(f"- from {n['from']} at {time.strftime('%H:%M', time.localtime(n['at']))}: {n['text']}")
     return '\n'.join(lines)
@@ -210,8 +210,8 @@ def install():
     os.makedirs(d, exist_ok=True)
     p = os.path.join(d, 'hc')
     with open(p, 'w') as f:
-        f.write(f'#!/bin/sh\n# wakegraph quiet send: holds notes on quiet pairs, passes everything else to the real hc.\n'
-                f'exec "{sys.executable}" -m wakegraph shim "$@"\n')
+        f.write(f'#!/bin/sh\n# assieme quiet send: holds notes on quiet pairs, passes everything else to the real hc.\n'
+                f'exec "{sys.executable}" -m assieme shim "$@"\n')
     os.chmod(p, 0o755)
     return d
 

@@ -1,6 +1,6 @@
-"""The live view: what `wakegraph` opens with no arguments.
+"""The live view: what `assieme` opens with no arguments.
 
-Team health, stall alarms and what needs you, each alert with a ready fix. A fix that wakegraph can carry out
+Team health, stall alarms and what needs you, each alert with a ready fix. A fix that assieme can carry out
 (today: a nudge through `hc send`) takes one key and a y to confirm. Nothing acts on its own. Every action is
 written to the action log and shown in the view.
 """
@@ -18,7 +18,7 @@ from . import adapters, quiet, report, rules, status
 REFRESH = 5               # seconds between redraws
 COST_EVERY = 600          # seconds between recomputing the 24 h cost line
 NOTIFY_MAX_AGE = 2 * 3600 # older items are shown, but never pop up a notification
-WATCH_EVERY = 15          # seconds between checks in `wakegraph watch`
+WATCH_EVERY = 15          # seconds between checks in `assieme watch`
 COMPACT_AT = 150_000      # A2: suggest compacting an idle agent whose context is at least this big
 REFUSAL_WINDOW = 30 * 60  # A5: two refusals of the same command within this window trigger the breaker
 ACTED_HIDE = 15 * 60      # a fix you just carried out stays hidden this long
@@ -30,7 +30,7 @@ class Suggestion:
     text: str             # the alert, in plain words
     agent: str
     address: str = None   # herdr terminal to act on
-    action: str = None    # 'nudge', 'compact' or 'tell' when wakegraph can carry out the fix
+    action: str = None    # 'nudge', 'compact' or 'tell' when assieme can carry out the fix
     message: str = ''     # what the nudge says
     hint: str = ''        # the fix, when it is the person's to make
     yours: bool = False   # a decision only the owner can make
@@ -39,7 +39,7 @@ class Suggestion:
 
 def log_path():
     base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
-    return os.path.join(base, 'wakegraph', 'actions.jsonl')
+    return os.path.join(base, 'assieme', 'actions.jsonl')
 
 
 def addresses(agents, terminals):
@@ -70,7 +70,7 @@ def suggest(agents, stalls, addr, queue=(), done=(), now=None, send_less=()):
                 names = ', '.join(root['waiting'])
                 add(Suggestion(f"{r.name} is idle while {len(root['waiting'])} agent(s) wait on it ({names})", r.name,
                                addr.get(r.name), 'nudge',
-                               f"wakegraph: {names} are waiting on you. Check your messages and reply to them."))
+                               f"assieme: {names} are waiting on you. Check your messages and reply to them."))
     for q in queue or [{'agent': a.name, 'kind': a.detail, 'seconds': None, 'blocks': []}
                        for a in agents if a.state == 'waiting on you']:
         where = f"hc attach {addr[q['agent']]}" if q['agent'] in addr else 'its terminal'
@@ -84,7 +84,7 @@ def suggest(agents, stalls, addr, queue=(), done=(), now=None, send_less=()):
     for a in agents:
         if a.state == 'idle, work waiting':
             add(Suggestion(f'{a.name} has work waiting: {a.detail}', a.name, addr.get(a.name), 'nudge',
-                           'wakegraph: a message for you may not have started a turn. Check your latest messages and act on them.'))
+                           'assieme: a message for you may not have started a turn. Check your latest messages and act on them.'))
     now = now or status.now_utc()
     for a in agents:  # A5: the second refusal of the same command is the moment to stop the loop
         if a.state == 'exited':
@@ -98,7 +98,7 @@ def suggest(agents, stalls, addr, queue=(), done=(), now=None, send_less=()):
             if n >= 2:
                 add(Suggestion(f'{a.name}: `{label}` refused {n} times by {why}' + (f'. Rule fix: {advice}' if advice else ''),
                                a.name, addr.get(a.name), 'tell',
-                               f'wakegraph: `{label}` has been refused {n} times by {why}. Do not retry it. '
+                               f'assieme: `{label}` has been refused {n} times by {why}. Do not retry it. '
                                'Do the task another way, or ask the owner if you really need it.'))
                 break
     for a in agents:  # A2: an idle team agent with a big context re-reads all of it on every wake
@@ -126,13 +126,13 @@ def _find(agents, name):
 
 def _nudge_text(a):
     if a.detail.startswith('same command'):
-        return ('wakegraph: you have run the same command several times in a row. Stop retrying it. '
+        return ('assieme: you have run the same command several times in a row. Stop retrying it. '
                 'Say what you are trying to do, then try a different approach.')
     if a.detail.startswith('subagent'):
-        return 'wakegraph: one of your subagents has gone silent. Check it or stop it, then carry on.'
+        return 'assieme: one of your subagents has gone silent. Check it or stop it, then carry on.'
     if a.detail.startswith('no reply'):
-        return 'wakegraph: you have not answered for a while. Reply with your status: done, working on what, or blocked on what.'
-    return ('wakegraph: no progress for a while. If a run is slow, narrow it. '
+        return 'assieme: you have not answered for a while. Reply with your status: done, working on what, or blocked on what.'
+    return ('assieme: no progress for a while. If a run is slow, narrow it. '
             'If you are stuck, say what is blocking you.')
 
 
@@ -144,7 +144,7 @@ def run_action(s, runner=None, log=None, now=None):
         quiet.set_pair(*s.pair)
         ok, detail = True, f"{s.pair[2]} is quiet: its notes now wait for the receiver's next turn"
     elif not s.address:
-        ok, detail = False, 'not running in herdr, so wakegraph cannot reach it'
+        ok, detail = False, 'not running in herdr, so assieme cannot reach it'
     else:
         runner = runner or (lambda cmd: subprocess.run(cmd, capture_output=True, text=True, timeout=60))
         try:
@@ -198,13 +198,13 @@ def cost_line(claude_dir, codex_dir, now):
             f"({100 * r['empty_tokens'] / total:.0f}% of input).")
     if r['send_less']:
         x = r['send_less'][0]
-        line += f" Cut first: {x['from']} -> {x['to']} ({x['empty_tokens'] / 1e6:.0f}M). Details: wakegraph report"
+        line += f" Cut first: {x['from']} -> {x['to']} ({x['empty_tokens'] / 1e6:.0f}M). Details: assieme report"
     return line, r['send_less']
 
 
 def render(agents, stalls, suggestions, now, cost='', actions=(), prompt='', quiet_line=''):
     head, _ = status.summary(agents)
-    lines = [f"wakegraph  {now.astimezone().strftime('%H:%M')}  {head}", '']
+    lines = [f"assieme  {now.astimezone().strftime('%H:%M')}  {head}", '']
     lines += [f"!! {s['text']}" for s in stalls]
     shown = list(enumerate(suggestions[:9], 1))
     mine = [(i, s) for i, s in shown if s.yours]
@@ -288,7 +288,7 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
             if key.isdigit() and 0 < int(key) <= min(9, len(sugg)):
                 s = sugg[int(key) - 1]
                 if not (s.action and (s.address or s.action == 'quiet')):
-                    note = f'[{key}] has no action wakegraph can take: {s.hint or "it is not running in herdr"}'
+                    note = f'[{key}] has no action assieme can take: {s.hint or "it is not running in herdr"}'
                     continue
                 if s.action == 'quiet':
                     draw(f"Make {s.pair[2]} quiet? Its routine notes will wait for the receiver's next turn "
@@ -315,7 +315,7 @@ def quiet_line():
     n = sum(len(v) for v in quiet.held().values())
     line = f"Quiet send: {len(ps)} pair{'s' if len(ps) > 1 else ''} quiet ({', '.join(p['label'] for p in ps)}); {n} note(s) held."
     if not os.path.exists(os.path.join(quiet.shim_dir(), 'hc')):
-        line += ' Agents are not using it yet: run `wakegraph team on`.'
+        line += ' Agents are not using it yet: run `assieme team on`.'
     return line
 
 
@@ -338,7 +338,7 @@ def notify(title, body, runner=None):
 def announce(queue, stalls, now, store=None, notifier=notify):
     """Notify once per new item in the owner's queue and per new stall. Returns the (title, body) pairs sent.
 
-    Seen items are remembered in the state folder, so restarting wakegraph doesn't repeat them. Only names and kinds
+    Seen items are remembered in the state folder, so restarting assieme doesn't repeat them. Only names and kinds
     go into a notification, never message text.
     """
     store = store or os.path.join(os.path.dirname(log_path()), 'notified.json')
@@ -359,7 +359,7 @@ def announce(queue, stalls, now, store=None, notifier=notify):
         if key not in seen and st['quiet_seconds'] <= NOTIFY_MAX_AGE:
             sent.append((key, 'Team stalled', st['text'][:220]))
     for key, title, body in sent:
-        notifier(f'wakegraph: {title}', body)
+        notifier(f'assieme: {title}', body)
         seen[key] = now.isoformat()
     if sent:
         cutoff = (now - dt.timedelta(days=2)).isoformat()
@@ -374,8 +374,8 @@ def announce(queue, stalls, now, store=None, notifier=notify):
 
 
 def watch(claude_dir, codex_dir, hours=12, use_herdr=True):
-    """`wakegraph watch`: no screen, just a notification when something needs you or a team stalls."""
-    print(f'wakegraph watch: checking every {WATCH_EVERY} s; notifications only. Ctrl-C to stop.', flush=True)
+    """`assieme watch`: no screen, just a notification when something needs you or a team stalls."""
+    print(f'assieme watch: checking every {WATCH_EVERY} s; notifications only. Ctrl-C to stop.', flush=True)
     try:
         while True:
             now = status.now_utc()

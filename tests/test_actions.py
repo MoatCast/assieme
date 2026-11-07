@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import unittest
 
-from wakegraph import live, status
+from assieme import live, status
 from tests.test_status import NOW, ago, hc_wake, prompt, tool, write
 
 DENIED = 'Permission to use Bash with command {} has been denied.'

@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import unittest
 
-from wakegraph import live, status
+from assieme import live, status
 from tests.test_status import NOW, StallTest, hc_wake, prompt, result, team, tool
 
 
@@ -56,11 +56,11 @@ class ActionTest(unittest.TestCase):
     def test_nudge_goes_through_hc_send_and_is_logged(self):
         calls = []
         runner = lambda cmd: calls.append(cmd) or subprocess.CompletedProcess(cmd, 0, 'started\n', '')
-        s = live.Suggestion('b is stuck: silent 20 min', 'b', 't2', 'nudge', 'wakegraph: hello')
+        s = live.Suggestion('b is stuck: silent 20 min', 'b', 't2', 'nudge', 'assieme: hello')
         with tempfile.TemporaryDirectory() as d:
             log = os.path.join(d, 'state', 'actions.jsonl')
             self.assertEqual(live.run_action(s, runner, log, NOW), (True, 'started'))
-            self.assertEqual(calls, [['hc', 'send', 't2', 'wakegraph: hello']])
+            self.assertEqual(calls, [['hc', 'send', 't2', 'assieme: hello']])
             entry = live.recent_actions(log)[-1]
         self.assertEqual((entry['action'], entry['agent'], entry['ok'], entry['reason']),
                          ('nudge', 'b', True, 'b is stuck: silent 20 min'))

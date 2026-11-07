@@ -90,7 +90,7 @@ def to_json(r, meta):
 
 def to_md(r, meta, show_text=False):
     total = sum(a['tokens'] for a in r['agents'].values())
-    lines = [f"# wakegraph: last {meta['hours']} h (since {meta['since']})", '',
+    lines = [f"# assieme: last {meta['hours']} h (since {meta['since']})", '',
              '## Flags', ''] + ([f'- {f}' for f in r['flags']] or ['- none']) + ['']
     lines += ['## Send less', '',
               f"Wakes between agents that did no work cost {r['empty_tokens'] / 1e6:.1f}M tokens "

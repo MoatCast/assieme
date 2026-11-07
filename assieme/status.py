@@ -413,7 +413,7 @@ def summary(agents):
 
 def to_text(agents, now):
     head, alerts = summary(agents)
-    lines = [f"wakegraph status  {now.astimezone().strftime('%H:%M')}  {head}"]
+    lines = [f"assieme status  {now.astimezone().strftime('%H:%M')}  {head}"]
     lines += [f"  !! {s['text']}" for s in stalls(agents, now)] + [f'  ! {x}' for x in alerts] + ['']
     return '\n'.join(lines + table(agents, now)) + '\n'
 

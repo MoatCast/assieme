@@ -5,7 +5,7 @@ import os
 import tempfile
 import unittest
 
-from wakegraph import status
+from assieme import status
 
 NOW = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
 
@@ -236,7 +236,7 @@ class ExitedAndExpiryTest(unittest.TestCase):
 
 class NamesTest(unittest.TestCase):
     def test_unrelated_project_does_not_spoil_team_names(self):
-        from wakegraph.adapters import _strip_common_prefix
+        from assieme.adapters import _strip_common_prefix
         home = __import__('re').sub(r'[^A-Za-z0-9]', '-', os.path.expanduser('~'))
         names = [f'{home}-Developer-Team-coord', f'{home}-Developer-Team-Alpha', f'{home}-Developer-agent-wakegraph',
                  f'{home}--codex-worktrees-x-Site']

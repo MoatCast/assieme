@@ -7,7 +7,7 @@ import os
 import tempfile
 import unittest
 
-from wakegraph import adapters, cli, report
+from assieme import adapters, cli, report
 
 SINCE = dt.datetime(2098, 12, 31, tzinfo=dt.timezone.utc)
 FUTURE = 4_100_000_000  # mtime in 2099, after SINCE

@@ -1,15 +1,15 @@
-# wakegraph
+# Assieme
 
 Keeps a team of coding agents moving, so you don't have to keep asking "Status".
 
-wakegraph reads the logs your agents already write (Claude Code with its subagents and Agent Teams, Codex,
+Assieme reads the logs your agents already write (Claude Code with its subagents and Agent Teams, Codex,
 herdr `hc` messages) and tells you, in plain words:
 
 - **what needs you**: an agent waiting on your answer, a stuck agent, a whole team stalled and who it waits on;
 - **what it costs**: who woke whom, and how many tokens went on wake-ups that did no work;
 - **what keeps being refused**, which rule did it, and a narrower rule to use instead.
 
-Every alert comes with a fix. When wakegraph can carry the fix out itself (today: nudging a stuck agent through
+Every alert comes with a fix. When Assieme can carry the fix out itself (today: nudging a stuck agent through
 herdr), it takes one key and a confirmation. Nothing acts on its own.
 
 Local only, no telemetry, no config, standard library only, message text hidden by default.
@@ -20,19 +20,19 @@ See [DESIGN.md](DESIGN.md) and [ROADMAP.md](ROADMAP.md).
 Python 3.10+. Install it once with [uv](https://docs.astral.sh/uv/), giving the path to this folder:
 
 ```bash
-uv tool install --editable ~/path/to/agent-wakegraph
+uv tool install --editable ~/path/to/assieme
 ```
 
-Then run `wakegraph` from anywhere. It finds Claude Code, Codex and herdr by itself. `--editable` means changes
-to this folder take effect without reinstalling. Remove it with `uv tool uninstall wakegraph`. (`pipx install
+Then run `assieme` from anywhere. It finds Claude Code, Codex and herdr by itself. `--editable` means changes
+to this folder take effect without reinstalling. Remove it with `uv tool uninstall assieme`. (`pipx install
 --editable <path>` works too.)
 
 ## The live view
 
-`wakegraph` with no command opens a view that refreshes every 5 seconds:
+`assieme` with no command opens a view that refreshes every 5 seconds:
 
 ```
-wakegraph  14:02  1 stuck, 1 waiting on you, 6 idle, 3 exited
+assieme  14:02  1 stuck, 1 waiting on you, 6 idle, 3 exited
 
 !! Team stalled for 10 min: 2 agents wait on steward (builder, coord); steward waits on you (asked 10 min ago)
 Needs you (1):
@@ -49,7 +49,7 @@ you started. Each item shows how long it has waited and which agents it holds up
 stall, pops up one desktop notification (macOS Notification Centre, or `notify-send` on Linux). Notifications
 carry names only, never message text, and items older than 2 hours never pop up.
 
-**Other alerts** are fixes wakegraph can carry out itself, through `hc send`:
+**Other alerts** are fixes Assieme can carry out itself, through `hc send`:
 
 | Fix | When | What it sends |
 |---|---|---|
@@ -72,33 +72,33 @@ can force any note with `hc send --now`. A failed delivery stays held, nothing i
 Agents keep typing `hc send`. Turn it on once:
 
 ```bash
-wakegraph team on      # installs the hc stand-in and prints the one PATH line for your agents' start script
-wakegraph team status  # stand-in installed? deliverer running? which pairs are quiet, how many notes held
-wakegraph team off     # removes it
+assieme team on      # installs the hc stand-in and prints the one PATH line for your agents' start script
+assieme team status  # stand-in installed? deliverer running? which pairs are quiet, how many notes held
+assieme team off     # removes it
 ```
 
-Then mark pairs quiet in the live view. Held notes are delivered by `wakegraph` or `wakegraph watch`; when
+Then mark pairs quiet in the live view. Held notes are delivered by `assieme` or `assieme watch`; when
 neither is running, the stand-in passes every note straight through.
 
-Press a number to act on an alert. wakegraph shows the exact message it will send and waits for `y`. Every
-action is logged to `~/.local/state/wakegraph/actions.jsonl` and listed in the view. `q` quits.
+Press a number to act on an alert. Assieme shows the exact message it will send and waits for `y`. Every
+action is logged to `~/.local/state/assieme/actions.jsonl` and listed in the view. `q` quits.
 Piped into another program, it prints one snapshot instead.
 
 ## Commands
 
 ```bash
-wakegraph status            # one snapshot: one line per agent, alerts first
-wakegraph status --watch    # the same, refreshing every 5 s
-wakegraph watch             # no screen: just the notifications, for a background tab
-wakegraph report --hours 24 # who woke whom, what it cost, what was refused (Markdown; --json for data)
+assieme status            # one snapshot: one line per agent, alerts first
+assieme status --watch    # the same, refreshing every 5 s
+assieme watch             # no screen: just the notifications, for a background tab
+assieme report --hours 24 # who woke whom, what it cost, what was refused (Markdown; --json for data)
 ```
 
 ### Live health
 
 ```bash
-wakegraph status            # one line per agent, alerts first
-wakegraph status --watch    # refresh every 5 s until Ctrl-C
-wakegraph status --json
+assieme status            # one line per agent, alerts first
+assieme status --watch    # refresh every 5 s until Ctrl-C
+assieme status --json
 ```
 
 Each agent active in the last 12 hours (`--hours`) gets one state, read from its own logs:
@@ -151,7 +151,7 @@ a word in the command, not the program run (hc); deny running it instead: `Bash(
 
 Rules are read from each agent's `.claude/settings*.json`, `~/.claude/settings.json`, and the `--settings` file of
 any running Claude Code agent. For past runs, pass role files with `--rules FILE` (repeatable); those are tried for
-every agent, after its own. wakegraph only suggests; it never edits settings.
+every agent, after its own. Assieme only suggests; it never edits settings.
 
 Options: `--claude-dir` (default `~/.claude/projects`), `--codex-dir` (default `~/.codex/sessions`),
 `--generic FILE` (repeatable), `--show-text` (adds wake snippets and full command prefixes; off by default).

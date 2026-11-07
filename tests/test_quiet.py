@@ -7,7 +7,7 @@ import time
 import unittest
 from unittest import mock
 
-from wakegraph import cli, live, quiet, status
+from assieme import cli, live, quiet, status
 
 SENDER, RECEIVER = '/w/builder', '/w/coord'
 
@@ -37,7 +37,7 @@ class QuietTestCase(unittest.TestCase):
         open(os.path.join(bin_dir, 'hc'), 'w').close()
         os.chmod(os.path.join(bin_dir, 'hc'), 0o755)
         self.env = mock.patch.dict(os.environ, {'XDG_STATE_HOME': os.path.join(self.tmp.name, 'state'),
-                                                'PATH': os.path.join(self.tmp.name, 'state', 'wakegraph', 'bin') + os.pathsep + bin_dir})
+                                                'PATH': os.path.join(self.tmp.name, 'state', 'assieme', 'bin') + os.pathsep + bin_dir})
         self.env.start()
         quiet.set_pair(SENDER, RECEIVER, 'builder -> coord')
         quiet.heartbeat()
@@ -145,11 +145,11 @@ class LiveQuietTest(QuietTestCase):
 
 
 class TeamTest(QuietTestCase):
-    def test_on_installs_a_shim_that_runs_wakegraph(self):
+    def test_on_installs_a_shim_that_runs_assieme(self):
         d = quiet.install()
         with open(os.path.join(d, 'hc')) as f:
             body = f.read()
-        self.assertIn('-m wakegraph shim "$@"', body)
+        self.assertIn('-m assieme shim "$@"', body)
         self.assertTrue(os.access(os.path.join(d, 'hc'), os.X_OK))
         self.assertNotEqual(os.path.realpath(quiet.real_hc()), os.path.realpath(os.path.join(d, 'hc')))
         quiet.uninstall()

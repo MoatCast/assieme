@@ -4,7 +4,7 @@ import os
 import tempfile
 import unittest
 
-from wakegraph import live, status
+from assieme import live, status
 from tests.test_status import NOW, StallTest, ago, hc_wake, prompt, result, tool
 
 
@@ -68,7 +68,7 @@ class QueueTest(unittest.TestCase):
             first = live.announce(self.queue, self.stalls, NOW, store, fake)
             again = live.announce(self.queue, self.stalls, NOW + dt.timedelta(minutes=1), store, fake)
         self.assertEqual([t for t, _ in first], ['steward needs you', 'Team stalled'])
-        self.assertEqual(sent[0], ('wakegraph: steward needs you', 'a question, waiting 10 min; holds up builder, coord'))
+        self.assertEqual(sent[0], ('assieme: steward needs you', 'a question, waiting 10 min; holds up builder, coord'))
         self.assertEqual(again, [])
 
     def test_old_items_do_not_pop_up(self):

@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "wakegraph"
+name = "assieme"
 version = "0.1.0"
 description = "Who woke whom in multi-agent coding teams, what each wake cost, and which commands keep being refused."
 readme = "README.md"
@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.scripts]
-wakegraph = "wakegraph.cli:main"
+assieme = "assieme.cli:main"
 
 [tool.setuptools]
-packages = ["wakegraph"]
+packages = ["assieme"]
