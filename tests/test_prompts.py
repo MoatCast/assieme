@@ -48,3 +48,45 @@ class PromptsTest(unittest.TestCase):
     def test_hook_review(self):
         self.assertTrue(prompts.hook_review(CODEX_HOOKS))
         self.assertFalse(prompts.hook_review(CODEX_TRUST))
+
+
+def fixture(name):
+    import os
+    with open(os.path.join(os.path.dirname(__file__), 'fixtures', 'screens', name)) as f:
+        return f.read()
+
+
+LONG = 'Yes, and switch to accept edits (auto-approve file edits and common file commands) for this session (shift+tab)'
+
+
+class MenuTest(unittest.TestCase):
+    def test_menu_from_real_screens(self):
+        self.assertEqual(prompts.menu(fixture('claude_permission.txt')),
+                         [(1, 'Yes'), (2, LONG[:39] + '…'), (3, 'No')])
+        self.assertEqual(prompts.menu(fixture('claude_question.txt')), [(1, 'Tabs'), (2, 'Spaces')])
+        self.assertEqual(prompts.menu(CODEX_TRUST), [(1, 'Trust and continue'), (2, 'Quit')])
+        self.assertEqual([n for n, _ in prompts.menu(CODEX_HOOKS)], [1, 2, 3])
+
+    def test_menu_takes_last_block(self):
+        screen = 'Plan:\n1. backoff\n2. tests\n3. review\n\nAllow?\n❯ 1. Yes\n  2. No, and tell Claude what to do\n'
+        self.assertEqual(prompts.menu(screen), [(1, 'Yes'), (2, 'No, and tell Claude what to do')])
+
+    def test_menu_rules(self):
+        self.assertEqual(prompts.menu('❯ 1. Only one\n'), [])
+        self.assertEqual(prompts.menu('\n'.join(f'{i}. item {i}' for i in range(1, 11))), [])
+        self.assertEqual(prompts.menu('1. a\n3. b\n'), [])
+        self.assertEqual(prompts.menu('no menu here'), [])
+        self.assertEqual(len(prompts.menu('1. ' + 'x' * 80 + '\n2. b\n')[0][1]), 40)
+
+
+class QuestionTest(unittest.TestCase):
+    def test_question(self):
+        screen = '⏺ Read 3 files\n\n⏺ Split into parts.\n\n  Before part 4: behind a flag,\n  or straight to main?\n\n───\n❯ \n───\n'
+        self.assertEqual(prompts.question(screen), 'Before part 4: behind a flag, or straight to main?')
+        self.assertEqual(prompts.question('• Should I add a test?\n\n› Ask Codex to do anything\n'),
+                         'Should I add a test?')
+
+    def test_no_question(self):
+        self.assertIsNone(prompts.question('⏺ Done. All tests pass.\n\n❯ \n'))
+        self.assertIsNone(prompts.question('⏺ Should I go on?\n\n  I went on and finished.\n\n❯ \n'))
+        self.assertIsNone(prompts.question('nothing from the agent'))
