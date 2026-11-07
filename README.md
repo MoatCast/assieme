@@ -27,6 +27,30 @@ wakegraph report --hours 24          # Markdown (default)
 wakegraph report --hours 24 --json
 ```
 
+### Live health
+
+```bash
+wakegraph status            # one line per agent, alerts first
+wakegraph status --watch    # refresh every 5 s until Ctrl-C
+wakegraph status --json
+```
+
+Each agent active in the last 12 hours (`--hours`) gets one state, read from its own logs:
+
+| State | Means |
+|---|---|
+| stuck | working, but no new log row for 15 min, the same command 4 times in a row, or a subagent gone silent |
+| waiting on you | it asked a question, Codex wants approval, or herdr reports a permission prompt |
+| idle, work waiting | another agent sent it a message (`hc send`) that started no turn |
+| waiting on subagents | its turn ended but subagents are still running |
+| working | in a turn, with the running tool named |
+| idle | turn over |
+
+When herdr-core is installed, the HERDR column shows herdr's own status for the same terminal (`unreported`
+when the agent never told herdr). Use `--no-herdr` to skip it. Command arguments are hidden unless `--show-text`.
+
+### Report options
+
 Options: `--claude-dir` (default `~/.claude/projects`), `--codex-dir` (default `~/.codex/sessions`),
 `--generic FILE` (repeatable), `--show-text` (adds wake snippets and full command prefixes; off by default).
 
