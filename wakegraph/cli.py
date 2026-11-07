@@ -1,5 +1,6 @@
 """wakegraph            live view (the default)
 wakegraph status     one snapshot of team health
+wakegraph watch      notifications only, no screen
 wakegraph report     who woke whom, what it cost, what was refused
 """
 import argparse
@@ -35,7 +36,11 @@ def main(argv=None):
     s.add_argument('--claude-dir', default=os.path.expanduser('~/.claude/projects'))
     s.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
     s.add_argument('--show-text', action='store_true', help='show command arguments (off: program names only)')
+    w = sub.add_parser('watch', help='no screen: a desktop notification when something needs you or a team stalls')
+    w.add_argument('--hours', type=float, default=12)
     args = p.parse_args(argv)
+    if args.cmd == 'watch':
+        return live.watch(os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions'), args.hours)
     if args.cmd is None:
         return live.run(os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions'))
     if args.cmd == 'status':

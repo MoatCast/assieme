@@ -95,6 +95,10 @@ class Agent:
         self.children = []
         self.herdr = None
         self.cwd = None           # working folder, to tell a running agent from a closed one
+        self.asked = False        # its latest reply ends with a question
+        self.turn_by = None       # who started its current or last turn: an agent name or HUMAN
+        self.ask_kind = ''        # F9: what it needs from you
+        self.ask_since = None     # F9: since when
 
     def as_dict(self, now):
         return {'agent': self.name, 'source': self.source, 'state': self.state, 'detail': self.detail,
@@ -111,6 +115,12 @@ def _claude(agent, rows, show_text):
         agent.cwd = o.get('cwd') or agent.cwd
         if o.get('type') == 'assistant':
             agent.last = ts
+            blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+            texts = [b.get('text', '') for b in blocks if b.get('type') == 'text' and b.get('text', '').strip()]
+            if texts:  # only whether it ends with a question is kept, never the text
+                agent.asked, agent.ask_since = texts[-1].rstrip().endswith('?'), ts
+            if any(b.get('type') == 'tool_use' for b in blocks):
+                agent.asked = False
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_use':
                     cmd = (b.get('input') or {}).get('command') if b.get('name') == 'Bash' else None
@@ -131,7 +141,7 @@ def _claude(agent, rows, show_text):
                 agent.state, agent.pending = 'idle', {}
                 continue
             if text:
-                agent.turn_start, agent.cmds, agent.pending = ts, [], {}
+                agent.turn_start, agent.cmds, agent.pending, agent.asked = ts, [], {}, False
                 _note_wake(agent, ts, text)
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_result':
@@ -140,6 +150,7 @@ def _claude(agent, rows, show_text):
 
 def _note_wake(agent, ts, text):
     sender, _ = wake_sender(text)
+    agent.turn_by = sender
     if sender != HUMAN:
         agent.wakes.append((ts, sender))
 
@@ -163,12 +174,17 @@ def _codex(agent, rows, show_text):
             text = ' '.join(b.get('text', '') for b in p.get('content') or [] if isinstance(b, dict))
             if not text.lstrip().startswith(('<environment_context>', '# AGENTS.md', '<user_instructions>')):
                 _note_wake(agent, ts, text)
+                agent.asked = False
+        elif kind == 'message' and p.get('role') == 'assistant':
+            text = ' '.join(b.get('text', '') for b in p.get('content') or [] if isinstance(b, dict)).rstrip()
+            if text:
+                agent.asked, agent.ask_since = text.endswith('?'), ts
         elif kind == 'task_started':
             agent.state, agent.turn_start, agent.cmds, agent.pending = 'working', ts, [], {}
         elif kind in ('task_complete', 'turn_aborted'):
             agent.state, agent.pending = 'idle', {}
         elif isinstance(kind, str) and ('approval_request' in kind or 'request_user_input' in kind):
-            agent.state, agent.pending = 'working', {'ask': (kind, 'approval', None)}
+            agent.state, agent.pending, agent.ask_since = 'working', {'ask': (kind, 'approval', None)}, ts
         elif kind in ('function_call', 'custom_tool_call'):
             args = p.get('arguments') or p.get('input') or ''
             try:
@@ -193,6 +209,8 @@ def _finish(agent, now):
     tool = next(iter(agent.pending.values()), None)
     if tool and (tool[0] in ASK_TOOLS or tool[1] == 'approval'):
         agent.state, agent.detail = 'waiting on you', f'asked {_ago(age)} ago'
+        agent.ask_kind = {'AskUserQuestion': 'a question', 'ExitPlanMode': 'a plan to approve'}.get(tool[0], 'an approval')
+        agent.ask_since = agent.last
     elif tool and re.search(r'\bhc\s+wait\b', tool[2] or ''):  # waiting is its job: never "stuck" by silence
         agent.detail = 'waiting (hc wait)'
     elif age > STUCK_AFTER:
@@ -273,6 +291,10 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
             if (a.cwd and a.cwd not in running and (now - a.last).total_seconds() > EXIT_GRACE
                     and a.state in ('idle', 'stuck', 'idle, work waiting')):
                 a.state, a.detail = 'exited', ''
+    for a in agents:  # it ended its turn with a question, in a turn a person started: the person owes an answer
+        if a.state == 'idle' and a.asked and a.turn_by == HUMAN:
+            a.state, a.ask_kind = 'waiting on you', 'a question in its reply'
+            a.detail = f'asked you a question {_ago((now - a.ask_since).total_seconds())} ago'
     alias = _aliases(agents, herdr)
     _work_waiting(agents, now, alias)
     if herdr:
@@ -334,6 +356,9 @@ def _apply_herdr(agents, terminals):
         a.herdr = st.get('state') or 'unreported'  # the agent never sent herdr its status
         if a.herdr == 'blocked' and a.state in ('working', 'stuck', 'idle'):
             a.state, a.detail = 'waiting on you', f"herdr: {st.get('kind') or 'prompt'}"
+            a.ask_kind = {'permission': 'a permission prompt', 'question': 'a question', 'auth': 'a sign-in'}.get(
+                st.get('kind'), 'a prompt')
+            a.ask_since = a.ask_since or a.last
 
 
 def _hc_json(*args):
@@ -378,6 +403,7 @@ def table(agents, now):
 def to_json(agents, now):
     head, alerts = summary(agents)
     return json.dumps({'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'summary': head, 'alerts': alerts,
+                       'queue': owner_queue(agents, now),
                        'stalls': stalls(agents, now),
                        'agents': [a.as_dict(now) for a in agents]}, indent=2)
 
@@ -513,3 +539,22 @@ def running_cwds():
     except (OSError, subprocess.SubprocessError):
         return None
     return {ln[1:] for ln in res.stdout.splitlines() if ln.startswith('n')}
+
+
+def owner_queue(agents, now):
+    """F9: decisions that are truly the owner's, each with how long it has waited and which agents it holds up."""
+    by = {a.name: a for a in agents}
+    blocks = {}
+    for a in agents:
+        if a.waits_on and a.waits_on != ['you']:
+            r, _ = _root(a, by)
+            if r is not a and r.state == 'waiting on you':
+                blocks.setdefault(r.name, []).append(a.name)
+    items = []
+    for a in agents:
+        if a.state == 'waiting on you':
+            since = a.ask_since or a.last
+            items.append({'agent': a.name, 'kind': a.ask_kind or 'an answer', 'seconds': int((now - since).total_seconds()),
+                          'blocks': sorted(blocks.get(a.name, [])), 'key': f"{a.name}|{a.ask_kind}|{since.isoformat()}"})
+    items.sort(key=lambda i: (-len(i['blocks']), -i['seconds']))
+    return items

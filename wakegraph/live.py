@@ -7,14 +7,18 @@ written to the action log and shown in the view.
 import datetime as dt
 import json
 import os
+import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 
 from . import adapters, report, status
 
 REFRESH = 5               # seconds between redraws
 COST_EVERY = 600          # seconds between recomputing the 24 h cost line
+NOTIFY_MAX_AGE = 2 * 3600 # older items are shown, but never pop up a notification
+WATCH_EVERY = 15          # seconds between checks in `wakegraph watch`
 
 
 @dataclass
@@ -25,6 +29,7 @@ class Suggestion:
     action: str = None    # 'nudge' when wakegraph can carry out the fix
     message: str = ''     # what the nudge says
     hint: str = ''        # the fix, when it is the person's to make
+    yours: bool = False   # a decision only the owner can make
 
 
 def log_path():
@@ -42,7 +47,7 @@ def addresses(agents, terminals):
     return out
 
 
-def suggest(agents, stalls, addr):
+def suggest(agents, stalls, addr, queue=()):
     """Alerts -> suggestions, most urgent first: stall blockers, then what waits on you, stuck agents, lost messages."""
     by = {a.name: a for a in agents}
     out, seen = [], set()
@@ -60,10 +65,13 @@ def suggest(agents, stalls, addr):
                 add(Suggestion(f"{r.name} is idle while {len(root['waiting'])} agent(s) wait on it ({names})", r.name,
                                addr.get(r.name), 'nudge',
                                f"wakegraph: {names} are waiting on you. Check your messages and reply to them."))
-    for a in agents:
-        if a.state == 'waiting on you':
-            where = f'hc attach {addr[a.name]}' if a.name in addr else 'its terminal'
-            add(Suggestion(f'{a.name} waits on you: {a.detail}', a.name, addr.get(a.name), hint=f'answer it in {where}'))
+    for q in queue or [{'agent': a.name, 'kind': a.detail, 'seconds': None, 'blocks': []}
+                       for a in agents if a.state == 'waiting on you']:
+        where = f"hc attach {addr[q['agent']]}" if q['agent'] in addr else 'its terminal'
+        waited = '' if q['seconds'] is None else f", waiting {status._ago(q['seconds'])}"
+        held = f"; holds up {', '.join(q['blocks'])}" if q['blocks'] else ''
+        add(Suggestion(f"{q['agent']}: {q['kind']}{waited}{held}", q['agent'], addr.get(q['agent']),
+                       hint=f'answer it in {where}', yours=True))
     for a in agents:
         if a.state == 'stuck':
             add(Suggestion(f'{a.name} is stuck: {a.detail}', a.name, addr.get(a.name), 'nudge', _nudge_text(a)))
@@ -153,14 +161,16 @@ def render(agents, stalls, suggestions, now, cost='', actions=(), prompt=''):
     head, _ = status.summary(agents)
     lines = [f"wakegraph  {now.astimezone().strftime('%H:%M')}  {head}", '']
     lines += [f"!! {s['text']}" for s in stalls]
-    if suggestions:
-        lines += ['Needs attention:']
-        for i, s in enumerate(suggestions[:9], 1):
-            fix = (f'press {i} to nudge' if s.action and s.address else
-                   'nudge it yourself (not in herdr)' if s.action else s.hint)
+    shown = list(enumerate(suggestions[:9], 1))
+    mine = [(i, s) for i, s in shown if s.yours]
+    other = [(i, s) for i, s in shown if not s.yours]
+    lines += [f'Needs you ({len(mine)}):' if mine else 'Nothing needs you right now.']
+    lines += [f'  [{i}] {s.text}  -> {s.hint}' for i, s in mine]
+    if other:
+        lines += ['Other alerts:']
+        for i, s in other:
+            fix = f'press {i} to nudge' if s.address else 'nudge it yourself (not in herdr)'
             lines.append(f'  [{i}] {s.text}  -> {fix}')
-    else:
-        lines.append('Nothing needs you right now.')
     lines += ['']
     if cost:
         lines += [cost, '']
@@ -180,7 +190,9 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
         terminals = status.herdr_terminals() if use_herdr else None
         agents = status.collect(claude_dir, codex_dir, now, hours, herdr=terminals, running=status.running_cwds())
         stalls = status.stalls(agents, now)
-        return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals))
+        queue = status.owner_queue(agents, now)
+        announce(queue, stalls, now)
+        return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals), queue)
 
     cost, cost_at = '', None
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
@@ -227,3 +239,73 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
         return 0
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def notify(title, body, runner=None):
+    """A desktop notification: macOS Notification Centre, notify-send on Linux, else the terminal bell."""
+    runner = runner or (lambda cmd: subprocess.run(cmd, capture_output=True, timeout=10))
+    if sys.platform == 'darwin':
+        cmd = ['osascript', '-e', f'display notification {json.dumps(body)} with title {json.dumps(title)}']
+    elif shutil.which('notify-send'):
+        cmd = ['notify-send', title, body]
+    else:
+        sys.stdout.write('\a')
+        return
+    try:
+        runner(cmd)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def announce(queue, stalls, now, store=None, notifier=notify):
+    """Notify once per new item in the owner's queue and per new stall. Returns the (title, body) pairs sent.
+
+    Seen items are remembered in the state folder, so restarting wakegraph doesn't repeat them. Only names and kinds
+    go into a notification, never message text.
+    """
+    store = store or os.path.join(os.path.dirname(log_path()), 'notified.json')
+    try:
+        with open(store) as f:
+            seen = json.load(f)
+    except (OSError, ValueError):
+        seen = {}
+    sent = []
+    for q in queue:
+        if q['key'] in seen or q['seconds'] > NOTIFY_MAX_AGE:
+            continue
+        body = f"{q['kind']}, waiting {status._ago(q['seconds'])}" + (
+            f"; holds up {', '.join(q['blocks'])}" if q['blocks'] else '')
+        sent.append((q['key'], f"{q['agent']} needs you", body))
+    for st in stalls:
+        key = 'stall|' + '|'.join(sorted(r['agent'] for r in st.get('roots', [])))
+        if key not in seen and st['quiet_seconds'] <= NOTIFY_MAX_AGE:
+            sent.append((key, 'Team stalled', st['text'][:220]))
+    for key, title, body in sent:
+        notifier(f'wakegraph: {title}', body)
+        seen[key] = now.isoformat()
+    if sent:
+        cutoff = (now - dt.timedelta(days=2)).isoformat()
+        seen = {k: v for k, v in seen.items() if v >= cutoff}
+        try:
+            os.makedirs(os.path.dirname(store), exist_ok=True)
+            with open(store, 'w') as f:
+                json.dump(seen, f)
+        except OSError:
+            pass
+    return [(t, b) for _, t, b in sent]
+
+
+def watch(claude_dir, codex_dir, hours=12, use_herdr=True):
+    """`wakegraph watch`: no screen, just a notification when something needs you or a team stalls."""
+    print(f'wakegraph watch: checking every {WATCH_EVERY} s; notifications only. Ctrl-C to stop.', flush=True)
+    try:
+        while True:
+            now = status.now_utc()
+            agents = status.collect(claude_dir, codex_dir, now, hours,
+                                    herdr=status.herdr_terminals() if use_herdr else None,
+                                    running=status.running_cwds())
+            for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now):
+                print(f"{now.astimezone().strftime('%H:%M')}  {title}: {body}", flush=True)
+            time.sleep(WATCH_EVERY)
+    except KeyboardInterrupt:
+        return 0

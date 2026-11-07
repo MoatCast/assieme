@@ -35,14 +35,21 @@ to this folder take effect without reinstalling. Remove it with `uv tool uninsta
 wakegraph  14:02  1 stuck, 1 waiting on you, 6 idle, 3 exited
 
 !! Team stalled for 10 min: 2 agents wait on steward (builder, coord); steward waits on you (asked 10 min ago)
-Needs attention:
-  [1] steward waits on you: asked 10 min ago  -> answer it in hc attach t2
+Needs you (1):
+  [1] steward: a permission prompt, waiting 10 min; holds up builder, coord  -> answer it in hc attach t2
+Other alerts:
   [2] builder is stuck: silent 18 min, last Bash: pytest  -> press 2 to nudge
 
 Last 24 h: wakes that did no work cost 414M tokens (30% of input). Cut first: builder -> coord (82M).
 ```
 
-Press a number to act on that alert. wakegraph shows the exact message it will send and waits for `y`. Every
+**Needs you** is your queue: only decisions that are yours, longest-blocking first. That covers a question, a plan
+to approve, a Codex approval, a permission prompt herdr reports, or a reply that ended with a question in a turn
+you started. Each item shows how long it has waited and which agents it holds up. A new item, or a new team
+stall, pops up one desktop notification (macOS Notification Centre, or `notify-send` on Linux). Notifications
+carry names only, never message text, and items older than 2 hours never pop up.
+
+Press a number to act on an alert. wakegraph shows the exact message it will send and waits for `y`. Every
 action is logged to `~/.local/state/wakegraph/actions.jsonl` and listed in the view. `q` quits.
 Piped into another program, it prints one snapshot instead.
 
@@ -51,6 +58,7 @@ Piped into another program, it prints one snapshot instead.
 ```bash
 wakegraph status            # one snapshot: one line per agent, alerts first
 wakegraph status --watch    # the same, refreshing every 5 s
+wakegraph watch             # no screen: just the notifications, for a background tab
 wakegraph report --hours 24 # who woke whom, what it cost, what was refused (Markdown; --json for data)
 ```
 
