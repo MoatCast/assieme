@@ -40,7 +40,7 @@ def claude_team(root):
         if i < 3:
             rows.append({'type': 'user', 'timestamp': ts(i, 2), 'message': {'content': [
                 {'type': 'tool_result', 'tool_use_id': f't{i}', 'is_error': True,
-                 'content': 'Permission for this action was denied by the auto mode classifier'}]}})
+                 'content': 'Permission for this action was denied by the Claude Code auto mode classifier. Reason: [Merge Without Review].'}]}})
     rows.append({'type': 'user', 'timestamp': ts(40), 'isMeta': True, 'message': {'content': 'injected'}})
     rows.append({'type': 'user', 'timestamp': ts(41), 'message': {'content': [{'type': 'text', 'text': 'please review'}]}})
     for k in range(4):
@@ -119,11 +119,13 @@ class ClaudeCodeTest(unittest.TestCase):
         self.assertEqual((t.sender, t.channel, t.calls, t.tokens), ('coord', 'subagent', 5, 10_000))
 
     def test_refusal_label_hides_arguments(self):
-        self.assertEqual(dict(self.sessions['coord'].refusals), {'Bash: hc': 3})
+        self.assertEqual(dict(self.sessions['coord'].refusals),
+                         {('Bash: hc', 'auto-mode classifier (Merge Without Review)'): 3})
+        self.assertIn('`Bash(hc send:*)`', self.sessions['coord'].rule_notes['auto-mode classifier (Merge Without Review)'])
 
     def test_show_text(self):
         s = {s.agent: s for s in adapters.claude_code(self.tmp.name, SINCE, show_text=True)}['coord']
-        self.assertEqual(dict(s.refusals), {'Bash: hc send steward': 3})
+        self.assertEqual(dict(s.refusals), {('Bash: hc send steward', 'auto-mode classifier (Merge Without Review)'): 3})
         self.assertIn('SECRET-TEXT', s.turns[0].text)
 
     def test_report_flags(self):
@@ -177,7 +179,7 @@ class CodexTest(unittest.TestCase):
         self.assertEqual(set(s), {'codex:app', 'codex:app/subagent'})
         p = s['codex:app']
         self.assertEqual((p.calls, p.tokens, len(p.turns)), (3, 120_000, 1))
-        self.assertEqual(dict(p.refusals), {'exec_command: git': 1})
+        self.assertEqual(dict(p.refusals), {('exec_command: git', 'Codex sandbox or approval'): 1})
         self.assertEqual(s['codex:app/subagent'].turns[0].sender, 'codex:app')
 
 
@@ -191,7 +193,7 @@ class GenericTest(unittest.TestCase):
                 {'ts': '2099-01-01T00:00:02Z', 'agent': 'a', 'type': 'refusal', 'command': 'rm -rf /'},
                 {'ts': '1999-01-01T00:00:00Z', 'agent': 'a', 'type': 'call', 'input_tokens': 5}])
             [s] = adapters.generic(path, SINCE)
-        self.assertEqual((s.calls, s.tokens, s.turns[0].sender, dict(s.refusals)), (1, 100, 'b', {'cmd: rm': 1}))
+        self.assertEqual((s.calls, s.tokens, s.turns[0].sender, dict(s.refusals)), (1, 100, 'b', {('cmd: rm', 'reported'): 1}))
 
 
 class CliTest(unittest.TestCase):

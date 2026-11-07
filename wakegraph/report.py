@@ -23,6 +23,7 @@ def aggregate(sessions, now=None, hours=None):
                                              'last_hour': 0, 'channels': set(), 'sample': ''})
     hour_ago = now - dt.timedelta(hours=1) if now else None
     refusals = collections.Counter()
+    notes = {}
     for s in sessions:
         a = agents[s.agent]
         a['sessions'] += 1
@@ -40,8 +41,9 @@ def aggregate(sessions, now=None, hours=None):
             e['calls'] += t.calls
             e['channels'].add(t.channel)
             e['sample'] = t.text or e['sample']
-        for cmd, n in s.refusals.items():
-            refusals[(s.agent, cmd)] += n
+        for (cmd, why), n in s.refusals.items():
+            refusals[(s.agent, cmd, why)] += n
+        notes.update(s.rule_notes)
 
     flags = []
     for name, a in agents.items():
@@ -51,9 +53,10 @@ def aggregate(sessions, now=None, hours=None):
         if sender != HUMAN and e['empty'] > EMPTY_WAKES_PER_EDGE:
             flags.append(f"{sender} -> {receiver}: {e['empty']} of {e['wakes']} wakes needed <= {EMPTY_CALLS} calls "
                          f"({e['tokens'] / 1e6:.1f}M tokens on all of them); stop the routine message or batch it")
-    for (agent, cmd), n in refusals.items():
+    for (agent, cmd, why), n in refusals.items():
         if n >= REPEATED_REFUSALS:
-            flags.append(f"{agent}: '{cmd}' refused {n} times; fix the rule or the brief instead of retrying")
+            fix = notes.get(why) or 'fix the rule or the brief instead of retrying'
+            flags.append(f"{agent}: '{cmd}' refused {n} times by {why}; {fix}")
     for (sender, receiver), e in edges.items():
         e['per_hour'] = round(e['wakes'] / hours, 2) if hours else None
         if (sender != HUMAN and hours and e['last_hour'] >= NOISY_LAST_HOUR
@@ -75,7 +78,8 @@ def aggregate(sessions, now=None, hours=None):
                                "batch these notes or stop sending them"}
                       for f, t, e in send_less],
         'empty_tokens': sum(e['empty_tokens'] for (f, _), e in edges.items() if f != HUMAN),
-        'refusals': [{'agent': a, 'command': c, 'count': n} for (a, c), n in refusals.most_common()],
+        'refusals': [{'agent': a, 'command': c, 'why': w, 'advice': notes.get(w, ''), 'count': n}
+                     for (a, c, w), n in refusals.most_common()],
         'flags': flags,
     }
 
@@ -108,7 +112,8 @@ def to_md(r, meta, show_text=False):
                      f"{e['empty']} | {e['tokens'] / 1e6:.2f}M | {e['empty_tokens'] / 1e6:.2f}M |"
                      + (f" {e['sample'].replace('|', '/')} |" if show_text else ''))
     lines += ['', '## Refused commands', '']
-    lines += [f"- {x['agent']}: `{x['command']}` x{x['count']}" for x in r['refusals']] or ['- none']
+    lines += [f"- {x['agent']}: `{x['command']}` x{x['count']}, by {x['why']}" + (f". {x['advice']}" if x['advice'] else '')
+              for x in r['refusals']] or ['- none']
     lines += ['', f"Total input tokens: {total / 1e6:.1f}M. A wake's cost is the receiver's input tokens summed over "
               'its calls in that turn, i.e. context x calls.']
     return '\n'.join(lines) + '\n'

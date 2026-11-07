@@ -72,6 +72,20 @@ cutting (each worth at least 1% of input), for example:
 The wake table shows each pair's wakes per hour over the window and in the last hour, and flags a pair that just
 got noisy (10+ wakes in the last hour and at least 3x its usual rate).
 
+**Refused commands** say where each refusal came from and what to do about it: a named deny rule and the file it
+lives in, the auto-mode classifier and its reason, a built-in safety check, or the Codex sandbox. A rule that
+matched a word in the command rather than the program being run is called out with a narrower rule to use
+instead, for example:
+
+```
+steward: 'Bash: hc' refused 4 times by deny rule `Bash(*cloud-launch*)` (build/herdr/steward.json); the rule matched
+a word in the command, not the program run (hc); deny running it instead: `Bash(cloud-launch:*)`
+```
+
+Rules are read from each agent's `.claude/settings*.json`, `~/.claude/settings.json`, and the `--settings` file of
+any running Claude Code agent. For past runs, pass role files with `--rules FILE` (repeatable); those are tried for
+every agent, after its own. wakegraph only suggests; it never edits settings.
+
 Options: `--claude-dir` (default `~/.claude/projects`), `--codex-dir` (default `~/.codex/sessions`),
 `--generic FILE` (repeatable), `--show-text` (adds wake snippets and full command prefixes; off by default).
 

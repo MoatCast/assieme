@@ -5,7 +5,7 @@ import os
 import sys
 import time
 
-from . import adapters, report, status
+from . import adapters, report, rules, status
 
 
 def main(argv=None):
@@ -20,6 +20,9 @@ def main(argv=None):
     r.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
     r.add_argument('--generic', action='append', default=[], metavar='FILE', help='normalised-events JSONL (repeatable)')
     r.add_argument('--show-text', action='store_true', help='include wake snippets and command arguments (off: names only)')
+    r.add_argument('--rules', action='append', default=[], metavar='FILE',
+                   help='a Claude Code settings file whose deny rules explain refusals (repeatable); '
+                        "running agents' --settings files are found automatically")
     s = sub.add_parser('status', help='live health of each agent: working, stuck, waiting on you, ...')
     s.add_argument('--hours', type=float, default=12, help='agents with log activity in this window')
     s.add_argument('--json', action='store_true')
@@ -35,7 +38,9 @@ def main(argv=None):
     since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=args.hours)
     sessions = []
     if os.path.isdir(args.claude_dir):
-        sessions += adapters.claude_code(args.claude_dir, since, args.show_text)
+        extra = [r for f in args.rules for r in rules.load_file(f)]
+        sessions += adapters.claude_code(args.claude_dir, since, args.show_text,
+                                         cwd_rules=rules.running_settings(), extra_rules=extra)
     if os.path.isdir(args.codex_dir):
         sessions += adapters.codex(args.codex_dir, since, args.show_text)
     for path in args.generic:

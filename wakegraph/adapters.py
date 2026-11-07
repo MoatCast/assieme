@@ -9,6 +9,7 @@ import json
 import os
 import re
 
+from . import rules
 from .model import HUMAN, Session, parse_ts
 
 WAKE_MARKERS = [
@@ -16,8 +17,6 @@ WAKE_MARKERS = [
     (re.compile(r'<teammate-message teammate_id="([\w.-]+)"'), 'team'),         # Claude Code Agent Teams
     (re.compile(r'^\s*<task-notification>'), 'notify'),                         # a background subagent finished
 ]
-# Claude Code: auto-mode classifier or permission rule said no.
-CLAUDE_REFUSED = re.compile(r'^Permission (for this|to use)|^Permission to .* (was )?denied')
 # Codex: sandbox or approval refusal in a tool's output.
 CODEX_REFUSED = re.compile(r'sandbox_apply: Operation not permitted|rejected by (the )?(user|policy)|approval (was )?denied',
                            re.I)
@@ -76,8 +75,14 @@ def _strip_common_prefix(names):
     return {n: n[cut:] or n for n in names}
 
 
-def claude_code(root, since, show_text=False):
-    """~/.claude/projects/<project>/<session>.jsonl, plus <session>/subagents/agent-*.jsonl."""
+def claude_code(root, since, show_text=False, user_settings=None, cwd_rules=None, extra_rules=()):
+    """~/.claude/projects/<project>/<session>.jsonl, plus <session>/subagents/agent-*.jsonl.
+
+    Deny rules explain refusals. They come from each session's cwd (.claude/settings*.json), user_settings,
+    cwd_rules ({cwd: rules} of running agents' --settings files) and extra_rules (--rules files).
+    """
+    user_settings = user_settings or os.path.expanduser('~/.claude/settings.json')
+    rule_cache = {}
     paths = _recent(glob.glob(os.path.join(root, '*', '*.jsonl'))
                     + glob.glob(os.path.join(root, '*', '*', 'subagents', '*.jsonl')), since)
     names = _strip_common_prefix(sorted({os.path.relpath(p, root).split(os.sep)[0] for p in paths}))
@@ -93,15 +98,18 @@ def claude_code(root, since, show_text=False):
             except (OSError, ValueError):
                 pass
             parent, agent = agent, f"{agent}/{meta.get('agentType') or 'subagent'}"
-        s = _claude_session(path, agent, parent, since, show_text)
+        s = _claude_session(path, agent, parent, since, show_text,
+                            lambda cwd: rule_cache.setdefault(cwd, rules.load(cwd, user_settings)
+                                                               + (cwd_rules or {}).get(cwd, []) + list(extra_rules)))
         if s.calls:
             yield s
 
 
-def _claude_session(path, agent, parent, since, show_text):
+def _claude_session(path, agent, parent, since, show_text, rules_for=lambda cwd: []):
     s = Session(agent, 'claude-code')
-    seen, tool_label = set(), {}
+    seen, tools, cwd = set(), {}, None
     for o in _rows(path):
+        cwd = o.get('cwd') or cwd
         ts = parse_ts(o.get('timestamp'))
         if not ts or ts < since:
             continue
@@ -117,8 +125,13 @@ def _claude_session(path, agent, parent, since, show_text):
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_result' and b.get('is_error'):
                     out = b.get('content')
-                    if CLAUDE_REFUSED.search(out if isinstance(out, str) else json.dumps(out)):
-                        s.refusals[tool_label.get(b.get('tool_use_id'), '?')] += 1
+                    out = out if isinstance(out, str) else json.dumps(out)
+                    if rules.REFUSED.search(out):
+                        label, name, cmd, fpath = tools.get(b.get('tool_use_id'), ('?', None, None, None))
+                        why, note = rules.explain(out, name, cmd, rules_for(cwd), fpath)
+                        s.refusals[(label, why)] += 1
+                        if note:
+                            s.rule_notes[why] = note
         elif o.get('type') == 'assistant' and msg.get('usage'):
             if msg.get('id') not in seen:  # one call is logged once per content block
                 seen.add(msg.get('id'))
@@ -127,7 +140,9 @@ def _claude_session(path, agent, parent, since, show_text):
                        + u.get('cache_creation_input_tokens', 0), u.get('output_tokens', 0))
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_use':
-                    tool_label[b.get('id')] = command_label(b.get('name'), (b.get('input') or {}).get('command'), show_text)
+                    inp = b.get('input') or {}
+                    tools[b.get('id')] = (command_label(b.get('name'), inp.get('command'), show_text), b.get('name'),
+                                          inp.get('command'), inp.get('file_path'))
     return s
 
 
@@ -189,7 +204,7 @@ def _codex_session(path, since, show_text):
         elif kind in ('function_call_output', 'custom_tool_call_output'):
             out = p.get('output')
             if CODEX_REFUSED.search(out if isinstance(out, str) else json.dumps(out)):
-                s.refusals[tool_label.get(p.get('call_id'), '?')] += 1
+                s.refusals[(tool_label.get(p.get('call_id'), '?'), 'Codex sandbox or approval')] += 1
     return thread_id, parent_id, s
 
 
@@ -211,5 +226,5 @@ def generic(path, since, show_text=False):
         elif o.get('type') == 'call':
             s.call(int(o.get('input_tokens') or 0), int(o.get('output_tokens') or 0))
         elif o.get('type') == 'refusal':
-            s.refusals[command_label('cmd', str(o.get('command') or ''), show_text)] += 1
+            s.refusals[(command_label('cmd', str(o.get('command') or ''), show_text), str(o.get('why') or 'reported'))] += 1
     yield from (s for s in sessions.values() if s.calls)
