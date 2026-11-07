@@ -63,3 +63,6 @@ export async function openTerminal(
 
 export const readTerminal = (session: string, address: string) =>
   invoke<string>("terminal_read", { session, address });
+
+export const serviceRunning = () => invoke<boolean>("service_running");
+export const serviceInstall = () => invoke<void>("service_install");

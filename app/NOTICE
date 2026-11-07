@@ -1,0 +1,12 @@
+Assieme
+Copyright 2026 the Assieme authors. Licensed under the Apache License, Version 2.0.
+
+This app bundles, unmodified:
+
+- herdr-core (hc) 0.1.18, https://github.com/herdrdev/herdr-core
+  Copyright the herdr-core authors. Licensed under the Apache License, Version 2.0.
+  "herdr" is a name of its authors; Assieme is not affiliated with or endorsed by them.
+
+- Python 3.13 from python-build-standalone, https://github.com/astral-sh/python-build-standalone
+  Python is licensed under the Python Software Foundation License; the build's own licence files
+  are inside the bundled python folder (python/lib/python3.13/LICENSE.txt and the build's licences).

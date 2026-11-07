@@ -1,12 +1,13 @@
 mod bridge;
 mod frame;
+mod service;
 
 use bridge::Stream;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
-use tauri::State;
+use tauri::{Manager, State};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
 /// Live terminal streams by id. Only `bridge.ts` calls these commands.
@@ -79,6 +80,18 @@ async fn terminal_read(session: String, address: String) -> Result<String, Strin
     bridge::read_text_at(&bridge::hc_socket(&session), &address)
 }
 
+#[tauri::command]
+async fn service_running() -> bool {
+    service::running("launchctl")
+}
+
+/// Install the background brain with the Python and hc bundled inside the app.
+#[tauri::command]
+async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
+    let res = app.path().resource_dir().map_err(|e| e.to_string())?;
+    service::install(&res.join("python/bin/python3"), &res.join("hc-bin"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -90,7 +103,9 @@ pub fn run() {
             terminal_input,
             terminal_resize,
             terminal_close,
-            terminal_read
+            terminal_read,
+            service_running,
+            service_install
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

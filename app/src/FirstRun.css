@@ -177,3 +177,41 @@
   background: #000;
   border-radius: var(--quiet-radius-inner);
 }
+.service-ask {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 520px;
+  padding: 16px 20px;
+  background: var(--quiet-surface);
+  border: 1px solid var(--quiet-line);
+  border-radius: var(--quiet-radius-card);
+  box-shadow: 0 8px 24px rgba(27, 36, 51, 0.08);
+  font-size: 14px;
+  line-height: 20px;
+  z-index: 10;
+}
+.service-ask p {
+  margin: 0 0 12px;
+}
+.service-error {
+  color: var(--quiet-needs-you);
+}
+.service-actions {
+  display: flex;
+  gap: 8px;
+}
+.service-actions button {
+  padding: 8px 16px;
+  border-radius: var(--quiet-radius-control);
+  border: 1px solid var(--quiet-control);
+  background: var(--quiet-surface);
+  font-size: 14px;
+  cursor: pointer;
+}
+.service-actions button.primary {
+  background: var(--quiet-ink);
+  color: var(--quiet-on-ink);
+  border-color: var(--quiet-ink);
+}
