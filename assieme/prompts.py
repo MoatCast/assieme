@@ -6,7 +6,7 @@ Codex's hook review is never answered by Assieme: the user reviews hooks themsel
 
 import re
 
-ITEM = re.compile(r'^\s*(?:[❯›>]\s*)?(\d+)\.\s+(\S.*?)\s*$')
+ITEM = re.compile(r'^\s*([❯›>]\s*)?(\d+)\.\s+(\S.*?)\s*$')
 META = {'Type something.', 'Chat about this'}  # Claude's own extras: Reply covers them
 LABEL_MAX = 40
 
@@ -24,27 +24,47 @@ def hook_review(screen):
     return 'Hooks need review' in screen
 
 
+def _block(screen):
+    """(items, index of item 1, lines) for the last numbered block on screen, or ([], None, lines)."""
+    lines = screen.splitlines()[-40:]
+    found, pointer, first = [], False, None
+    for i in range(len(lines) - 1, -1, -1):
+        m = ITEM.match(lines[i])
+        if not m:
+            continue
+        n = int(m.group(2))
+        if found and n != found[-1][0] - 1:
+            break
+        found.append((n, m.group(3)))
+        pointer = pointer or bool(m.group(1))
+        if n == 1:
+            first = i
+            break
+    # A real menu draws its selection pointer; an agent's own numbered list in its reply has none.
+    if first is None or not pointer or not 2 <= len(found) <= 9:
+        return [], None, lines
+    return list(reversed(found)), first, lines
+
+
 def menu(screen):
     """The numbered menu at the bottom of the screen as [(n, label)], or [] when there is none.
 
-    Only the last block counts (a numbered list in the agent's own text above it is not a menu); items may have
-    description lines between them; 2 to 9 items numbered from 1."""
-    found = []
-    for line in reversed(screen.splitlines()[-40:]):
-        m = ITEM.match(line)
-        if not m:
-            continue
-        n = int(m.group(1))
-        if found and n != found[-1][0] - 1:
-            break
-        found.append((n, m.group(2)))
-        if n == 1:
-            break
-    if not found or found[-1][0] != 1:
-        return []
+    Only the last block counts, it must show the selection pointer (❯ or ›), items may have description lines
+    between them, and there are 2 to 9 items numbered from 1. Claude's "Type something." and "Chat about this"
+    are left out (Reply covers them)."""
+    found, _, _ = _block(screen)
     items = [(n, label if len(label) <= LABEL_MAX else label[:LABEL_MAX - 1] + '…')
-             for n, label in reversed(found) if label not in META]
-    return items if 2 <= len(found) <= 9 and len(items) >= 2 else []
+             for n, label in found if label not in META]
+    return items if len(items) >= 2 else []
+
+
+def menu_context(screen, lines_above=8):
+    """The text just above the menu ("Do you want to create note.txt?", the tool line): what the menu is about."""
+    found, first, lines = _block(screen)
+    if not found:
+        return ''
+    above = [l.strip() for l in lines[:first] if l.strip() and not set(l.strip()) <= set('─╌-')]
+    return '\n'.join(above[-lines_above:])
 
 
 AGENT_TEXT = re.compile(r'^[⏺•]\s?(.*)$')  # where an agent message starts: Claude Code ⏺, Codex •

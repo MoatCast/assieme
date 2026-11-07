@@ -205,3 +205,23 @@ class ActTest(unittest.TestCase):
         r = self.act(FakeRt(fail=runtime.RuntimeError_('unavailable', 'no core')), f['id'], f['buttons'][0]['id'])
         self.assertEqual(r, {'ok': False, 'detail': 'no core'})
         self.assertFalse(self.logged()[0]['ok'])
+
+
+class ReviewFixTest(unittest.TestCase):
+    def test_restarted_team_keeps_the_live_row_per_role(self):
+        old = row('builder', state='finished', created=1)
+        new = dict(row('builder', 'blocked', created=5), address='t-new')
+        v = view([old, new], screens={'t-new': fixture('claude_permission.txt')})
+        self.assertEqual([(p['address'], p['state']) for p in v['panes']], [('t-new', 'asking')])
+        self.assertEqual([s['role'] for s in v['strip']], ['builder'])
+
+    def test_finished_only_keeps_newest(self):
+        a, b = row('builder', state='finished', created=1), dict(row('builder', state='finished', created=9), address='t-b')
+        self.assertEqual([p['address'] for p in view([a, b])['panes']], ['t-b'])
+
+    def test_same_menu_for_another_file_is_a_different_fix(self):
+        s1 = fixture('claude_permission.txt')
+        f1 = pane(view([row('a', 'blocked')], screens={'t-a': s1}), 'a')['fix']
+        f2 = pane(view([row('a', 'blocked')], screens={'t-a': s1.replace('note.txt', 'b.py')}), 'a')['fix']
+        self.assertNotEqual(f1['id'], f2['id'])
+        self.assertNotEqual(f1['buttons'][0]['id'], f2['buttons'][0]['id'])

@@ -21,13 +21,21 @@ def installed(which=shutil.which):
     return [a for a in preset.AGENTS if which(launch.CLIS[a])]
 
 
-def ask_agent(prompt, cwd, timeout_s, run=subprocess.run, which=shutil.which, timeout_label=None):
-    """The agent's answer text (Claude's --output-format json wrapper removed); AskError in words otherwise."""
+NO_TOOLS = ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Task']  # with Edit/Write/NotebookEdit/Bash: nothing left
+
+
+def ask_agent(prompt, cwd, timeout_s, run=subprocess.run, which=shutil.which, timeout_label=None, tools=True):
+    """The agent's answer text (Claude's --output-format json wrapper removed); AskError in words otherwise.
+
+    tools=False: a pure text answer. Use it whenever the prompt quotes text an agent printed, which may carry
+    instructions from what that agent read (Codex's read-only sandbox already has no network)."""
     have = installed(which)
     if not have:
         raise AskError('Install Claude Code or Codex, then reopen New team.', missing=True)
     if have[0] == 'claude':
         argv = ['claude', '-p', '--output-format', 'json', '--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'Bash']
+        if not tools:
+            argv = argv[:4] + ['--strict-mcp-config'] + argv[4:] + NO_TOOLS
     else:
         argv = ['codex', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '-']
     try:

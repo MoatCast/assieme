@@ -62,8 +62,20 @@ def _cap(text):
     return text[:1].upper() + text[1:] if text else text
 
 
-def _button(role, kind, label, send):
-    return {'id': _id(role, kind, label, send), 'label': label, 'kind': kind, 'send': send}
+def _button(role, kind, label, send, about=''):
+    """`about` (the text above a menu) is part of the id: two menus with the same choices are different questions."""
+    return {'id': _id(role, kind, label, send, about), 'label': label, 'kind': kind, 'send': send}
+
+
+def _latest(rows):
+    """One row per role: the live terminal, else the newest (a restarted team keeps its old, finished rows)."""
+    best = {}
+    for r in rows:
+        role = (r.get('labels') or {}).get(team.ROLE) or r['address']
+        key = (r.get('state') == 'live', r.get('created_ms') or 0)
+        if role not in best or key > best[role][0]:
+            best[role] = (key, r)
+    return [r for _, r in best.values()]
 
 
 def _fix(role, buttons, text):
@@ -71,7 +83,7 @@ def _fix(role, buttons, text):
 
 
 def view(team_name, rows, agents, now, read, answers):
-    rows = sorted(rows, key=lambda r: r.get('created_ms') or 0)
+    rows = sorted(_latest(rows), key=lambda r: r.get('created_ms') or 0)
     matched = match(rows, agents)
     addr = {a.name: t for t, a in matched.items()}
     stalls = status.stalls(agents, now)
@@ -93,7 +105,8 @@ def view(team_name, rows, agents, now, read, answers):
         elif state == 'asking':
             screen = read(r['address']) or ''
             menu, q = prompts.menu(screen), None
-            buttons = [_button(role, 'menu', label, str(n)) for n, label in menu]
+            about = prompts.menu_context(screen) if menu else ''
+            buttons = [_button(role, 'menu', label, str(n), about) for n, label in menu]
             if not menu:
                 q = prompts.question(screen)
                 got = answers.get(f'{team_name}/{role}/{_id(q)}', q, r.get('cwd')) if q else None
@@ -101,21 +114,23 @@ def view(team_name, rows, agents, now, read, answers):
             buttons.append(_button(role, 'reply', 'Reply', None))
             blocks = holds.get(a.name, []) if a else []
             p['detail'] = f'Holding up {len(blocks)} agent{"s" * (len(blocks) != 1)}' if blocks else 'Waiting for you'
-            p['fix'] = _fix(role, buttons, q or (a.ask_kind if a and a.ask_kind else 'Waiting for you'))
-            strip.append({'role': role, 'text': f'{role} is asking: {q or (a and a.ask_kind) or "an answer"}'})
+            text = q or (about.splitlines()[-1] if about else '') or (a.ask_kind if a and a.ask_kind else 'Waiting for you')
+            p['fix'] = _fix(role, buttons, text)
+            strip.append({'role': role, 'state': state, 'text': f'{role} is asking: {text}'})
         else:
             s = next((s for s in suggestions if a and s.agent == a.name), None)
             if state in ('stuck', 'waiting'):
                 p['detail'] = _cap(a.detail if a and a.detail else (s.text if s else ''))
                 verb = 'seems stuck' if state == 'stuck' else 'has work waiting'
-                strip.append({'role': role, 'text': f'{role} {verb}' + (f': {a.detail}' if a and a.detail else '')})
+                strip.append({'role': role, 'state': state,
+                              'text': f'{role} {verb}' + (f': {a.detail}' if a and a.detail else '')})
             if s:
                 label = {'nudge': 'Ask it to try another way' if state == 'stuck' else 'Nudge',
                          'compact': 'Compact', 'tell': 'Tell it to stop retrying'}[s.action]
                 p['detail'] = p['detail'] or _cap(s.text)
                 p['fix'] = _fix(role, [dict(_button(role, 'action', label, s.message), action=s.action)], s.text)
         out.append(p)
-    strip.sort(key=lambda x: URGENT.index(next(p['state'] for p in out if p['role'] == x['role'])))
+    strip.sort(key=lambda x: URGENT.index(x['state']))
     return {'team': team_name, 'panes': out, 'strip': strip}
 
 

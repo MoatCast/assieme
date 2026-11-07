@@ -76,7 +76,7 @@ class MenuTest(unittest.TestCase):
         self.assertEqual(prompts.menu('\n'.join(f'{i}. item {i}' for i in range(1, 11))), [])
         self.assertEqual(prompts.menu('1. a\n3. b\n'), [])
         self.assertEqual(prompts.menu('no menu here'), [])
-        self.assertEqual(len(prompts.menu('1. ' + 'x' * 80 + '\n2. b\n')[0][1]), 40)
+        self.assertEqual(len(prompts.menu('❯ 1. ' + 'x' * 80 + '\n  2. b\n')[0][1]), 40)
 
 
 class QuestionTest(unittest.TestCase):
@@ -90,3 +90,16 @@ class QuestionTest(unittest.TestCase):
         self.assertIsNone(prompts.question('⏺ Done. All tests pass.\n\n❯ \n'))
         self.assertIsNone(prompts.question('⏺ Should I go on?\n\n  I went on and finished.\n\n❯ \n'))
         self.assertIsNone(prompts.question('nothing from the agent'))
+
+
+class MenuPointerTest(unittest.TestCase):
+    def test_agent_list_without_pointer_is_not_a_menu(self):
+        screen = '⏺ Two ways:\n\n  1. Refactor the parser\n  2. Patch the caller\n\n  Which do you prefer?\n\n───\n❯ \n───\n'
+        self.assertEqual(prompts.menu(screen), [])
+
+    def test_menu_context_is_the_text_above(self):
+        a = fixture('claude_permission.txt')
+        b = a.replace('note.txt', 'other.txt')
+        self.assertEqual(prompts.menu(a), prompts.menu(b))
+        self.assertNotEqual(prompts.menu_context(a), prompts.menu_context(b))
+        self.assertIn('Do you want to create note.txt?', prompts.menu_context(a))

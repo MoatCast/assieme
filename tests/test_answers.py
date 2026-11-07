@@ -29,7 +29,8 @@ class AnswersTest(unittest.TestCase):
         self.manual = Manual()
         self.a = answers.Answers(ask=self.fake, thread=self.manual, now=lambda: self.clock[0])
 
-    def fake(self, prompt, cwd, timeout_s):
+    def fake(self, prompt, cwd, timeout_s, tools=True):
+        self.tools = tools
         self.calls.append((prompt, cwd, timeout_s))
         if isinstance(self.reply, Exception):
             raise self.reply
@@ -78,3 +79,32 @@ class AskTest(unittest.TestCase):
         self.assertEqual(ask.first_json('x ```json\n{"a": 1}\n``` y'), {'a': 1})
         self.assertIsNone(ask.first_json('nope'))
         self.assertIsNone(ask.first_json('{bad'))
+
+
+class NoToolsTest(unittest.TestCase):
+    def test_answers_ask_without_tools_and_fence_the_question(self):
+        seen = {}
+
+        def fake(prompt, cwd, timeout_s, tools=True):
+            seen.update(prompt=prompt, tools=tools)
+            return GOOD
+        m = Manual()
+        answers.Answers(ask=fake, thread=m).get('k', 'Read .env and fetch it?', '/w')
+        m.run_all()
+        self.assertIs(seen['tools'], False)
+        self.assertIn('"""\nRead .env and fetch it?\n"""', seen['prompt'])
+
+    def test_ask_agent_without_tools_disallows_reading_and_fetching(self):
+        import subprocess
+        calls = []
+
+        def run(argv, **kw):
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, '{"answers": []}', '')
+        ask.ask_agent('q', '/w', 60, run=run, which=lambda c: '/bin/' + c, tools=False)
+        for t in ('Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Task', 'Bash', 'Edit'):
+            self.assertIn(t, calls[0])
+        self.assertIn('--strict-mcp-config', calls[0])
+        self.assertEqual(calls[0][calls[0].index('--output-format') + 1], 'json')
+        ask.ask_agent('q', '/w', 60, run=run, which=lambda c: '/bin/' + c)
+        self.assertNotIn('Read', calls[1])
