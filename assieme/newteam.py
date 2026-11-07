@@ -9,7 +9,7 @@ import threading
 import time
 import tomllib
 
-from . import launch, preset, runtime, team, worktree
+from . import ask, launch, preset, runtime, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -270,17 +270,7 @@ def _prompt(size, review, budget, agents):
 
 
 def _team_from(text, installed):
-    try:
-        outer = json.loads(text)
-        if isinstance(outer, dict) and isinstance(outer.get('result'), str):
-            text = outer['result']  # Claude Code's --output-format json wraps the answer
-    except ValueError:
-        pass
-    start, end = text.find('{'), text.rfind('}')
-    try:
-        data = json.loads(text[start:end + 1]) if start != -1 else None
-    except ValueError:
-        data = None
+    data = ask.first_json(text)
     if not isinstance(data, dict) or not isinstance(data.get('roles'), list):
         raise ValueError("the answer wasn't a team.")
     raw = data['roles']
@@ -304,24 +294,14 @@ def _team_from(text, installed):
 
 def suggest(project, size, review, budget, run=subprocess.run, which=shutil.which):
     """Help me choose: the person's own Claude Code (else Codex), read-only in the project, suggests a team."""
-    installed = [a for a in preset.AGENTS if which(launch.CLIS[a])]
-    if not installed:
-        raise NewTeamError('suggest', 'Install Claude Code or Codex, then reopen New team.')
-    if installed[0] == 'claude':
-        argv = ['claude', '-p', '--output-format', 'json', '--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'Bash']
-    else:
-        argv = ['codex', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '-']
+    have = ask.installed(which)
     pre = "Couldn't get a suggestion: "
     try:
-        # The prompt goes on stdin: --disallowedTools takes every argument after it.
-        r = run(argv, input=_prompt(size, review, budget, installed), cwd=project, env=runtime.clean_env(os.environ),
-                capture_output=True, text=True, timeout=SUGGEST_TIMEOUT_S)
-    except subprocess.TimeoutExpired:
-        raise NewTeamError('suggest', pre + 'no answer within 3 minutes.') from None
-    if r.returncode != 0:
-        last = ([x for x in (r.stderr or r.stdout or '').splitlines() if x.strip()] or [f'exit {r.returncode}'])[-1]
-        raise NewTeamError('suggest', pre + last.strip())
+        text = ask.ask_agent(_prompt(size, review, budget, have), project, SUGGEST_TIMEOUT_S, run=run, which=which,
+                             timeout_label='3 minutes')
+    except ask.AskError as e:
+        raise NewTeamError('suggest', str(e) if e.missing else pre + str(e)) from None
     try:
-        return _team_from(r.stdout or '', installed)
+        return _team_from(text, have)
     except ValueError as e:
         raise NewTeamError('suggest', pre + str(e)) from None
