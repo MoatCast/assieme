@@ -18,7 +18,7 @@ def missing_clis(roles, which=shutil.which):
 
 
 def hook_command(state):
-    return f'{shlex.quote(sys.executable)} -m assieme.hook {state}'
+    return f'{shlex.quote(sys.executable)} -P -m assieme.hook {state}'  # -P: never import from the worktree
 
 
 def _claude(role):

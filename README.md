@@ -107,7 +107,8 @@ assieme team stop checkout
 ```
 
 Assieme asks once per project before answering an agent's "trust this folder?" prompt. Codex asks you to review
-Assieme's status hooks once; `assieme team start` prints the command to open that agent and answer it.
+Assieme's status hooks once; `assieme team start` prints the command to open that agent and answer it, and
+running `assieme team start` again afterwards sends that agent its brief.
 
 ### Live health
 

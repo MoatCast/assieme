@@ -39,6 +39,10 @@ class LaunchTest(unittest.TestCase):
         values = [a[i + 1] for i, x in enumerate(a) if x == '-c']
         self.assertIn('check_for_update_on_startup=false', values)
 
+    def test_hook_ignores_the_worktree_on_import_path(self):
+        # python -m puts the current folder (the agent's worktree) first on the import path; -P stops that.
+        self.assertIn(' -P -m assieme.hook idle', launch.hook_command('idle'))
+
     def test_read_only(self):
         a = launch.argv(role('claude', checkout='read-only'))
         i = a.index('--disallowedTools')

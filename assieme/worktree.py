@@ -35,8 +35,11 @@ def ensure(team, role):
     branch = f'assieme/{team.name}/{role.name}'
     _exclude(team.project)
     if os.path.isdir(path):
-        dirty = _git(path, 'status', '--porcelain').stdout.strip()
-        if dirty:
+        top = _git(path, 'rev-parse', '--show-toplevel')
+        if top.returncode != 0 or os.path.realpath(top.stdout.strip()) != os.path.realpath(path):
+            raise WorktreeError(f'{path} exists but is not a git worktree. Move it away, then start again.')
+        st = _git(path, 'status', '--porcelain')
+        if st.returncode != 0 or st.stdout.strip():
             raise WorktreeError(f'{path} has uncommitted changes. Commit or remove them, then start again.')
         return path
     if role.checkout == 'read-only':

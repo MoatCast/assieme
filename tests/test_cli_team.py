@@ -37,6 +37,7 @@ class CliTeamTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertRegex(out, r'coordinator\s+running')
         self.assertIn('hc attach t2', out)
+        self.assertIn('then: assieme team start /presets/demo', out)
 
     def test_team_start_bad_preset_exits_1_with_message(self):
         with mock.patch('assieme.cli.preset.load', side_effect=preset.PresetError('no team.toml in /x')):

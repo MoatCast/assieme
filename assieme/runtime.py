@@ -9,7 +9,13 @@ import shutil
 import socket
 import subprocess
 
-_DROP_PREFIXES = ('CLAUDE_CODE_', 'CODEX_')
+# Variables that mark "running inside another agent session". An inherited one turns off agents' transcripts
+# (CLAUDE_CODE_CHILD_SESSION) or confuses them; configuration and logins (CODEX_HOME, CLAUDE_CODE_USE_BEDROCK,
+# tokens) are kept.
+_MARKERS = {'CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_CODE_SESSION_ID',
+            'CLAUDE_CODE_HOST_SESSION_ID', 'CLAUDE_CODE_SSE_PORT', 'CLAUDE_CODE_MESSAGING_SOCKET',
+            'CLAUDE_CODE_MESSAGING_TOKEN', 'CLAUDE_CODE_SESSION_ATTENDED', 'CLAUDE_PID', 'CODEX_SANDBOX',
+            'CODEX_SANDBOX_NETWORK_DISABLED', 'CODEX_THREAD_ID'}
 
 
 class RuntimeError_(Exception):
@@ -22,7 +28,7 @@ class RuntimeError_(Exception):
 
 def clean_env(env):
     """The environment without agent markers: an inherited Claude Code marker turns off agents' transcripts."""
-    return {k: v for k, v in env.items() if k != 'CLAUDECODE' and not k.startswith(_DROP_PREFIXES)}
+    return {k: v for k, v in env.items() if k not in _MARKERS}
 
 
 def socket_path():
@@ -91,6 +97,9 @@ class Runtime:
 
     def keys(self, t, keys):
         self.call('terminal.keys', terminal=t, keys=keys)
+
+    def label(self, t, labels):
+        self.call('terminal.label', terminal=t, labels=labels)
 
     def read(self, t, lines=0):
         return self.call('terminal.read', terminal=t, lines=lines)['text']

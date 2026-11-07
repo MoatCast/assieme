@@ -28,7 +28,7 @@ class FakeRuntime:
     def __init__(self, screens=None, statuses=None, finished=(), existing=()):
         self.screens, self.statuses = screens or {}, statuses or {}
         self.finished, self.existing = set(finished), list(existing)
-        self.started, self.sent, self.keyed, self.killed, self.gets = [], [], [], [], {}
+        self.started, self.sent, self.keyed, self.killed, self.gets, self.labelled = [], [], [], [], {}, []
         self.role_of = {}
         self.sock = '/s/assieme/hc.sock'
 
@@ -62,6 +62,9 @@ class FakeRuntime:
 
     def kill(self, t):
         self.killed.append(t)
+
+    def label(self, t, labels):
+        self.labelled.append((t, labels))
 
     def list(self, labels, all=False):
         return [x for x in self.existing if all or x['state'] == 'live']
@@ -160,9 +163,50 @@ class StartTest(unittest.TestCase):
                 self.start(rt, demo(COORD, BUILDER))
         self.assertEqual(rt.started, [])
 
+    def test_marks_agent_briefed_after_sending(self):
+        rt = FakeRuntime()
+        self.start(rt, demo(COORD))
+        self.assertEqual(rt.labelled, [('t1', {'assieme.briefed': '1'})])
+
+    def test_worktree_failure_refuses_before_any_agent_starts(self):
+        def ensure(tm, r):
+            if r.name == 'builder-1':
+                raise team.worktree.WorktreeError('branch assieme/demo/builder-1 already exists')
+            return '/w'
+        rt = FakeRuntime()
+        with mock.patch('assieme.team.worktree.ensure', side_effect=ensure):
+            with self.assertRaisesRegex(team.worktree.WorktreeError, 'already exists'):
+                self.start(rt, demo(COORD, BUILDER))
+        self.assertEqual(rt.started, [])
+
+    def test_partly_running_team_starts_the_rest(self):
+        live = [{'address': 't7', 'state': 'live', 'status': {'state': 'idle'},
+                 'labels': {'assieme.team': 'demo', 'assieme.role': 'coordinator', 'assieme.briefed': '1'}}]
+        rt = FakeRuntime(existing=live)
+        out = self.start(rt, demo(COORD, BUILDER))
+        self.assertEqual([(s.role, s.state) for s in out], [('coordinator', 'already-running'), ('builder-1', 'running')])
+        self.assertEqual(rt.started[0]['parent'], 't7')
+
+    def test_rerun_sends_brief_to_live_unbriefed_agent(self):
+        live = [{'address': 't7', 'state': 'live', 'status': {'state': 'idle'},
+                 'labels': {'assieme.team': 'demo', 'assieme.role': 'coordinator'}}]
+        rt = FakeRuntime(existing=live)
+        out = self.start(rt, demo(COORD), task='go')
+        self.assertEqual(rt.sent, [('t7', 'You coordinate.\n\ngo')])
+        self.assertEqual(rt.labelled, [('t7', {'assieme.briefed': '1'})])
+        self.assertEqual((out[0].state, rt.started), ('running', []))
+
+    def test_rerun_while_still_waiting_on_review(self):
+        live = [{'address': 't7', 'state': 'live', 'status': None,
+                 'labels': {'assieme.team': 'demo', 'assieme.role': 'builder-1'}}]
+        rt = FakeRuntime(existing=live)
+        out = self.start(rt, demo(Role('builder-1', 'codex', 'b.md', 'x')))
+        self.assertEqual(out[0].state, 'needs-you')
+        self.assertEqual((rt.sent, rt.started), ([], []))
+
     def test_already_running_starts_nothing(self):
         live = [{'address': 't7', 'state': 'live', 'status': {'state': 'idle'},
-                 'labels': {'assieme.team': 'demo', 'assieme.role': r}} for r in ('coordinator', 'builder-1')]
+                 'labels': {'assieme.team': 'demo', 'assieme.role': r, 'assieme.briefed': '1'}} for r in ('coordinator', 'builder-1')]
         rt = FakeRuntime(existing=live)
         out = self.start(rt, demo(COORD, BUILDER))
         self.assertEqual({s.state for s in out}, {'already-running'})

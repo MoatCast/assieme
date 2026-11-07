@@ -14,8 +14,13 @@ from assieme import runtime
 
 class CleanEnvTest(unittest.TestCase):
     def test_drops_agent_markers(self):
-        env = {'PATH': '/bin', 'CLAUDECODE': '1', 'CLAUDE_CODE_CHILD_SESSION': 'x', 'CODEX_HOME': '/c', 'HOME': '/h'}
+        env = {'PATH': '/bin', 'CLAUDECODE': '1', 'CLAUDE_CODE_CHILD_SESSION': 'x', 'CLAUDE_CODE_SESSION_ID': 's',
+               'CLAUDE_CODE_ENTRYPOINT': 'e', 'CODEX_SANDBOX': 'seatbelt', 'HOME': '/h'}
         self.assertEqual(runtime.clean_env(env), {'PATH': '/bin', 'HOME': '/h'})
+
+    def test_keeps_agent_configuration(self):
+        env = {'CODEX_HOME': '/c', 'CLAUDE_CODE_USE_BEDROCK': '1', 'CLAUDE_CODE_OAUTH_TOKEN': 'tok'}
+        self.assertEqual(runtime.clean_env(env), env)
 
 
 class SocketPathTest(unittest.TestCase):
@@ -54,6 +59,10 @@ class FakeCoreTest(unittest.TestCase):
         self.assertEqual(t, 't9')
         p = self.server.requests[-1]['params']
         self.assertEqual((p['argv'], p['cwd'], p['labels'], p['wait'], p['parent']), (['sh'], '/w', {'assieme.team': 'demo'}, False, 't1'))
+
+    def test_label_sets_labels(self):
+        self.rt.label('t9', {'assieme.briefed': '1'})
+        self.assertEqual(self.server.requests[-1]['params'], {'terminal': 't9', 'labels': {'assieme.briefed': '1'}})
 
     def test_read_returns_text(self):
         self.assertEqual(self.rt.read('t9'), 'hi')
@@ -111,4 +120,6 @@ class RealCoreTest(unittest.TestCase):
     def test_shell_program_runs_and_is_listed_by_label(self):
         t = self.rt.start(['sh', '-c', 'echo ready; sleep 30'], cwd=self.dir, labels={'assieme.team': 'x'})
         self.assertIn(t, [x['address'] for x in self.rt.list({'assieme.team': 'x'})])
+        self.rt.label(t, {'assieme.briefed': '1'})
+        self.assertEqual([x['address'] for x in self.rt.list({'assieme.briefed': '1'})], [t])
         self.rt.kill(t)

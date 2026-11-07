@@ -46,6 +46,11 @@ class WorktreeTest(unittest.TestCase):
             worktree.ensure(self.team, self.builder)
         self.assertTrue(os.path.exists(f'{p}/x.txt'))
 
+    def test_plain_folder_is_not_reused(self):
+        os.makedirs(f'{self.repo}/.assieme/worktrees/builder-1')
+        with self.assertRaisesRegex(worktree.WorktreeError, 'not a git worktree'):
+            worktree.ensure(self.team, self.builder)
+
     def test_exclude_added_once(self):
         worktree.ensure(self.team, self.builder)
         worktree.ensure(self.team, self.coord)

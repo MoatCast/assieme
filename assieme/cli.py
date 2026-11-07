@@ -129,6 +129,8 @@ def _team(args):
                 print(f'{s.role:<16} {s.state}' + (f'  {s.address}' if s.address else ''))
                 if s.note:
                     print('\n'.join('    ' + line for line in s.note.splitlines()))
+                if s.state == 'needs-you':
+                    print(f'    then: assieme team start {args.preset}')
                 if s.state in ('exited', 'not-reporting'):
                     print(f'    retry: assieme team start {args.preset} --only {s.role}')
     except (preset.PresetError, worktree.WorktreeError, team.TeamError, runtime.RuntimeError_) as e:
