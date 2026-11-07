@@ -215,3 +215,15 @@
   color: var(--quiet-on-ink);
   border-color: var(--quiet-ink);
 }
+.first-run .panel-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.first-run .new-team { font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; cursor: pointer;
+  background: var(--quiet-ink); color: var(--quiet-on-ink); border: 0; border-radius: 999px; padding: 7px 14px; }
+.first-run .starting { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.first-run .starting li { display: grid; grid-template-columns: 110px 1fr; column-gap: 12px; font-size: 13px; line-height: 16px; }
+.first-run .starting .role { font-family: var(--quiet-font-mono); }
+.first-run .starting .state { color: var(--quiet-slate); }
+.first-run .starting .state-running .state { color: var(--quiet-working); }
+.first-run .starting .state-needs-you .state, .first-run .starting .state-exited .state { color: var(--quiet-needs-you); }
+.first-run .starting .detail { grid-column: 2; margin: 2px 0 0; white-space: pre-wrap; font: 12px/16px var(--quiet-font-mono);
+  color: var(--quiet-slate); }
+.first-run .start-error { margin: 8px 0 0; color: var(--quiet-needs-you); font-size: 13px; line-height: 16px; }

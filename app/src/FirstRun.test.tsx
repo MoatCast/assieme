@@ -4,6 +4,15 @@ import type { Snapshot } from "./bridge";
 
 const snapshot = vi.fn<() => Promise<Snapshot>>();
 vi.mock("./bridge", () => ({ snapshot: () => snapshot() }));
+vi.mock("./NewTeam", () => ({
+  default: ({ clis, onClose }: { clis: { codex: boolean }; onClose: () => void }) => (
+    <div>
+      <h2>New team screen</h2>
+      <span>{clis.codex ? "codex on" : "codex off"}</span>
+      <button type="button" onClick={onClose}>close new team</button>
+    </div>
+  ),
+}));
 vi.mock("./Terminal", () => ({
   default: ({ session, address }: { session: string; address: string }) => (
     <div data-testid="terminal">{`${session}:${address}`}</div>
@@ -102,4 +111,49 @@ test("one snapshot call at a time", async () => {
     vi.advanceTimersByTime(20000);
   });
   expect(snapshot).toHaveBeenCalledTimes(1);
+});
+
+test("new team opens from the header and closes", async () => {
+  snapshot.mockResolvedValue(SNAP);
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  fireEvent.click(screen.getByText("New team"));
+  expect(screen.getByText("New team screen")).toBeTruthy();
+  expect(screen.getByText("codex off")).toBeTruthy();
+  fireEvent.click(screen.getByText("close new team"));
+  expect(screen.queryByText("New team screen")).toBeNull();
+});
+
+const STARTING = (over: Partial<Snapshot["starting"][number]>) => ({
+  ...SNAP,
+  starting: [{ team: "shop", project: "/Users/me/shop", done: false, error: null, roles: [
+    { role: "builder", state: "starting", detail: "" },
+    { role: "reviewer", state: "needs-you", detail: "codex wants you to review its hooks once: hc attach t2" },
+  ], ...over }],
+});
+
+test("a starting team shows its roles", async () => {
+  snapshot.mockResolvedValue(STARTING({}));
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  const card = screen.getByTestId("starting-shop");
+  expect(within(card).getByText("shop")).toBeTruthy();
+  expect(within(card).getByText("builder")).toBeTruthy();
+  expect(within(card).getByText("Starting…")).toBeTruthy();
+  expect(within(card).getByText("Needs you")).toBeTruthy();
+  expect(within(card).getByText(/review its hooks once/)).toBeTruthy();
+});
+
+test("a start error shows on the team", async () => {
+  snapshot.mockResolvedValue(STARTING({ done: true, error: "boom" }));
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  expect(within(screen.getByTestId("starting-shop")).getByText("Couldn't start: boom")).toBeTruthy();
+});
+
+test("done teams without errors fall back to the live list", async () => {
+  snapshot.mockResolvedValue(STARTING({ done: true }));
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  expect(screen.queryByTestId("starting-shop")).toBeNull();
 });

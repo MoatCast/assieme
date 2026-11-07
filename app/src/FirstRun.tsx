@@ -1,10 +1,15 @@
 import { useEffect, useState } from "react";
 import { snapshot, type Agent, type Snapshot } from "./bridge";
+import NewTeam from "./NewTeam";
 import Terminal from "./Terminal";
 import "./FirstRun.css";
 
 type Open = { session: string; address: string; name: string };
 
+const STATES: Record<string, string> = {
+  starting: "Starting…", running: "Running", "needs-you": "Needs you", "not-reporting": "Not reporting",
+  exited: "Exited", "already-running": "Already running",
+};
 const plural = (n: number) => (n === 1 ? "1 agent" : `${n} agents`);
 const folderName = (cwd: string | null) => (cwd ? cwd.replace(/\/+$/, "").split("/").pop() || cwd : "Other folders");
 
@@ -25,6 +30,7 @@ export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     let stopped = false;
@@ -63,8 +69,14 @@ export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
     { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected, so fixes can be sent" },
   ];
 
+  // A team shows here while it starts, or when its start failed; once started it shows in the live list.
+  const starting = (snap?.starting ?? []).filter((t) => !t.done || t.error);
+
   return (
     <div className="first-run">
+      {creating && (
+        <NewTeam clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setCreating(false)} />
+      )}
       <section className="intro">
         <div className="eyebrow">Welcome to Assieme</div>
         <h1>{agents.length ? "We found your agents. There’s nothing to set up." : "No agents found yet."}</h1>
@@ -98,7 +110,31 @@ export default function FirstRun({ pollMs = 5000 }: { pollMs?: number }) {
           </div>
         ) : (
           <>
-            <div className="panel-label">Grouped into teams by project folder</div>
+            <div className="panel-top">
+              <div className="panel-label">Grouped into teams by project folder</div>
+              <button type="button" className="new-team" onClick={() => setCreating(true)}>New team</button>
+            </div>
+            {starting.map((t) => (
+              <div className="project" key={`starting-${t.team}`} data-testid={`starting-${t.team}`}>
+                <div className="project-head">
+                  <span className="project-name">{t.team}</span>
+                  <span className="project-count">{t.error ? "" : `starting · ${plural(t.roles.length)}`}</span>
+                </div>
+                {t.error ? (
+                  <p className="start-error">Couldn't start: {t.error}</p>
+                ) : (
+                  <ul className="starting">
+                    {t.roles.map((r) => (
+                      <li key={r.role} className={`state-${r.state}`}>
+                        <span className="role">{r.role}</span>
+                        <span className="state">{STATES[r.state] ?? r.state}</span>
+                        {r.detail && <pre className="detail">{r.detail}</pre>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
             {[...teams].map(([name, rows]) => (
               <div className="project" key={`team-${name}`} data-testid={`team-${name}`}>
                 <div className="project-head">
