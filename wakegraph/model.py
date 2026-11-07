@@ -25,6 +25,7 @@ class Turn:
     calls: int = 0      # model calls the receiver made in this turn
     tokens: int = 0     # input tokens summed over those calls: receiver context x calls
     text: str = ''      # first 80 chars of the wake; filled only with --show-text
+    ts: dt.datetime = None  # when the wake arrived
 
 
 @dataclass
@@ -38,8 +39,8 @@ class Session:
     turns: list = field(default_factory=list)
     refusals: collections.Counter = field(default_factory=collections.Counter)
 
-    def wake(self, sender, channel, text='', show_text=False):
-        self.turns.append(Turn(sender, channel, text=' '.join(text.split())[:80] if show_text else ''))
+    def wake(self, sender, channel, text='', show_text=False, ts=None):
+        self.turns.append(Turn(sender, channel, text=' '.join(text.split())[:80] if show_text else '', ts=ts))
 
     def call(self, input_tokens, output_tokens=0):
         self.calls += 1

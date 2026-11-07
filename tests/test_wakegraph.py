@@ -133,6 +133,42 @@ class ClaudeCodeTest(unittest.TestCase):
         self.assertEqual((edge['wakes'], edge['empty'], edge['tokens']), (25, 25, 25 * 300_010))
 
 
+class SendLessTest(unittest.TestCase):
+    """F3: what empty wakes cost, how often each edge fires, and which edges to cut first."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        claude_team(self.tmp.name)
+        self.sessions = list(adapters.claude_code(self.tmp.name, SINCE))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def edge(self, r, f, t):
+        return next(e for e in r['edges'] if e['from'] == f and e['to'] == t)
+
+    def test_waste_rate_and_send_less(self):
+        now = dt.datetime(2099, 1, 1, 0, 30, tzinfo=dt.timezone.utc)
+        r = report.aggregate(self.sessions, now, hours=24)
+        e = self.edge(r, 'builder', 'coord')
+        self.assertEqual((e['empty_tokens'], e['last_hour'], e['per_hour']), (25 * 300_010, 25, 1.04))
+        self.assertEqual(r['empty_tokens'], 25 * 300_010 + self.edge(r, 'reviewer', 'coord')['empty_tokens'])
+        self.assertEqual([(x['from'], x['to']) for x in r['send_less']], [('builder', 'coord')])
+        self.assertGreater(r['send_less'][0]['share'], 0.9)
+        self.assertTrue(any('just got noisy' in f for f in r['flags']))
+
+    def test_quiet_hour_is_not_noisy(self):
+        now = dt.datetime(2099, 1, 1, 5, 0, tzinfo=dt.timezone.utc)  # the wakes were four hours earlier
+        r = report.aggregate(self.sessions, now, hours=24)
+        self.assertEqual(self.edge(r, 'builder', 'coord')['last_hour'], 0)
+        self.assertFalse(any('just got noisy' in f for f in r['flags']))
+
+    def test_without_a_window_there_are_no_rates(self):
+        r = report.aggregate(self.sessions)
+        self.assertIsNone(self.edge(r, 'builder', 'coord')['per_hour'])
+        self.assertEqual(len(r['flags']), 3)
+
+
 class CodexTest(unittest.TestCase):
     def test_session_spawn_and_refusal(self):
         with tempfile.TemporaryDirectory() as root:
@@ -179,7 +215,9 @@ class CliTest(unittest.TestCase):
     def test_markdown_hides_text_by_default(self):
         md = self.run_cli('--md')
         self.assertIn('## Who woke whom', md)
-        self.assertIn('| builder | coord | hc | 25 | 25 |', md)
+        self.assertIn('| builder | coord | hc | 25 |', md)
+        self.assertIn('1. builder -> coord: 25 of 25 wakes did no work', md)
+        self.assertNotIn('2. ', md.split('## Agents')[0])  # tiny edges are not worth naming
         self.assertNotIn('SECRET-TEXT', md)
         self.assertNotIn('abc', md)
 

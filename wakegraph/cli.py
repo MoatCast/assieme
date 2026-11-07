@@ -41,7 +41,7 @@ def main(argv=None):
     for path in args.generic:
         sessions += adapters.generic(path, since, args.show_text)
 
-    r = report.aggregate(sessions)
+    r = report.aggregate(sessions, dt.datetime.now(dt.timezone.utc), args.hours)
     meta = {'hours': args.hours, 'since': since.strftime('%Y-%m-%dT%H:%M:%SZ')}
     sys.stdout.write(report.to_json(r, meta) + '\n' if args.json else report.to_md(r, meta, args.show_text))
     return 0

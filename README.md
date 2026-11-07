@@ -62,6 +62,16 @@ when the agent never told herdr). Use `--no-herdr` to skip it. Command arguments
 
 ### Report options
 
+The report opens with **Send less**: what wakes that did no work cost in total, and the agent pairs most worth
+cutting (each worth at least 1% of input), for example:
+
+```
+1. builder -> coord: 198 of 252 wakes did no work and cost 82.0M tokens (6% of all input); batch these notes or stop sending them
+```
+
+The wake table shows each pair's wakes per hour over the window and in the last hour, and flags a pair that just
+got noisy (10+ wakes in the last hour and at least 3x its usual rate).
+
 Options: `--claude-dir` (default `~/.claude/projects`), `--codex-dir` (default `~/.codex/sessions`),
 `--generic FILE` (repeatable), `--show-text` (adds wake snippets and full command prefixes; off by default).
 
