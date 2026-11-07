@@ -153,3 +153,76 @@ test("cancel closes", async () => {
   fireEvent.click(within(screen.getByRole("contentinfo")).getByText("Cancel"));
   expect(onClose).toHaveBeenCalled();
 });
+
+async function toSetup(onClose?: () => void) {
+  render(<NewTeam clis={both} onClose={onClose ?? vi.fn()} />);
+  await flush();
+  await fillProjectAndTask();
+  fireEvent.click(screen.getByText("Builder + reviewer"));
+  fireEvent.click(screen.getByText("Next"));
+}
+
+test("groups are on and switch off", async () => {
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await toSetup();
+  expect(screen.getByText("Recommended setup")).toBeTruthy();
+  const switches = screen.getAllByRole("switch") as HTMLInputElement[];
+  expect(switches.map((s) => s.checked)).toEqual([true, true, true, true, true]);
+  fireEvent.click(screen.getByRole("switch", { name: "Careful reviews" }));
+  fireEvent.click(screen.getByText("Start 2 agents"));
+  await flush();
+  expect(b.startTeam).toHaveBeenCalledWith({
+    project: "/Users/me/shop", task: "Fix login", roles: PRESETS[1].roles,
+    practices: { messages: true, safety: true, reviews: false, stopping: true, machine: true },
+  });
+});
+
+test("basics count comes from the list", async () => {
+  await toSetup();
+  expect(screen.getByText("5 basics that are always on").closest(".basics")?.textContent).toMatch(/^Plus 5 basics that are always on/);
+  fireEvent.click(screen.getByText("See all"));
+  expect(screen.getByText("Basic 3")).toBeTruthy();
+});
+
+test("start button counts agents and shows the trust line", async () => {
+  await toSetup();
+  expect(screen.getByText("Start 2 agents")).toBeTruthy();
+  expect(screen.getByText("Agents can read, edit and run files in shop.")).toBeTruthy();
+  expect(screen.getAllByText("2 rules").length).toBe(5);
+});
+
+test("start is pressed once", async () => {
+  b.startTeam.mockReturnValue(new Promise(() => {}));
+  await toSetup();
+  const start = screen.getByText("Start 2 agents") as HTMLButtonElement;
+  fireEvent.click(start);
+  fireEvent.click(start);
+  await flush();
+  expect(b.startTeam).toHaveBeenCalledTimes(1);
+  expect(start.disabled).toBe(true);
+});
+
+test("errors go back to their field; success closes", async () => {
+  b.startTeam.mockRejectedValueOnce("role:0: Names use lower-case letters, digits and dashes, and must differ.");
+  const onClose = vi.fn();
+  await toSetup(onClose);
+  fireEvent.click(screen.getByText("Start 2 agents"));
+  await flush();
+  expect(screen.getByText("New team")).toBeTruthy();
+  expect(screen.getByText("Names use lower-case letters, digits and dashes, and must differ.")).toBeTruthy();
+
+  fireEvent.click(screen.getByText("Next"));
+  b.startTeam.mockRejectedValueOnce("start: not installed: codex. Install it, then start again.");
+  fireEvent.click(screen.getByText("Start 2 agents"));
+  await flush();
+  expect(screen.getByText("not installed: codex. Install it, then start again.")).toBeTruthy();
+  expect(screen.getByText("Recommended setup")).toBeTruthy();
+
+  b.startTeam.mockResolvedValueOnce({ team: "shop" });
+  fireEvent.click(screen.getByText("Start 2 agents"));
+  await flush();
+  expect(onClose).toHaveBeenCalled();
+
+  fireEvent.click(screen.getByText("Back"));
+  expect(screen.getByText("New team")).toBeTruthy();
+});

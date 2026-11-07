@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { checkProject, pickFolder, teamPresets, type Practices, type Preset, type RoleDraft } from "./bridge";
+import { useEffect, useRef, useState } from "react";
+import { checkProject, fieldOf, pickFolder, startTeam, teamPresets, type Practices, type Preset, type RoleDraft } from "./bridge";
 import HelpMeChoose from "./HelpMeChoose";
+import RecommendedSetup from "./RecommendedSetup";
 import "./NewTeam.css";
 
 type Clis = { claude: boolean; codex: boolean };
@@ -30,6 +31,10 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
   const [helping, setHelping] = useState(false);
   const [why, setWhy] = useState("");
   const [step, setStep] = useState(1);
+  const [practiceOn, setPracticeOn] = useState<Record<string, boolean>>({});
+  const [startError, setStartError] = useState("");
+  const [pending, setPending] = useState(false);
+  const starting = useRef(false); // a second click before React re-renders must not start a second team
 
   const fit = (rs: RoleDraft[]) =>
     rs.map((r) => (clis[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }));
@@ -39,6 +44,7 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
       const all = p.last ? [...p.presets, p.last] : p.presets;
       setPresets(all);
       setPractices(p.practices);
+      setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, true])));
       if (all.length) {
         setChosen(all[0].id);
         setRoles(fit(all[0].roles));
@@ -92,9 +98,36 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
     setStep(2);
   };
 
+  const start = async () => {
+    if (starting.current) return;
+    starting.current = true;
+    setPending(true);
+    setStartError("");
+    try {
+      await startTeam({ project, task: task.trim(), roles, practices: practiceOn });
+      onClose();
+    } catch (e) {
+      const { field, message } = fieldOf(e);
+      if (field === "project") {
+        setProjectError(message);
+        setStep(1);
+      } else if (field.startsWith("role:")) {
+        setRoleErrors({ [Number(field.slice(5))]: message });
+        setStep(1);
+      } else setStartError(message);
+    } finally {
+      starting.current = false;
+      setPending(false);
+    }
+  };
+
   const ready = !!project && !projectError && !!task.trim() && roles.length > 0 && installed.length > 0;
 
-  if (step === 2) return <div className="newteam"><div className="panel"><h1>Recommended setup</h1></div></div>;
+  if (step === 2 && practices)
+    return (
+      <RecommendedSetup practices={practices} project={project} roleCount={roles.length} value={practiceOn}
+        onChange={setPracticeOn} onBack={() => setStep(1)} onStart={start} pending={pending} error={startError} />
+    );
 
   return (
     <div className="newteam">
