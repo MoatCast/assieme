@@ -1,11 +1,12 @@
 """New team in the app: presets, checks, saving, background start and Help me choose."""
 import os
 import shutil
+import subprocess
 import tempfile
 import time
 import unittest
 
-from assieme import newteam
+from assieme import newteam, preset
 
 SAVED = '''name = "{name}"
 project = "/tmp/x"
@@ -59,3 +60,73 @@ class PresetsTest(unittest.TestCase):
     def test_broken_saved_team_is_skipped(self):
         os.makedirs(os.path.join(self.teams, 'broken'))
         self.assertIsNone(newteam.presets(teams=self.teams)['last'])
+
+
+def git_repo(path):
+    subprocess.run(['git', 'init', '-q', path], check=True)
+    subprocess.run(['git', '-C', path, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q',
+                    '--allow-empty', '-m', 'init'], check=True)
+    return path
+
+
+def role(name='builder', **kw):
+    return dict(dict(name=name, agent='claude', job='Builds', checkout='branch', parent=None, brief='Build it.'), **kw)
+
+
+class CheckSaveTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.repo = git_repo(os.path.join(self.d, 'shop'))
+        self.teams = os.path.join(self.d, 'teams')
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def test_project_check(self):
+        self.assertEqual(newteam.project_check(self.repo), {'ok': True})
+        plain = os.path.join(self.d, 'plain')
+        os.makedirs(plain)
+        self.assertEqual(newteam.project_check(plain), {'ok': False, 'reason':
+                         "This folder isn't a git repository. Assieme gives each agent its own branch, so it needs one."})
+
+    def assertField(self, roles, field, message):
+        with self.assertRaises(newteam.NewTeamError) as e:
+            newteam.validate(roles)
+        self.assertEqual((e.exception.field, e.exception.message), (field, message))
+
+    def test_validate_names(self):
+        bad = 'Names use lower-case letters, digits and dashes, and must differ.'
+        self.assertField([role('Builder')], 'role:0', bad)
+        self.assertField([role('a b')], 'role:0', bad)
+        self.assertField([role('x'), role('x')], 'role:1', bad)
+        self.assertEqual(str(newteam.NewTeamError('role:1', bad)), f'role:1: {bad}')
+        newteam.validate([role('builder-1'), role('reviewer', checkout='read-only', parent='builder-1')])
+
+    def test_validate_refuses_empty_brief_and_no_roles(self):
+        self.assertField([], 'roles', 'Add at least one agent.')
+        self.assertField([role(brief='  ')], 'role:0', 'Every agent needs a brief.')
+        with self.assertRaises(newteam.NewTeamError) as e:
+            newteam.validate([role(agent='gpt')])
+        self.assertEqual(e.exception.field, 'role:0')
+        with self.assertRaises(newteam.NewTeamError) as e:
+            newteam.validate([role(parent='nobody')])
+        self.assertEqual(e.exception.field, 'role:0')
+
+    def test_team_name_sanitised(self):
+        self.assertEqual(newteam.team_name('/x/My App!', set()), 'my-app')
+        self.assertEqual(newteam.team_name('/x/!!!', set()), 'team')
+        self.assertEqual(newteam.team_name('/x/shop', {'shop', 'shop-2'}), 'shop-3')
+
+    def test_save_round_trips_awkward_text(self):
+        roles = [role(agent='codex', job='Fix "the" \\ bug\nnow', brief='Use "quotes" and \\ and\n\nlines.')]
+        tm = preset.load(newteam.save(self.repo, roles, {'reviews': False}, 'shop', self.teams))
+        self.assertEqual(tm.name, 'shop')
+        self.assertEqual(tm.project, self.repo)
+        self.assertEqual(tm.roles[0].job, roles[0]['job'])
+        self.assertTrue(tm.roles[0].brief.startswith(roles[0]['brief']))
+        self.assertEqual(tm.practices, {'reviews': False})
+
+    def test_save_replaces_old_folder(self):
+        newteam.save(self.repo, [role('old')], {}, 'shop', self.teams)
+        folder = newteam.save(self.repo, [role('new')], {}, 'shop', self.teams)
+        self.assertEqual(sorted(os.listdir(folder)), ['new.md', 'team.toml'])
