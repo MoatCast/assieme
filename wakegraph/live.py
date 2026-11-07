@@ -13,12 +13,16 @@ import sys
 import time
 from dataclasses import dataclass
 
-from . import adapters, report, status
+from . import adapters, report, rules, status
 
 REFRESH = 5               # seconds between redraws
 COST_EVERY = 600          # seconds between recomputing the 24 h cost line
 NOTIFY_MAX_AGE = 2 * 3600 # older items are shown, but never pop up a notification
 WATCH_EVERY = 15          # seconds between checks in `wakegraph watch`
+COMPACT_AT = 150_000      # A2: suggest compacting an idle agent whose context is at least this big
+REFUSAL_WINDOW = 30 * 60  # A5: two refusals of the same command within this window trigger the breaker
+ACTED_HIDE = 15 * 60      # a fix you just carried out stays hidden this long
+ACTIONS = {'nudge': 'nudge', 'compact': 'compact', 'tell': 'tell'}  # action -> word on the key hint
 
 
 @dataclass
@@ -26,7 +30,7 @@ class Suggestion:
     text: str             # the alert, in plain words
     agent: str
     address: str = None   # herdr terminal to act on
-    action: str = None    # 'nudge' when wakegraph can carry out the fix
+    action: str = None    # 'nudge', 'compact' or 'tell' when wakegraph can carry out the fix
     message: str = ''     # what the nudge says
     hint: str = ''        # the fix, when it is the person's to make
     yours: bool = False   # a decision only the owner can make
@@ -47,10 +51,11 @@ def addresses(agents, terminals):
     return out
 
 
-def suggest(agents, stalls, addr, queue=()):
-    """Alerts -> suggestions, most urgent first: stall blockers, then what waits on you, stuck agents, lost messages."""
+def suggest(agents, stalls, addr, queue=(), done=(), now=None):
+    """Alerts -> suggestions, most urgent first: stall blockers, what waits on you, stuck agents, lost messages,
+    refusal loops, then oversized contexts. done: (agent, action) pairs carried out recently, kept hidden."""
     by = {a.name: a for a in agents}
-    out, seen = [], set()
+    out, seen = [], set(done)
 
     def add(s):
         if (s.agent, s.action) not in seen:
@@ -79,6 +84,26 @@ def suggest(agents, stalls, addr, queue=()):
         if a.state == 'idle, work waiting':
             add(Suggestion(f'{a.name} has work waiting: {a.detail}', a.name, addr.get(a.name), 'nudge',
                            'wakegraph: a message for you may not have started a turn. Check your latest messages and act on them.'))
+    now = now or status.now_utc()
+    for a in agents:  # A5: the second refusal of the same command is the moment to stop the loop
+        if a.state == 'exited':
+            continue
+        recent = {}
+        for ts, label, why, advice in a.refused:
+            if (now - ts).total_seconds() <= REFUSAL_WINDOW:
+                n, _ = recent.get((label, why), (0, ''))
+                recent[(label, why)] = (n + 1, advice)
+        for (label, why), (n, advice) in recent.items():
+            if n >= 2:
+                add(Suggestion(f'{a.name}: `{label}` refused {n} times by {why}' + (f'. Rule fix: {advice}' if advice else ''),
+                               a.name, addr.get(a.name), 'tell',
+                               f'wakegraph: `{label}` has been refused {n} times by {why}. Do not retry it. '
+                               'Do the task another way, or ask the owner if you really need it.'))
+                break
+    for a in agents:  # A2: an idle team agent with a big context re-reads all of it on every wake
+        if a.state == 'idle' and a.context >= COMPACT_AT and a.peers:  # a one-off session won't be woken: leave it
+            add(Suggestion(f'{a.name} holds {a.context // 1000}K tokens of context; every wake re-reads it',
+                           a.name, addr.get(a.name), 'compact', '/compact'))
     return out
 
 
@@ -95,8 +120,8 @@ def _nudge_text(a):
 
 
 def run_action(s, runner=None, log=None, now=None):
-    """Carry out a suggestion's action. Returns (ok, detail) and appends it to the action log."""
-    if s.action != 'nudge':
+    """Carry out a suggestion's action (all of them send s.message with `hc send`). Returns (ok, detail) and logs it."""
+    if s.action not in ACTIONS:
         return False, 'nothing to do automatically'
     if not s.address:
         ok, detail = False, 'not running in herdr, so wakegraph cannot reach it'
@@ -169,7 +194,8 @@ def render(agents, stalls, suggestions, now, cost='', actions=(), prompt=''):
     if other:
         lines += ['Other alerts:']
         for i, s in other:
-            fix = f'press {i} to nudge' if s.address else 'nudge it yourself (not in herdr)'
+            word = ACTIONS.get(s.action, 'act')
+            fix = f'press {i} to {word}' if s.address else f'{word} it yourself (not in herdr)'
             lines.append(f'  [{i}] {s.text}  -> {fix}')
     lines += ['']
     if cost:
@@ -185,14 +211,23 @@ def render(agents, stalls, suggestions, now, cost='', actions=(), prompt=''):
 
 def run(claude_dir, codex_dir, hours=12, use_herdr=True):
     """The interactive loop. Without a terminal (piped output), print one snapshot and stop."""
+    user_settings = os.path.expanduser('~/.claude/settings.json')
+    running_rules = {}
+
+    def rules_for(cwd):
+        return rules.load(cwd, user_settings) + running_rules.get(cwd, [])
+
     def snapshot():
+        running_rules.clear()
+        running_rules.update(rules.running_settings())
         now = status.now_utc()
         terminals = status.herdr_terminals() if use_herdr else None
-        agents = status.collect(claude_dir, codex_dir, now, hours, herdr=terminals, running=status.running_cwds())
+        agents = status.collect(claude_dir, codex_dir, now, hours, herdr=terminals, running=status.running_cwds(),
+                                rules_for=rules_for)
         stalls = status.stalls(agents, now)
         queue = status.owner_queue(agents, now)
         announce(queue, stalls, now)
-        return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals), queue)
+        return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals), queue, acted(now), now)
 
     cost, cost_at = '', None
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
@@ -228,11 +263,11 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
                 if not (s.action and s.address):
                     note = f'[{key}] has no action wakegraph can take: {s.hint or "it is not running in herdr"}'
                     continue
-                draw(f'Nudge {s.agent} ({s.address}) with:\n  "{s.message}"\nSend it? [y/N]')
+                draw(f'{s.action.capitalize()} {s.agent} ({s.address}) by sending:\n  "{s.message}"\nSend it? [y/N]')
                 sys.stdout.flush()
                 if sys.stdin.read(1).lower() == 'y':
                     ok, detail = run_action(s)
-                    note = f"{'Sent' if ok else 'Failed'}: nudge {s.agent} ({detail})"
+                    note = f"{'Sent' if ok else 'Failed'}: {s.action} {s.agent} ({detail})"
                 else:
                     note = 'Cancelled.'
     except KeyboardInterrupt:
@@ -309,3 +344,13 @@ def watch(claude_dir, codex_dir, hours=12, use_herdr=True):
             time.sleep(WATCH_EVERY)
     except KeyboardInterrupt:
         return 0
+
+
+def acted(now, path=None):
+    """(agent, action) pairs carried out successfully in the last ACTED_HIDE seconds, so their fix stays hidden."""
+    out = set()
+    for x in recent_actions(path, n=50):
+        at = status.parse_ts(x.get('at'))
+        if x.get('ok') and at and (now - at).total_seconds() <= ACTED_HIDE:
+            out.add((x.get('agent'), x.get('action')))
+    return out

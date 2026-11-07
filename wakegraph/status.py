@@ -11,7 +11,8 @@ import re
 import shlex
 import subprocess
 
-from .adapters import _strip_common_prefix, command_label, wake_sender
+from . import rules
+from .adapters import CODEX_REFUSED, _strip_common_prefix, command_label, wake_sender
 from .model import HUMAN, parse_ts
 
 STUCK_AFTER = 15 * 60       # working with no new log row for this long
@@ -99,13 +100,15 @@ class Agent:
         self.turn_by = None       # who started its current or last turn: an agent name or HUMAN
         self.ask_kind = ''        # F9: what it needs from you
         self.ask_since = None     # F9: since when
+        self.context = 0          # A2: input tokens of its latest call, i.e. what every wake re-reads
+        self.refused = []         # A5: (datetime, label, why, advice) refusals seen in the log tail
 
     def as_dict(self, now):
         return {'agent': self.name, 'source': self.source, 'state': self.state, 'detail': self.detail,
                 'seconds': int((now - self.last).total_seconds()) if self.last else None, 'herdr': self.herdr}
 
 
-def _claude(agent, rows, show_text):
+def _claude(agent, rows, show_text, rules_for=lambda cwd: []):
     for o in rows:
         ts = parse_ts(o.get('timestamp'))
         if not ts:
@@ -115,6 +118,10 @@ def _claude(agent, rows, show_text):
         agent.cwd = o.get('cwd') or agent.cwd
         if o.get('type') == 'assistant':
             agent.last = ts
+            u = msg.get('usage') or {}
+            if u:
+                agent.context = (u.get('input_tokens', 0) + u.get('cache_read_input_tokens', 0)
+                                 + u.get('cache_creation_input_tokens', 0)) or agent.context
             blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
             texts = [b.get('text', '') for b in blocks if b.get('type') == 'text' and b.get('text', '').strip()]
             if texts:  # only whether it ends with a question is kept, never the text
@@ -145,7 +152,11 @@ def _claude(agent, rows, show_text):
                 _note_wake(agent, ts, text)
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_result':
-                    agent.pending.pop(b.get('tool_use_id'), None)
+                    tool = agent.pending.pop(b.get('tool_use_id'), None)
+                    out = b.get('content') if isinstance(b.get('content'), str) else json.dumps(b.get('content'))
+                    if b.get('is_error') and tool and rules.REFUSED.search(out or ''):
+                        why, advice = rules.explain(out, tool[0], tool[2], rules_for(agent.cwd))
+                        agent.refused.append((ts, tool[1], why, advice))
 
 
 def _note_wake(agent, ts, text):
@@ -198,7 +209,12 @@ def _codex(agent, rows, show_text):
                 agent.cmds.append(cmd)
                 agent.sends += [(ts, t) for t in _send_targets(cmd)]
         elif kind in ('function_call_output', 'custom_tool_call_output'):
-            agent.pending.pop(p.get('call_id'), None)
+            tool = agent.pending.pop(p.get('call_id'), None)
+            out = p.get('output') if isinstance(p.get('output'), str) else json.dumps(p.get('output'))
+            if tool and CODEX_REFUSED.search(out or ''):
+                agent.refused.append((ts, tool[1], 'Codex sandbox or approval', ''))
+        elif kind == 'token_count' and isinstance(p.get('info'), dict):
+            agent.context = (p['info'].get('last_token_usage') or {}).get('input_tokens') or agent.context
 
 
 def _finish(agent, now):
@@ -228,10 +244,14 @@ def _ago(seconds):
     return f'{m} min' if m < 120 else f'{m // 60} h'
 
 
-def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, running=None):
+def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, running=None, rules_for=None):
     """Read recent logs -> list of Agent with health states. herdr: optional `hc ls --json` terminals."""
     cutoff = now.timestamp() - hours * 3600
     agents = []
+    if rules_for is None:  # the agent's own settings and the user's; live view adds running agents' --settings files
+        user = os.path.expanduser('~/.claude/settings.json')
+        cache = {}
+        rules_for = lambda cwd: cache.setdefault(cwd, rules.load(cwd, user))
 
     mains = [p for p in glob.glob(os.path.join(claude_dir, '*', '*.jsonl')) if os.path.getmtime(p) >= cutoff]
     latest = {}
@@ -242,12 +262,12 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
     names = _strip_common_prefix(sorted(latest))
     for d, path in latest.items():
         a = Agent(names[d], 'claude-code', path)
-        _claude(a, _tail_rows(path), show_text)
+        _claude(a, _tail_rows(path), show_text, rules_for)
         for sp in glob.glob(os.path.join(path[:-len('.jsonl')], 'subagents', '*.jsonl')):
             if now.timestamp() - os.path.getmtime(sp) > SUBAGENT_WINDOW:
                 continue
             child = Agent(f'{a.name}/sub', 'claude-code', sp)
-            _claude(child, _tail_rows(sp), show_text)
+            _claude(child, _tail_rows(sp), show_text, rules_for)
             if child.last:
                 a.children.append(child)
         if a.last:

@@ -49,6 +49,16 @@ you started. Each item shows how long it has waited and which agents it holds up
 stall, pops up one desktop notification (macOS Notification Centre, or `notify-send` on Linux). Notifications
 carry names only, never message text, and items older than 2 hours never pop up.
 
+**Other alerts** are fixes wakegraph can carry out itself, through `hc send`:
+
+| Fix | When | What it sends |
+|---|---|---|
+| nudge | an agent is stuck, a message never started a turn, or an idle agent holds up a stalled team | a short note on what looks wrong and what to do |
+| tell | the same command was refused twice in 30 minutes | which rule refused it, and to stop retrying (the alert also shows the narrower rule for you) |
+| compact | a team agent is idle with 150K+ tokens of context, which every wake re-reads | `/compact` |
+
+A fix you carried out stays hidden for 15 minutes.
+
 Press a number to act on an alert. wakegraph shows the exact message it will send and waits for `y`. Every
 action is logged to `~/.local/state/wakegraph/actions.jsonl` and listed in the view. `q` quits.
 Piped into another program, it prints one snapshot instead.
