@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-from . import adapters, live, preset, quiet, report, rules, runtime, status, team, worktree
+from . import adapters, live, preset, quiet, report, rules, runtime, serve, status, team, worktree
 
 
 def main(argv=None):
@@ -55,9 +55,12 @@ def main(argv=None):
     tl.add_argument('--json', action='store_true')
     tk = tsub.add_parser('stop', help='stop every running agent of a team')
     tk.add_argument('name')
+    sub.add_parser('serve', help='the brain as a background service (the app talks to it); runs `watch` too')
     w = sub.add_parser('watch', help='no screen: a desktop notification when something needs you or a team stalls')
     w.add_argument('--hours', type=float, default=12)
     args = p.parse_args(argv)
+    if args.cmd == 'serve':
+        return _serve()
     if args.cmd == 'quiet':
         return _quiet(args.switch)
     if args.cmd == 'team':
@@ -101,6 +104,15 @@ def _status(args):
             time.sleep(args.watch)
         except KeyboardInterrupt:
             return 0
+
+
+def _serve():
+    claude, codex = os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions')
+    rt = runtime.Runtime()
+    serve.serve(serve.brain_socket_path(),
+                {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt)},
+                tick=lambda: live.watch_once(claude, codex))
+    return 0
 
 
 def _ask(question):

@@ -378,17 +378,23 @@ def watch(claude_dir, codex_dir, hours=12, use_herdr=True):
     print(f'assieme watch: checking every {WATCH_EVERY} s; notifications only. Ctrl-C to stop.', flush=True)
     try:
         while True:
-            now = status.now_utc()
-            agents = status.collect(claude_dir, codex_dir, now, hours,
-                                    herdr=status.herdr_terminals() if use_herdr else None,
-                                    running=status.running_cwds())
-            for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now):
-                print(f"{now.astimezone().strftime('%H:%M')}  {title}: {body}", flush=True)
-            for to, n, why in quiet.deliver(agents):
-                print(f"{now.astimezone().strftime('%H:%M')}  delivered {n} quiet note(s) to {to} ({why})", flush=True)
+            for line in watch_once(claude_dir, codex_dir, hours, use_herdr):
+                print(line, flush=True)
             time.sleep(WATCH_EVERY)
     except KeyboardInterrupt:
         return 0
+
+
+def watch_once(claude_dir, codex_dir, hours=12, use_herdr=True):
+    """One round of `assieme watch`: notifications and quiet-send delivery. Returns what it did, one line each."""
+    now = status.now_utc()
+    agents = status.collect(claude_dir, codex_dir, now, hours,
+                            herdr=status.herdr_terminals() if use_herdr else None,
+                            running=status.running_cwds())
+    at = now.astimezone().strftime('%H:%M')
+    lines = [f'{at}  {title}: {body}' for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now)]
+    lines += [f'{at}  delivered {n} quiet note(s) to {to} ({why})' for to, n, why in quiet.deliver(agents)]
+    return lines
 
 
 def acted(now, path=None):
