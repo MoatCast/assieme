@@ -60,11 +60,16 @@ class SnapshotTest(unittest.TestCase):
                  'labels': {'assieme.team': 'demo', 'assieme.role': 'coordinator'}}]
         s = serve.snapshot('/c', '/x', NOW, FakeRt(rows), which=lambda c: None if c == 'codex' else '/bin/' + c)
         self.assertEqual(s['clis'], {'claude': True, 'codex': False, 'hc': True, 'herdr': True})
-        self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams'})
+        self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams', 'starting'})
+        self.assertEqual(s['starting'], [])
         self.assertEqual([a['agent'] for a in s['agents']], ['builder', 'coord'])
         self.assertEqual(s['agents'][0]['cwd'], '/p')
         self.assertEqual(s['teams'][0]['role'], 'coordinator')
         json.dumps(s)  # must be JSON-serialisable as is
+
+    def test_snapshot_includes_starting(self):
+        s = serve.snapshot('/c', '/x', NOW, FakeRt(), which=lambda c: '/bin/' + c, starting=[{'team': 'x'}])
+        self.assertEqual(s['starting'], [{'team': 'x'}])
 
     def test_snapshot_without_assieme_core(self):
         s = serve.snapshot('/c', '/x', NOW, FakeRt(fail=True), which=lambda c: '/bin/' + c)
@@ -138,7 +143,7 @@ class CliServeTest(unittest.TestCase):
             cli.main(['serve'])
         sock, handlers = srv.call_args.args
         self.assertEqual(sock, '/s/b.sock')
-        self.assertEqual(sorted(handlers), ['brain.snapshot'])
+        self.assertEqual(sorted(handlers), ['brain.snapshot', 'project.check', 'team.presets', 'team.start'])
         self.assertTrue(callable(srv.call_args.kwargs['tick']))
 
 

@@ -5,8 +5,9 @@ import subprocess
 import tempfile
 import time
 import unittest
+from unittest import mock
 
-from assieme import newteam, preset
+from assieme import newteam, preset, team
 
 SAVED = '''name = "{name}"
 project = "/tmp/x"
@@ -130,3 +131,125 @@ class CheckSaveTest(unittest.TestCase):
         newteam.save(self.repo, [role('old')], {}, 'shop', self.teams)
         folder = newteam.save(self.repo, [role('new')], {}, 'shop', self.teams)
         self.assertEqual(sorted(os.listdir(folder)), ['new.md', 'team.toml'])
+
+
+class Manual:
+    """A stand-in for threading.Thread: targets run only when the test says so."""
+
+    def __init__(self):
+        self.pending = []
+
+    def __call__(self, target, daemon=None):
+        self.pending.append(target)
+        return self
+
+    def start(self):
+        pass
+
+    def run_all(self):
+        while self.pending:
+            self.pending.pop(0)()
+
+
+class Rt:
+    def __init__(self, live=()):
+        self.live = live
+
+    def list(self, labels, all=False):
+        return [{'address': f't{i}', 'state': 'live', 'labels': {team.TEAM: n, team.ROLE: 'builder'}}
+                for i, n in enumerate(self.live)]
+
+
+ROLES = [role('builder'), role('reviewer', checkout='read-only', parent='builder')]
+ALL = lambda c: '/bin/' + c
+
+
+class StarterTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.repo = git_repo(os.path.join(self.d, 'repo'))
+        self.teams = os.path.join(self.d, 'teams')
+        self.manual, self.clock = Manual(), [1000.0]
+        self.calls = []
+        p = mock.patch('assieme.newteam.team.start', side_effect=self.fake_start)
+        p.start()
+        self.addCleanup(p.stop)
+        self.result = lambda tm: [team.Started(r.name, f't{i}', 'running') for i, r in enumerate(tm.roles)]
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def fake_start(self, tm, task, rt, ask):
+        self.calls.append((tm.name, task, ask('Trust?')))
+        return self.result(tm)
+
+    def starter(self, rt=None, which=ALL):
+        return newteam.Starter(rt or Rt(), self.teams, thread=self.manual, now=lambda: self.clock[0], which=which)
+
+    def test_start_returns_before_agents_and_reports(self):
+        s = self.starter()
+        self.assertEqual(s.start(self.repo, 'Fix login', ROLES, {}), {'team': 'repo'})
+        rec = s.records()[0]
+        self.assertEqual((rec['team'], rec['project'], rec['done'], rec['error']), ('repo', self.repo, False, None))
+        self.assertEqual([r['state'] for r in rec['roles']], ['starting', 'starting'])
+        self.assertTrue(os.path.isdir(os.path.join(self.repo, '.assieme', 'worktrees', 'builder')))
+        self.manual.run_all()
+        rec = s.records()[0]
+        self.assertTrue(rec['done'])
+        self.assertEqual([(r['role'], r['state']) for r in rec['roles']], [('builder', 'running'), ('reviewer', 'running')])
+        self.assertEqual(self.calls, [('repo', 'Fix login', True)])
+
+    def test_early_errors_raise(self):
+        plain = os.path.join(self.d, 'plain')
+        os.makedirs(plain)
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.starter().start(plain, 't', ROLES, {})
+        self.assertEqual(e.exception.field, 'project')
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.starter(which=lambda c: None if c == 'codex' else '/bin/' + c).start(
+                self.repo, 't', [role(agent='codex')], {})
+        self.assertEqual(e.exception.field, 'start')
+        self.assertTrue(e.exception.message.startswith('not installed: codex'))
+        self.starter().start(self.repo, 't', ROLES, {})
+        self.manual.run_all()
+        with open(os.path.join(self.repo, '.assieme', 'worktrees', 'builder', 'dirty.txt'), 'w') as f:
+            f.write('x')
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.starter().start(self.repo, 't', ROLES, {})
+        self.assertEqual(e.exception.field, 'start')
+        self.assertIn('builder', e.exception.message)
+        self.assertEqual(len(self.calls), 1)
+
+    def test_thread_error_recorded(self):
+        def boom(tm):
+            raise team.TeamError('boom')
+        self.result = boom
+        s = self.starter()
+        s.start(self.repo, 't', ROLES, {})
+        self.manual.run_all()
+        rec = s.records()[0]
+        self.assertEqual((rec['done'], rec['error']), (True, 'boom'))
+
+    def test_second_start_while_starting_refused(self):
+        s = self.starter()
+        s.start(self.repo, 't', ROLES, {})
+        with self.assertRaises(newteam.NewTeamError) as e:
+            s.start(self.repo, 't', ROLES, {})
+        self.assertEqual((e.exception.field, e.exception.message), ('start', 'This team is still starting.'))
+
+    def test_records_expire_after_ten_minutes(self):
+        s = self.starter()
+        s.start(self.repo, 't', ROLES, {})
+        self.manual.run_all()
+        self.clock[0] += 599
+        self.assertEqual(len(s.records()), 1)
+        self.clock[0] += 2
+        self.assertEqual(s.records(), [])
+
+    def test_name_skips_live_team(self):
+        self.assertEqual(self.starter(Rt(live=['repo'])).start(self.repo, 't', ROLES, {}), {'team': 'repo-2'})
+
+    def test_validation_runs_first(self):
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.starter().start(self.repo, 't', [], {})
+        self.assertEqual(e.exception.field, 'roles')

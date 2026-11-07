@@ -4,9 +4,11 @@ import json
 import os
 import re
 import shutil
+import threading
+import time
 import tomllib
 
-from . import preset, worktree
+from . import launch, preset, runtime, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -16,6 +18,7 @@ KINDS = {'planner': ('planner.md', 'read-only'), 'builder': ('builder.md', 'bran
 
 NAME = re.compile(r'^[a-z0-9-]+$')
 BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
+KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NOT_GIT = "This folder isn't a git repository. Assieme gives each agent its own branch, so it needs one."
 
 
@@ -123,3 +126,69 @@ def save(project, roles, practices, name, teams):
     with open(os.path.join(folder, 'team.toml'), 'w') as f:
         f.write('\n'.join(out))
     return folder
+
+
+class Starter:
+    """Starts teams for the app: checks and saves at once, then runs 7a's `team.start` in a thread, keeping a
+    progress record per team for the snapshot. Records live in memory; the teams themselves outlive the brain."""
+
+    def __init__(self, rt, teams, thread=threading.Thread, now=time.time, which=shutil.which):
+        self.rt, self.teams, self.thread, self.now, self.which = rt, teams, thread, now, which
+        self.lock, self.recs = threading.Lock(), []
+
+    def _live_names(self):
+        try:
+            return {r['team'] for r in team.status(self.rt) if r['state'] == 'live'}
+        except runtime.RuntimeError_:
+            return set()  # the assieme core isn't running yet: no live teams
+
+    def start(self, project, task, roles, practices):
+        validate(roles)
+        check = project_check(project)
+        if not check['ok']:
+            raise NewTeamError('project', check['reason'])
+        project = os.path.abspath(project)
+        with self.lock:
+            if any(r['project'] == project and not r['done'] for r in self.recs):
+                raise NewTeamError('start', 'This team is still starting.')
+            name = team_name(project, self._live_names())
+            folder = save(project, roles, practices, name, self.teams)
+            try:
+                tm = preset.load(folder)
+            except preset.PresetError as e:
+                raise NewTeamError('start', str(e)) from None
+            missing = launch.missing_clis(tm.roles, which=self.which)
+            if missing:
+                raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then start again.')
+            try:
+                for r in tm.roles:  # every worktree now, so a dirty one is reported to the form, not the log
+                    worktree.ensure(tm, r)
+            except worktree.WorktreeError as e:
+                raise NewTeamError('start', str(e)) from None
+            rec = {'team': name, 'project': project, 'done': False, 'error': None, 'done_at': None,
+                   'roles': [{'role': r['name'], 'state': 'starting', 'detail': ''} for r in roles]}
+            self.recs.append(rec)
+        self.thread(target=lambda: self._run(rec, tm, task), daemon=True).start()
+        return {'team': name}
+
+    def _run(self, rec, tm, task):
+        try:
+            # Clicking Start in the app is the person's agreement to trust the folder.
+            results = {s.role: s for s in team.start(tm, task, self.rt, ask=lambda q: True)}
+            with self.lock:
+                for r in rec['roles']:
+                    s = results.get(r['role'])
+                    if s:
+                        r['state'], r['detail'] = s.state, s.note
+        except Exception as e:  # anything here would otherwise vanish with the thread
+            rec['error'] = str(e)
+        finally:
+            with self.lock:
+                rec['done'], rec['done_at'] = True, self.now()
+
+    def records(self):
+        with self.lock:
+            now = self.now()
+            self.recs = [r for r in self.recs if not r['done'] or now - r['done_at'] <= KEEP_DONE_S]
+            return [{k: v for k, v in r.items() if k != 'done_at'} | {'roles': [dict(x) for x in r['roles']]}
+                    for r in self.recs]

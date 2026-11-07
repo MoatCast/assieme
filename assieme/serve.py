@@ -21,7 +21,7 @@ def brain_socket_path():
     return os.path.join(base, 'assieme', 'brain.sock')
 
 
-def snapshot(claude_dir, codex_dir, now, rt, which=shutil.which, hours=12):
+def snapshot(claude_dir, codex_dir, now, rt, which=shutil.which, hours=12, starting=()):
     agents = status.collect(claude_dir, codex_dir, now, hours, herdr=status.herdr_terminals(),
                             running=status.running_cwds())
     head, alerts = status.summary(agents)
@@ -33,7 +33,7 @@ def snapshot(claude_dir, codex_dir, now, rt, which=shutil.which, hours=12):
             'clis': {k: bool(which(v)) for k, v in CLIS.items()},
             'agents': [a.as_dict(now) | {'cwd': a.cwd, 'herdr_address': a.herdr_address} for a in agents],
             'alerts': alerts, 'queue': status.owner_queue(agents, now), 'stalls': status.stalls(agents, now),
-            'teams': teams}
+            'teams': teams, 'starting': list(starting)}
 
 
 def handle(request, handlers):

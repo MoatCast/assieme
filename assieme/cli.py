@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-from . import adapters, live, preset, quiet, report, rules, runtime, serve, service, status, team, worktree
+from . import adapters, live, newteam, preset, quiet, report, rules, runtime, serve, service, status, team, worktree
 
 
 def main(argv=None):
@@ -126,8 +126,13 @@ def _service(switch):
 def _serve():
     claude, codex = os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions')
     rt = runtime.Runtime()
+    starter = newteam.Starter(rt, newteam.teams_dir())
     serve.serve(serve.brain_socket_path(),
-                {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt)},
+                {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
+                                                          starting=starter.records()),
+                 'project.check': newteam.project_check,
+                 'team.presets': lambda: newteam.presets(),
+                 'team.start': starter.start},
                 tick=lambda: live.watch_once(claude, codex))
     return 0
 
