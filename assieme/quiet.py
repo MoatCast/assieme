@@ -1,9 +1,10 @@
 """A3 quiet send: routine notes between agents wait for the receiver's next turn instead of waking it.
 
 How it fits together:
-- The owner marks a sender -> receiver pair quiet (one key in the live view). Pairs live in quiet.json.
-- Agents keep typing `hc send`. A small `hc` shim, put ahead of the real `hc` on the agents' PATH by
-  `assieme quiet on`, holds notes on quiet pairs in a queue and passes everything else to the real hc.
+- The owner marks a sender -> receiver pair quiet (Settings or a saving tip in the app, one key in the live view).
+  Pairs live in quiet.json.
+- Agents keep typing `hc send`. A small `hc` shim holds notes on quiet pairs in a queue and passes everything else to
+  the real hc. Agents started in Assieme get it from the core's PATH; for others, `assieme quiet on` prints the line.
 - The live view and `assieme watch` deliver held notes as one batch while the receiver is busy (so the note
   joins its current turn), or after MAX_HOLD if it stays idle: one wake instead of many.
 
