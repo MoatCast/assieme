@@ -396,16 +396,19 @@ def watch(claude_dir, codex_dir, hours=12, use_herdr=True):
         return 0
 
 
-def watch_once(claude_dir, codex_dir, hours=12, use_herdr=True):
-    """One round of `assieme watch`: notifications and quiet-send delivery. Returns what it did, one line each."""
+def watch_once(claude_dir, codex_dir, hours=12, use_herdr=True, announcing=True):
+    """One round of `assieme watch`: notifications and quiet-send delivery. Returns what it did, one line each.
+    announcing=False: the app is showing notifications, with buttons, so these plain ones stay out of its way."""
     now = status.now_utc()
     agents = status.collect(claude_dir, codex_dir, now, hours,
                             herdr=status.herdr_terminals() if use_herdr else None,
                             running=status.running_cwds())
     at = now.astimezone().strftime('%H:%M')
-    switches = settings.load()['notify']
-    lines = [f'{at}  {title}: {body}' for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now,
-                                                                  switches=switches)]
+    st = settings.load()
+    paused = status.parse_ts(st['notify_paused_until'])
+    announcing = announcing and not (paused and paused > now)
+    lines = [f'{at}  {title}: {body}' for title, body in (announce(status.owner_queue(agents, now), status.stalls(agents, now), now,
+                                                                   switches=st['notify']) if announcing else ())]
     lines += [f'{at}  delivered {n} quiet note(s) to {to} ({why})'
               for to, n, why in quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now), on_give_up=lambda notes: record_given_up(notes, now))]
     return lines

@@ -121,13 +121,14 @@ test("practices: group switches, no chevrons or Improve button, See all shows ba
   expect(screen.getByText("One coordinator")).toBeTruthy();
 });
 
-test("notifications: two switches work; finished work waits for Mac notifications", async () => {
+test("notifications: all three switches work", async () => {
   await open("Notifications");
   fireEvent.click(screen.getByRole("switch", { name: "When a team stalls" }));
   await flush();
   expect(b.setSetting).toHaveBeenCalledWith("notify.stalls", false);
-  expect((screen.getByRole("switch", { name: "When work finishes or stops" }) as HTMLInputElement).disabled).toBe(true);
-  expect(screen.getByText(/Coming with Mac notifications/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("switch", { name: "When work finishes or stops" }));
+  await flush();
+  expect(b.setSetting).toHaveBeenCalledWith("notify.finished", false);
 });
 
 test("Stop asks first; Keep it running changes nothing", async () => {

@@ -187,8 +187,8 @@ function Notifications({ values, set }: { values: Values; set: (k: string, v: un
         <Row title="When a team stalls" sub="Agents are waiting on each other and nothing is moving.">
           <Switch label="When a team stalls" on={values.notify.stalls} onChange={(on) => set("notify.stalls", on)} />
         </Row>
-        <Row title="When work finishes or stops" sub="Ready to review, or an agent hit a stop rule. Coming with Mac notifications.">
-          <Switch label="When work finishes or stops" on={values.notify.finished} disabled onChange={() => {}} />
+        <Row title="When work finishes or stops" sub="Ready to review, or an agent stopped.">
+          <Switch label="When work finishes or stops" on={values.notify.finished} onChange={(on) => set("notify.finished", on)} />
         </Row>
       </div>
     </>

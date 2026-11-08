@@ -767,6 +767,13 @@ class Polling(Base):
         self.r.waiting()
         calls = self.counted()
         self.assertEqual(self.r.waiting()[0]['ahead'], 1)
+
+    def test_waiting_says_which_commit_and_when(self):
+        self.branch('builder-1', {'a.py': 'A\n'})
+        w = self.r.waiting()[0]
+        self.assertEqual(w['tip'], git(self.repo, 'rev-parse', 'assieme/demo/builder-1'))
+        self.assertGreater(w['at'], 1_000_000_000)
+        self.assertTrue(w['subject'])
         self.assertFalse([c for c in calls if 'rev-list' in c])
 
     def test_a_new_commit_is_counted(self):

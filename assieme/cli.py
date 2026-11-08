@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, live, newteam, preset, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
+from . import activity, adapters, answers, live, menubar, newteam, preset, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
 
 
 def main(argv=None):
@@ -133,9 +133,10 @@ def _serve():
     brain = teammap.Brain(claude, codex, rt, starter, suggested)
     reviews = review.Review(rt, newteam.teams_dir())
     activity.register_merge(reviews)
+    menu = menubar.Menubar(brain, reviews)
 
     def tick():
-        for step in (lambda: live.watch_once(claude, codex), brain.tick):
+        for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()), brain.tick):
             try:
                 step()
             except Exception:  # one failing step must not stop notifications, delivery or the others
@@ -148,7 +149,8 @@ def _serve():
                  'team.start': starter.start,
                  'team.suggest': newteam.suggest,
                  **brain.handlers(),
-                 **reviews.handlers()},
+                 **reviews.handlers(),
+                 **menu.handlers()},
                 tick=tick)
     return 0
 

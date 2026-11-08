@@ -1,5 +1,6 @@
 mod bridge;
 mod frame;
+mod menubar;
 mod service;
 
 use bridge::Stream;
@@ -103,12 +104,27 @@ async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
     service::install(&res.join("python/bin/python3"), &res.join("hc-bin"))
 }
 
+#[tauri::command]
+async fn window_open(app: tauri::AppHandle, team: Option<String>, role: Option<String>, view: Option<String>) {
+    menubar::hide_panel(&app);
+    menubar::open_window(&app, team.as_deref(), role.as_deref(), view.as_deref());
+}
+
+#[tauri::command]
+async fn menu_fit(app: tauri::AppHandle, height: f64) -> Result<(), String> {
+    menubar::fit_panel(&app, height)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(Streams::default())
+        .manage(menubar::LastHidden::default())
+        .setup(|app| Ok(menubar::setup(app.handle())?))
+        .on_window_event(menubar::window_event)
         .invoke_handler(tauri::generate_handler![
             brain_call,
             terminal_open,
@@ -117,10 +133,13 @@ pub fn run() {
             terminal_close,
             terminal_read,
             service_running,
-            service_install
+            service_install,
+            window_open,
+            menu_fit
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(menubar::run_event);
 }
 
 #[cfg(test)]

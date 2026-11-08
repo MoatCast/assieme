@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { reviewUndo, setSetting, type MergeResult, type Snapshot } from "./bridge";
+import { useEffect, useState } from "react";
+import { onOpen, reviewUndo, setSetting, type MergeResult, type Snapshot } from "./bridge";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
 import FirstRun from "./FirstRun";
@@ -45,6 +45,18 @@ export default function Shell() {
   const started = (snap?.teams ?? []).some((t) => t.team === team && t.state === "live");
   // Until the first snapshot answers, nothing decides: First run is what a new person should see.
   const shown: Tab = tab ?? (snap?.first_run_done ? "team" : "first-run");
+
+  useEffect(() => {
+    const stop = onOpen(({ team: t, role, view }) => {
+      setPicked(t);
+      setSettings(false);
+      if (view === "review" && role) return setReview({ team: t, role });
+      setReview(null);
+      setFocus(role);
+      setTab("terminals");
+    });
+    return () => void stop.then((off) => off());
+  }, []);
 
   const openTeam = () => {
     setTab("team");
