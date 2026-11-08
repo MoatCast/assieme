@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Pane, PaneButton, TeamView } from "./bridge";
 
-const b = vi.hoisted(() => ({ teamView: vi.fn(), paneAct: vi.fn() }));
+const b = vi.hoisted(() => ({ teamView: vi.fn(), paneAct: vi.fn(), reviewWaiting: vi.fn() }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({
   default: ({ address, typing }: { address: string; typing?: boolean }) => (
@@ -36,12 +36,14 @@ const VIEW: TeamView = {
 };
 
 const flush = () => act(async () => {});
+const onReview = vi.fn();
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   b.teamView.mockResolvedValue(VIEW);
   b.paneAct.mockResolvedValue({ ok: true, detail: "sent" });
+  b.reviewWaiting.mockResolvedValue([]);
 });
 afterEach(() => {
   cleanup();
@@ -50,7 +52,7 @@ afterEach(() => {
 
 async function show() {
   const onNewTeam = vi.fn();
-  render(<Terminals team="shop" pollMs={3000} onNewTeam={onNewTeam} />);
+  render(<Terminals team="shop" pollMs={3000} onNewTeam={onNewTeam} onReview={onReview} />);
   await flush();
   return onNewTeam;
 }
@@ -123,7 +125,7 @@ test("an exited pane has no buttons", async () => {
 
 test("no team", async () => {
   const onNewTeam = vi.fn();
-  render(<Terminals team={null} pollMs={3000} onNewTeam={onNewTeam} />);
+  render(<Terminals team={null} pollMs={3000} onNewTeam={onNewTeam} onReview={onReview} />);
   await flush();
   expect(screen.getByText("No team is running. Start one from New team.")).toBeTruthy();
   fireEvent.click(screen.getByText("New team"));
@@ -134,7 +136,7 @@ test("no team", async () => {
 test("polls one call at a time every 3 s", async () => {
   let answer: (v: unknown) => void = () => {};
   b.teamView.mockReturnValueOnce(new Promise((r) => (answer = r)));
-  render(<Terminals team="shop" pollMs={3000} onNewTeam={() => {}} />);
+  render(<Terminals team="shop" pollMs={3000} onNewTeam={() => {}} onReview={onReview} />);
   await flush();
   await act(async () => vi.advanceTimersByTime(9000));
   expect(b.teamView).toHaveBeenCalledTimes(1);
@@ -158,7 +160,41 @@ test("a fix pressed once can't be pressed again until it changes; the view refre
 
 test("brain offline shows Reconnecting", async () => {
   b.teamView.mockRejectedValue("no brain");
-  render(<Terminals team="shop" pollMs={3000} onNewTeam={() => {}} />);
+  render(<Terminals team="shop" pollMs={3000} onNewTeam={() => {}} onReview={onReview} />);
   await flush();
   expect(screen.getByText("Reconnecting…")).toBeTruthy();
+});
+
+const WAITING = (role: string, team = "shop", ahead = 3) => ({ team, project: "checkout", role, branch: `assieme/${team}/${role}`, ahead });
+
+test("an idle agent with commits offers Review changes; busy or asking ones don't", async () => {
+  b.reviewWaiting.mockResolvedValue([WAITING("idle-one"), WAITING("planner"), WAITING("builder-1"), WAITING("elsewhere", "other")]);
+  b.teamView.mockResolvedValue({ ...VIEW, panes: [...VIEW.panes, P({ role: "idle-one", address: "t6" }), P({ role: "elsewhere", address: "t7" })] });
+  render(<Terminals team="shop" pollMs={1000} onNewTeam={() => {}} onReview={onReview} />);
+  await flush();
+  await flush();
+  const pane = within(screen.getByTestId("pane-idle-one"));
+  expect(pane.getByText("3 commits ready to review")).toBeTruthy();
+  fireEvent.click(pane.getByRole("button", { name: "Review changes" }));
+  expect(onReview).toHaveBeenCalledWith("shop", "idle-one");
+  for (const role of ["planner", "builder-1", "elsewhere"])
+    expect(within(screen.getByTestId(`pane-${role}`)).queryByText("Review changes")).toBeNull();
+});
+
+test("with no team running, work from a stopped team is still listed", async () => {
+  b.reviewWaiting.mockResolvedValue([WAITING("builder-1"), WAITING("builder-2", "shop", 1)]);
+  render(<Terminals team={null} pollMs={1000} onNewTeam={() => {}} onReview={onReview} />);
+  await flush();
+  expect(screen.getByText("Waiting for review")).toBeTruthy();
+  expect(screen.getByText("checkout · 1 commit")).toBeTruthy();
+  fireEvent.click(screen.getAllByRole("button", { name: "Review changes" })[1]);
+  expect(onReview).toHaveBeenCalledWith("shop", "builder-2");
+});
+
+test("a failed waiting list doesn't break the page", async () => {
+  b.reviewWaiting.mockRejectedValue(new Error("offline"));
+  render(<Terminals team={null} pollMs={1000} onNewTeam={() => {}} onReview={onReview} />);
+  await flush();
+  expect(screen.getByText(/No team is running/)).toBeTruthy();
+  expect(screen.queryByText("Waiting for review")).toBeNull();
 });

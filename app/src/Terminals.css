@@ -47,3 +47,10 @@
 .terminals .focus .pane { flex: 1; }
 .terminals .back { align-self: flex-start; color: var(--quiet-slate); font-size: 13px; }
 .terminals .offline { align-self: flex-start; color: var(--quiet-waste-text); font-size: 13px; }
+.terminals .waiting { display: flex; flex-direction: column; gap: 12px; width: 420px; max-width: 100%; box-sizing: border-box; margin-top: 16px; padding: 18px;
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-sheet); box-shadow: var(--quiet-sheet-shadow); }
+.terminals .waiting h2 { margin: 0; font-size: 13px; font-weight: 600; line-height: 16px; color: var(--quiet-ink); }
+.terminals .waiting-row { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; }
+.terminals .waiting-role { font-family: var(--quiet-font-mono); color: var(--quiet-ink); }
+.terminals .waiting-where { flex: 1; min-width: 0; color: var(--quiet-mute); }
+.terminals .waiting .secondary { font-size: 12px; font-weight: 500; color: var(--quiet-ink); flex-shrink: 0; }

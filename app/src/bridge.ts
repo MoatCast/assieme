@@ -2,6 +2,7 @@
 // and the native bridge behind it.
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 export type Agent = {
   agent: string;
@@ -139,6 +140,47 @@ export type TeamView = { team: string; panes: Pane[]; strip: { role: string; tex
 export const teamView = (team: string) => brain<TeamView>("team.view", { team });
 export const paneAct = (a: { team: string; role: string; fix: string; button: string }) =>
   brain<{ ok: boolean; detail: string }>("pane.act", a);
+
+export type ReviewCheck = { id: string; state: "ok" | "bad" | "warn" | "running" | "none"; text: string; detail: string };
+export type ReviewNote = { id: string; author: string; file: string; line: number; text: string };
+export type ReviewData = {
+  team: string;
+  role: string;
+  project: string;
+  base: string;
+  branch: string;
+  tip: string;
+  ahead: number;
+  files: { path: string; add: number; del: number; binary: boolean; missing: boolean }[];
+  diff: string;
+  too_big: boolean;
+  checks: ReviewCheck[];
+  notes: ReviewNote[];
+  agent: { live: boolean; working: boolean; address: string | null };
+};
+export type ReviewWaiting = { team: string; project: string; role: string; branch: string; ahead: number };
+export type MergeResult = { role: string; base: string; problem: string | null; undo: string };
+
+const slow = <T>(method: string, params: object, timeoutS: number) => invoke<T>("brain_call", { method, params, timeoutS });
+
+export const reviewWaiting = () => brain<ReviewWaiting[]>("review.waiting");
+export const reviewGet = (team: string, role: string) => slow<ReviewData>("review.get", { team, role }, 60);
+export const reviewMerge = (team: string, role: string, tip: string, force: boolean) =>
+  slow<MergeResult>("review.merge", { team, role, tip, force }, 60);
+export const reviewUndo = (id: string) => slow<{ role: string; base: string }>("review.undo", { id }, 60);
+export const reviewDiscard = (team: string, role: string, tip: string) =>
+  slow<{ role: string; problem: string | null }>("review.discard", { team, role, tip }, 60);
+/** Pushes the branch first, so it may take minutes on a slow connection. */
+export const reviewPullRequest = (team: string, role: string) =>
+  slow<{ url: string | null; detail?: string }>("review.pull_request", { team, role }, 260);
+/** A stopped agent starts again first, which takes up to a minute. */
+export const reviewAsk = (team: string, role: string, text: string) =>
+  slow<{ restarted: boolean }>("review.ask", { team, role, text }, 90);
+export const reviewNote = (team: string, role: string, note: string, action: "fix" | "ignore") =>
+  slow<{ ok: boolean }>("review.note", { team, role, note, action }, 90);
+export const reviewEditor = (team: string, role: string, file: string, line?: number) =>
+  brain<{ ok: boolean }>("review.open_editor", { team, role, file, line });
+export const openLink = (url: string) => openUrl(url);
 
 export const serviceRunning = () => invoke<boolean>("service_running");
 export const serviceInstall = () => invoke<void>("service_install");
