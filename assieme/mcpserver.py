@@ -5,13 +5,16 @@ One command, two faces. Inside an Assieme terminal it offers agent tools only; a
 team-design know-how. Actions that change something get the person's yes through a question the client shows them: a
 model can't answer it, and a client that can't ask gets "Not done".
 """
+import hashlib
 import json
 import os
 import socket
 from typing import Literal
 
 from mcp.server.mcpserver import Context, MCPServer
-from mcp.types import ToolAnnotations
+from mcp.server.mcpserver.exceptions import ToolError  # anything else reaches the client as a bare "Error executing tool"
+from mcp.types import ElicitRequest, ElicitRequestFormParams, InputRequiredResult, ToolAnnotations
+from mcp_types.version import MODERN_PROTOCOL_VERSIONS
 from pydantic import BaseModel, Field
 
 from . import activity, newteam, preset, runtime, serve
@@ -23,6 +26,7 @@ NO_ASK = ('Not done: this needs the person\'s yes, and this client can\'t show t
 TO_AUTOMATIC = ', or turn this fix to Automatic in Settings'
 READ = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 ACT = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
+Acted = dict | str | InputRequiredResult
 GUIDE = os.path.join(os.path.dirname(__file__), 'guide')
 CALL_TIMEOUT_S = 130  # starting a team creates worktrees first
 
@@ -34,16 +38,16 @@ def call(method, **params):
         s.connect(serve.brain_socket_path())
     except OSError:
         s.close()
-        raise ValueError(NOT_RUNNING) from None
+        raise ToolError(NOT_RUNNING) from None
     with s, s.makefile('rwb') as f:
         f.write((json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}) + '\n').encode())
         f.flush()
         line = f.readline()
     if not line:
-        raise ValueError(NOT_RUNNING)
+        raise ToolError(NOT_RUNNING)
     reply = json.loads(line)
     if 'error' in reply:
-        raise ValueError(reply['error']['message'])
+        raise ToolError(reply['error']['message'])
     return reply['result']
 
 
@@ -57,19 +61,32 @@ class Yes(BaseModel):
     confirm: bool = Field(default=True, title='Go ahead?')
 
 
-async def _asked(ctx, question):
-    """True or False from the person, or None when this client can't ask."""
-    try:
-        got = await ctx.elicit(question, Yes)
-    except Exception:  # no elicitation in this client, or it failed: never treated as a yes
-        return None
-    return got.action == 'accept' and got.data.confirm
+def _question_id(question):
+    return hashlib.sha256(question.encode()).hexdigest()[:16]
+
+
+def _ask_and_retry(question):
+    """The newer protocol has no way to ask mid-call: the client asks the person, then calls again with the answer."""
+    ask = ElicitRequest(params=ElicitRequestFormParams(message=question, requested_schema=Yes.model_json_schema()))
+    return InputRequiredResult(input_requests={'yes': ask}, request_state=_question_id(question))
 
 
 async def _with_yes(ctx, question, method, how='', **params):
-    said = await _asked(ctx, question)
-    if said is None:
+    """Carry out `method` only on the person's yes. Anything else, including a client that can't ask, isn't a yes."""
+    caps = ctx.client_capabilities
+    if not caps or not caps.elicitation:
         return NO_ASK.format(how)
+    if ctx.protocol_version in MODERN_PROTOCOL_VERSIONS:
+        got = (ctx.input_responses or {}).get('yes')
+        if got is None or ctx.request_state != _question_id(question):  # an answer counts only for its own question
+            return _ask_and_retry(question)
+        said = got.action == 'accept' and (got.content or {}).get('confirm') is not False
+    else:
+        try:
+            got = await ctx.elicit(question, Yes)
+        except Exception:  # it failed to ask: never treated as a yes
+            return NO_ASK.format(how)
+        said = got.action == 'accept' and got.data.confirm
     return call(method, **params) if said else NOT_DONE
 
 
@@ -133,12 +150,12 @@ def control_server():
         return {'rows': rows}
 
     @m.tool(annotations=ACT)
-    async def answer(team: str, agent: str, answer: str, ctx: Context) -> dict | str:
+    async def answer(team: str, agent: str, answer: str, ctx: Context) -> Acted:
         """Answer an agent's question or menu, once the person agrees. Use a choice from `can_answer_with`, or words."""
         return await _with_yes(ctx, f'Answer {agent} in {team} with: {answer}', 'mcp.answer', team=team, role=agent, answer=answer)
 
     @m.tool(annotations=ACT)
-    async def send_message(team: str, agent: str, text: str, ctx: Context) -> dict | str:
+    async def send_message(team: str, agent: str, text: str, ctx: Context) -> Acted:
         """Send an agent a message, once the person agrees."""
         return await _with_yes(ctx, f'Send this to {agent} in {team}?\n\n{text}', 'mcp.send', team=team, role=agent, text=text)
 
@@ -152,17 +169,17 @@ def control_server():
                                team=team, role=agent, action=action, by='you')
 
     @m.tool(annotations=ACT)
-    async def nudge(team: str, agent: str, ctx: Context) -> dict | str:
+    async def nudge(team: str, agent: str, ctx: Context) -> Acted:
         """Ask a stuck agent to try another way, when the app offers this. Follows the Ask first / Automatic setting."""
         return await fix(team, agent, 'nudge', ctx, 'Nudge')
 
     @m.tool(annotations=ACT)
-    async def compact(team: str, agent: str, ctx: Context) -> dict | str:
+    async def compact(team: str, agent: str, ctx: Context) -> Acted:
         """Free up an agent's memory, when the app offers this. Follows the Ask first / Automatic setting."""
         return await fix(team, agent, 'compact', ctx, 'Free up memory for')
 
     @m.tool(annotations=ACT)
-    async def undo(activity_id: str, ctx: Context) -> dict | str:
+    async def undo(activity_id: str, ctx: Context) -> Acted:
         """Undo a row from recent_activity, once the person agrees."""
         row = next((r for r in call('activity.list')['rows'] if r['id'] == activity_id), None)
         if not row or not row['undo']:
@@ -171,24 +188,24 @@ def control_server():
         return await _with_yes(ctx, question.strip(), 'activity.undo', id=activity_id)
 
     @m.tool(annotations=ACT)
-    async def start_team(team: str, ctx: Context, task: str = '') -> dict | str:
+    async def start_team(team: str, ctx: Context, task: str = '') -> Acted:
         """Start a saved, stopped team again, once the person agrees. For a new team use draft_team instead."""
         return await _with_yes(ctx, f'Start {team} again?' + (f'\n\nTask: {task}' if task else ''), 'mcp.start_saved', team=team, task=task)
 
     @m.tool(annotations=ACT)
     async def add_agent(team: str, name: str, agent: Literal['claude', 'codex'], kind: Literal['builder', 'reviewer', 'tester', 'planner'],
-                        ctx: Context, job: str = '', parent: str | None = None, brief: str = '') -> dict | str:
+                        ctx: Context, job: str = '', parent: str | None = None, brief: str = '') -> Acted:
         """Add an agent to a running team, once the person agrees. It works from the kind's brief unless you give one."""
         role = {'name': name, 'agent': agent, 'kind': kind, 'job': job, 'parent': parent, 'brief': brief}
         return await _with_yes(ctx, f'Add {name} ({kind}, {agent}) to {team}?', 'team.add_agent', team=team, role=role)
 
     @m.tool(annotations=ACT)
-    async def stop_agent(team: str, agent: str, ctx: Context) -> dict | str:
+    async def stop_agent(team: str, agent: str, ctx: Context) -> Acted:
         """Stop one agent, once the person agrees. Its branch and files stay."""
         return await _with_yes(ctx, f"Stop {agent} in {team}? This ends anything it's doing. Its branch and files stay.", 'mcp.stop_agent', team=team, role=agent)
 
     @m.tool(annotations=ACT)
-    async def stop_team(team: str, ctx: Context) -> dict | str:
+    async def stop_team(team: str, ctx: Context) -> Acted:
         """Stop every agent of a team, once the person agrees. Their branches and files stay."""
         return await _with_yes(ctx, f"Stop all of {team}? This ends anything its agents are doing. Their branches and files stay.", 'team.stop', team=team)
 

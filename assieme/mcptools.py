@@ -65,13 +65,14 @@ class Tools:
                 and not quiet.urgent(text) and quiet.deliverer_alive()):
             quiet.hold_note(target['address'], target['cwd'], text, rt.session, rt.sock, sender=me, from_cwd=quiet._real(info['cwd']))
             return {'sent': 'held', 'detail': f'{to} gets this with its next turn. It was not woken.'}
+        reports.noted(name, to)
         # The marker the logs already read, so the map still shows who woke whom.
         rt.send(target['address'], f'<hc from="{address} {me}">{text}</hc>')
         return {'sent': 'now', 'detail': f'Sent to {to}.'}
 
     def report(self, address, state, note=''):
-        name, me, _ = self._me(address)
-        reports.save(name, me, state, note)
+        name, me, info = self._me(address)
+        reports.save(name, me, state, note, turn=reports.running_turn(info))
         if state == 'need_decision' and settings.load()['notify']['needs_you']:
             self.notify(f'{me} needs a decision', note[:200])
         return {'ok': True, 'detail': 'Reported. End your turn now if you cannot go on.' if state in reports.SHOWN else 'Reported.'}

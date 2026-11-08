@@ -17,11 +17,11 @@ from assieme import connect, mcpserver, mcptools, newteam, panes, quiet, reports
 NOW_MS = 1_000_000_000_000
 
 
-def row(role, address, cwd=None, briefed=True, status='idle', state='live', status_ms=0, created=0):
+def row(role, address, cwd=None, briefed=True, status='idle', state='live', status_ms=0, created=0, turn=None):
     labels = {team.TEAM: 'shop', team.ROLE: role}
     if briefed:
         labels[team.BRIEFED] = '1'
-    return {'address': address, 'state': state, 'status': {'state': status}, 'status_ms': status_ms, 'created_ms': created,
+    return {'address': address, 'state': state, 'status': {'state': status}, 'status_ms': status_ms, 'created_ms': created, 'turn': turn,
             'cwd': cwd or f'/wt/{role}', 'argv': ['claude'], 'labels': labels}
 
 
@@ -80,12 +80,26 @@ class BrainStaysStandardLibrary(unittest.TestCase):
 
 class ReportsTest(State):
     def test_a_report_holds_until_the_next_turn(self):
-        reports.save('shop', 'b', 'stuck', 'no key', now=NOW_MS / 1000)
-        during = row('b', 't1', status='working', status_ms=NOW_MS - 1000)
-        self.assertEqual(reports.current('shop', 'b', during)['note'], 'no key')
-        self.assertTrue(reports.current('shop', 'b', row('b', 't1', status='idle', status_ms=NOW_MS + 1000)))
-        self.assertIsNone(reports.current('shop', 'b', row('b', 't1', status='working', status_ms=NOW_MS + 1000)))
+        reports.save('shop', 'b', 'stuck', 'no key', now=NOW_MS / 1000, turn=3)
+        self.assertEqual(reports.current('shop', 'b', row('b', 't1', turn=3))['note'], 'no key')
+        self.assertIsNone(reports.current('shop', 'b', row('b', 't1', turn=4)))
+        self.assertIsNone(reports.current('shop', 'b', row('b', 't1', turn=3, status='working')), 'hc counts a turn at its end')
         self.assertIsNone(reports.current('shop', 'b', row('b', 't2', created=NOW_MS + 1)), 'a restarted agent')
+
+    def test_a_teammates_note_doesnt_clear_it(self):
+        reports.save('shop', 'b', 'need_decision', 'Which?', now=NOW_MS / 1000, turn=3)
+        reports.noted('shop', 'b')
+        self.assertTrue(reports.current('shop', 'b', row('b', 't1', turn=4)))
+        self.assertIsNone(reports.current('shop', 'b', row('b', 't1', turn=5)), 'but the next turn does')
+
+    def test_a_damaged_file_means_no_report(self):
+        reports.save('shop', 'b', 'stuck', 'x')
+        with open(reports._file(), 'w') as f:
+            f.write('[1]')
+        self.assertIsNone(reports.current('shop', 'b', row('b', 't1')))
+        with open(reports._file(), 'w') as f:
+            json.dump({'shop/b': 'odd'}, f)
+        self.assertIsNone(reports.current('shop', 'b', row('b', 't1')))
 
     def test_done_clears_and_a_note_is_required(self):
         reports.save('shop', 'b', 'stuck', 'x')
@@ -298,10 +312,12 @@ class ServerTest(State):
             'list_teams', 'team_status', 'what_needs_you', 'read_terminal', 'recent_activity', 'answer', 'send_message',
             'nudge', 'compact', 'undo', 'start_team', 'add_agent', 'stop_agent', 'stop_team', 'draft_team'})
 
-    def act(self, name, args, elicit):
+    MODES = ('legacy', 'auto')  # the classic protocol, and 2026-07-28 which Claude Code 2.1.319 speaks
+
+    def act(self, name, args, elicit, mode='legacy'):
         async def body(c):
             return await c.call_tool(name, args)
-        return self.run_with(mcpserver.control_server(), body, elicit)
+        return self.run_with(mcpserver.control_server(), body, elicit, mode)
 
     def yes(self, seen=None):
         async def elicit(ctx, params):
@@ -318,35 +334,41 @@ class ServerTest(State):
                ('add_agent', {'team': 's', 'name': 'n', 'agent': 'claude', 'kind': 'builder'}, 'team.add_agent')]
 
     def test_every_action_runs_on_the_persons_yes(self):
-        for tool, args, method in self.ACTIONS:
-            with self.subTest(tool):
-                seen = []
-                self.calls.clear()
-                self.act(tool, args, self.yes(seen))
-                self.assertEqual(len(seen), 1)
-                self.assertEqual([m for m, _ in self.calls], [method])
+        for mode in self.MODES:
+            for tool, args, method in self.ACTIONS:
+                with self.subTest(tool=tool, mode=mode):
+                    seen = []
+                    self.calls.clear()
+                    self.act(tool, args, self.yes(seen), mode)
+                    self.assertEqual(len(seen), 1)
+                    self.assertEqual([m for m, _ in self.calls], [method])
 
     def test_every_action_stops_on_no(self):
         async def no(ctx, params):
             return ElicitResult(action='decline')
-        for tool, args, _ in self.ACTIONS:
-            with self.subTest(tool):
-                self.calls.clear()
-                self.assertEqual(text(self.act(tool, args, no)), mcpserver.NOT_DONE)
-                self.assertEqual(self.calls, [])
+        for mode in self.MODES:
+            for tool, args, _ in self.ACTIONS:
+                with self.subTest(tool=tool, mode=mode):
+                    self.calls.clear()
+                    self.assertEqual(text(self.act(tool, args, no, mode)), mcpserver.NOT_DONE)
+                    self.assertEqual(self.calls, [])
 
     def test_a_client_that_cant_ask_gets_not_done(self):
-        for tool, args, _ in self.ACTIONS:
-            with self.subTest(tool):
-                self.calls.clear()
-                self.assertIn('Not done', text(self.act(tool, args, None)))
-                self.assertEqual(self.calls, [])
+        for mode in self.MODES:
+            for tool, args, _ in self.ACTIONS:
+                with self.subTest(tool=tool, mode=mode):
+                    self.calls.clear()
+                    self.assertIn('Not done', text(self.act(tool, args, None, mode)))
+                    self.assertEqual(self.calls, [])
 
-    def test_a_newer_protocol_without_a_way_to_ask_is_not_a_yes(self):
-        async def body(c):
-            return await c.call_tool('stop_team', {'team': 's'})
-        self.assertIn('Not done', text(self.run_with(mcpserver.control_server(), body, self.yes(), mode='auto')))
+    def test_an_answer_counts_only_for_its_own_question(self):
+        class Ctx:
+            protocol_version, client_capabilities = '2026-07-28', mock.Mock(elicitation=True)
+            input_responses = {'yes': ElicitResult(action='accept', content={'confirm': True})}
+            request_state = mcpserver._question_id('Stop b?')
+        got = asyncio.run(mcpserver._with_yes(Ctx(), 'Stop everything?', 'team.stop'))
         self.assertEqual(self.calls, [])
+        self.assertEqual(got.input_requests['yes'].params.message, 'Stop everything?')
 
     def test_a_fix_on_automatic_doesnt_ask_and_on_ask_first_does(self):
         self.auto = True
@@ -356,7 +378,7 @@ class ServerTest(State):
         self.calls.clear()
         self.assertIn('Automatic in Settings', text(self.act('nudge', {'team': 's', 'agent': 'b'}, None)))
         self.assertEqual([m for m, _ in self.calls], ['mcp.fix_check'])
-        self.act('nudge', {'team': 's', 'agent': 'b'}, self.yes())
+        self.act('nudge', {'team': 's', 'agent': 'b'}, self.yes(), 'auto')
         self.assertEqual(self.calls[-1][1]['by'], 'you')
 
     def test_a_draft_needs_no_question_and_says_who_starts_it(self):
@@ -383,8 +405,12 @@ class ServerTest(State):
 
 class NoBrainTest(State):
     def test_no_brain_is_said_in_plain_words(self):
-        with self.assertRaisesRegex(ValueError, "isn't running"):
-            mcpserver.call('mcp.list_teams')
+        async def go():
+            async with Client(mcpserver.control_server(), mode='legacy') as c:
+                return await c.call_tool('list_teams', {})
+        got = asyncio.run(go())
+        self.assertTrue(got.is_error)
+        self.assertIn("isn't running", text(got))
 
 
 class Done:

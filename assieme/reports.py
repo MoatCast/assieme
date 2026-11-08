@@ -1,7 +1,8 @@
 """What agents say about themselves through the MCP server: stuck, or needing a decision.
 
 One report per team and role, in a small file so it survives a brain restart. A report lasts until the agent's next
-turn: once its hook says it is working again after the report, or its terminal is newer, the report no longer counts.
+turn (hc counts turns), or a new one replaces it. A teammate's note isn't the person's answer, so a turn it wakes
+doesn't count.
 """
 import os
 import threading
@@ -18,23 +19,45 @@ def _file():
     return os.path.join(quiet.state_dir(), 'reports.json')
 
 
-def save(team, role, state, note='', now=None):
+def _all():
+    got = quiet._read_json(_file(), {})
+    return got if isinstance(got, dict) else {}
+
+
+def save(team, role, state, note='', now=None, turn=None):
     if state not in STATES:
         raise ValueError(f'report one of: {", ".join(STATES)}.')
     if state in SHOWN and not note.strip():
         raise ValueError('Say in one line what is wrong or what needs deciding.')
     with _write:
-        all_ = quiet._read_json(_file(), {})
+        all_ = _all()
         all_.pop(f'{team}/{role}', None)
         if state in SHOWN:
-            all_[f'{team}/{role}'] = {'state': state, 'note': note.strip()[:300], 'ms': (now or time.time()) * 1000}
+            all_[f'{team}/{role}'] = {'state': state, 'note': note.strip()[:300], 'ms': (now or time.time()) * 1000,
+                                       'turn': turn, 'noted': 0}
         quiet._write_json(_file(), all_)
+
+
+def running_turn(row):
+    """The turn in progress or just ended. hc counts a turn when it ends, so one that's under way is one more."""
+    turn = row.get('turn')
+    return None if turn is None else turn + ((row.get('status') or {}).get('state') == 'working')
+
+
+def noted(team, role):
+    """A teammate's note is on its way to this agent: the turn it wakes leaves the report standing."""
+    with _write:
+        all_ = _all()
+        rep = all_.get(f'{team}/{role}')
+        if isinstance(rep, dict):
+            rep['noted'] = rep.get('noted', 0) + 1
+            quiet._write_json(_file(), all_)
 
 
 def current(team, role, row):
     """The report that still holds for this terminal row, or None."""
-    rep = quiet._read_json(_file(), {}).get(f'{team}/{role}')
-    if not rep or (row.get('created_ms') or 0) > rep['ms']:
-        return None
-    hook = (row.get('status') or {}).get('state')
-    return None if hook == 'working' and (row.get('status_ms') or 0) > rep['ms'] else rep
+    rep = _all().get(f'{team}/{role}')
+    if not isinstance(rep, dict) or (row.get('created_ms') or 0) > rep.get('ms', 0) or not rep.get('note'):
+        return None  # a damaged file must not break the panes
+    turn = running_turn(row)
+    return None if turn is not None and rep.get('turn') is not None and turn > rep['turn'] + rep.get('noted', 0) else rep
