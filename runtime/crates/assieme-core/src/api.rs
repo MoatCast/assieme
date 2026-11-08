@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! The method table: every method's description, errors and handler. Its
 //! params and results are in `api/types.rs`; `run` and the waits have their
 //! own files.

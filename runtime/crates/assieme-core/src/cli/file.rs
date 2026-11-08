@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `asm file …`: read, write and edit files here or on a machine.
 
 use super::*;

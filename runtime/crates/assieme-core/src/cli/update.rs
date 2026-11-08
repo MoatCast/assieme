@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `asm update`: swap this asm for another build, keep the terminals running.
 
 use super::*;

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `asm machine …`: adding, listing, logging in to, updating other machines.
 
 use super::*;

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 #![cfg(windows)]
 //! Windows end to end: real cmd and PowerShell programs on ConPTY, through
 //! the CLI. The core's logic is the same code everywhere and tested on Unix;

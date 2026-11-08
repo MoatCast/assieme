@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Templates: `~/.config/assieme-core/templates/<name>.md`, read fresh on every
 //! use. Frontmatter says how to start the agent; the body is its first message.
 

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Keep implicit SSH startup from reserving a desktop user's core at high integrity.
 
 use crate::rpc::RpcError;

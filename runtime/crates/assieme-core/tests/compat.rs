@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! The API only grows. `schema/released.openrpc.json` is the API as last
 //! released; the code's must accept every request that one accepted and
 //! give every answer field that one gave. Refreshed at each release.

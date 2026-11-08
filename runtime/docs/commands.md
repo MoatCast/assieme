@@ -45,7 +45,7 @@ More
   events                      follow changes live
   server start|stop|status|restart
                               stop parks kept terminals; next core start gives them shells
-  update [--version X|--from <file>]   latest release, at least X, or a build
+  update --from <file>   swap in another build (terminals keep running)
   machine add|ls|login|update|rename|rm   other machines, over ssh or a command
                               (--via 'fly ssh console -a x --pty=false -C')
   connect                     the API over stdin/stdout (ssh box asm connect)
@@ -487,6 +487,7 @@ Arguments:
   [ARGV]...  Program and arguments, or a template name and its task. With neither argv nor line: that machine's own shell
 
 Options:
+      --deny <PROGRAM>     A program it may not run, however it is called (repeatable; macOS)
       --json               JSON output even in a terminal
       --name <NAME>        Name, unique among live terminals: 1-32 of a-z 0-9 - _ 
       --cwd <CWD>          Working directory (default: where asm runs; through the API, the core's; with --on, that machine's home)
@@ -527,8 +528,9 @@ Arguments:
   <TEXT>      Pasted, then submitted with Enter
 
 Options:
-      --force              Type even if the program is blocked (it may answer its dialog)
+      --deliver <DELIVER>  now (default), or next_turn: hold it in the core, then deliver it as one batch while the program works, or after the hold time if it stays idle, and confirm that a turn started [possible values: now, next_turn]
       --json               JSON output even in a terminal
+      --force              Type even if the program is blocked (it may answer its dialog)
       --if <STATUS>        Only type if the status is exactly this [possible values: idle, working]
       --wait               Then wait for the turn this send started
       --timeout <TIMEOUT>  With wait: seconds before it checks in (default: config, else 180)
@@ -613,14 +615,13 @@ Options:
 ```text
 Swap this asm for another build and restart (terminals keep running)
 
-Usage: asm update [OPTIONS]
+Usage: asm update [OPTIONS] --from <FILE>
 
 Options:
-      --from <FILE>      A assieme-core binary to use (default: download the latest release)
-      --json             JSON output even in a terminal
-      --version <X.Y.Z>  At least this release (`0.1.4`): nothing changes when this asm is already that or newer
-      --force            Allow an older version (saved state only moves forward), or a release of another protocol generation
-  -h, --help             Print help
+      --from <FILE>  The assieme-core binary to use: the app hands over the one it bundles
+      --json         JSON output even in a terminal
+      --force        Allow an older version (saved state only moves forward)
+  -h, --help         Print help
 ```
 
 ## asm wait

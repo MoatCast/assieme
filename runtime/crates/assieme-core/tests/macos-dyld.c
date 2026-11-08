@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 // Non-platform executable: Apple-protected tools may independently strip DYLD_*.
 #include <libproc.h>
 #include <stdint.h>

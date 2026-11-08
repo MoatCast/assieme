@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 // The installable skill is the repo's stub; it points agents to `asm --skill`.
 #[test]
 fn the_installable_stub_is_a_valid_skill() {

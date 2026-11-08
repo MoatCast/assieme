@@ -1,3 +1,4 @@
+# Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 """A fake full-screen agent for stitching tests: a transcript in the alternate
 screen, scrolled by the mouse wheel, with a status row at the bottom.
 

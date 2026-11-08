@@ -1,4 +1,5 @@
 #!/bin/sh
+# Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 # Regenerate the notices embedded by asm and shipped beside release binaries.
 set -eu
 cd "$(dirname "$0")/.."

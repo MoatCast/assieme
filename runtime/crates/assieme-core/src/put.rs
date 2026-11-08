@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `terminal.put`: bytes into a file beside a terminal, for its program to read.
 
 use std::path::{Path, PathBuf};

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `asm attach`: puts this terminal on a core terminal. Raw bytes both ways;
 //! the only key we look at is the detach chord.
 

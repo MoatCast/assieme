@@ -1,3 +1,4 @@
+<!-- Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE. -->
 # Agent templates
 
 Save a command and a role once, then start an agent by name with a task.

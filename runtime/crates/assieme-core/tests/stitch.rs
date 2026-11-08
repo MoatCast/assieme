@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Full-screen history reconstruction regression tests against a fake app on a real terminal.
 #![cfg(unix)] // Windows: tests/windows.rs
 

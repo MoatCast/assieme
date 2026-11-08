@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! exec: one program without a terminal, exactly what it wrote, here or on a
 //! machine; nothing it started outlives it.
 

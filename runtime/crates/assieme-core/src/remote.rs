@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Lines to other machines: the core keeps one framed connection open to each
 //! machine it added, and calls naming `machine/…` go over it. The other way,
 //! a core that dialed in (a peer) may have parents of terminals here: they

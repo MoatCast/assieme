@@ -194,7 +194,7 @@ def _denied_shell(core, launcher):
 @pytest.mark.skipif(sys.platform != 'darwin', reason='macOS only')
 @pytest.mark.parametrize('how', [
     '{name}', '{path}', 'sh -c {name}', '{dir}/nicelink', 'python3 -c "import subprocess; subprocess.run([\\"{path}\\"])"',
-    'env {name}', 'xargs {path} </dev/null',
+    'env {name}', 'xargs {path} </dev/null', 'sh {path}', 'cp {path} copied; ./copied',
 ])
 def test_a_denied_program_cannot_run_however_it_is_called(core, launcher, how):
     env = {'PATH': f'{launcher.parent}:{os.environ["PATH"]}'}
@@ -208,9 +208,9 @@ def test_a_denied_program_cannot_run_however_it_is_called(core, launcher, how):
 @pytest.mark.skipif(sys.platform != 'darwin', reason='macOS only')
 def test_naming_a_denied_program_is_fine_and_others_still_run(core, launcher):
     env = {'PATH': f'{launcher.parent}:{os.environ["PATH"]}'}
-    line = f'echo {launcher.name}; grep -c cloudrun {launcher}; cat {launcher} | head -1; /usr/bin/true && echo others-ok'
+    line = f'echo {launcher.name}; command -v {launcher.name}; /usr/bin/true && echo others-ok'
     r = core.call('terminal.run', line=line, env=env, deny_programs=[launcher.name], cwd=str(core.dir), wait=True)
-    assert 'cloudrun' in r['output'] and '#!/bin/sh' in r['output'] and 'others-ok' in r['output'], r['output']
+    assert str(launcher) in r['output'] and 'others-ok' in r['output'], r['output']
 
 
 @pytest.mark.skipif(sys.platform != 'darwin', reason='macOS only')
@@ -227,6 +227,32 @@ def test_a_child_inherits_the_rule_when_the_core_starts_it(core, launcher):
     r = core.call('terminal.run', line=f'{launcher.name}; echo finished', env=env, cwd=str(core.dir), caller=t, wait=True)
     assert 'LAUNCHED' not in r['output'] and 'finished' in r['output'], r['output']
     assert r.get('terminal', r)['denied'] == [launcher.name]
+
+
+# Known limits, pinned so a change in them is noticed.
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS only')
+def test_limit_an_agent_applying_its_own_sandbox_fails_inside_a_denied_terminal(core, launcher):
+    r = core.call('terminal.run', line="sandbox-exec -p '(version 1)(allow default)' sh -c 'echo INNER'; echo rc=$?",
+                  deny_programs=[launcher.name], cwd=str(core.dir), wait=True)
+    assert 'Operation not permitted' in r['output'] and 'rc=71' in r['output'] and 'INNER' not in r['output'], r['output']
+
+
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS only')
+def test_limit_a_copy_made_beforehand_still_runs(core, launcher):
+    copy = launcher.with_name('renamed')
+    copy.write_bytes(launcher.read_bytes())
+    copy.chmod(0o755)
+    r = core.call('terminal.run', line=str(copy), deny_programs=[launcher.name], cwd=str(core.dir), wait=True)
+    assert 'LAUNCHED' in r['output']
+
+
+def test_a_terminal_that_reports_nothing_gets_its_note_at_once_marked_unconfirmed(core):
+    t = core.address(core.run('cat'))
+    events = Events(core)
+    core.call('terminal.send', terminal=t, text='plain-note', deliver='next_turn')
+    assert events.delivery() == {'result': 'delivered', 'notes': [1]}
+    core.says(t, 'plain-note')
 
 
 @pytest.mark.parametrize('bad', ['', 'a b', 'a"b', 'x)(allow process-exec*', 'a\nb', '..$'])

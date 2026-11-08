@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! A language for programs when nobody gave one. macOS gives apps started
 //! from Finder no LANG, and a shell in the "C" locale mangles anything past
 //! ASCII (zsh splits 你 into loose bytes). Like Ghostty: the system's

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Where a core lives (socket, holder socket, state, config) and how its
 //! state files are read and written.
 

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Other machines: their profiles, and the pipe to the core on each.
 
 use crate::addr::check_name;

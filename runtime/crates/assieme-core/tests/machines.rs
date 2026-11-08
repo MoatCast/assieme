@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 #![cfg(unix)] // Windows: tests/windows.rs
 
 mod common;
@@ -230,7 +231,7 @@ fn a_windows_probe_keeps_native_core_errors() {
 }
 
 #[test]
-fn a_windows_machine_with_git_sh_installs_the_native_build_when_missing() {
+fn a_windows_machine_with_git_sh_is_told_to_install_it_there() {
     for (uname, sh_error, sh_code, missing_error) in [
         ("MINGW64_NT-10.0 x86_64", "", 0, "is not recognized"),
         ("MSYS_NT-10.0 x86_64", "", 0, "is not recognized"),
@@ -307,13 +308,10 @@ touch '{root}/copied'
         }
         s.env.push(("PATH".into(), format!("{}:{}", bin.display(), std::env::var("PATH").unwrap())));
         s.env.push(("ASM_SSH".into(), wrapper.display().to_string()));
-        s.env.push(("ASSIEME_CORE_RELEASES_URL".into(), format!("file://{}", s.root.join("releases").display())));
         let (_, missing) = s.err(&["--json", "machine", "add", "windows-msys"]);
         assert_eq!(missing["error"]["kind"], "asm_missing", "{missing}");
-        let added = s.json(&["machine", "add", "windows-msys", "--install"]);
-        assert_eq!(added["id"], rohan.json(&["server", "status"])["core"]["id"], "{added}");
-        assert!(s.root.join("installed").exists(), "the native installer ran");
-        s.json(&["machine", "rm", "windows-msys"]);
+        let (_, refused) = s.err(&["--json", "machine", "add", "windows-msys", "--install"]);
+        assert_eq!(refused["error"]["kind"], "install_failed", "{refused}");
     }
 }
 

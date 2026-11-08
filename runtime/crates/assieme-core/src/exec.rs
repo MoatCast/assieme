@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `machine.exec`: one program without a terminal, and exactly what it wrote.
 //! Nothing it started outlives it: its own process group (a job on Windows)
 //! and scope token, swept whenever it ends. The token is kept in the state dir

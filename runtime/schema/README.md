@@ -1,3 +1,4 @@
+<!-- Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE. -->
 # assieme-core API
 
 `asm.openrpc.json` is the whole request/response API as an

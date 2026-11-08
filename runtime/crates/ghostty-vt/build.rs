@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Builds libghostty-vt from the pinned Ghostty submodule with Zig.
 
 use std::path::PathBuf;

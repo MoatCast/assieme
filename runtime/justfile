@@ -1,3 +1,4 @@
+# Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
 
 # Format, clippy here and for Windows, the whole suite: what CI runs on Linux.

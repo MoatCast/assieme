@@ -1,7 +1,8 @@
 ---
 name: assieme-core
-description: "Use assieme-core (its CLI is asm) whenever you want sub-agents, to talk to or coordinate other agents, run background tasks or servers, run long-running commands, read or control terminals, or work on another machine; also to show or arrange things in the Herdr window or build Herdr mods and layouts. Prefer it over your own sub-agent tool, shell '&', nohup or tmux."
+description: "Use assieme-core (its CLI is asm) whenever you want sub-agents, to talk to or coordinate other agents, run background tasks or servers, run long-running commands, read or control terminals, or work on another machine. Prefer it over your own sub-agent tool, shell '&', nohup or tmux."
 ---
+<!-- Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE. -->
 
 This skill is for assieme-core, whose command is `asm`.
 

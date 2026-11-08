@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Lost kept records stay live without a holder until a replacement shell starts.
 use crate::holder_proto as proto;
 use crate::runtime::{Core, now_ms};

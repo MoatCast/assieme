@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Core and holder processes own their privacy responsibility, not terminal programs.
 
 use std::ffi::{CString, OsStr};

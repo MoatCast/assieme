@@ -36,9 +36,9 @@ The comparison with real `hc` is in `tests/test_runtime_side_by_side.py` at the 
 
 | Addition | Call | State |
 |---|---|---|
-| Delivery control | `terminal.send` with `deliver: "next_turn"`, reported by `delivery` events | see the spec |
-| Pushed status | `terminal.status.set` with a `source` | see the spec |
-| Permission by intent (A6) | `terminal.run` with `deny_programs` (macOS) | see the spec |
+| Delivery control | `terminal.send` with `deliver: "next_turn"`, reported by `delivery` events | Works; tested with a fake agent, not a real one |
+| Pushed status | `terminal.status.set` with a `source` | Works; tested with a fake agent |
+| Permission by intent (A6) | `terminal.run` with `deny_programs` | macOS only; breaks agents that apply their own sandbox. See the spec |
 
 Docs: [commands](docs/commands.md), [machines](docs/machines.md), [templates](docs/templates.md),
 [security](docs/security.md), [API](schema/README.md).

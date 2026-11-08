@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Input from agents: one queue per terminal, so send, keys and interrupt
 //! never interleave with each other, and never with a person typing.
 

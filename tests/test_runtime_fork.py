@@ -8,7 +8,7 @@ RUNTIME = ROOT / 'runtime'
 CHANGED = 'Changed by Assieme'
 # Licence texts stay as their authors wrote them; JSON can't hold a comment and NOTICE covers it.
 EXEMPT = re.compile(r'^(LICENSE$|NOTICE$|README\.md$|\.gitignore$|Cargo\.lock$|distribution/notices/|distribution/windows/'
-                    r'|crates/assieme-core/THIRD-PARTY-NOTICES$|schema/.*\.json$)')
+                    r'|crates/assieme-core/THIRD-PARTY-NOTICES$|crates/assieme-core/src/help\.txt$|docs/commands\.md$|schema/.*\.json$)')
 # Files an interop string or a credit needs: a program started inside herdr sets this exact value.
 MAY_NAME_HERDR = {'README.md', 'crates/assieme-core/src/api/run.rs', 'crates/assieme-core/tests/m1.rs'}
 
@@ -42,7 +42,9 @@ def test_every_changed_file_says_so():
 
 
 def test_the_herdr_name_is_only_where_it_must_be():
-    named = [f for f in files() if not EXEMPT.match(f) and f not in MAY_NAME_HERDR and re.search('herdr', text(f), re.I)]
+    def own_text(f):  # the credit line is meant to name them
+        return '\n'.join(line for line in text(f).splitlines() if CHANGED not in line)
+    named = [f for f in files() if not EXEMPT.match(f) and f not in MAY_NAME_HERDR and re.search('herdr', own_text(f), re.I)]
     assert named == []
 
 

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! JSON-RPC 2.0 envelopes, errors with stable kinds, and the method table macro.
 
 use serde::de::DeserializeOwned;

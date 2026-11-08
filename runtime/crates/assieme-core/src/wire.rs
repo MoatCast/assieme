@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Framed mode: `[channel u32 LE][kind u8][len u32 LE][payload]`.
 //! Channel 0 carries JSON-RPC messages; attach streams get their own channels.
 

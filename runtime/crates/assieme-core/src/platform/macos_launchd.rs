@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! A one-shot launchd job gives the core its own coalition. setsid alone
 //! leaves it in the app's coalition, which macOS can kill when the app quits.
 

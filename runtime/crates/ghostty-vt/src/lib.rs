@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! The few libghostty-vt calls assieme-core needs, behind a safe `Terminal`.
 
 use std::ffi::c_void;

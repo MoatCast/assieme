@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! An update never breaks anything: terminals started by the previous release
 //! keep running, stay readable and typeable after the swap, and machines on
 //! different releases keep talking. Needs the previous release's binary in

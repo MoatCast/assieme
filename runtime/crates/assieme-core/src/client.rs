@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Talking to the core from a short-lived process: connect, autostart, one call.
 
 use crate::paths::Paths;

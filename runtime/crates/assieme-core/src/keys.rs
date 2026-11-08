@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Key names (`enter`, `up`, `ctrl+c`, `alt+x`, `f5`, `a`) → the bytes a real
 //! terminal would send, using the modes the program set.
 

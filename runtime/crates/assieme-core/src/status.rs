@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Status facts from OSC 7501, kept per terminal exactly as reported.
 //! A report replaces its record; `clear` removes a record and its children.
 //! The turn goes up each time the root record leaves `working`, for any reason.

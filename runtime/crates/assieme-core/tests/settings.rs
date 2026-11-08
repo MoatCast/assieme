@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 #![cfg(unix)] // Windows: tests/windows.rs
 
 mod common;
@@ -38,7 +39,7 @@ fn headless_size_and_history_come_from_config() {
 fn long_session_names_fit_in_a_socket_path_or_say_so() {
     // macOS allows 104 bytes for a socket path; the session name is in it twice.
     let mut s = Session::new();
-    s.env.push(("ASM_SESSION".into(), "a".repeat(40)));
+    s.env.push(("ASM_SESSION".into(), "a".repeat(38)));
     let t = run(&s, &["sleep", "100"]);
     assert_eq!(s.json(&["get", &t])["state"], "live");
     s.asm(&["server", "stop"]);

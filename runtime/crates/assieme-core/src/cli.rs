@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `asm`: one API call per command. Tables for people, JSON when piped or `--json`.
 
 use crate::api::{
@@ -829,7 +830,8 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("machine rm", "machine.rm"),
 ];
 /// Client-only methods: handshake and opaque document storage.
-pub const API_ONLY: &[&str] = &["hello", "doc.get", "doc.set"];
+pub const API_ONLY: &[&str] = &[
+    "terminal.status.set","hello", "doc.get", "doc.set"];
 
 #[cfg(test)]
 mod tests {

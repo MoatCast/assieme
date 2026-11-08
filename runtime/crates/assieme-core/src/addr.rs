@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Terminal addresses: `t7` or `reviewer` is local, `box/t7` lives on core `box`.
 
 use crate::rpc::RpcError;

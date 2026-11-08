@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Ordered registry persistence, without disk IO on the core state lock.
 use crate::paths::write_atomic;
 use std::io;

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Parents and children: news about a child is typed into its parent agent
 //! as a marked note, only when the parent can take it and hasn't seen it.
 

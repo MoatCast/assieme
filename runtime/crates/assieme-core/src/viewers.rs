@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Viewers: raw attach streams on framed connections. First paint, live
 //! bytes (minus answered queries), input, and who sets the size.
 

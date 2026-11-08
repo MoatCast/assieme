@@ -53,6 +53,13 @@
         ],
         "type": "object"
       },
+      "Deliver": {
+        "enum": [
+          "now",
+          "next_turn"
+        ],
+        "type": "string"
+      },
       "Display": {
         "description": "What a viewer's own terminal looks like, reported by the client.",
         "properties": {
@@ -300,6 +307,35 @@
           "name",
           "argv",
           "cwd"
+        ],
+        "type": "object"
+      },
+      "Held": {
+        "properties": {
+          "attempts": {
+            "default": 0,
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "since_ms": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "since_ms"
         ],
         "type": "object"
       },
@@ -683,6 +719,13 @@
           "cwd": {
             "type": "string"
           },
+          "denied": {
+            "description": "Programs this terminal may not run (`deny_programs`); its children inherit them.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "die_with_parent": {
             "default": false,
             "type": "boolean"
@@ -723,6 +766,13 @@
               }
             ],
             "description": "What runs in it right now and where (null once it has finished)."
+          },
+          "held": {
+            "description": "Notes held for this terminal (`deliver: next_turn`).",
+            "items": {
+              "$ref": "#/components/schemas/Held"
+            },
+            "type": "array"
           },
           "identity": {
             "default": "",
@@ -908,6 +958,15 @@
       },
       "SendResult": {
         "properties": {
+          "queued": {
+            "description": "With `deliver: next_turn`: the held note's id; `delivery` events report on it.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "started": {
             "description": "Whether it went `working` within a few seconds; null when it doesn't\nreport status, so nobody can tell.",
             "type": [
@@ -968,6 +1027,13 @@
             "minimum": 0,
             "type": [
               "integer",
+              "null"
+            ]
+          },
+          "source": {
+            "description": "Who said so, when it was pushed with `terminal.status.set` (absent: the program itself).",
+            "type": [
+              "string",
               "null"
             ]
           },
@@ -1157,6 +1223,13 @@
           "cwd": {
             "type": "string"
           },
+          "denied": {
+            "description": "Programs this terminal may not run (`deny_programs`); its children inherit them.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "die_with_parent": {
             "default": false,
             "type": "boolean"
@@ -1197,6 +1270,13 @@
               }
             ],
             "description": "What runs in it right now and where (null once it has finished)."
+          },
+          "held": {
+            "description": "Notes held for this terminal (`deliver: next_turn`).",
+            "items": {
+              "$ref": "#/components/schemas/Held"
+            },
+            "type": "array"
           },
           "identity": {
             "default": "",
@@ -1660,6 +1740,18 @@
               "string",
               "null"
             ]
+          }
+        },
+        {
+          "description": "A program it may not run, however it is called (repeatable; macOS).",
+          "name": "deny_programs",
+          "required": false,
+          "schema": {
+            "description": "A program it may not run, however it is called (repeatable; macOS).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         {
@@ -2457,6 +2549,22 @@
           }
         },
         {
+          "description": "now (default), or next_turn: hold it in the core, then deliver it as one batch while the\nprogram works, or after the hold time if it stays idle, and confirm that a turn started.",
+          "name": "deliver",
+          "required": false,
+          "schema": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Deliver"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "now (default), or next_turn: hold it in the core, then deliver it as one batch while the\nprogram works, or after the hold time if it stays idle, and confirm that a turn started."
+          }
+        },
+        {
           "description": "Type even if the program is blocked (it may answer its dialog).",
           "name": "force",
           "required": false,
@@ -2528,6 +2636,90 @@
         "name": "result",
         "schema": {
           "$ref": "#/components/schemas/SendResult"
+        }
+      }
+    },
+    {
+      "description": "Push a status from outside the program, with where it came from. Merged with its own reports: the newest wins.",
+      "errors": [
+        {
+          "code": -32000,
+          "data": {
+            "kind": "not_found"
+          },
+          "message": "not_found"
+        },
+        {
+          "code": -32000,
+          "data": {
+            "kind": "machine_unknown"
+          },
+          "message": "machine_unknown"
+        },
+        {
+          "code": -32602,
+          "data": {
+            "kind": "invalid_params"
+          },
+          "message": "invalid_params"
+        }
+      ],
+      "name": "terminal.status.set",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "permission, question or auth (blocked only).",
+          "name": "kind",
+          "required": false,
+          "schema": {
+            "default": null,
+            "description": "permission, question or auth (blocked only).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        {
+          "name": "msg",
+          "required": false,
+          "schema": {
+            "default": "",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Who is saying so, such as `logs` or `mcp`.",
+          "name": "source",
+          "required": true,
+          "schema": {
+            "description": "Who is saying so, such as `logs` or `mcp`.",
+            "type": "string"
+          }
+        },
+        {
+          "description": "idle, working, done, blocked or error; clear removes the status.",
+          "name": "state",
+          "required": true,
+          "schema": {
+            "description": "idle, working, done, blocked or error; clear removes the status.",
+            "type": "string"
+          }
+        },
+        {
+          "description": "The terminal: `t7` or a name.",
+          "name": "terminal",
+          "required": true,
+          "schema": {
+            "description": "The terminal: `t7` or a name.",
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/Terminal"
         }
       }
     },

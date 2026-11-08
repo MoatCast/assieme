@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! What differs between Unix (Linux, macOS) and Windows, behind one small
 //! surface: connections, terminals, process trees, the console, files.
 //! Everything above it is shared.
@@ -91,8 +92,11 @@ pub fn verify_release_bundle(path: &std::path::Path) -> std::io::Result<()> {
 
 /// `argv`, but unable to run the `denied` programs, however they are called.
 /// The kernel enforces it, so naming a program in text is fine and running it
-/// through a script, a shell or an absolute path is not.
-/// shortcut: a renamed copy of a program still runs, and only macOS is covered.
+/// through a script, a shell or an absolute path is not. Reading it is denied too:
+/// `sh launcher` only reads a script, and `cp` is how a renamed copy gets made.
+/// shortcut: macOS only. A copy made beforehand still runs, and `python -m x` names no
+/// file of ours. macOS refuses a sandbox inside a sandbox, so an agent that applies its
+/// own (Codex by default, Claude Code with its sandbox on) can't run its commands here.
 #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
 pub fn deny_programs(
     denied: &[String],
@@ -108,7 +112,7 @@ pub fn deny_programs(
                 return Err(RpcError::invalid_params(format!("{name:?} is not a program name")));
             }
             let base = name.rsplit('/').next().unwrap_or(name);
-            rules.push(format!("(deny process-exec (regex #\"/{}$\"))", base.replace('.', "\\.").replace('+', "\\+")));
+            rules.push(format!("(deny process-exec file-read-data (regex #\"/{}$\"))", base.replace('.', "\\.").replace('+', "\\+")));
             // The kernel sees where a link leads, so a link's target is denied too.
             let path = env.get("PATH").cloned().or_else(|| std::env::var("PATH").ok()).unwrap_or_default();
             let found = std::env::split_paths(&path).map(|dir| dir.join(name)).chain([std::path::PathBuf::from(name)]);
@@ -117,7 +121,7 @@ pub fn deny_programs(
             targets.dedup();
             for target in targets {
                 let target = target.to_string_lossy().replace('\\', "\\\\").replace('"', "\\\"");
-                rules.push(format!("(deny process-exec (literal \"{target}\"))"));
+                rules.push(format!("(deny process-exec file-read-data (literal \"{target}\"))"));
             }
         }
         let mut wrapped = vec!["/usr/bin/sandbox-exec".to_string(), "-p".to_string(), rules.join("")];

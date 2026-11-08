@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Linux: cores and holders run as systemd user services. They belong to the
 //! user, not to whatever started them: a desktop crash, a logout or an ssh
 //! login ending can't take them along, and an ssh login's environment never

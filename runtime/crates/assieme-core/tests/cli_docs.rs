@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Human docs use the shipped help, without starting a core or running examples.
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -193,7 +194,7 @@ fn checker_catches_drift_without_treating_program_arguments_as_hc_flags() {
     ] {
         assert!(check_span(bad, &reference).is_err(), "{bad}");
     }
-    let errors = check_markdown("README.md", "prose asm nonsense\n`asm nope`\n```sh\nhc ls --oops\n```", &reference);
+    let errors = check_markdown("README.md", "prose asm nonsense\n`asm nope`\n```sh\nasm ls --oops\n```", &reference);
     assert_eq!(errors.len(), 2);
     assert!(errors[0].starts_with("README.md:2:"));
     assert!(errors[1].starts_with("README.md:4:"));

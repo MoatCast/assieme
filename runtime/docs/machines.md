@@ -1,3 +1,4 @@
+<!-- Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE. -->
 # Machines
 
 Run a program on another machine and come back to it from here.

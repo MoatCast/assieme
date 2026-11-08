@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Windows: which shell, and execs. An exec runs in its own job, which ends
 //! everything it started when terminated or closed. It starts suspended and
 //! joins the job before it runs, so nothing it starts escapes.

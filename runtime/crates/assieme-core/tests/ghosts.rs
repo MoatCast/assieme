@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Normal terminal ends spare detached programs; losing the holder still
 //! cleans up its abandoned programs, including those ignoring hangup.
 

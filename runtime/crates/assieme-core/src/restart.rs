@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! A short-lived handoff for explicitly requested restarts, never for SIGTERM.
 
 use crate::paths::Paths;

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Core ↔ holder wire: `[kind u8][terminal u32 LE][len u32 LE][payload]`.
 //! Control payloads are JSON, terminal bytes are raw. `VERSION` is checked in
 //! `Hello`/`Welcome` and is separate from ownership (the newest `Hello` owns).

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `wait`: until a terminal is not working, driven by its events so even a
 //! quick flicker counts. Already not working: it returns at once.
 

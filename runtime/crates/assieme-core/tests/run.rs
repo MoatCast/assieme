@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `asm run` works like a bash tool: it waits until the program is not
 //! working (it exits, or says it is idle, done, blocked or error) and hands
 //! back the output, the exit code as its own. A timeout leaves it running.

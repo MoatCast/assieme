@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 fn main() {
     println!("cargo:rerun-if-changed=../../distribution/macos-Info.plist");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("macos") {

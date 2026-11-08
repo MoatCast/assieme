@@ -9,7 +9,8 @@ Changed by Assieme: the fork was renamed throughout (the program, its commands,
 environment variables, sockets, state folders and documentation), its self-update and
 release downloads were removed, and delivery control, pushed status and permission by
 intent were added. Every changed file that can hold a comment says so at its top. The
-JSON files in schema/ cannot, and are covered by this notice.
+JSON files in schema/ cannot, help.txt is printed as it stands, and docs/commands.md is
+generated from the program's help; all are covered by this notice.
 
 "herdr" and "herdr-core" are names of their authors. This project is not affiliated with
 or endorsed by them, and no rights to those names are claimed.

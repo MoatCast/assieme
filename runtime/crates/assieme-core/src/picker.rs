@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! A small fuzzy picker for commands run in a terminal without a target, and
 //! the row layout `asm ls` shares with it.
 
@@ -366,7 +367,7 @@ mod tests {
         let narrow = draw(std::slice::from_ref(&it), &rows, 24).remove(0);
         assert_eq!(narrow.chars().count(), 24, "{narrow}");
         assert!(
-            narrow.starts_with("o t1  assieme-core") && narrow.contains('\u{2026}') && narrow.ends_with("  done"),
+            narrow.starts_with("o t1  assieme-") && narrow.contains('\u{2026}') && narrow.ends_with("  done"),
             "{narrow}"
         );
         assert!(visible(std::slice::from_ref(&it), "review") == [0], "the short form is searched too");

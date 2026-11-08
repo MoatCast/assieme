@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Cleanup for exec requests and terminals abandoned by a lost holder, never
 //! normal terminal ends. Inherited tokens find even detached descendants.
 //! A process that leaves the session and drops its environment escapes.

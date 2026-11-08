@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 #[test]
 fn a_restart_restores_settings_without_reusing_paths_or_lifecycle_marks() {
     let pairs =

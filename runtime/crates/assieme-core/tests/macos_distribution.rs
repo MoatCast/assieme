@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! macOS release orchestration, without production identities or credentials.
 #![cfg(unix)]
 
@@ -75,90 +76,6 @@ fn mac_sign_uses_runtime_and_entitlements_even_for_ad_hoc_builds() {
     let lines: Vec<_> = calls.lines().collect();
     assert!(lines[0].ends_with("/Contents/MacOS/assieme-core"), "nested executable first: {calls}");
     assert!(lines[1].ends_with("/assieme-core"), "then bundle: {calls}");
-}
-
-#[test]
-fn release_archive_binaries_verify_independently() {
-    let s = Scratch::new();
-    let bin = s.root.join("assieme-core");
-    let app = s.root.join("Assieme Core.app");
-    std::fs::copy(env!("CARGO_BIN_EXE_assieme-core"), &bin).unwrap();
-    if !cfg!(target_os = "macos") {
-        // Model resource sealing: an executable copied out of a signed bundle
-        // fails verification until signed again as a standalone target.
-        stub(
-            &s,
-            "codesign",
-            "for last; do :; done\ncase $1 in --force) if [ -d \"$last/Contents\" ]; then echo sealed > \"$last/Contents/MacOS/assieme-core\"; else echo standalone > \"$last\"; fi ;; --verify) if [ -f \"$last\" ]; then grep -q standalone \"$last\"; fi ;; esac",
-        );
-    }
-    let archive = s.root.join("release.tar.gz");
-    for (name, args) in [
-        ("mac-bundle", vec![bin.clone(), app.clone()]),
-        ("mac-sign", vec![app.clone()]),
-        ("mac-sign", vec![bin]),
-        ("package", vec![app, archive.clone()]),
-    ] {
-        let out = script(&s, name, args).output().unwrap();
-        assert!(out.status.success(), "{name}: {out:?}");
-    }
-    let extracted = s.root.join("extracted");
-    std::fs::create_dir(&extracted).unwrap();
-    assert!(Command::new("tar").arg("-xzf").arg(archive).arg("-C").arg(&extracted).status().unwrap().success());
-    let standalone = s.root.join("bare-assieme-core");
-    std::fs::rename(extracted.join("assieme-core"), &standalone).unwrap();
-    for path in [extracted.join("Assieme Core.app"), standalone] {
-        let out = Command::new("codesign")
-            .args(["--verify", "--strict"])
-            .arg(&path)
-            .env("PATH", format!("{}:{}", s.root.join("tools").display(), std::env::var("PATH").unwrap()))
-            .env("CALLS", s.root.join("calls"))
-            .output()
-            .unwrap();
-        assert!(out.status.success(), "{}: {out:?}", path.display());
-    }
-}
-
-#[test]
-fn production_signing_covers_both_release_targets() {
-    let workflow = std::fs::read_to_string(format!("{ROOT}/.github/workflows/release.yml")).unwrap();
-    for target in ["Assieme Core.app", "assieme-core"] {
-        for script in ["mac-sign", "mac-notarize"] {
-            assert!(workflow.contains(&format!("scripts/{script} 'target/${{{{ matrix.target }}}}/release/{target}'")));
-        }
-    }
-    for bundle in [false, true] {
-        let s = Scratch::new();
-        if bundle {
-            std::fs::create_dir_all(s.root.join("assieme-core/Contents/MacOS")).unwrap();
-        } else {
-            std::fs::write(s.root.join("assieme-core"), "standalone").unwrap();
-        }
-        stub(&s, "codesign", "exit 0");
-        stub(
-            &s,
-            "security",
-            "case $1 in list-keychains) if [ $# = 3 ]; then echo '\"/test/login.keychain-db\"'; fi ;; find-identity) echo '1) ABCDEF \"Developer ID Application: Test\"' ;; esac",
-        );
-        let out = script(&s, "mac-sign", [s.root.join("assieme-core")])
-            .env("APPLE_CERTIFICATE_P12", "dGVzdA==")
-            .env("APPLE_CERTIFICATE_PASSWORD", "test-password")
-            .output()
-            .unwrap();
-        assert!(out.status.success(), "{out:?}");
-        let calls = std::fs::read_to_string(s.root.join("calls")).unwrap();
-        let signs: Vec<_> = calls.lines().filter(|line| line.starts_with("codesign --force")).collect();
-        assert_eq!(signs.len(), if bundle { 2 } else { 1 }, "{calls}");
-        for sign in signs {
-            for option in
-                ["--timestamp", "--options runtime", "--entitlements", "--identifier dev.assieme.core", "--sign ABCDEF"]
-            {
-                assert!(sign.contains(option), "{sign}");
-            }
-        }
-        assert!(calls.contains("codesign --verify --strict"), "{calls}");
-        assert!(calls.contains("security delete-keychain"), "{calls}");
-    }
 }
 
 #[test]

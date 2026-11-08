@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! The holder: owns every PTY, is every program's parent, always reads output.
 //! Spawn, pump, resize, signal, reap. No parsing, no policy. It keeps a ~1 MB
 //! tail per terminal so a core that crashed can rebuild screens, and restarts

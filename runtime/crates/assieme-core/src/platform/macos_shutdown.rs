@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! loginwindow can end agents well before launchd sends the core SIGTERM.
 //! Arm only restart/shutdown, not plain logout, and wait for the point of no return.
 

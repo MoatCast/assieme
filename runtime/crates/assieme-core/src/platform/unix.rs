@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Linux and macOS: Unix sockets, PTYs, process groups, termios.
 
 use std::fs::File;

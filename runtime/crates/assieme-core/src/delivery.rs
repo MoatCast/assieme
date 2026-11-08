@@ -1,3 +1,4 @@
+// Changed by Assieme: new file. See NOTICE.
 //! Delivery control, added by Assieme: routine notes wait in the core for the
 //! receiver instead of waking it. Held notes go in as one batch while it works
 //! (they join its current turn), or after the hold time if it stays idle: one

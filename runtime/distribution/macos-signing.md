@@ -1,3 +1,4 @@
+<!-- Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE. -->
 # macOS release signing and notarization
 
 In assieme-core's GitHub **release** environment, add these secrets with the

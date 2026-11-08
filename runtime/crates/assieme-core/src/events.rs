@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Events: every fact change, in order, to anyone subscribed. A subscriber
 //! that falls behind gets `missed` plus a fresh snapshot instead of a backlog.
 

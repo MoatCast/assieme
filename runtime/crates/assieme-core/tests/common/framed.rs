@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! A framed-mode test client and a viewer that renders what it receives.
 
 use super::Session;

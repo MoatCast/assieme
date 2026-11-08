@@ -1,3 +1,4 @@
+<!-- Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE. -->
 # asm manual (assieme-core)
 
 # asm: programs and agents that stay alive

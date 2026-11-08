@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Reading a full-screen app's history by scrolling it: glue each page onto
 //! what was already read. Rows are screen rows, each exactly as wide as the screen.
 

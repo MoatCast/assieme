@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! `file.read`, `file.write`, `file.edit`: an agent's hands on files on the
 //! machine that has them, whatever harness it runs in.
 

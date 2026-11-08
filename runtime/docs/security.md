@@ -1,3 +1,4 @@
+<!-- Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE. -->
 # Security and trust
 
 Core runs commands with your account's access. It is not a sandbox or a permission broker for agents.
@@ -87,6 +88,6 @@ asm update --from /path/to/assieme-core
 ```
 
 The app ships asm and hands over the build it bundles. Updates restart the core while holders keep the terminals running.
-asm never downloads anything to update itself.
+Nothing is ever downloaded to update it.
 
 Only use a build you trust. The updater's compatibility checks are not a review of its code.

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Program output → the core's screen and the bytes viewers get.
 //! Every byte reaches the screen. Viewers get every byte too, except queries
 //! the screen answered itself: a viewer seeing them would answer a second time.

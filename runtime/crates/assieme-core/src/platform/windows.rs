@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! Windows: named pipes, ConPTY, job objects, the console API.
 
 use std::collections::BTreeMap;
@@ -249,7 +250,7 @@ pub fn connect_error(error: &io::Error, existing_only: bool) -> Option<crate::rp
         Some(crate::rpc::RpcError::new(
             "unavailable",
             format!("the Windows core exists but this process cannot access its pipe: {error}"),
-            "if it was started elevated or over SSH, stop it with 'asm server stop' in an elevated terminal on that Windows machine, then open Herdr or run 'asm server start' in a normal desktop terminal",
+            "if it was started elevated or over SSH, stop it with 'asm server stop' in an elevated terminal on that Windows machine, then open Assieme or run 'asm server start' in a normal desktop terminal",
         ))
     } else if existing_only {
         Some(crate::rpc::RpcError::new(

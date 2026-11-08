@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
 //! The core daemon: one per session, guarded by a lock, serving a local socket
 //! (a named pipe on Windows).
 
