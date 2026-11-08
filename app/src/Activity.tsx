@@ -14,12 +14,42 @@ function dayLabel(day: string, now = new Date()) {
   return day;
 }
 
+/** A row's Undo or Stop. Where the brain gives a warning, it asks first: an agent is never ended on one click. */
+export function UndoButton({ row, onDone, onNote, className = "" }: {
+  row: ActivityRow;
+  onDone: () => void;
+  onNote: (note: string) => void;
+  className?: string;
+}) {
+  const [asking, setAsking] = useState(false);
+  const [pending, setPending] = useState(false);
+  const act = async () => {
+    if (pending) return;
+    setPending(true);
+    setAsking(false);
+    const r = await activityUndo(row.id!).catch((e) => ({ ok: false, detail: String(e) }));
+    onNote(r.ok ? "" : r.detail);
+    setPending(false);
+    onDone();
+  };
+  if (asking)
+    return (
+      <span className="undo-ask">
+        <span>{row.undo!.confirm}</span>
+        <button type="button" onClick={() => setAsking(false)}>Keep it running</button>
+        <button type="button" onClick={act}>{row.undo!.label} it</button>
+      </span>
+    );
+  return (
+    <button type="button" className={className} disabled={pending} onClick={() => (row.undo!.confirm ? setAsking(true) : act())}>{row.undo!.label}</button>
+  );
+}
+
 /** Everything Assieme did, and why, with Undo where it really undoes something. */
 export default function Activity({ team, pollMs = 10000 }: { team: string | null; pollMs?: number }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [rows, setRows] = useState<ActivityRow[] | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
-  const [pending, setPending] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -40,15 +70,6 @@ export default function Activity({ team, pollMs = 10000 }: { team: string | null
       clearTimeout(timer);
     };
   }, [team, filter, pollMs, tick]);
-
-  const undo = async (id: string) => {
-    if (pending) return;
-    setPending(id);
-    const r = await activityUndo(id).catch((e) => ({ ok: false, detail: String(e) }));
-    setNotes((n) => ({ ...n, [id]: r.ok ? "" : r.detail }));
-    setPending(null);
-    setTick((t) => t + 1);
-  };
 
   const days = new Map<string, ActivityRow[]>();
   for (const r of rows ?? []) days.set(r.day, [...(days.get(r.day) ?? []), r]);
@@ -81,7 +102,7 @@ export default function Activity({ team, pollMs = 10000 }: { team: string | null
                     {r.id && notes[r.id] && <span className="activity-note">{notes[r.id]}</span>}
                   </div>
                   {r.undo && r.id && (
-                    <button type="button" disabled={pending === r.id} onClick={() => undo(r.id!)}>{r.undo.label}</button>
+                    <UndoButton row={r} onDone={() => setTick((t) => t + 1)} onNote={(note) => setNotes((n) => ({ ...n, [r.id!]: note }))} />
                   )}
                 </div>
               ))}

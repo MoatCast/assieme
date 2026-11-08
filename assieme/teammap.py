@@ -260,7 +260,8 @@ def run_automatic(views, st, rt, log=None, now=None):
     """Carry out the fixes switched to automatic, on teams started in Assieme only. Only buttons that are fixes: a
     question is the person's to answer. One of each per agent per live.ACTED_HIDE."""
     now = now or status.now_utc()
-    recent = [e for e in live.recent_actions(log, 200) if e.get('ok') and status.parse_ts(e.get('at'))
+    # A failed try waits too: otherwise it would retry and log a row every tick.
+    recent = [e for e in live.recent_actions(log, 200) if status.parse_ts(e.get('at'))
               and (now - status.parse_ts(e['at'])).total_seconds() <= live.ACTED_HIDE]
     done = {(e.get('team'), e.get('agent'), e.get('action')) for e in recent}
     out = []
@@ -327,10 +328,13 @@ class Brain:
     def _resolve(self, name, now):
         """(rows, agents, found, the runtime that reaches them)."""
         rows = self._assieme_rows(name)
-        if rows:
+        if any(r.get('state') == 'live' for r in rows):
             live_rows = [r for r in self._assieme_rows() if r.get('state') == 'live']
             return rows, self._collect(now, live_rows), False, self.rt
+        # A stopped team and the person's own agents in that folder usually share a name: the running ones win.
         agents, groups_ = self._found(now)
+        if rows and not groups_.get(name):
+            return rows, agents, False, self.rt
         return found_rows(name, groups_.get(name, [])), agents, True, self.herdr
 
     def _read(self, rt):
@@ -355,7 +359,7 @@ class Brain:
                 'panes': [p for p in built['panes'] if p['reachable']]}
 
     def act(self, team, role, fix, button):
-        rt = self.herdr if not self._assieme_rows(team) else self.rt
+        _, _, _, rt = self._resolve(team, status.now_utc())
         return panes.act(team, role, fix, button, lambda: self.map(team), rt)
 
     def detail(self, team, role):
@@ -382,7 +386,7 @@ class Brain:
             t = out.setdefault(r['labels'][team.TEAM], {'name': r['labels'][team.TEAM], 'kind': 'assieme', 'agents': 0})
             t['agents'] += r.get('state') == 'live'
         for name, agents in groups_.items():
-            if name not in out:
+            if not out.get(name, {}).get('agents'):
                 out[name] = {'name': name, 'kind': 'found', 'agents': len(agents)}
         found_agents = [{'name': a.name, 'cwd': _real(a.cwd), 'group': g} for g, xs in groups_.items() for a in xs]
         return {'teams': [t for t in out.values() if t['agents']], 'found_agents': found_agents}

@@ -140,7 +140,7 @@ class UndoTest(ActivityCase):
     def test_undo_add_agent_kills_only_that_terminal(self):
         e = self.rec('add_agent', 'builder-4', team='shop', address='t9')
         rt = Rt()
-        self.assertEqual(self.rows()[0]['undo'], {'label': 'Stop'})
+        self.assertEqual(self.rows()[0]['undo']['label'], 'Stop')
         self.assertTrue(self.undo(e, rt)['ok'])
         self.assertEqual(rt.killed, ['t9'])
 

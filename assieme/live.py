@@ -154,7 +154,8 @@ def run_action(s, runner=None, log=None, now=None):
             detail = ((res.stdout or res.stderr or '').strip().splitlines() or ['sent' if ok else 'failed'])[-1][:120]
         except (OSError, subprocess.SubprocessError) as e:
             ok, detail = False, str(e)[:120]
-    record(s.action, s.agent, s.text, ok, detail, address=s.address, log=log, now=now)
+    record(s.action, s.agent, s.text, ok, detail, address=s.address, log=log, now=now,
+           **({'pair': list(s.pair)} if s.pair else {}))
     return ok, detail
 
 

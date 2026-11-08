@@ -71,3 +71,17 @@ test("an empty list says so", async () => {
   await open([]);
   expect(screen.getByText("Nothing yet.")).toBeTruthy();
 });
+
+test("Stop on an added agent asks first, and Keep it running changes nothing", async () => {
+  b.activityUndo.mockResolvedValue({ ok: true, detail: "" });
+  await open([row("1", { undo: { label: "Stop", confirm: "This ends builder-1." } })]);
+  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+  expect(screen.getByText("This ends builder-1.")).toBeTruthy();
+  expect(b.activityUndo).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Keep it running" }));
+  expect(b.activityUndo).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+  fireEvent.click(screen.getByRole("button", { name: "Stop it" }));
+  await act(async () => {});
+  expect(b.activityUndo).toHaveBeenCalledWith("1");
+});

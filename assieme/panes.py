@@ -7,7 +7,7 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import live, prompts, status, team
+from . import adapters, live, prompts, status, team
 
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
@@ -132,8 +132,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         else:
             s = next((s for s in suggestions if a and s.agent == a.name), None)
             if state == 'stuck' and a and a.cmds:
-                words = a.cmds[-1].split()
-                p['command'] = a.cmds[-1] if show_commands else (os.path.basename(words[0]) if words else None)
+                p['command'] = a.cmds[-1] if show_commands else adapters.program(a.cmds[-1])
             if state in ('stuck', 'waiting'):
                 p['detail'] = _cap(a.detail if a and a.detail else (s.text if s else ''))
                 verb = 'seems stuck' if state == 'stuck' else 'has work waiting'

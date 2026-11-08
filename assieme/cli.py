@@ -11,6 +11,7 @@ import json
 import os
 import sys
 import time
+import traceback
 
 from . import activity, adapters, answers, live, newteam, preset, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
 
@@ -134,8 +135,11 @@ def _serve():
     activity.register_merge(reviews)
 
     def tick():
-        live.watch_once(claude, codex)
-        brain.tick()
+        for step in (lambda: live.watch_once(claude, codex), brain.tick):
+            try:
+                step()
+            except Exception:  # one failing step must not stop notifications, delivery or the others
+                traceback.print_exc()
     serve.serve(serve.brain_socket_path(),
                 {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
                                                           starting=starter.records()),

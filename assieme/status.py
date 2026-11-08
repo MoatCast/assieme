@@ -12,7 +12,7 @@ import shlex
 import subprocess
 
 from . import rules
-from .adapters import CODEX_REFUSED, _strip_common_prefix, command_label, wake_sender
+from .adapters import CODEX_REFUSED, _strip_common_prefix, command_label, program, wake_sender
 from .model import HUMAN, parse_ts
 
 STUCK_AFTER = 15 * 60       # working with no new log row for this long
@@ -112,6 +112,9 @@ class Agent:
 
 def _claude(agent, rows, show_text, rules_for=lambda cwd: []):
     for o in rows:
+        if o.get('type') == 'system' and o.get('subtype') == 'compact_boundary':
+            agent.context = 0  # history was summarised, and no usage row may follow until its next call
+            continue
         ts = parse_ts(o.get('timestamp'))
         if not ts:
             continue
@@ -256,8 +259,7 @@ def memory_limit(agent):
 def _short(command, show_text):
     if isinstance(command, list):
         command = ' '.join(map(str, command))
-    words = (command or '').split()
-    return ' '.join(words) if show_text else (os.path.basename(words[0]) if words else '')
+    return ' '.join((command or '').split()) if show_text else program(command)
 
 
 EDITS = {'Edit', 'Write', 'NotebookEdit', 'MultiEdit'}
@@ -337,14 +339,17 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
     names = _strip_common_prefix(sorted(latest))
     for d, path in latest.items():
         a = Agent(names[d], 'claude-code', path)
-        _claude(a, _tail_rows(path), show_text, rules_for)
-        for sp in glob.glob(os.path.join(path[:-len('.jsonl')], 'subagents', '*.jsonl')):
-            if now.timestamp() - os.path.getmtime(sp) > SUBAGENT_WINDOW:
-                continue
-            child = Agent(f'{a.name}/sub', 'claude-code', sp)
-            _claude(child, _tail_rows(sp), show_text, rules_for)
-            if child.last:
-                a.children.append(child)
+        try:
+            _claude(a, _tail_rows(path), show_text, rules_for)
+            for sp in glob.glob(os.path.join(path[:-len('.jsonl')], 'subagents', '*.jsonl')):
+                if now.timestamp() - os.path.getmtime(sp) > SUBAGENT_WINDOW:
+                    continue
+                child = Agent(f'{a.name}/sub', 'claude-code', sp)
+                _claude(child, _tail_rows(sp), show_text, rules_for)
+                if child.last:
+                    a.children.append(child)
+        except (AttributeError, TypeError, KeyError, ValueError, OSError):
+            continue  # one damaged log loses that agent, never the whole view
         if a.last:
             agents.append(a)
 
@@ -352,9 +357,12 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
     for path in glob.glob(os.path.join(codex_dir, '**', '*.jsonl'), recursive=True):
         if os.path.getmtime(path) < cutoff:
             continue
-        meta = _first_row(path).get('payload') or {}
         a = Agent('', 'codex', path)
-        _codex(a, [_first_row(path)] + _tail_rows(path), show_text)
+        try:
+            meta = _first_row(path).get('payload') or {}
+            _codex(a, [_first_row(path)] + _tail_rows(path), show_text)
+        except (AttributeError, TypeError, KeyError, ValueError, OSError):
+            continue  # one damaged log loses that agent, never the whole view
         if not a.last:
             continue
         src = meta.get('source') if isinstance(meta.get('source'), dict) else {}

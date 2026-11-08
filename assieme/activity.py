@@ -52,7 +52,10 @@ def _undo_practice(e, rt):
 
 
 def _undo_add(e, rt):
-    labels = rt.get(e['address']).get('labels') or {}
+    info = rt.get(e['address'])
+    labels = info.get('labels') or {}
+    if info.get('state') != 'live':
+        raise ValueError('This agent has already stopped.')
     if labels.get(team.TEAM) != e.get('team') or labels.get(team.ROLE) != e.get('agent'):
         raise ValueError('That terminal is no longer this agent.')  # only remove terminals you started
     rt.kill(e['address'])
@@ -80,13 +83,17 @@ def register_merge(review):
 
 
 # action -> whether it still applies right now: a pair removed in Settings has nothing left to stop.
-APPLIES = {'quiet': lambda e: quiet.is_quiet(e['pair'][0], e['pair'][1])}
+APPLIES = {'quiet': lambda e: bool(e.get('pair')) and quiet.is_quiet(e['pair'][0], e['pair'][1])}
 LOGS_ITS_OWN_UNDO = ('merge',)
+CONFIRM = {'add_agent': "This ends {agent} and anything it's doing right now. Its branch and files stay."}  # never kill without asking
 
 
 def _still_applies(e):
     check = APPLIES.get(e.get('action'))
-    return not check or check(e)
+    try:
+        return not check or check(e)
+    except (KeyError, IndexError, TypeError, AttributeError):  # an odd old row just has no button
+        return False
 
 
 def _available(e, undone, now):
@@ -118,10 +125,11 @@ def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the 
         reason = '' if e.get('action') in NO_WORDS and 'id' not in e else (e.get('reason') or '')
         if not e.get('ok', True):
             reason = f"It didn't work: {e.get('detail') or 'no reason given'}"
+        action = e.get('action')
         can = _available(e, undone, now) is None
         rows.append({'id': e.get('id'), 'at': local.strftime('%H:%M') if local else '', 'day': local.strftime('%Y-%m-%d') if local else '',
                      'title': _title(e), 'reason': reason, 'by': by, 'ok': e.get('ok', True), 'agent': e.get('agent'), 'action': e.get('action'),
-                     'undo': {'label': UNDO[e['action']][1]} if can else None})
+                     'undo': ({'label': UNDO[action][1]} | ({'confirm': CONFIRM[action].format(agent=e.get('agent'))} if action in CONFIRM else {})) if can else None})
     return {'rows': rows}
 
 

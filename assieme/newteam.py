@@ -157,7 +157,12 @@ def forget_role(folder, name):
         data = tomllib.load(f)
     keep = [r for r in data.get('role', []) if r.get('name') != name]
     by_name = {r.name: r for r in tm.roles}
-    save(tm.project, [_role_dict(by_name[r['name']]) for r in keep], tm.practices, tm.name, os.path.dirname(folder))
+    gone = by_name.get(name)
+    roles = [_role_dict(by_name[r['name']]) for r in keep]
+    for r in roles:  # whoever reported to it now reports one level up, or the saved team would no longer load
+        if r['parent'] == name:
+            r['parent'] = gone.parent if gone else None
+    save(tm.project, roles, tm.practices, tm.name, os.path.dirname(folder))
 
 
 def roster(name, teams=None):

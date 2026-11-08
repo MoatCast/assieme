@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { activityUndo, paneAct, teamMap, tipApply, type ActivityRow, type Pane, type PaneButton, type Starting, type TeamMap } from "./bridge";
+import { paneAct, teamMap, tipApply, type ActivityRow, type Pane, type PaneButton, type Starting, type TeamMap } from "./bridge";
+import { UndoButton } from "./Activity";
 import AgentDetail from "./AgentDetail";
 import { AgentsMap, GroupsMap } from "./TeamMap";
 import { ago } from "./Terminals";
@@ -90,16 +91,11 @@ function Card({ team, pane, onChanged, onOpenTerminal }: {
 
 function DoneRow({ row, onChanged }: { row: ActivityRow; onChanged: () => void }) {
   const [note, setNote] = useState("");
-  const undo = async () => {
-    const r = await activityUndo(row.id!).catch((e) => ({ ok: false, detail: String(e) }));
-    setNote(r.ok ? "" : r.detail);
-    onChanged();
-  };
   return (
     <div className="done-row">
       <span className="done-at">{row.at}</span>
       <span className="done-title">{note || row.title}</span>
-      {row.undo && <button type="button" className="link" onClick={undo}>{row.undo.label}</button>}
+      {row.undo && <UndoButton row={row} className="link" onDone={onChanged} onNote={setNote} />}
     </div>
   );
 }

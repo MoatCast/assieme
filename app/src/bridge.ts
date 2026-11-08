@@ -167,7 +167,7 @@ export type ActivityRow = {
   by: string;
   ok: boolean;
   action: string;
-  undo: { label: string } | null;
+  undo: { label: string; confirm?: string } | null;
 };
 export type TeamMap = {
   team: string;

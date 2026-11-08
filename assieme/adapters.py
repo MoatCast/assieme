@@ -31,14 +31,19 @@ def wake_sender(text):
     return HUMAN, HUMAN
 
 
+def program(command):
+    """The program a shell command runs. Never a leading `API_KEY=...`: that can be a secret."""
+    words = [w for w in (command or '').split() if not re.match(r'^\w+=', w)]
+    return os.path.basename(words[0]) if words else ''
+
+
 def command_label(tool, command, show_text):
     """A refused call -> a short label. Only the program name unless --show-text: arguments can hold secrets."""
     if not command:
         return tool
     if isinstance(command, list):
         command = ' '.join(map(str, command))
-    words = command.split()
-    return f"{tool}: {' '.join(words[:3])[:60] if show_text else (words[0] if words else '')}"
+    return f"{tool}: {' '.join(command.split()[:3])[:60] if show_text else program(command)}"
 
 
 def _rows(path):
