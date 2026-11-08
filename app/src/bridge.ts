@@ -158,7 +158,10 @@ export const menuState = () => brain<MenuState>("menu.state");
 export const notificationsPause = () => brain<MenuState>("notifications.pause");
 export const notificationsResume = () => brain<MenuState>("notifications.resume");
 export const menuFit = (height: number) => invoke<void>("menu_fit", { height });
+export const notificationsOff = () => invoke<boolean>("notifications_off");
+export const notificationSettingsOpen = () => invoke<void>("notification_settings_open");
 export const onMenuOpened = (run: () => void) => listen("menu-opened", run);
+export const onMenuState = (run: (m: MenuState | null) => void) => listen<MenuState | null>("menu-state", (e) => run(e.payload));
 
 export type OpenRequest = { team: string; role: string | null; view: "terminals" | "review" | null };
 /** Bring the main window forward, on this agent if one is given. Closes the menu bar panel. */

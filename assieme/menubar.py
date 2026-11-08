@@ -196,7 +196,7 @@ class Menubar:
         # The brain's plain notifications take over if the app quits: they mustn't repeat what's been shown.
         live.announce(status.owner_queue(agents, now), stalls, now, notifier=lambda *_: None, switches=st['notify'])
         panel = self._panel(teams, st)
-        return {'count': panel['count'], 'events': self.events(teams, self.reviews.waiting(), stalls, now, st)}
+        return {'count': panel['count'], 'panel': panel, 'events': self.events(teams, self.reviews.waiting(), stalls, now, st)}
 
     def app_watching(self, now=None):
         return bool(self.polled and ((now or status.now_utc()) - self.polled).total_seconds() < APP_GONE_S)

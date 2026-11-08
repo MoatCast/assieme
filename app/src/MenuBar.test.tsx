@@ -1,10 +1,13 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+const pushed = vi.hoisted(() => ({ run: (_: unknown) => {} }));
 const b = vi.hoisted(() => ({
   menuState: vi.fn(), paneAct: vi.fn(), windowOpen: vi.fn(), menuFit: vi.fn(() => Promise.resolve()),
+  notificationsOff: vi.fn(() => Promise.resolve(false)), notificationSettingsOpen: vi.fn(() => Promise.resolve()),
   notificationsPause: vi.fn(), notificationsResume: vi.fn(),
   onMenuOpened: vi.fn(() => Promise.resolve(() => {})),
+  onMenuState: vi.fn((run: (m: unknown) => void) => { pushed.run = run; return Promise.resolve(() => {}); }),
 }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminals", () => ({ ago: (s: number | null) => (s ? `${Math.round(s / 60)}m` : "") }));
@@ -111,4 +114,21 @@ test("no teams, and no service, both still offer the way in", async () => {
   await flush();
   expect(screen.getByText(/isn’t answering/)).toBeTruthy();
   expect(screen.getByText("Open Assieme")).toBeTruthy();
+});
+
+test("the brain's regular poll keeps the panel fresh while it's hidden", async () => {
+  render(<MenuBar />);
+  await flush();
+  await act(async () => pushed.run({ ...STATE, count: 0, teams: [{ name: "fresh", where: "This Mac", need: 0, items: [] }] }));
+  expect(screen.getByText("fresh")).toBeTruthy();
+});
+
+test("notifications turned off say so, with the fix", async () => {
+  b.notificationsOff.mockResolvedValue(true);
+  render(<MenuBar />);
+  await flush();
+  expect(screen.getByText("Mac notifications are off for Assieme.")).toBeTruthy();
+  fireEvent.click(screen.getByText("Turn on"));
+  expect(b.notificationSettingsOpen).toHaveBeenCalled();
+  b.notificationsOff.mockResolvedValue(false);
 });

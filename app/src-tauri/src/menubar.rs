@@ -89,6 +89,9 @@ fn show<R: Runtime>(app: &AppHandle<R>, event: &Value) {
 }
 
 fn poll_forever<R: Runtime>(app: AppHandle<R>) {
+    // First, so nothing is sent before the person has answered macOS's question. Later runs return at once.
+    let asked = notify_rust::request_auth_blocking();
+    eprintln!("notifications: asked {asked:?}, now {:?}", notify_rust::get_notification_settings_blocking());
     let mut shown = None;
     loop {
         // A brain that isn't running shows no count; First run deals with that.
@@ -100,6 +103,8 @@ fn poll_forever<R: Runtime>(app: AppHandle<R>) {
             }
             shown = title;
         }
+        // Kept fresh while hidden: a panel call takes a moment, and opening must not paint old news first.
+        let _ = app.emit_to("menu", "menu-state", &reply["panel"]);
         for event in reply["events"].as_array().into_iter().flatten() {
             show(&app, event);
         }
@@ -186,6 +191,18 @@ pub fn fit_panel<R: Runtime>(app: &AppHandle<R>, height: f64) -> Result<(), Stri
     w.set_size(tauri::LogicalSize::new(PANEL_WIDTH, height.clamp(60.0, PANEL_MAX_HEIGHT))).map_err(|e| e.to_string())
 }
 
+/// Whether banners can't reach the person. notify-rust doesn't re-export the status types, so they're told apart by
+/// name. A failed read counts as on: no false alarm.
+fn off_for(status: &str, alerts: &str) -> bool {
+    !matches!(status, "Authorized" | "Provisional" | "Ephemeral") || alerts == "Disabled"
+}
+
+pub fn notifications_off() -> bool {
+    notify_rust::get_notification_settings_blocking().is_ok_and(|s| {
+        off_for(&format!("{:?}", s.authorization_status), &format!("{:?}", s.alert_enabled))
+    })
+}
+
 pub fn hide_panel<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.get_webview_window("menu") {
         let _ = w.hide();
@@ -221,6 +238,15 @@ mod tests {
     fn the_icon_shows_a_number_only_when_something_needs_you() {
         assert_eq!(title_for(0), None);
         assert_eq!(title_for(2), Some("2".to_string()));
+    }
+
+    #[test]
+    fn notifications_count_as_off_unless_clearly_on() {
+        assert!(!off_for("Authorized", "Enabled"));
+        assert!(!off_for("Provisional", "NotSupported"));
+        assert!(off_for("Denied", "Disabled"));
+        assert!(off_for("NotDetermined", "NotSupported"));
+        assert!(off_for("Authorized", "Disabled"));
     }
 
     /// The plugin's own path from what's shown to what's reported: the brain's event must survive it.

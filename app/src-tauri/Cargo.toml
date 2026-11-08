@@ -22,6 +22,9 @@ tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-ap
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-notification = "2.8"
+# The plugin's own notifier. The default macOS backend never asks permission, so a new person's notifications stay
+# off without a word; this one asks, and has real buttons. shortcut: "preview" upstream, drop the flag when it's default.
+notify-rust = { version = "4.19", features = ["preview-macos-un"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

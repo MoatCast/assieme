@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  menuFit, menuState, notificationsPause, notificationsResume, onMenuOpened, paneAct, windowOpen,
+  menuFit, menuState, notificationSettingsOpen, notificationsOff, notificationsPause, notificationsResume, onMenuOpened, onMenuState, paneAct, windowOpen,
   type MenuButton, type MenuItem, type MenuState, type MenuTeam,
 } from "./bridge";
 import { ago } from "./Terminals";
@@ -68,18 +68,21 @@ export default function MenuBar({ pollMs = 5000 }: { pollMs?: number }) {
   const [m, setM] = useState<MenuState | null>(null);
   const [note, setNote] = useState("");
   const [off, setOff] = useState(false);
+  const [muted, setMuted] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(() => {
     menuState().then((got) => { setM(got); setOff(false); }).catch(() => setOff(true));
+    notificationsOff().then(setMuted).catch(() => {});
   }, []);
 
   useEffect(() => {
     document.documentElement.classList.add("menu-window");
     refresh();
     const stop = onMenuOpened(() => { setNote(""); refresh(); });
+    const pushed = onMenuState((got) => { if (got) { setM(got); setOff(false); } });
     const t = setInterval(() => { if (document.hasFocus()) refresh(); }, pollMs);
-    return () => { clearInterval(t); void stop.then((f) => f()); };
+    return () => { clearInterval(t); void stop.then((f) => f()); void pushed.then((f) => f()); };
   }, [pollMs, refresh]);
 
   useLayoutEffect(() => {
@@ -112,6 +115,12 @@ export default function MenuBar({ pollMs = 5000 }: { pollMs?: number }) {
       {m && m.teams.filter((t) => !t.need).map((t) => <Team key={t.name} team={t} press={press} />)}
       {note && <div className="mb-row mb-note" role="alert">{note}</div>}
       {m && m.teams.length > 0 && <div className="mb-line" />}
+      {muted && (
+        <div className="mb-row">
+          <span className="mb-grow mb-note">Mac notifications are off for Assieme.</span>
+          <button type="button" className="mb-text" onClick={() => void notificationSettingsOpen()}>Turn on</button>
+        </div>
+      )}
       <button type="button" className="mb-item" onClick={() => void windowOpen()}>Open Assieme</button>
       {m?.paused_until
         ? <button type="button" className="mb-item" onClick={() => void pause(notificationsResume)}>Paused until {m.paused_until} · Resume</button>

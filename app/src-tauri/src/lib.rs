@@ -115,6 +115,18 @@ async fn menu_fit(app: tauri::AppHandle, height: f64) -> Result<(), String> {
     menubar::fit_panel(&app, height)
 }
 
+#[tauri::command]
+async fn notifications_off() -> bool {
+    tauri::async_runtime::spawn_blocking(menubar::notifications_off).await.unwrap_or(false)
+}
+
+/// The one fix macOS leaves to the person: its own page for notifications.
+#[tauri::command]
+async fn notification_settings_open() -> Result<(), String> {
+    std::process::Command::new("open").arg("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+        .status().map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -135,7 +147,9 @@ pub fn run() {
             service_running,
             service_install,
             window_open,
-            menu_fit
+            menu_fit,
+            notifications_off,
+            notification_settings_open
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
