@@ -55,7 +55,7 @@ class Session:
     samples: list = field(default_factory=list)  # F5: (time, input tokens) per call
     jobs: list = field(default_factory=list)     # F6: Job
     failures: list = field(default_factory=list)  # F7: (time, fingerprint, turn number, label)
-    cycles: collections.Counter = field(default_factory=collections.Counter)  # F7: branch -> fix or ruling cycles
+    cycles: collections.Counter = field(default_factory=collections.Counter)  # F7: branch -> fix commits
     refusal_seconds: collections.Counter = field(default_factory=collections.Counter)  # F8: why -> time lost
 
     def wake(self, sender, channel, text='', show_text=False, ts=None, branch=None):

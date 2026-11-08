@@ -108,7 +108,7 @@ class ReadingCommands(unittest.TestCase):
         for cmd in ('git commit -m "fix: the thing"', "git add . && git commit -am 'Address review notes'",
                     "git commit -m \"$(cat <<'EOF'\nFix the race\n\nbody\nEOF\n)\""):
             self.assertTrue(detect.is_fix_commit(cmd), cmd)
-        for cmd in ('git commit -m "add feature"', 'git status', 'echo fix'):
+        for cmd in ('git commit -m "add feature"', 'git status', 'echo fix', 'git commit -m "ruling: keep the limit"'):
             self.assertFalse(detect.is_fix_commit(cmd), cmd)
 
 
@@ -185,12 +185,32 @@ class ContextMeter(unittest.TestCase):
 
     def test_share_of_the_last_hour(self):
         big, small = session('big'), session('small')
-        big.call(9_000_000, ts=ago(10))
-        big.call(9_000_000, ts=ago(300))  # outside the hour
-        small.call(1_000_000, ts=ago(10))
+        big.call(27_000_000, ts=ago(10))
+        big.call(27_000_000, ts=ago(300))  # outside the hour
+        small.call(3_000_000, ts=ago(10))
         r = run([big, small])
         self.assertEqual(r['agents']['big']['share_last_hour'], 0.9)
         self.assertIn('90%', find(r, 'share')[0]['what'])
+
+    def _hour(self, big_tokens, small_tokens):
+        big, small = session('big'), session('small')
+        big.call(big_tokens, ts=ago(10))
+        small.call(small_tokens, ts=ago(10))
+        return find(run([big, small]), 'share')
+
+    def test_a_share_needs_70_percent_of_20m_tokens(self):
+        self.assertTrue(self._hour(14_000_000, 6_000_000))      # exactly 70% of exactly 20M
+        self.assertEqual(self._hour(13_000_000, 7_000_000), [])  # 65%
+        self.assertEqual(self._hour(13_000_000, 1_000_000), [])  # 93%, but only 14M
+
+    def test_the_report_says_how_fast_each_memory_size_fills(self):
+        s = session()
+        for i in range(61):
+            s.call(100_000 + 3000 * i, ts=ago(60 - i))
+        why = find(run([s]), 'growth')[0]['why']
+        self.assertIn('200K memory fills in about 67 min', why)
+        self.assertIn('1M memory in about 5.6 h', why)
+        self.assertNotIn('hour or two', why)
 
     def test_one_agent_alone_is_not_a_hog(self):
         s = session()
@@ -267,10 +287,15 @@ class Loops(unittest.TestCase):
         self.assertIn('pytest', f['what'])
         self.assertIn('3', f['what'])
 
-    def test_five_times_in_one_turn_is_a_loop(self):
+    def test_three_times_in_one_turn_is_a_loop(self):
         s = session()
-        s.failures += [(ago(m), 'sig', 0, 'Bash: pytest') for m in range(5, 0, -1)]
+        s.failures += [(ago(m), 'sig', 0, 'Bash: pytest') for m in range(3, 0, -1)]
         self.assertTrue(find(run([s]), 'loop'))
+
+    def test_twice_is_not_a_loop(self):
+        s = session()
+        s.failures += [(ago(m), 'sig', m, 'Bash: pytest') for m in (2, 1)]
+        self.assertEqual(find(run([s]), 'loop'), [])
 
     def test_different_or_spread_out_failures_stay_quiet(self):
         a, b = session('a'), session('b')
@@ -414,6 +439,14 @@ class Adapters(unittest.TestCase):
             s = list(adapters.claude_code(d, SINCE))[0]
         self.assertNotIn('SECRET', repr(s.failures))
 
+    def test_the_word_ruling_in_a_message_is_not_a_fix_cycle(self):
+        with tempfile.TemporaryDirectory() as d:
+            rows = [claude_row('user', ago(60 - i), f'<hc from="t1 coord">ruling {i}: keep it</hc>') for i in range(6)]
+            rows += bash_turn(0, ago(50), 'ls')
+            write(os.path.join(d, '-p', 's.jsonl'), rows)
+            s = list(adapters.claude_code(d, SINCE))[0]
+        self.assertEqual(s.cycles['feat'], 0)
+
     def test_a_refusal_is_not_a_failure_and_its_lost_time_is_counted(self):
         with tempfile.TemporaryDirectory() as d:
             rows = bash_turn(0, ago(59), 'git push', 'Permission to use Bash with command git push has been denied', True)
@@ -509,15 +542,41 @@ class Live(unittest.TestCase):
         b = agent('b', heavy=[(ago(5), 'build', False, 'cargo', 'y')], pending={'y': ('Bash', 'Bash: cargo', 'cargo build')})
         self.assertEqual([x for x in status.warnings([a, b], NOW) if x['kind'] == 'overlap'], [])
 
+    def _growing(self, per_hour=180_000, **kw):
+        step = per_hour // 60
+        return agent(samples=[(ago(60 - i), 100_000 + step * i) for i in range(61)], **kw)
+
+    def _growth(self, **kw):
+        return [x for x in status.warnings([self._growing(**kw)], NOW) if x['kind'] == 'growth']
+
     def test_fast_growth_is_a_warning_with_no_button_while_it_works(self):
-        a = agent(samples=[(ago(60 - i), 100_000 + 3000 * i) for i in range(61)], context=280_000)
+        a = self._growing(context=720_000)  # 30K from 75% of 1M, at 180K an hour: 10 minutes
         w = [x for x in status.warnings([a], NOW) if x['kind'] == 'growth'][0]
         self.assertIn('180K', w['what'])
+        self.assertIn('75% of its 1000K memory in about 10 min', w['why'])
         self.assertIsNone(w['message'])
         self.assertEqual([x for x in live.suggest([a], [], {'builder': 't1'}, now=NOW) if x.action], [])
 
+    def test_a_1m_memory_far_from_full_stays_quiet_live(self):
+        self.assertEqual(self._growth(context=280_000), [])  # 2.6 h away
+
+    def test_claude_under_200k_has_no_known_size_so_stays_quiet_live(self):
+        self.assertEqual(self._growth(context=199_000), [])
+
+    def test_codex_says_its_memory_size(self):
+        self.assertTrue(self._growth(source='codex', context=130_000, context_limit=200_000))  # 7 minutes
+        self.assertEqual(self._growth(source='codex', context=50_000, context_limit=200_000), [])  # 33 minutes
+        self.assertEqual(self._growth(source='codex', context=199_000, context_limit=None), [])
+
+    def test_growth_under_100k_an_hour_stays_quiet_live(self):
+        self.assertEqual(self._growth(per_hour=90_000, context=900_000), [])
+        self.assertTrue(self._growth(per_hour=102_000, context=740_000))
+
+    def test_a_memory_already_past_75_percent_says_so(self):
+        self.assertIn('already past 75%', self._growth(context=800_000)[0]['why'])
+
     def test_the_compact_card_names_the_growth(self):
-        a = agent(state='idle', peers={'x'}, samples=[(ago(60 - i), 100_000 + 3000 * i) for i in range(61)], context=280_000)
+        a = self._growing(state='idle', peers={'x'}, context=720_000)
         s = [x for x in live.suggest([a], [], {'builder': 't1'}, now=NOW) if x.action == 'compact'][0]
         self.assertIn('growing 180K', s.text)
 

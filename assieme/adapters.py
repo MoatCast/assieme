@@ -170,7 +170,6 @@ def _claude_session(path, agent, parent, since, show_text, rules_for=lambda cwd:
                 if parent and not s.turns:
                     sender, channel = parent, 'subagent'
                 s.wake(sender, channel, text, show_text, ts, branch)
-                detect.note_wake(s, text, branch)
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_result' and b.get('is_error'):
                     out = b.get('content')
@@ -253,7 +252,6 @@ def _codex_session(path, since, show_text):
             if (parent_id or 'subagent' in s.agent) and not s.turns:
                 sender, channel = 'codex:parent', 'spawn'
             s.wake(sender, channel, text, show_text, ts, branch)
-            detect.note_wake(s, text, branch)
         elif kind == 'token_count' and isinstance(p.get('info'), dict):
             total = (p['info'].get('total_token_usage') or {}).get('total_tokens')
             last = p['info'].get('last_token_usage') or {}
