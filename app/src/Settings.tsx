@@ -300,6 +300,8 @@ function Privacy({ values, set }: { values: Values; set: (k: string, v: unknown)
           <Row title="Activity" sub="Which agent, what was done and why. Not what your agents said or asked." />
           <Row title="Notes that can wait" sub="Held as written until they’re delivered, then removed." />
           <Row title="Suggested answers" sub="Assieme holds them in memory for a day. Your Claude Code or Codex logs the question as it logs any session." />
+          <Row title="Agent reports and drafts" sub="What an agent said is blocking it, until its next turn. A team an assistant drafted, until it opens in New team." />
+          <Row title="Your assistants" sub="Once connected, an assistant can read your agents’ terminals when asked. What it reads goes wherever it normally sends your work." />
         </div>
       </div>
     </>

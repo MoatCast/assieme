@@ -279,3 +279,9 @@ test("With only the Claude app, and it open, there's nothing to press yet", asyn
   screen.getByText(/quit it, then come back here/);
   expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
 });
+
+test("Privacy says what assistants can read and how long reports and drafts stay", async () => {
+  await open("Privacy");
+  screen.getByText("What an agent said is blocking it, until its next turn. A team an assistant drafted, until it opens in New team.");
+  screen.getByText("Once connected, an assistant can read your agents’ terminals when asked. What it reads goes wherever it normally sends your work.");
+});
