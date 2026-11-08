@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-from . import adapters, answers, live, newteam, panes, preset, quiet, report, rules, runtime, serve, service, status, team, worktree
+from . import adapters, answers, live, newteam, panes, preset, quiet, report, review, rules, runtime, serve, service, status, team, worktree
 
 
 def main(argv=None):
@@ -143,7 +143,8 @@ def _serve():
                  'team.suggest': newteam.suggest,
                  'team.view': lambda team: team_view(team),
                  'pane.act': lambda team, role, fix, button: panes.act(team, role, fix, button,
-                                                                       lambda: team_view(team), rt)},
+                                                                       lambda: team_view(team), rt)}
+                | review.Review(rt, newteam.teams_dir()).handlers(),
                 tick=lambda: live.watch_once(claude, codex))
     return 0
 
