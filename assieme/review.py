@@ -475,7 +475,7 @@ class Review:
                     raise ReviewError(f"The merge is undone, but its worktree didn't come back: {r.stderr.strip()}")
             self._set_ignored(project, self._ignored(project) - set(rec['notes']))
             del self.undos[id]
-            self._write_log({'id': uuid.uuid4().hex, 'team': rec['team'], 'agent': rec['role'], 'action': 'undo-merge',
+            self._write_log({'id': uuid.uuid4().hex, 'team': rec['team'], 'agent': rec['role'], 'action': 'undo-merge', 'of': id,
                              'undo': False, 'title': f"Undid the merge of {rec['role']}",
                              'reason': 'Its work is back, ready to review.'})
             return {'role': rec['role'], 'base': base}

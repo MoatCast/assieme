@@ -17,6 +17,10 @@ TITLES = {'quiet': 'Started holding notes from {agent}',
           'menu': 'Answered {agent}', 'answer': 'Answered {agent}', 'deliver': 'Delivered held notes to {agent}'}
 
 
+def _undone(entries):
+    return {e.get('of') for e in entries if e.get('action') in ('undo', 'undo-merge')}
+
+
 def _entries(path=None):
     return live.recent_actions(path, MAX_ROWS)
 
@@ -67,8 +71,12 @@ UNDO = {'quiet': (_undo_quiet, 'Stop', None),
 
 def register_merge(review):
     """Step 9's merges: the Review object holds what an Undo needs, and logs its own row."""
-    UNDO['merge'] = (lambda e, rt: review.undo(e['id']), 'Undo', UNDO_S)
-    APPLIES['merge'] = lambda e: e['id'] in review.undos
+    def undo_merge(e, rt):
+        if e.get('restore'):  # after a brain restart the record is only in the log
+            review.undos.setdefault(e['id'], e['restore'])
+        review.undo(e['id'])
+    UNDO['merge'] = (undo_merge, 'Undo', UNDO_S)
+    APPLIES['merge'] = lambda e: e['id'] in review.undos or bool(e.get('restore'))
 
 
 # action -> whether it still applies right now: a pair removed in Settings has nothing left to stop.
@@ -99,7 +107,7 @@ def _available(e, undone, now):
 def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the brain method's parameter name
     now = now or status.now_utc()
     entries = _entries(path)
-    undone = {e.get('of') for e in entries if e.get('action') == 'undo'}
+    undone = _undone(entries)
     rows = []
     for e in reversed(entries):
         by = e.get('by', 'you')
@@ -123,7 +131,7 @@ def undo(id, rt, path=None, now=None):
     e = next((x for x in entries if x.get('id') == id), None)
     if not e:
         return {'ok': False, 'detail': "This can't be undone."}
-    why = _available(e, {x.get('of') for x in entries if x.get('action') == 'undo'}, now)
+    why = _available(e, _undone(entries), now)
     if why:
         return {'ok': False, 'detail': why}
     try:

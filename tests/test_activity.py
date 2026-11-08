@@ -192,7 +192,7 @@ class UndoTest(ActivityCase):
 
             def undo(self, id):
                 del self.undos[id]
-                live.record('undo-merge', 'b', 'back', title='Undid the merge of b')
+                live.record('undo-merge', 'b', 'back', of=id, title='Undid the merge of b')
         self.addCleanup(lambda: (activity.UNDO.pop('merge', None), activity.APPLIES.pop('merge', None)))
         activity.register_merge(Review())
         live._log(self.log, {'id': 'm1', 'at': '2026-11-08T12:00:00Z', 'action': 'merge', 'agent': 'b', 'team': 'shop', 'by': 'you', 'ok': True,
@@ -202,6 +202,24 @@ class UndoTest(ActivityCase):
         rows = self.rows()
         self.assertEqual([r['title'] for r in rows], ['Undid the merge of b', 'Merged b into main'])
         self.assertIsNone(rows[1]['undo'])
+        self.assertFalse(activity.undo('m1', Rt(), now=NOW)['ok'])
+
+    def test_merge_undo_works_after_a_brain_restart(self):
+        class Review:
+            undos = {}
+            got = None
+
+            def undo(self, id):
+                Review.got = self.undos.pop(id)
+                live.record('undo-merge', 'b', 'back', of=id, title='Undid the merge of b')
+        self.addCleanup(lambda: (activity.UNDO.pop('merge', None), activity.APPLIES.pop('merge', None)))
+        activity.register_merge(Review())
+        live._log(self.log, {'id': 'm1', 'at': '2026-11-08T12:00:00Z', 'action': 'merge', 'agent': 'b', 'by': 'you', 'ok': True,
+                             'title': 'Merged b', 'restore': {'tip': 'abc'}})
+        self.assertEqual(self.rows()[0]['undo'], {'label': 'Undo'})
+        self.assertTrue(activity.undo('m1', Rt(), now=NOW)['ok'])
+        self.assertEqual(Review.got, {'tip': 'abc'})
+        self.assertIsNone(self.rows()[1]['undo'])  # still in the log, but it has been undone
         self.assertFalse(activity.undo('m1', Rt(), now=NOW)['ok'])
 
     def test_a_refused_merge_undo_shows_its_reason_and_stays(self):
