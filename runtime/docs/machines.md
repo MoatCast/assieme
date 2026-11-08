@@ -17,7 +17,7 @@ asm run --on box --cwd /srv/app cargo test
 
 The other machine needs asm. In an interactive terminal, add asks before copying asm there if it is missing or too old to talk to.
 For a script, `asm machine add user@host --name box --install` allows that copy without asking.
-When the OS and CPU match, it copies your current build. Otherwise it uses this version's released build for that target.
+When the OS and CPU match, it copies your current build. Otherwise it stops and asks you to install asm there yourself: there are no release downloads.
 
 SSH passwords, codes, and host-key prompts need a person at a terminal.
 On Windows, use SSH keys or an SSH agent; asm does not share interactive password logins there.

@@ -83,23 +83,10 @@ State is not encrypted by core. Removing state is destructive, not a way to stop
 ## Updates and signing
 
 ```sh
-asm update
-asm update --version 0.1.5
+asm update --from /path/to/assieme-core
 ```
 
-The version form means at least that version, not an exact downgrade.
-Updates restart the core while holders keep the terminals running.
-An update may also restart an older running core when the installed binary is already current.
+The app ships asm and hands over the build it bundles. Updates restart the core while holders keep the terminals running.
+asm never downloads anything to update itself.
 
-Release installers and updates download a manifest and check the archive's SHA-256 against it.
-The default release service is HTTPS at releases.herdr.dev.
-This trusts the release service and HTTPS; a checksum is not an independently signed release manifest.
-The manifest is not verified with a separate signing key.
-
-Windows release signing is conditional in the release workflow.
-When the signing profile is configured, the workflow signs and verifies the executable with Azure Artifact Signing.
-If the profile is unset, it publishes unsigned builds. Windows may block those builds.
-Do not assume every downloaded build is signed.
-
-`asm update --from /path/to/assieme-core` installs a local build instead of downloading one.
 Only use a build you trust. The updater's compatibility checks are not a review of its code.

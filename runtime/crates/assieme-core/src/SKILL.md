@@ -1,12 +1,9 @@
 # asm manual (assieme-core)
 
-The current manual for assieme-core's CLI, `asm`. It is not `herdr`, the older
-terminal multiplexer.
-
 # asm: programs and agents that stay alive
 
 `asm` runs programs in persistent terminals. People can attach and take over.
-It does not arrange windows; use `assieme-app --skill` for that.
+It does not arrange windows.
 `$ASM_TERMINAL_ID` is your address. Terminals you start are your children.
 They end when you end, unless started with `--outlive-parent`.
 `<t>` below means an ID (`t7`), a name (`review`), or `machine/t7`.
@@ -224,10 +221,6 @@ paths start at your current folder. Prefer explicit paths for remote work.
   restarted event. Pending input/attach may be unavailable: retry after recovery.
 - Once work is accepted: `asm kill <t>`, then `asm rm <t>`. Only clean up
   terminals you started; `asm ls` includes your user's other live work.
-- `asm update` also restarts an older running core when the installed binary
-  is already current. JSON reports `restarted: true`; terminals keep running.
-  Managed installs must be updated with their package manager instead, and
-  one in a folder you can't write (Unix) the way it was installed.
 - On macOS, privacy requests from terminal programs belong to Assieme Core,
   not Assieme.app. Existing Assieme.app grants do not transfer to the core.
 - macOS installs keep the newest bundle at the fixed physical path
@@ -238,16 +231,12 @@ paths start at your current folder. Prefer explicit paths for remote work.
   needs a complete signed `.app` (or its `Contents/MacOS/assieme-core`), not a bare
   executable. Terminals created before this bundle
   upgrade may still have broken macOS privacy access: recreate those terminals;
-  restarting only the core cannot repair their old holders. After an old updater
-  copies only the binary, run `asm update` to finish installing the bundle, even
-  if the version is already current. The app completes this during its update.
-  Startup never downloads updates. Previous bundles stay on disk while their
+  restarting only the core cannot repair their old holders.
+  Previous bundles stay on disk while their
   cores or holders run; later installs reclaim unused previous bundles.
   Per-user installs use the bundle. Root/system destinations keep the independently
   signed standalone executable and their existing macOS privacy behavior.
-  Machine installs also preserve bundles. A standalone sender cannot replace a
-  bundled remote core: run `asm update` there instead. Root remotes receive the
-  standalone release.
+  Machine installs also preserve bundles.
 - On macOS, desktop starts use a one-shot launchd job so quitting the launching
   app doesn't end terminals. SSH starts stay direct. If launchd fails, startup
   falls back to a direct child and logs the reason in `core.log`; that core may
@@ -271,7 +260,8 @@ paths start at your current folder. Prefer explicit paths for remote work.
   tokens, including detached programs; Windows keeps job-object cleanup.
   Terminals kept alive through an update retain their old holder's behavior
   until recreated.
-- Never `asm server stop` or restart the user's core unless asked. It affects
+- Routine notes can wait: `asm send <t> "..." --deliver next_turn` holds a note and
+  delivers it as one batch without waking an idle agent. Never `asm server stop` or restart the user's core unless asked. It affects
   every terminal. Tests need their own `ASM_SESSION` and scratch XDG paths.
 - Errors are `{error: {kind, message, hint}}` on stderr. Exit codes include
   3 not_found, 7 needs_target, 9 blocked, 10 status_mismatch, 11 finished.

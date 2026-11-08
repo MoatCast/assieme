@@ -1,159 +1,48 @@
 # assieme-core (`asm`)
 
-`asm` runs programs and coding agents in terminals that stay alive after you leave.
-Agents can start other agents, send them work, and hear back; you can attach to any terminal and take over.
+Assieme's own runtime: it runs Claude Code and Codex agents in terminals that stay alive after the window closes. A
+one-time fork of herdr-core; see [NOTICE](NOTICE), [the fork plan](../FORK-PLAN.md) and
+[the spec](../docs/superpowers/specs/2026-11-08-own-runtime-design.md).
 
-Core draws nothing. Use it from your shell, an agent, or your own app.
+People never install this. The app ships the binary.
 
-## Install
+## Build
 
-Linux and macOS:
+Needs Rust and Zig 0.16.0. Zig builds the terminal library from `vendor/ghostty`; users never need it.
 
-```sh
-curl -fsSL https://releases.herdr.dev/core/install.sh | sh
+```bash
+git submodule update --init --depth 1 runtime/vendor/ghostty
 ```
 
-Windows (PowerShell):
-
-```powershell
-powershell -c "irm https://releases.herdr.dev/core/install.ps1 | iex"
+```bash
+cd runtime && ZIG=/path/to/zig-0.16.0/zig cargo build
 ```
 
-Builds are available for Linux and macOS on x86_64 and aarch64, and Windows on x86_64.
-Linux builds are static. On Windows, templates and quoted shell commands need `sh` on PATH, such as Git for Windows provides.
+## Test
 
-Run `asm update` to update. Running terminals keep running.
-Updates and `asm server restart` keep the environment the core started with;
-stopping and starting takes a fresh one. The update from an older core to 0.1.19
-uses the updater's environment once, because older cores can't save it for the next core.
-
-If saving fails, the restart still goes ahead with the launcher's environment.
-Saved settings expire after three minutes and cannot carry over to another boot
-on Linux or macOS. On Windows, a restart cut short by a fast reboot can reuse them
-once. A plain SIGTERM keeps terminals and screens, but does not save settings.
-The new launcher still chooses the session's location and, on macOS, whether it
-starts from SSH or launchd.
-
-See [security](docs/security.md) for the trust and signing details.
-
-## Run it and come back
-
-```sh
-asm run cargo test                  # stream output and wait for it
-asm run --bg --name web bun dev     # start it and return
-asm ls                             # see live terminals
-asm attach web                     # take over; Ctrl+\ detaches
-asm read web --lines 100            # read without attaching
+```bash
+cd runtime && ZIG=/path/to/zig-0.16.0/zig cargo test --locked
 ```
 
-Closing your viewer does not end the program.
-A waiting run checks in after 180 seconds by default, leaving the program running.
-It prints the terminal's address so you can read it or wait again.
+To type-check without Zig (nothing links):
 
-For a terminal you want to keep even if its program is lost, use `asm run --keep`.
-Recovery starts a fresh shell, never reruns the task.
-A normal exit or an explicit kill still ends it.
-
-## Default shell
-
-With no program, `asm run --bg` starts the machine's shell: `$SHELL` (or
-`/bin/sh`) on Unix, PowerShell 7 on Windows if available, else Windows PowerShell.
-Override it in `~/.config/assieme-core/config.toml` (Windows:
-`%APPDATA%\assieme-core\config.toml`, or `$XDG_CONFIG_HOME/assieme-core/config.toml`
-when set):
-
-```toml
-shell = ["nu"]
-# Windows Git Bash (literal strings keep backslashes):
-# shell = ['C:\Program Files\Git\bin\bash.exe', '--login', '-i']
+```bash
+cd runtime && ZIG=$PWD/scripts/zig-stub.sh cargo check --all-targets
 ```
 
-The list is an executable followed by separate arguments, without extra path
-quoting. It must contain a nonempty executable. Changes apply to the next new
-shell or `keep` recovery, including recovery after a restart; no restart is
-needed. Running terminals, explicit programs, and quoted command lines keep
-their behavior. A bad setting reports a config error; a shell that cannot start
-reports `spawn_failed`. Recovery stays pending and retries, with errors in
-`core.log` (config) or `holder.log` (spawn); it never silently falls back to another shell.
+The comparison with real `hc` is in `tests/test_runtime_side_by_side.py` at the repo root.
 
-## Agents run agents
+## What it adds to herdr-core
 
-Give an agent `asm --skill`. It prints the agent docs in one read, including how to delegate, wait, report back, and clean up.
+| Addition | Call | State |
+|---|---|---|
+| Delivery control | `terminal.send` with `deliver: "next_turn"`, reported by `delivery` events | see the spec |
+| Pushed status | `terminal.status.set` with a `source` | see the spec |
+| Permission by intent (A6) | `terminal.run` with `deny_programs` (macOS) | see the spec |
 
-[Templates](docs/templates.md) give an agent a command and a role.
-After saving the reviewer example from that page:
+Docs: [commands](docs/commands.md), [machines](docs/machines.md), [templates](docs/templates.md),
+[security](docs/security.md), [API](schema/README.md).
 
-```sh
-asm templates
-asm run --bg --name review reviewer "Review src/x.rs. Read-only."
-asm send review "Focus on the error path."
-asm read review --lines 100
-```
+## Upstream
 
-Agents started inside an asm terminal become its children.
-They can report back with `asm send` and wait for their children with `asm wait --children all`.
-The parent gets notes when a child needs attention or ends.
-Children end with their parent unless started with `--outlive-parent`.
-On Unix, ending a terminal hangs up its program and foreground job, rather than
-hunting down detached programs. Programs deliberately detached with `nohup` or
-`setsid` can keep running, including background servers (their ports stay busy).
-An unexpected holder loss still uses inherited cleanup tokens to end abandoned
-programs, including detached ones. Windows keeps its job-object cleanup.
-Terminals kept alive through an update retain their old holder's behavior until
-recreated.
-
-## Every machine
-
-```sh
-asm machine add my-ssh-host --name box
-asm run --on box --cwd /srv/app cargo test
-asm attach box/t3
-```
-
-Use the address returned by your run, not the example's `box/t3`.
-Programs and files stay on that machine. Your local core brings its terminals into the same list.
-[Machines](docs/machines.md) covers SSH, custom connections, remote files, and reconnecting.
-
-## Status comes from the program
-
-An agent can say it is working, done, blocked, or in error through OSC 7501, the Program Status Protocol.
-Core stores what it reports. It does not guess from screen text or recognize agent brands.
-A program that does not report status has none.
-
-Use `asm get review` for a snapshot or `asm events` to follow changes.
-
-## Build your own client
-
-`asm schema` prints the request/response API as OpenRPC with JSON Schema.
-[The API docs](schema/README.md) cover connecting, terminal streams, events, and status.
-Use `asm connect` to carry the protocol over stdin and stdout, including through SSH.
-
-## Docs
-
-- [Commands](docs/commands.md): generated from the binary's help.
-- [Machines](docs/machines.md): work across machines.
-- [Templates](docs/templates.md): reusable agent roles.
-- [Security](docs/security.md): access, state, and updates.
-- [API](schema/README.md): build a client.
-
-For a quick lookup, run `asm --help` or a command's help, such as `asm run --help`.
-For agents, use `asm --skill`.
-
-## Build from source
-
-You need Rust, Zig 0.16, and just. CI pins the Rust version in [.github/workflows/ci.yml](.github/workflows/ci.yml).
-
-```sh
-git submodule update --init --depth 1
-cargo build --locked -p assieme-core
-just check
-```
-
-`just install` installs this checkout and restarts your core. Running terminals keep running.
-
-`just docs` refreshes the command reference. `just docs-check` checks it and the examples; CI runs the same tests.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contributor setup and checks.
-
-License: [Apache-2.0](LICENSE). `asm --licenses` prints the included third-party licenses.
-After a dependency change, regenerate them with `just notices`.
+No routine merges. Read their changelog weekly and hand-pick fixes in the holder, relay, stitch and input code.

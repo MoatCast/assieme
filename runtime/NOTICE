@@ -1,0 +1,19 @@
+assieme-core
+Part of Assieme.
+
+This runtime is a one-time fork of herdr-core (https://github.com/herdrdev/herdr-core),
+licensed under the Apache License, Version 2.0, taken at tag v0.1.19 (commit 06793ed).
+herdr-core ships no NOTICE file of its own. See LICENSE for the licence text.
+
+Changed by Assieme: the fork was renamed throughout (the program, its commands,
+environment variables, sockets, state folders and documentation), its self-update and
+release downloads were removed, and delivery control, pushed status and permission by
+intent were added. Every changed file that can hold a comment says so at its top. The
+JSON files in schema/ cannot, and are covered by this notice.
+
+"herdr" and "herdr-core" are names of their authors. This project is not affiliated with
+or endorsed by them, and no rights to those names are claimed.
+
+Third-party licences, including Ghostty's (MIT) for the terminal library at
+vendor/ghostty, are in distribution/notices/ and THIRD-PARTY-NOTICES, and are printed by
+`asm --licenses`.
