@@ -388,6 +388,14 @@ class Notes(Base):
         self.assertIn('reviewer on a.py line 2: cap it', self.rt.sent[0][1])
         self.assertEqual(self.r.get('demo', 'builder-1')['notes'], [])
 
+    def test_a_fixed_note_keeps_the_reviewers_words_out_of_the_log(self):
+        self.branch('builder-1', {'a.py': 'A\n'})
+        self.rt.agent('builder-1')
+        self.notes(self.line(text='the-reviewers-words'))
+        note = self.r.get('demo', 'builder-1')['notes'][0]
+        self.r.note('demo', 'builder-1', note['id'], 'fix')
+        self.assertNotIn('the-reviewers-words', open(self.log).read())
+
     def test_a_changed_note_and_unknown_action_refuse(self):
         self.branch('builder-1', {'a.py': 'A\n'})
         self.notes(self.line())
@@ -698,6 +706,14 @@ class Asking(Base):
         self.assertEqual(self.r.ask('demo', 'builder-1', ' cap at 6s '), {'restarted': False})
         self.assertEqual(self.rt.sent, [('t1', 'cap at 6s')])
 
+    def test_the_request_stays_out_of_the_log(self):
+        self.branch('builder-1', {'a.py': 'A\n'})
+        self.rt.agent('builder-1')
+        self.r.ask('demo', 'builder-1', 'the-persons-words')
+        entry = json.loads(open(self.log).read().splitlines()[-1])
+        self.assertEqual(entry['title'], 'Asked builder-1 for changes')
+        self.assertNotIn('the-persons-words', json.dumps(entry))
+
     def test_empty_text_refuses(self):
         self.branch('builder-1', {'a.py': 'A\n'})
         with self.assertRaisesRegex(ReviewError, 'what should change'):
@@ -722,6 +738,57 @@ class Asking(Base):
         self.addCleanup(setattr, team_mod, 'start', real)
         self.assertEqual(self.r.ask('demo', 'builder-1', 'cap'), {'restarted': True})
         self.assertEqual(seen, {'task': 'cap', 'only': 'builder-1', 'trust': True})
+
+
+class Polling(Base):
+    def counted(self):
+        calls, real = [], self.r.run
+        def run(cmd, **kw):
+            calls.append(cmd)
+            return real(cmd, **kw)
+        self.r.run = run
+        return calls
+
+    def test_waiting_reads_each_project_once_however_many_teams_it_has(self):
+        self.branch('builder-1', {'a.py': 'A\n'})
+        write(f'{self.teams}/other/team.toml', f'name = "other"\nproject = "{self.repo}"\n')
+        calls = self.counted()
+        self.assertEqual([w['role'] for w in self.r.waiting()], ['builder-1'])
+        self.assertEqual(sum('for-each-ref' in c for c in calls), 1)
+
+    def test_an_unchanged_branch_is_not_counted_again(self):
+        self.branch('builder-1', {'a.py': 'A\n'})
+        self.r.waiting()
+        calls = self.counted()
+        self.assertEqual(self.r.waiting()[0]['ahead'], 1)
+        self.assertFalse([c for c in calls if 'rev-list' in c])
+
+    def test_a_new_commit_is_counted(self):
+        self.branch('builder-1', {'a.py': 'A\n'})
+        self.assertEqual(self.r.waiting()[0]['ahead'], 1)
+        write(f'{self.wt("builder-1")}/b.py', 'B\n')
+        git(self.wt('builder-1'), 'add', '.')
+        git(self.wt('builder-1'), 'commit', '-qm', 'more')
+        self.assertEqual(self.r.waiting()[0]['ahead'], 2)
+
+    def test_a_project_with_no_branches_costs_one_git_call(self):
+        calls = self.counted()
+        self.assertEqual(self.r.waiting(), [])
+        self.assertEqual(len(calls), 1)
+
+
+class MergingWithoutACheckout(Base):
+    def test_a_late_conflict_never_moves_main(self):
+        self.branch('builder-1', {'a.py': 'theirs\n'})
+        write(f'{self.repo}/a.py', 'ours\n')
+        git(self.repo, 'commit', '-qam', 'ours')
+        git(self.repo, 'checkout', '-q', '--detach')  # main is checked out nowhere
+        before = git(self.repo, 'rev-parse', 'refs/heads/main')
+        self.r._conflicts = lambda *a: []  # main moved after the check
+        tip = self.r.get('demo', 'builder-1')['tip']
+        with self.assertRaisesRegex(ReviewError, "Couldn't merge"):
+            self.r.merge('demo', 'builder-1', tip, force=True)
+        self.assertEqual(git(self.repo, 'rev-parse', 'refs/heads/main'), before)
 
 
 class Editor(Base):

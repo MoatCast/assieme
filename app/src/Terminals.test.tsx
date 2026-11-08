@@ -191,6 +191,15 @@ test("with no team running, work from a stopped team is still listed", async () 
   expect(onReview).toHaveBeenCalledWith("shop", "builder-2");
 });
 
+test("agents with no terminal to show say so, and work waiting is still listed", async () => {
+  b.teamView.mockResolvedValue({ ...VIEW, panes: [] });
+  b.reviewWaiting.mockResolvedValue([WAITING("builder-1")]);
+  render(<Terminals team="found" pollMs={1000} onNewTeam={() => {}} onReview={onReview} />);
+  await flush();
+  expect(screen.getByText(/aren’t in terminals Assieme can reach/)).toBeTruthy();
+  expect(screen.getByText("Waiting for review")).toBeTruthy();
+});
+
 test("a failed waiting list doesn't break the page", async () => {
   b.reviewWaiting.mockRejectedValue(new Error("offline"));
   render(<Terminals team={null} pollMs={1000} onNewTeam={() => {}} onReview={onReview} />);

@@ -442,7 +442,7 @@ class AddAgentTest(unittest.TestCase):
 
             def start(self):
                 self.target()
-        return newteam.Starter(object(), self.teams, thread=Now, which=lambda c: '/x/' + c)
+        return newteam.Starter(Rt(['shop']), self.teams, thread=Now, which=lambda c: '/x/' + c)
 
     def test_add_agent_appends_and_starts_only_it(self):
         with mock.patch.object(newteam.team, 'start', return_value=[newteam.team.Started('b', 't5', 'running')]) as start:
@@ -452,6 +452,13 @@ class AddAgentTest(unittest.TestCase):
         [e] = live.recent_actions()
         self.assertEqual((e['action'], e['agent'], e['address'], e['team']), ('add_agent', 'b', 't5', 'shop'))
         self.assertTrue(os.path.isdir(os.path.join(self.project, '.assieme', 'worktrees', 'b')))
+
+    def test_add_agent_to_a_stopped_team_refuses(self):
+        s = self.starter()
+        s.rt = Rt()
+        with self.assertRaisesRegex(newteam.NewTeamError, 'has stopped'):
+            s.add_agent('shop', {'name': 'tester', 'agent': 'claude', 'brief': 'b'})
+        self.assertNotIn('tester', open(os.path.join(self.teams, 'shop', 'team.toml')).read())
 
     def test_add_agent_bad_name_taken(self):
         for name in ('lead', 'Bad Name'):

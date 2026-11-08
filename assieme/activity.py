@@ -11,10 +11,16 @@ from . import live, newteam, preset, quiet, settings, status, team
 UNDO_S = 24 * 3600
 MAX_ROWS = 500
 NO_WORDS = ('menu', 'answer')  # older rows of these held the agent's question: it stays out of what is shown
+NEVER_WORDS = ('ask-changes',)  # older rows of this held a request, or a reviewer's note
 TITLES = {'quiet': 'Started holding notes from {agent}',
           'compact': 'Freed up memory for {agent}', 'nudge': 'Asked {agent} to try another way',
           'tell': 'Told {agent} why a command is blocked', 'add_agent': 'Added {agent}',
-          'menu': 'Answered {agent}', 'answer': 'Answered {agent}', 'deliver': 'Delivered held notes to {agent}'}
+          'menu': 'Answered {agent}', 'answer': 'Answered {agent}', 'deliver': 'Delivered held notes to {agent}',
+          'dropped': "Couldn't deliver held notes to {agent}"}
+
+
+FIX_NAMES = {'nudge': 'Ask stuck agents to try another way', 'compact': 'Free up memory between tasks', 'tell': 'Explain blocked commands'}
+EVERY_TEAM = ('fix_mode', 'practice', 'undo')  # settings apply to all teams; any other row without a team isn't this team's
 
 
 def _undone(entries):
@@ -30,7 +36,7 @@ def _title(e):
         return e['title']
     action = e.get('action')
     if action == 'fix_mode':
-        return f'Set "{e.get("fix")}" to {"Automatic" if e.get("new") == "auto" else "Ask first"}'
+        return f'Set "{FIX_NAMES.get(e.get("fix"), e.get("fix"))}" to {"Automatic" if e.get("new") == "auto" else "Ask first"}'
     if action == 'practice':
         return f'Turned {e.get("agent")} {"on" if e.get("new") else "off"}'
     if action == 'undo':
@@ -118,11 +124,12 @@ def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the 
     rows = []
     for e in reversed(entries):
         by = e.get('by', 'you')
-        if (filter != 'all' and by != filter) or (team and e.get('team') not in (None, team)):
+        theirs = e.get('team') == team or (e.get('team') is None and e.get('action') in EVERY_TEAM)
+        if (filter != 'all' and by != filter) or (team and not theirs):
             continue
         at = status.parse_ts(e.get('at'))
         local = at.astimezone() if at else None
-        reason = '' if e.get('action') in NO_WORDS and 'id' not in e else (e.get('reason') or '')
+        reason = '' if e.get('action') in NEVER_WORDS or (e.get('action') in NO_WORDS and 'id' not in e) else (e.get('reason') or '')
         if not e.get('ok', True):
             reason = f"It didn't work: {e.get('detail') or 'no reason given'}"
         action = e.get('action')

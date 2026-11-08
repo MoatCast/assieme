@@ -275,6 +275,12 @@ class Starter:
         folder = os.path.join(self.teams, team_name)
         if not os.path.isfile(os.path.join(folder, 'team.toml')):
             raise NewTeamError('start', "This team was started from the command line, so agents can't be added here.")
+        try:
+            rows = self.rt.list({team.TEAM: team_name}, all=False)
+        except runtime.RuntimeError_:
+            rows = []  # no core running means nothing of this team is
+        if not any(r.get('state') == 'live' and (r.get('labels') or {}).get(team.TEAM) == team_name for r in rows):
+            raise NewTeamError('start', 'This team has stopped. Start it again to add an agent.')
         role = dict(role)
         kind = role.pop('kind', None)
         if kind in KINDS:

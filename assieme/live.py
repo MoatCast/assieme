@@ -262,7 +262,7 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
         terminals = status.herdr_terminals() if use_herdr else None
         agents = status.collect(claude_dir, codex_dir, now, hours, herdr=terminals, running=status.running_cwds(),
                                 rules_for=rules_for)
-        quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now))
+        quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now), on_give_up=lambda notes: record_given_up(notes, now))
         stalls = status.stalls(agents, now)
         queue = status.owner_queue(agents, now)
         announce(queue, stalls, now, switches=settings.load()['notify'])
@@ -407,7 +407,7 @@ def watch_once(claude_dir, codex_dir, hours=12, use_herdr=True):
     lines = [f'{at}  {title}: {body}' for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now,
                                                                   switches=switches)]
     lines += [f'{at}  delivered {n} quiet note(s) to {to} ({why})'
-              for to, n, why in quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now))]
+              for to, n, why in quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now), on_give_up=lambda notes: record_given_up(notes, now))]
     return lines
 
 
@@ -419,6 +419,12 @@ def record_delivery(notes, why, now=None):
     record('deliver', last.get('role') or last['to'], f'{len(notes)} note(s) held for its next turn.', detail=why, by='auto',
            team=last.get('team'), address=last['to'], now=now,
            to_cwd=last['to_cwd'], **{'from': senders})
+
+
+def record_given_up(notes, now=None):
+    last = notes[-1]
+    record('dropped', last.get('role') or last['to'], f'{len(notes)} note(s) waited a day, but it has stopped.', ok=False,
+           detail='It has stopped.', by='auto', team=last.get('team'), address=last['to'], now=now)
 
 
 def acted(now, path=None):

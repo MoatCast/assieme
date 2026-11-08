@@ -117,7 +117,8 @@ export default function Shell() {
           <Team key={team ?? ""} team={team} pollMs={5000} starting={snap?.starting ?? []}
             onNewTeam={() => setCreating(true)}
             onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
-            onSeeAll={() => setTab("activity")} />
+            onSeeAll={() => setTab("activity")}
+            onReview={(t, role) => setReview({ team: t, role })} />
         </div>
       )}
       {shown === "terminals" && !review && (

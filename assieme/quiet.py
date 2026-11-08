@@ -9,8 +9,8 @@ How it fits together:
   joins its current turn), or after MAX_HOLD if it stays idle: one wake instead of many.
 
 Safety: questions and URGENT/! notes always go now, `--now` forces it, and when no assieme loop is running
-(no heartbeat for ALIVE_FOR seconds) the shim passes everything straight through. Nothing is dropped: a failed
-delivery stays queued.
+(no heartbeat for ALIVE_FOR seconds) the shim passes everything straight through. A failed delivery stays queued;
+notes for an agent that has gone are given up after GIVE_UP_AFTER, with a row in Activity.
 """
 import contextlib
 import fcntl
@@ -22,6 +22,7 @@ import sys
 import time
 
 MAX_HOLD = 20 * 60        # deliver anyway after this, even if the receiver stays idle
+GIVE_UP_AFTER = 24 * 3600  # notes for an agent that has gone wait this long, in case it comes back
 ALIVE_FOR = 60            # a loop that touched the heartbeat this recently is running
 
 
@@ -191,7 +192,16 @@ def _env(note):
     return os.environ | {'HC_SESSION': note['session'], 'HC_SOCKET': note['socket']} if note.get('session') else None
 
 
-def deliver(agents, now=None, run=subprocess.run, on_batch=None):
+def _still_there(hc, note, run):
+    """Terminal addresses get reused: the note goes only if this address is still the agent it was held for."""
+    try:
+        r = run([hc, 'get', note['to'], '--json'], capture_output=True, text=True, timeout=10, env=_env(note))
+        return r.returncode == 0 and _real(json.loads(r.stdout or '{}').get('cwd')) == note['to_cwd']
+    except (ValueError, OSError, subprocess.SubprocessError):
+        return False
+
+
+def deliver(agents, now=None, run=subprocess.run, on_batch=None, on_give_up=None):
     """Send held notes: into a busy receiver's current turn, or after MAX_HOLD anyway. Returns what was sent."""
     now = now or time.time()
     heartbeat()
@@ -207,7 +217,13 @@ def deliver(agents, now=None, run=subprocess.run, on_batch=None):
             batches.setdefault(n.get('session'), []).append(n)
         for notes in batches.values():
             overdue = now - min(n['at'] for n in notes) >= MAX_HOLD
-            if not hc or not (busy or overdue) or gone:
+            if not hc or not (busy or overdue):
+                continue
+            if gone or not _still_there(hc, notes[-1], run):
+                if now - min(n['at'] for n in notes) >= GIVE_UP_AFTER:
+                    _drop(notes)
+                    if on_give_up:
+                        on_give_up(notes)
                 continue
             res = run([hc, 'send', notes[-1]['to'], batch_text(notes)], capture_output=True, text=True, timeout=60,
                       env=_env(notes[-1]))

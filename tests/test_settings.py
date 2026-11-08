@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import os
 import tempfile
+import threading
 import unittest
 
 from assieme import adapters, live, panes, settings, team
@@ -19,6 +20,15 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(s['fixes'], {'nudge': 'ask', 'compact': 'ask', 'tell': 'ask'})
         self.assertEqual(s['notify'], {'needs_you': True, 'stalls': True, 'finished': True})
         self.assertIs(s['show_commands'], False)
+
+    def test_quick_changes_all_stay(self):
+        names = [f'p{i}' for i in range(25)]
+        ts = [threading.Thread(target=settings.set_value, args=(f'practices.{n}', False, self.path)) for n in names]
+        for t in ts:
+            t.start()
+        for t in ts:
+            t.join()
+        self.assertEqual(set(settings.load(self.path)['practices']), set(names))
 
     def test_corrupt_file_gives_defaults(self):
         with open(self.path, 'w') as f:

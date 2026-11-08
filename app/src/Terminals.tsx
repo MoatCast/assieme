@@ -89,26 +89,34 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const waitingList = waiting.length > 0 && (
+    <div className="waiting">
+      <h2>Waiting for review</h2>
+      {waiting.map((w) => (
+        <div key={`${w.team}/${w.role}`} className="waiting-row">
+          <span className="waiting-role">{w.role}</span>
+          <span className="waiting-where">{w.project} · {commits(w.ahead)}</span>
+          <button type="button" className="secondary" onClick={() => onReview(w.team, w.role)}>Review changes</button>
+        </div>
+      ))}
+    </div>
+  );
   if (!team)
     return (
       <div className="terminals empty">
         <p>No team is running. Start one from New team.</p>
         <button type="button" className="primary" onClick={onNewTeam}>New team</button>
-        {waiting.length > 0 && (
-          <div className="waiting">
-            <h2>Waiting for review</h2>
-            {waiting.map((w) => (
-              <div key={`${w.team}/${w.role}`} className="waiting-row">
-                <span className="waiting-role">{w.role}</span>
-                <span className="waiting-where">{w.project} · {commits(w.ahead)}</span>
-                <button type="button" className="secondary" onClick={() => onReview(w.team, w.role)}>Review changes</button>
-              </div>
-            ))}
-          </div>
-        )}
+        {waitingList}
       </div>
     );
   if (!view) return <div className="terminals">{offline && <div className="offline">Reconnecting…</div>}</div>;
+  if (!view.panes.length)
+    return (
+      <div className="terminals empty">
+        <p>These agents aren’t in terminals Assieme can reach.</p>
+        {waitingList}
+      </div>
+    );
 
   const press = async (p: Pane, b: PaneButton) => {
     if (b.kind === "reply") return setFocus(p.role);

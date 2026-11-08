@@ -3,8 +3,11 @@ fix to automatic: only the exact word 'auto' does."""
 import copy
 import json
 import os
+import threading
 
 from . import quiet
+
+_write = threading.Lock()  # the brain serves each call on its own thread
 
 _DEFAULTS = {'fixes': {'nudge': 'ask', 'compact': 'ask', 'tell': 'ask'},
              'practices': {},
@@ -63,10 +66,11 @@ def _check(key, value):
 
 def set_value(key, value, file=None):
     top, sub = _check(key, value)
-    s = load(file)
-    if sub:
-        s[top][sub] = value
-    else:
-        s[top] = value
-    quiet._write_json(file or path(), s)
+    with _write:
+        s = load(file)
+        if sub:
+            s[top][sub] = value
+        else:
+            s[top] = value
+        quiet._write_json(file or path(), s)
     return load(file)

@@ -195,6 +195,13 @@ class SpendTipTest(MapCase):
         live.record('compact', 'b', 'big', team='shop', now=NOW)
         self.assertEqual([r['title'] for r in self.build([row('a')])['done']], ['Freed up memory for b'])
 
+    def test_done_rows_leave_out_what_the_person_did(self):
+        live.record('merge', 'a', 'x', team='shop', now=NOW, title='Merged a into main')
+        live.record('stop_team', 'shop', 'x', team='shop', now=NOW, title='Stopped shop')
+        live.record('fix_mode', 'nudge', 'x', now=NOW, fix='nudge', old='ask', new='auto')
+        live.record('tell', 'b', 'blocked', team='shop', now=NOW)
+        self.assertEqual([r['title'] for r in self.build([row('a')])['done']], ['Told b why a command is blocked'])
+
     def test_build_does_not_read_logs(self):
         class Boom:
             def sessions(self):
@@ -574,3 +581,36 @@ class RealCheckFindingsTest(MapCase):
         a = Agent('assieme-answers', 'claude-code', '/l.jsonl')
         a.cwd, a.state, a.last = answers.default_workdir(), 'idle', NOW
         self.assertEqual(teammap.found_groups([a], {}, set()), {})
+
+
+class AutomaticMemory(unittest.TestCase):
+    """Settings promises automatic Free up memory only over 75% full. Asking first can come sooner."""
+
+    def pane(self, **agent):
+        a = log_agent('b', 'idle', **agent)
+        a.peers = {log_agent('c')}
+        rows = [{'address': 't1', 'state': 'live', 'cwd': a.cwd, 'created_ms': 1, 'labels': {team.TEAM: 'shop', team.ROLE: 'b'}}]
+        return panes.view('shop', rows, [a], NOW, lambda _: '', None)['panes'][0]
+
+    def run_it(self, p):
+        sent = []
+        rt = type('Rt', (), {'send': lambda self, address, text: sent.append(text)})()
+        with tempfile.TemporaryDirectory() as d:
+            teammap.run_automatic({'shop': {'panes': [p]}}, {'fixes': {'compact': 'auto'}}, rt, log=os.path.join(d, 'a.jsonl'), now=NOW)
+        return sent
+
+    def test_claude_code_over_three_quarters_runs(self):
+        self.assertEqual(self.run_it(self.pane(context=160_000)), ['/compact'])
+
+    def test_a_big_memory_well_under_three_quarters_only_asks(self):
+        p = self.pane(context=320_000)  # past 200K, so Claude Code's limit is 1M
+        self.assertEqual(p['fix']['buttons'][0]['action'], 'compact')
+        self.assertEqual(self.run_it(p), [])
+
+    def test_codex_uses_its_own_limit(self):
+        codex = lambda context: self.pane(source='codex', context=context, context_limit=272_000)
+        self.assertEqual(self.run_it(codex(160_000)), [])  # 59%
+        self.assertEqual(self.run_it(codex(210_000)), ['/compact'])  # 77%
+
+    def test_a_codex_log_with_no_limit_never_runs_alone(self):
+        self.assertEqual(self.run_it(self.pane(source='codex', context=400_000)), [])

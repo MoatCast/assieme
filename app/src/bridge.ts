@@ -184,6 +184,7 @@ export type TeamMap = {
   tips: Tip[];
   done: ActivityRow[];
   spend: { tokens: number; waste_share: number } | null;
+  spend_ready?: boolean;
 };
 export type AgentDetail = {
   role: string;

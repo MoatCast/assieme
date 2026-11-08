@@ -102,6 +102,33 @@ class ListTest(ActivityCase):
         self.assertIn('no terminal', r['reason'])
 
 
+class WordsTest(ActivityCase):
+    def test_a_fix_setting_reads_in_plain_words(self):
+        activity.change_fix('nudge', 'auto')
+        self.assertEqual(activity.list_rows()['rows'][0]['title'], 'Set "Ask stuck agents to try another way" to Automatic')
+
+    def test_a_given_up_delivery_has_a_title(self):
+        live.record('dropped', 'b', 'x', by='auto', team='t')
+        self.assertEqual(activity.list_rows()['rows'][0]['title'], "Couldn't deliver held notes to b")
+
+
+class WhichTeamTest(ActivityCase):
+    def test_a_fix_from_the_command_line_stays_out_of_each_teams_list(self):
+        live.record('nudge', 'someone', 'x')
+        live.record('nudge', 'mine', 'x', team='t')
+        self.assertEqual([r['agent'] for r in activity.list_rows(team='t')['rows']], ['mine'])
+
+    def test_settings_for_every_team_still_show(self):
+        activity.change_fix('nudge', 'auto')
+        self.assertEqual(len(activity.list_rows(team='t')['rows']), 1)
+
+
+class OldRowsTest(ActivityCase):
+    def test_an_old_request_row_shows_no_words(self):
+        live.record('ask-changes', 'b', 'reviewer on a.py line 2: cap it', team='t', title='Asked b for changes')
+        self.assertEqual(activity.list_rows()['rows'][0]['reason'], '')
+
+
 class UndoTest(ActivityCase):
     def quiet_row(self):
         quiet.set_pair('/w/a', '/w/b', 'a -> b')
@@ -182,7 +209,7 @@ class UndoTest(ActivityCase):
         e = self.rec('fix_mode', 'compact', fix='compact', old='ask', new='auto')
         self.undo(e)
         rows = self.rows()
-        self.assertEqual(rows[0]['title'], 'Undid: Set "compact" to Automatic')
+        self.assertEqual(rows[0]['title'], 'Undid: Set "Free up memory between tasks" to Automatic')
         self.assertIsNone(rows[0]['undo'])
         self.assertIsNone(rows[1]['undo'])
 

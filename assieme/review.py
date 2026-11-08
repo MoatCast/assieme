@@ -115,7 +115,7 @@ class Review:
         self.claude_dir = claude_dir or os.path.expanduser('~/.claude/projects')
         self.codex_dir = codex_dir or os.path.expanduser('~/.codex/sessions')
         self.lock = threading.RLock()  # one merge, undo or discard at a time
-        self.tests, self.test_locks, self.undos, self.transcripts = {}, {}, {}, {}
+        self.tests, self.test_locks, self.undos, self.transcripts, self.aheads = {}, {}, {}, {}, {}
 
     def _git(self, cwd, *args, **kw):
         return self.run(['git', '-C', cwd, *args], capture_output=True, encoding='utf-8', errors='replace', **kw)
@@ -177,18 +177,35 @@ class Review:
 
     def waiting(self):
         """Every agent's branch with commits main doesn't have, including those of stopped teams."""
-        out = []
-        for name, project in sorted(self._known_teams().items()):
+        projects, out = {}, []
+        for name, project in self._known_teams().items():
+            projects.setdefault(project, set()).add(name)
+        for project, names in projects.items():  # the app asks every few seconds: as few git calls as possible
+            prefix = 'refs/heads/assieme/'
+            refs = self._git(project, 'for-each-ref', '--format=%(objectname) %(refname)', prefix).stdout.splitlines()
+            if not refs:
+                continue
             try:
                 base = self._base(project)
             except ReviewError:
                 continue  # not a repository any more, or no commits yet
-            for role, branch in self._team_branches(project, name):
-                ahead = self._ahead(project, base, branch)
-                if ahead:
-                    out.append({'team': name, 'project': os.path.basename(project), 'role': role, 'branch': branch,
-                                'ahead': ahead})
-        return out
+            base_tip = self._tip(project, base)
+            for line in refs:
+                tip, ref = line.split(' ', 1)
+                name, _, role = ref.removeprefix(prefix).partition('/')
+                if name in names and role:
+                    branch = ref.removeprefix('refs/heads/')
+                    ahead = self._ahead_of(project, base, base_tip, branch, tip)
+                    if ahead:
+                        out.append({'team': name, 'project': os.path.basename(project), 'role': role, 'branch': branch,
+                                    'ahead': ahead})
+        return sorted(out, key=lambda w: (w['team'], w['role']))
+
+    def _ahead_of(self, project, base, base_tip, branch, tip):
+        key, tips = (project, branch), (base_tip, tip)
+        if self.aheads.get(key, (None,))[0] != tips:
+            self.aheads[key] = (tips, self._ahead(project, base, branch))
+        return self.aheads[key][1]
 
     def _ctx(self, name, role):
         if not NAME.match(role or ''):
@@ -409,11 +426,12 @@ class Review:
                 raise ReviewError(f"Couldn't merge: {said.strip()}")
         else:  # main isn't checked out anywhere, so no files to update
             tree = self._git(project, 'merge-tree', '--write-tree', base, branch)
-            commit = self._git(project, 'commit-tree', tree.stdout.split()[0] if tree.stdout else '', '-p', base,
-                               '-p', branch, '-m', message)
+            if tree.returncode != 0:  # exit 1 still prints a tree, with conflict markers in its files
+                raise ReviewError(f"Couldn't merge: {(tree.stderr or tree.stdout).strip()}")
+            commit = self._git(project, 'commit-tree', tree.stdout.split()[0], '-p', base, '-p', branch, '-m', message)
             done = self._git(project, 'update-ref', f'refs/heads/{base}', commit.stdout.strip(), old)
-            if tree.returncode != 0 or commit.returncode != 0 or done.returncode != 0:
-                raise ReviewError(f"Couldn't merge: {(commit.stderr or done.stderr or tree.stderr).strip()}")
+            if commit.returncode != 0 or done.returncode != 0:
+                raise ReviewError(f"Couldn't merge: {(commit.stderr or done.stderr).strip()}")
         return old, self._tip(project, base)
 
     def merge(self, team, role, tip, force=False):
@@ -543,7 +561,7 @@ class Review:
                 raise ReviewError(f"{role} has stopped and couldn't start again: {started[0].note or started[0].state}")
             restarted = True
         self._write_log({'id': uuid.uuid4().hex, 'team': team, 'agent': role, 'action': 'ask-changes', 'undo': False,
-                         'title': f'Asked {role} for changes', 'reason': text})
+                         'title': f'Asked {role} for changes', 'reason': ''})  # never the words: they can be an agent's
         return {'restarted': restarted}
 
     def note(self, team, role, note, action):

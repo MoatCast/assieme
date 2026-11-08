@@ -22,7 +22,7 @@ vi.mock("./Terminal", () => ({
 
 import FirstRun from "./FirstRun";
 
-const agent = (name: string, cwd: string, source = "claude", herdr_address: string | null = null) => ({
+const agent = (name: string, cwd: string, source = "claude-code", herdr_address: string | null = null) => ({
   agent: name, source, state: "idle", detail: "", seconds: 5, herdr: null, cwd, herdr_address,
 });
 
@@ -30,7 +30,7 @@ const SNAP: Snapshot = {
   at: "2026-11-07T12:00:00Z",
   clis: { claude: true, codex: false, hc: true, herdr: true },
   agents: [
-    agent("planner", "/Users/me/code/checkout-service", "claude", "t4"),
+    agent("planner", "/Users/me/code/checkout-service", "claude-code", "t4"),
     agent("builder", "/Users/me/code/checkout-service", "codex"),
     agent("writer", "/Users/me/code/docs-site"),
   ],

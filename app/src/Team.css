@@ -89,6 +89,13 @@
 .tip b { font-weight: 600; }
 .tip code { font-family: var(--quiet-font-mono); font-size: 13px; }
 .tip button { align-self: center; padding: 6px 12px; background: var(--quiet-surface); border: 1px solid var(--quiet-tip-line); border-radius: var(--quiet-radius-control); color: var(--quiet-tip-text); font-size: 13px; font-weight: 500; line-height: 16px; white-space: nowrap; }
+.ready { display: flex; flex-direction: column; gap: 10px; padding: 14px 18px; flex-shrink: 0; background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); box-shadow: 0 1px 3px #1b24330d; font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
+.ready b { font-weight: 600; }
+.ready-row { display: flex; align-items: center; gap: 10px; }
+.ready-row .grow { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ready-row code { font-family: var(--quiet-font-mono); font-size: 13px; }
+.ready-row small { font-size: 12px; color: var(--quiet-mute); }
+.ready-row button { flex-shrink: 0; height: 30px; padding: 0 12px; background: var(--quiet-surface); border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control); color: var(--quiet-ink); font-size: 13px; line-height: 16px; white-space: nowrap; }
 .done { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px; flex-shrink: 0; background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); box-shadow: 0 1px 3px #1b24330d; font-size: 13px; line-height: 16px; }
 .done-head { display: flex; justify-content: space-between; }
 .done-head b { font-weight: 600; color: var(--quiet-ink); }

@@ -77,7 +77,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
     teams.set(t.team, [...(teams.get(t.team) ?? []), t]);
 
   const clis = [
-    { key: "claude", name: "Claude Code", found: !!snap?.clis.claude, note: plural(count("claude")) },
+    { key: "claude", name: "Claude Code", found: !!snap?.clis.claude, note: plural(count("claude-code")) },
     { key: "codex", name: "Codex", found: !!snap?.clis.codex, note: plural(count("codex")) },
     { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected, so fixes can be sent" },
   ];

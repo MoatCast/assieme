@@ -15,7 +15,7 @@ from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
 REFRESH_S = 120
-NOT_DONE_FOR_YOU = ('menu', 'answer', 'deliver', 'undo')
+DONE_FOR_YOU = ('nudge', 'compact', 'tell', 'quiet')  # fixes; what the person did is in Activity
 WORDS = ('No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten')
 NEEDS_YOU = ('asking', 'stuck', 'waiting')
 
@@ -42,7 +42,7 @@ class Today:
 
     def __init__(self, claude_dir, codex_dir, every_s=REFRESH_S):
         self.claude_dir, self.codex_dir, self.every_s = claude_dir, codex_dir, every_s
-        self.lock, self.got, self.at = threading.Lock(), [], None
+        self.lock, self.got, self.at, self.ready = threading.Lock(), [], None, False
 
     def refresh(self, now):
         if self.at is not None and (now - self.at).total_seconds() < self.every_s:
@@ -54,7 +54,7 @@ class Today:
         except Exception:
             return
         with self.lock:
-            self.got = got
+            self.got, self.ready = got, True
 
     def sessions(self):
         with self.lock:
@@ -196,14 +196,15 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
                 tips.append({'id': f'{a}>{b}', 'from': a, 'to': b, 'share': x['share'],
                              'from_cwd': cwd[a], 'to_cwd': cwd[b]})
     need = sum(p['state'] in NEEDS_YOU for p in v['panes'])
-    done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] not in NOT_DONE_FOR_YOU][:2]
+    done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
     return {'team': team_name, 'found': found,
             'stopped': not any(r.get('state') == 'live' for r in rows),
             'title': 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you",
             'subtitle': _subtitle(v['panes'], gs, need),
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
             'tips': tips, 'done': done,
-            'spend': {'tokens': total, 'waste_share': round(rep['empty_tokens'] / total, 4)} if total else None}
+            'spend': {'tokens': total, 'waste_share': round(rep['empty_tokens'] / total, 4)} if total else None,
+            'spend_ready': getattr(today, 'ready', True)}
 
 
 def apply_tip(team_name, tip_id, built, now=None):
@@ -273,6 +274,8 @@ def run_automatic(views, st, rt, log=None, now=None):
                 action = b.get('action')
                 if b['kind'] != 'action' or st['fixes'].get(action) != 'auto' or (name, p['role'], action) in done:
                     continue
+                if action == 'compact' and not p.get('memory_full'):
+                    continue  # asking can come sooner; doing it without asking waits until memory really is full
                 try:
                     rt.send(p['address'], b['send'])
                     ok, detail_ = True, 'sent'
@@ -427,7 +430,8 @@ class Brain:
     def set_pair(self, from_cwd, to_cwd, label, on):
         quiet.set_pair(from_cwd, to_cwd, label, on)
         if on:
-            live.record('quiet', label, 'You added this in Settings.', pair=[_real(from_cwd), _real(to_cwd), label])
+            owner = next((r['labels'][team.TEAM] for r in self._assieme_rows() if _real(r.get('cwd')) == _real(to_cwd)), None)
+            live.record('quiet', label, 'You added this in Settings.', team=owner, pair=[_real(from_cwd), _real(to_cwd), label])
         return {'ok': True}
 
     def tick(self, now=None):

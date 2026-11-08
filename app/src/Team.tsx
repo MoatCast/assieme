@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { paneAct, teamMap, tipApply, type ActivityRow, type Pane, type PaneButton, type Starting, type TeamMap } from "./bridge";
+import { paneAct, reviewWaiting, teamMap, tipApply, type ActivityRow, type Pane, type PaneButton, type ReviewWaiting, type Starting, type TeamMap } from "./bridge";
 import { UndoButton } from "./Activity";
 import AgentDetail from "./AgentDetail";
 import { AgentsMap, GroupsMap } from "./TeamMap";
@@ -101,15 +101,17 @@ function DoneRow({ row, onChanged }: { row: ActivityRow; onChanged: () => void }
 }
 
 /** The Team tab: the map of who wakes whom, and what needs you. */
-export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, onOpenTerminal, onSeeAll }: {
+export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, onOpenTerminal, onSeeAll, onReview }: {
   team: string | null;
   pollMs?: number;
   starting?: Starting[];
   onNewTeam: () => void;
   onOpenTerminal: (role: string) => void;
+  onReview: (team: string, role: string) => void;
   onSeeAll: () => void;
 }) {
   const [map, setMap] = useState<TeamMap | null>(null);
+  const [waiting, setWaiting] = useState<ReviewWaiting[]>([]);
   const [offline, setOffline] = useState(false);
   const [agent, setAgent] = useState<string | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
@@ -126,9 +128,10 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
       busy = true;
       clearTimeout(timer);
       try {
-        const m = await teamMap(team);
+        const [m, w] = await Promise.all([teamMap(team), reviewWaiting().catch(() => [] as ReviewWaiting[])]);
         if (!stopped) {
           setMap(m);
+          setWaiting([...w.filter((x) => x.team === team), ...w.filter((x) => x.team !== team)]);
           setOffline(false);
         }
       } catch {
@@ -192,7 +195,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
             <span className="grow">
               {map.spend ? (
                 <>Today: <b>{tokens(map.spend.tokens)} tokens</b>. <b>{Math.round(map.spend.waste_share * 100)}%</b> went on wake-ups that did nothing.</>
-              ) : "No tokens used yet today."}
+              ) : map.spend_ready === false ? "" : "No tokens used yet today."}
             </span>
             <span className="legend"><i className="solid" />woke</span>
             {map.waits.length > 0 && <span className="legend"><i className="dashed" />waiting on</span>}
@@ -221,6 +224,17 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
             <button type="button" onClick={() => turnOn(t.id)}>Turn on</button>
           </div>
         ))}
+        {waiting.length > 0 && (
+          <div className="ready">
+            <b>Ready to review</b>
+            {waiting.map((w) => (
+              <div className="ready-row" key={`${w.team}/${w.role}`}>
+                <span className="grow"><code>{w.role}</code><small>{w.team === team ? "" : `${w.team} · `}{w.ahead === 1 ? "1 commit" : `${w.ahead} commits`}</small></span>
+                <button type="button" onClick={() => onReview(w.team, w.role)}>Review changes</button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="grow" />
         {map.done.length > 0 && (
           <div className="done">

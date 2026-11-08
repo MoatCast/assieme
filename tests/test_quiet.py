@@ -15,13 +15,13 @@ SENDER, RECEIVER = '/w/builder', '/w/coord'
 class FakeHC:
     """Records calls. `hc get <t> --json` answers with the receiver's folder."""
 
-    def __init__(self, code=0):
-        self.calls, self.code = [], code
+    def __init__(self, code=0, cwd=None):
+        self.calls, self.code, self.cwd = [], code, cwd
 
     def __call__(self, cmd, **kw):
         self.calls.append(cmd[1:])
         if cmd[1] == 'get':
-            return subprocess.CompletedProcess(cmd, 0, json.dumps({'cwd': {'coord': RECEIVER}.get(cmd[2], '/w/other')}), '')
+            return subprocess.CompletedProcess(cmd, 0, json.dumps({'cwd': self.cwd or {'coord': RECEIVER}.get(cmd[2], '/w/other')}), '')
         return subprocess.CompletedProcess(cmd, self.code, '{"started":true}', '')
 
     @property
@@ -119,6 +119,23 @@ class DeliverTest(QuietTestCase):
         self.assertEqual(quiet.deliver([Receiver('exited')], run=FakeHC()), [])
         self.assertEqual(len(quiet.held()[RECEIVER]), 1)
 
+    def test_a_reused_address_gets_nothing(self):
+        self.hold(30)
+        hc = FakeHC(cwd='/some/other/agent')
+        self.assertEqual(quiet.deliver([Receiver('working')], run=hc), [])
+        self.assertEqual(hc.sends, [])
+        self.assertEqual(len(quiet.held()[RECEIVER]), 1)
+
+    def test_notes_for_a_gone_agent_are_given_up_after_a_day(self):
+        self.hold(60 * 23)
+        given_up = []
+        self.assertEqual(quiet.deliver([Receiver('exited')], run=FakeHC(), on_give_up=given_up.append), [])
+        self.assertEqual(given_up, [])
+        self.hold(60 * 25)
+        quiet.deliver([Receiver('exited')], run=FakeHC(), on_give_up=given_up.append)
+        self.assertEqual(len(given_up[0]), 2)
+        self.assertEqual(quiet.held(), {})
+
     def test_note_arriving_during_delivery_is_kept(self):
         self.hold(3, 'first')
 
@@ -126,7 +143,7 @@ class DeliverTest(QuietTestCase):
             if cmd[1] == 'send':  # another agent sends while this delivery is under way
                 quiet._hold({'at': time.time(), 'from_cwd': SENDER, 'from': 'builder', 'to': 'coord',
                              'to_cwd': RECEIVER, 'text': 'second'})
-            return subprocess.CompletedProcess(cmd, 0, '', '')
+            return FakeHC()(cmd, **kw)
         quiet.deliver([Receiver('working')], run=hc)
         self.assertEqual([n['text'] for n in quiet.held()[RECEIVER]], ['second'])
 

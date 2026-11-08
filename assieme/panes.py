@@ -12,6 +12,7 @@ from . import adapters, live, prompts, status, team
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
 CHANGED = 'This question changed. Take a look.'
+MEMORY_FULL = 0.75  # Settings promises automatic Free up memory only past this
 ANSWERED = 'You answered its question.'  # never the question: the action log keeps no words of the agents'
 
 
@@ -89,6 +90,11 @@ def _latest(rows):
     return [r for _, r in best.values()]
 
 
+def _memory_full(a):
+    limit = status.memory_limit(a) if a else None
+    return bool(limit and a.context > limit * MEMORY_FULL)
+
+
 def _fix(role, buttons, text):
     return {'id': _id(role, text, tuple(b['id'] for b in buttons)), 'text': text, 'buttons': buttons}
 
@@ -110,7 +116,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         argv0 = os.path.basename((r.get('argv') or [''])[0])
         p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
-             'command': None}
+             'command': None, 'memory_full': _memory_full(a)}
         if state == 'exited':
             lines = [x.strip() for x in (read(r['address']) or '').splitlines() if x.strip()]
             p['detail'] = lines[-1] if lines else ''

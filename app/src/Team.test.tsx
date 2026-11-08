@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Pane, TeamMap } from "./bridge";
 
 const b = vi.hoisted(() => ({
-  teamMap: vi.fn(), paneAct: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn(), agentDetail: vi.fn(),
+  teamMap: vi.fn(), reviewWaiting: vi.fn(), paneAct: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn(), agentDetail: vi.fn(),
 }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
@@ -27,14 +27,15 @@ const FIX = { id: "f1", text: "Ship behind a flag?", buttons: [
 const flush = () => act(async () => {});
 const open = async (map: TeamMap, props: Partial<Parameters<typeof Team>[0]> = {}) => {
   b.teamMap.mockResolvedValue(map);
-  const calls = { term: vi.fn(), all: vi.fn(), neu: vi.fn() };
-  render(<Team team="shop" pollMs={100000} onNewTeam={calls.neu} onOpenTerminal={calls.term} onSeeAll={calls.all} {...props} />);
+  const calls = { term: vi.fn(), all: vi.fn(), neu: vi.fn(), review: vi.fn() };
+  render(<Team team="shop" pollMs={100000} onNewTeam={calls.neu} onOpenTerminal={calls.term} onSeeAll={calls.all} onReview={calls.review} {...props} />);
   await flush();
   return calls;
 };
 
 beforeEach(() => {
   vi.resetAllMocks();
+  b.reviewWaiting.mockResolvedValue([]);
   b.paneAct.mockResolvedValue({ ok: true, detail: "" });
   b.tipApply.mockResolvedValue({ ok: true, detail: "" });
   b.activityUndo.mockResolvedValue({ ok: true, detail: "" });
@@ -129,6 +130,31 @@ test("Turn on calls the brain", async () => {
   expect(b.tipApply).toHaveBeenCalledWith("shop", "a>b");
 });
 
+test("work ready to review shows, this team first, and opens Review", async () => {
+  b.reviewWaiting.mockResolvedValue([
+    { team: "other", project: "p", role: "elsewhere", branch: "y", ahead: 1 },
+    { team: "shop", project: "p", role: "tester", branch: "x", ahead: 3 },
+  ]);
+  const calls = await open(MAP());
+  expect(screen.getByText("Ready to review")).toBeTruthy();
+  expect(screen.getByText("3 commits")).toBeTruthy();
+  expect(screen.getByText("other · 1 commit")).toBeTruthy(); // another team's, or nothing would lead to a stopped team's work
+  fireEvent.click(screen.getAllByRole("button", { name: "Review changes" })[0]);
+  expect(calls.review).toHaveBeenCalledWith("shop", "tester");
+});
+
+test("nothing ready to review shows no card, and a failed check doesn't take the map down", async () => {
+  b.reviewWaiting.mockRejectedValue(new Error("no"));
+  await open(MAP());
+  expect(screen.queryByText("Ready to review")).toBeNull();
+  expect(screen.getByText("All quiet")).toBeTruthy();
+});
+
+test("no spend line claim before the first read of the logs", async () => {
+  await open(MAP({ spend_ready: false }));
+  expect(screen.queryByText("No tokens used yet today.")).toBeNull();
+});
+
 test("the spend line, with and without tokens", async () => {
   await open(MAP({ spend: { tokens: 4_200_000, waste_share: 0.3 } }));
   expect(screen.getByText("4.2M tokens")).toBeTruthy();
@@ -186,7 +212,7 @@ test("a stopped team offers New team, with no stale buttons", async () => {
 });
 
 test("no team at all offers New team", async () => {
-  render(<Team team={null} onNewTeam={vi.fn()} onOpenTerminal={vi.fn()} onSeeAll={vi.fn()} />);
+  render(<Team team={null} onNewTeam={vi.fn()} onOpenTerminal={vi.fn()} onSeeAll={vi.fn()} onReview={vi.fn()} />);
   await flush();
   expect(screen.getByText(/No team is running/)).toBeTruthy();
   expect(b.teamMap).not.toHaveBeenCalled();
@@ -196,7 +222,7 @@ test("offline keeps the last map", async () => {
   vi.useFakeTimers();
   try {
     b.teamMap.mockResolvedValueOnce(MAP()).mockRejectedValue(new Error("down"));
-    render(<Team team="shop" pollMs={1000} onNewTeam={vi.fn()} onOpenTerminal={vi.fn()} onSeeAll={vi.fn()} />);
+    render(<Team team="shop" pollMs={1000} onNewTeam={vi.fn()} onOpenTerminal={vi.fn()} onSeeAll={vi.fn()} onReview={vi.fn()} />);
     await act(async () => {});
     await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
     expect(screen.getByText("Reconnecting…")).toBeTruthy();
