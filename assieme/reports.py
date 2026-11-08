@@ -31,11 +31,16 @@ def save(team, role, state, note='', now=None, turn=None):
         raise ValueError('Say in one line what is wrong or what needs deciding.')
     with _write:
         all_ = _all()
-        all_.pop(f'{team}/{role}', None)
+        had = all_.pop(f'{team}/{role}', None)
         if state in SHOWN:
             all_[f'{team}/{role}'] = {'state': state, 'note': note.strip()[:300], 'ms': (now or time.time()) * 1000,
                                        'turn': turn, 'noted': 0}
-        quiet._write_json(_file(), all_)
+        if had or state in SHOWN:  # the panes clear on every poll: only write when something changed
+            quiet._write_json(_file(), all_)
+
+
+def clear(team, role):
+    save(team, role, 'done')
 
 
 def running_turn(row):
@@ -55,9 +60,14 @@ def noted(team, role):
 
 
 def current(team, role, row):
-    """The report that still holds for this terminal row, or None."""
+    """The report that still holds for this terminal row, or None. One that no longer holds is removed: Settings says
+    an agent's words are kept only until its next turn."""
     rep = _all().get(f'{team}/{role}')
-    if not isinstance(rep, dict) or (row.get('created_ms') or 0) > rep.get('ms', 0) or not rep.get('note'):
-        return None  # a damaged file must not break the panes
+    if rep is None:
+        return None
     turn = running_turn(row)
-    return None if turn is not None and rep.get('turn') is not None and turn > rep['turn'] + rep.get('noted', 0) else rep
+    if (not isinstance(rep, dict) or not rep.get('note') or (row.get('created_ms') or 0) > rep.get('ms', 0)
+            or (turn is not None and rep.get('turn') is not None and turn > rep['turn'] + rep.get('noted', 0))):
+        clear(team, role)
+        return None
+    return rep

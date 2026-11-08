@@ -114,7 +114,11 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         a = matched.get(r['address'])
         state = _state(r, a, roots)
         # The agent's own word beats guessing from logs; a real prompt on screen beats both.
-        report = reports.current(team_name, role, r) if state not in ('exited', 'asking') else None
+        report = None
+        if state == 'exited':
+            reports.clear(team_name, role)
+        elif state != 'asking':
+            report = reports.current(team_name, role, r)
         if report:
             state = 'asking' if report['state'] == 'need_decision' else 'stuck'
         argv0 = os.path.basename((r.get('argv') or [''])[0])

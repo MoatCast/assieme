@@ -92,6 +92,16 @@ class ReportsTest(State):
         self.assertTrue(reports.current('shop', 'b', row('b', 't1', turn=4)))
         self.assertIsNone(reports.current('shop', 'b', row('b', 't1', turn=5)), 'but the next turn does')
 
+    def test_a_report_that_ended_is_gone_from_the_file(self):
+        reports.save('shop', 'b', 'stuck', 'SECRET-NOTE', now=NOW_MS / 1000, turn=3)
+        reports.current('shop', 'b', row('b', 't1', turn=4))
+        with open(reports._file()) as f:
+            self.assertNotIn('SECRET-NOTE', f.read())
+        reports.save('shop', 'b', 'stuck', 'SECRET-NOTE', now=NOW_MS / 1000, turn=3)
+        self.view(state='finished')
+        with open(reports._file()) as f:
+            self.assertNotIn('SECRET-NOTE', f.read(), 'an agent that stopped')
+
     def test_a_damaged_file_means_no_report(self):
         reports.save('shop', 'b', 'stuck', 'x')
         with open(reports._file(), 'w') as f:
