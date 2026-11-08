@@ -36,7 +36,7 @@ class ReviewError(ValueError):
 
 def test_command(path):
     """The project's test command, read from what is in its folder; None when there isn't one we can run."""
-    has = lambda name: os.path.exists(os.path.join(path, name))
+    has = lambda name: os.path.isfile(os.path.join(path, name))
     if has('uv.lock'):
         return ['uv', 'run', 'pytest', '-q']
     if has('pytest.ini') or has('tox.ini') or has('pyproject.toml') or has('setup.py'):
@@ -47,7 +47,7 @@ def test_command(path):
                 script = (json.load(f).get('scripts') or {}).get('test', '')
         except (OSError, ValueError, AttributeError):
             script = ''
-        if script and 'no test specified' not in script and has('node_modules'):
+        if script and 'no test specified' not in script and os.path.isdir(os.path.join(path, 'node_modules')):
             return ['npm', 'test', '--silent']
         return None
     if has('Cargo.toml'):
@@ -279,6 +279,7 @@ class Review:
             return set()
 
     def _set_ignored(self, project, ids):
+        os.makedirs(os.path.dirname(self._ignored_path(project)), exist_ok=True)
         with open(self._ignored_path(project), 'w') as f:
             json.dump(sorted(ids), f)
 

@@ -229,7 +229,7 @@ test("Open in editor goes to the first changed line, and a deleted file can't op
   expect(screen.getByRole("button", { name: "Open in editor" })).toBeDisabled();
 });
 
-test("a binary file, a diff too big and an unreadable one say so", async () => {
+test("a binary file and a diff too big say so", async () => {
   b.reviewGet.mockResolvedValue(withChecks({ files: [{ path: "x.bin", add: 0, del: 0, binary: true, missing: false }], diff: "", notes: [] }));
   await open();
   expect(screen.getByText(/binary file/)).toBeInTheDocument();
@@ -245,6 +245,18 @@ test("a branch that has gone says so, with the way back", async () => {
   expect(screen.getByText("builder-1 has no branch to review.")).toBeInTheDocument();
   await click("Terminals");
   expect(onBack).toHaveBeenCalled();
+});
+
+test("a failed first load clears when the brain answers; a later blip keeps the view", async () => {
+  b.reviewGet.mockRejectedValueOnce("offline");
+  await open();
+  expect(screen.getByText("offline")).toBeInTheDocument();
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(screen.queryByText("offline")).toBeNull();
+  b.reviewGet.mockRejectedValueOnce("blip");
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(screen.queryByText("blip")).toBeNull();
+  expect(screen.getByRole("heading", { name: "builder-1" })).toBeInTheDocument();
 });
 
 test("keeps polling for test results while open", async () => {

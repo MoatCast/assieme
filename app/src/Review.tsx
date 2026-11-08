@@ -154,6 +154,7 @@ export default function Review({ team, role, pollMs = 5000, onBack, onMerged, on
   const [request, setRequest] = useState("");
   const [busy, setBusy] = useState(false);
   const refresh = useRef<() => void>(() => {});
+  const loaded = useRef(false);
 
   useEffect(() => {
     let stopped = false;
@@ -162,9 +163,13 @@ export default function Review({ team, role, pollMs = 5000, onBack, onMerged, on
       clearTimeout(timer);
       try {
         const d = await reviewGet(team, role);
-        if (!stopped) setData(d);
+        if (!stopped) {
+          if (!loaded.current) setProblem(""); // an action's refusal stays; only a failed first load clears here
+          loaded.current = true;
+          setData(d);
+        }
       } catch (e) {
-        if (!stopped) setProblem(words(e));
+        if (!stopped && !loaded.current) setProblem(words(e)); // later blips: the last good view stays
       }
       if (!stopped) timer = setTimeout(poll, pollMs);
     };
