@@ -101,7 +101,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot }: { pollMs?: numbe
           ))}
         </div>
         {offline && <div className="offline">Reconnecting…</div>}
-        <p className="footnote">Everything stays on this Mac. Agents’ messages stay hidden unless you choose to show them.</p>
+        <p className="footnote">Assieme runs on this Mac and has no server of its own. Settings, Privacy shows what it keeps.</p>
       </section>
 
       <section className="panel">
