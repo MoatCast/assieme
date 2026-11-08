@@ -31,7 +31,14 @@ fn main() {
     let mut build = Command::new(&zig);
     // Baseline CPU, never this machine's: asm is copied to other machines
     // (releases, `asm machine add`), whose CPUs may lack this one's features.
-    build.current_dir(&src).args(["build", "-Demit-lib-vt", "-Doptimize=ReleaseFast", "-Dcpu=baseline"]);
+    // The XCFramework needs full Xcode, and only the static library below is used.
+    build.current_dir(&src).args([
+        "build",
+        "-Demit-lib-vt",
+        "-Demit-xcframework=false",
+        "-Doptimize=ReleaseFast",
+        "-Dcpu=baseline",
+    ]);
     if let Some(path) = clean_path {
         build.env("PATH", path);
     }

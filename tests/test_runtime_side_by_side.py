@@ -30,6 +30,8 @@ pytestmark = pytest.mark.skipif(not HC or not (SELF or ASM.exists()), reason='ne
 VOLATILE = {'pid', 'created_ms', 'status_ms', 'uptime_ms', 'exited_ms', 'finished_ms', 'started_ms', 'seen_ms',
             'identity', 'version', 'seq', 'id', 'mtime_ms', 'hash', 'duration_ms', 'waited_ms', 'ms', 'last_output_ms',
             'output_ms', 'time_ms', 'elapsed_ms', 'scope', 'instance', 'program_started_ms', 'core'}
+# Everything the fork adds to the API; anything else in it fails the tests below.
+ADDED_METHODS = {'terminal.status.set'}
 AGENT = r'''
 printf '\033]7501;state=idle:app=fake\033\\'
 while IFS= read -r line; do
@@ -252,6 +254,7 @@ def framed_attach(s):
         f = conn.makefile('rb')
         conn.sendall(b'{"jsonrpc":"2.0","id":1,"method":"hello","params":{"framed":true}}\n')
         hello = json.loads(f.readline())
+        hello['result']['methods'] = [m for m in hello['result']['methods'] if m not in ADDED_METHODS]
         body = json.dumps({'jsonrpc': '2.0', 'id': 2, 'method': 'terminal.attach', 'params': {'terminal': t, 'cols': 80, 'rows': 24}}).encode()
         conn.sendall(struct.pack('<IBI', 0, 0, len(body)) + body)
         data, reply, marker_sent = b'', None, False
@@ -383,8 +386,6 @@ def _schema(side):
     return {m['name']: m for m in doc['methods']}
 
 
-# Everything the fork adds to the API; anything else in it fails here. (Empty on the self-check.)
-ADDED_METHODS = {'terminal.status.set'}
 
 
 def test_the_api_only_grows_by_what_we_added():
