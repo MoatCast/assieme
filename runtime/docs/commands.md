@@ -519,7 +519,7 @@ Options:
 ## asm send
 
 ```text
-Paste text into a terminal and press Enter (waits for a person to pause)
+Paste text into a terminal and press Enter (waits for a person's unfinished draft)
 
 Usage: asm send [OPTIONS] <TERMINAL> <TEXT>
 
