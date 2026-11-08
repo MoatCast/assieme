@@ -10,7 +10,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, live, newteam, panes, quiet, report, runtime, settings, status, team
+from . import activity, adapters, answers, live, newteam, panes, quiet, report, runtime, settings, status, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -465,12 +465,17 @@ def group_of(a, st_groups):
     return os.path.basename(cwd) or 'Other folders'
 
 
+def is_own_session(a):
+    """Suggested answers run the person's own agent in a folder of ours: that session isn't one of their agents."""
+    return _real(a.cwd) == _real(answers.default_workdir())
+
+
 def found_groups(agents, st_groups, taken_cwds):
     """Teams of agents started outside Assieme. Closed sessions don't make a team."""
     taken = {_real(c) for c in taken_cwds}
     out = {}
     for a in agents:
-        if a.state != 'exited' and _real(a.cwd) not in taken:
+        if a.state != 'exited' and _real(a.cwd) not in taken and not is_own_session(a):
             out.setdefault(group_of(a, st_groups), []).append(a)
     return out
 

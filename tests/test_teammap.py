@@ -568,3 +568,9 @@ class RealCheckFindingsTest(MapCase):
         rows = [row('a'), row('b')]
         got = teammap.detail('shop', 'a', self.build(rows, [a]), [a], {}, NOW, rows)
         self.assertEqual(got['recent'][0]['text'], 'Took a note from b')
+
+    def test_suggested_answers_session_is_not_a_found_team(self):
+        from assieme import answers
+        a = Agent('assieme-answers', 'claude-code', '/l.jsonl')
+        a.cwd, a.state, a.last = answers.default_workdir(), 'idle', NOW
+        self.assertEqual(teammap.found_groups([a], {}, set()), {})

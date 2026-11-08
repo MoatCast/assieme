@@ -21,9 +21,9 @@ export type Placed = {
 };
 
 /** Where everything goes, from dagre. `shape` links ("reports to") place agents before any wake-up and aren't drawn. */
-export function layout(boxes: Box[], links: Link[], shape: Link[] = [], rankdir: "TB" | "LR" = "TB"): Placed {
+export function layout(boxes: Box[], links: Link[], shape: Link[] = [], rankdir: "TB" | "LR" = "TB", ranksep = 90): Placed {
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir, nodesep: 70, ranksep: 90, marginx: 24, marginy: 24 });
+  g.setGraph({ rankdir, nodesep: 70, ranksep, marginx: 24, marginy: 24 });
   g.setDefaultEdgeLabel(() => ({}));
   for (const b of boxes) g.setNode(b.id, { width: b.width, height: b.height });
   for (const l of [...shape, ...links]) if (l.from !== l.to && g.hasNode(l.from) && g.hasNode(l.to)) g.setEdge(l.from, l.to);
@@ -162,7 +162,7 @@ export function GroupsMap({ groups, onOpen }: { groups: MapGroup[]; onOpen: (nam
   const [open, setOpen] = useState<Set<string>>(new Set());
   const size = (g: MapGroup) => (open.has(g.name) ? GROUP_OPEN : GROUP);
   const links = groups.flatMap((g) => g.edges.map((e) => ({ from: g.name, to: e.to })));
-  const placed = layout(groups.map((g) => ({ id: g.name, ...size(g) })), links, [], "LR"); // groups are wide: they read across
+  const placed = layout(groups.map((g) => ({ id: g.name, ...size(g) })), links, [], "TB", 56);
   const svg = groups.flatMap((g) => g.edges.map((e) => {
     const line = placed.lines[`${g.name}>${e.to}`];
     return line ? (

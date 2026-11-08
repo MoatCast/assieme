@@ -24,6 +24,7 @@ def brain_socket_path():
 def snapshot(claude_dir, codex_dir, now, rt, which=shutil.which, hours=12, starting=()):
     agents = status.collect(claude_dir, codex_dir, now, hours, herdr=status.herdr_terminals(),
                             running=status.running_cwds())
+    agents = [a for a in agents if not teammap.is_own_session(a)]
     head, alerts = status.summary(agents)
     try:
         teams = team.status(rt)
