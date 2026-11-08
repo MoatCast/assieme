@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { setSetting, type Snapshot } from "./bridge";
+import { reviewUndo, setSetting, type MergeResult, type Snapshot } from "./bridge";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
+import Review, { Notice } from "./Review";
 import Settings from "./Settings";
 import Team from "./Team";
 import Terminals from "./Terminals";
@@ -36,6 +37,9 @@ export default function Shell() {
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
+  const [review, setReview] = useState<{ team: string; role: string } | null>(null);
+  const [merged, setMerged] = useState<MergeResult | null>(null);
+  const [notice, setNotice] = useState("");
   const { names, neediest } = liveTeams(snap);
   const team = picked && names.includes(picked) ? picked : neediest; // a pick sticks until that team stops
   const started = (snap?.teams ?? []).some((t) => t.team === team && t.state === "live");
@@ -47,10 +51,20 @@ export default function Shell() {
     void setSetting("first_run_done", true).catch(() => {}); // only a convenience: it asks again next time
   };
 
+  const undo = async (m: MergeResult) => {
+    setMerged(null);
+    try {
+      await reviewUndo(m.undo);
+      setNotice(`Undone. ${m.role}'s work is back, ready to review.`);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   return (
     <div className="shell">
       {shown !== "first-run" && (
-        <div className="shell-bar">
+        <div className="shell-bar" hidden={!!review}>
           <div className="shell-left">
             <svg className="brand" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
               <path d="M9 5 4.5 13M9 5l4.5 8" fill="none" stroke="#2747d9" strokeWidth="1.6" strokeLinecap="round" />
@@ -95,10 +109,10 @@ export default function Shell() {
         </div>
       )}
       {/* First run stays mounted so its snapshot poll keeps the team list fresh. */}
-      <div className="shell-page" hidden={shown !== "first-run"}>
+      <div className="shell-page" hidden={!!review || shown !== "first-run"}>
         <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} />
       </div>
-      {shown === "team" && (
+      {shown === "team" && !review && (
         <div className="shell-page">
           <Team key={team ?? ""} team={team} pollMs={5000} starting={snap?.starting ?? []}
             onNewTeam={() => setCreating(true)}
@@ -106,16 +120,39 @@ export default function Shell() {
             onSeeAll={() => setTab("activity")} />
         </div>
       )}
-      {shown === "terminals" && (
+      {shown === "terminals" && !review && (
         <div className="shell-page">
-          <Terminals key={`${team ?? ""}:${focus ?? ""}`} team={team} pollMs={3000} initialFocus={focus} onNewTeam={() => setCreating(true)} />
+          <Terminals key={`${team ?? ""}:${focus ?? ""}`} team={team} pollMs={3000} initialFocus={focus} onNewTeam={() => setCreating(true)}
+            onReview={(t, role) => setReview({ team: t, role })} />
         </div>
       )}
-      {shown === "activity" && (
+      {shown === "activity" && !review && (
         <div className="shell-page">
           <Activity key={team ?? ""} team={team} />
         </div>
       )}
+      {review && (
+        <div className="shell-page">
+          <Review key={`${review.team}/${review.role}`} team={review.team} role={review.role} onBack={() => setReview(null)}
+            onMerged={(m) => {
+              setReview(null);
+              setTab("terminals");
+              setNotice("");
+              setMerged(m);
+            }}
+            onDiscarded={(text) => {
+              setReview(null);
+              setNotice(text);
+            }} />
+        </div>
+      )}
+      {merged && (
+        <Notice key={merged.undo} ms={120_000} onDone={() => setMerged(null)}
+          action={<button type="button" onClick={() => undo(merged)}>Undo</button>}>
+          Merged <strong>{merged.role}</strong> into {merged.base}. {merged.problem ?? "Its worktree is archived."}
+        </Notice>
+      )}
+      {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
       {creating && (
         <NewTeam clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setCreating(false)} />
       )}

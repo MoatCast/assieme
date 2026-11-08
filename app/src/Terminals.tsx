@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { paneAct, teamView, type Pane, type PaneButton, type TeamView } from "./bridge";
+import { paneAct, reviewWaiting, teamView, type Pane, type PaneButton, type ReviewWaiting, type TeamView } from "./bridge";
 import Terminal from "./Terminal";
 import "./Terminals.css";
 
@@ -15,15 +15,18 @@ export function ago(s: number | null): string {
   return `${Math.floor(s / 3600)}h`;
 }
 
+const commits = (n: number) => `${n} commit${n === 1 ? "" : "s"}`;
 const needsYou = (p: Pane) => p.state === "asking" || p.state === "stuck";
 
 /** Terminals: every agent of one Assieme team, live, with what needs you on its pane. */
-export default function Terminals({ team, pollMs = 3000, onNewTeam, initialFocus = null }: {
+export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, initialFocus = null }: {
   team: string | null;
   pollMs?: number;
   onNewTeam: () => void;
+  onReview: (team: string, role: string) => void;
   initialFocus?: string | null;
 }) {
+  const [waiting, setWaiting] = useState<ReviewWaiting[]>([]);
   const [view, setView] = useState<TeamView | null>(null);
   const [focus, setFocus] = useState<string | null>(initialFocus);
   const [pending, setPending] = useState<string | null>(null);
@@ -62,6 +65,25 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, initialFocus
   }, [team, pollMs]);
 
   useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const w = await reviewWaiting();
+        if (!stopped) setWaiting(w);
+      } catch {
+        // the view's own poll shows "Reconnecting…"
+      }
+      if (!stopped) timer = setTimeout(poll, pollMs);
+    };
+    void poll();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [pollMs]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFocus(null);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -72,6 +94,18 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, initialFocus
       <div className="terminals empty">
         <p>No team is running. Start one from New team.</p>
         <button type="button" className="primary" onClick={onNewTeam}>New team</button>
+        {waiting.length > 0 && (
+          <div className="waiting">
+            <h2>Waiting for review</h2>
+            {waiting.map((w) => (
+              <div key={`${w.team}/${w.role}`} className="waiting-row">
+                <span className="waiting-role">{w.role}</span>
+                <span className="waiting-where">{w.project} · {commits(w.ahead)}</span>
+                <button type="button" className="secondary" onClick={() => onReview(w.team, w.role)}>Review changes</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   if (!view) return <div className="terminals">{offline && <div className="offline">Reconnecting…</div>}</div>;
@@ -93,6 +127,11 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, initialFocus
     }
   };
 
+  /** Finished work: the agent isn't busy, and nothing more pressing is on its pane. */
+  const ready = (p: Pane) =>
+    !p.fix && !notes[p.role] && p.state !== "working" && !needsYou(p)
+      ? waiting.find((w) => w.team === team && w.role === p.role) : undefined;
+
   const card = (p: Pane, full: boolean) => (
     <div key={p.role} data-testid={`pane-${p.role}`}
       className={`pane state-${p.state}${needsYou(p) ? " needs" : ""}${full ? " full" : ""}`}>
@@ -113,6 +152,12 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, initialFocus
               className={b.kind === "reply" ? "quiet" : b === p.fix!.buttons[0] ? "primary" : "secondary"}
               onClick={() => press(p, b)}>{b.label}</button>
           ))}
+        </div>
+      )}
+      {ready(p) && (
+        <div className="fix">
+          <span className="fix-reason">{commits(ready(p)!.ahead)} ready to review</span>
+          <button type="button" className="primary" onClick={() => onReview(team, p.role)}>Review changes</button>
         </div>
       )}
     </div>

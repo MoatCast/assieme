@@ -186,6 +186,36 @@ class UndoTest(ActivityCase):
         self.assertIsNone(rows[0]['undo'])
         self.assertIsNone(rows[1]['undo'])
 
+    def test_merge_undoes_through_the_review_screen(self):
+        class Review:
+            undos = {'m1': {}}
+
+            def undo(self, id):
+                del self.undos[id]
+                live.record('undo-merge', 'b', 'back', title='Undid the merge of b')
+        self.addCleanup(lambda: (activity.UNDO.pop('merge', None), activity.APPLIES.pop('merge', None)))
+        activity.register_merge(Review())
+        live._log(self.log, {'id': 'm1', 'at': '2026-11-08T12:00:00Z', 'action': 'merge', 'agent': 'b', 'team': 'shop', 'by': 'you', 'ok': True,
+                             'undo': True, 'title': 'Merged b into main', 'reason': 'Its worktree is archived.'})
+        self.assertEqual(self.rows()[0]['undo'], {'label': 'Undo'})
+        self.assertTrue(activity.undo('m1', Rt(), now=NOW)['ok'])
+        rows = self.rows()
+        self.assertEqual([r['title'] for r in rows], ['Undid the merge of b', 'Merged b into main'])
+        self.assertIsNone(rows[1]['undo'])
+        self.assertFalse(activity.undo('m1', Rt(), now=NOW)['ok'])
+
+    def test_a_refused_merge_undo_shows_its_reason_and_stays(self):
+        class Review:
+            undos = {'m1': {}}
+
+            def undo(self, id):
+                raise ValueError('main has moved on')
+        self.addCleanup(lambda: (activity.UNDO.pop('merge', None), activity.APPLIES.pop('merge', None)))
+        activity.register_merge(Review())
+        live._log(self.log, {'id': 'm1', 'at': '2026-11-08T12:00:00Z', 'action': 'merge', 'agent': 'b', 'by': 'you', 'ok': True, 'title': 'Merged b'})
+        self.assertEqual(activity.undo('m1', Rt(), now=NOW), {'ok': False, 'detail': 'main has moved on'})
+        self.assertIsNotNone(self.rows()[0]['undo'])
+
     def test_practice_change_holds_one_note_per_running_agent(self):
         class Live(Rt):
             session, sock = 'assieme', '/s/hc.sock'

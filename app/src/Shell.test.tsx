@@ -15,11 +15,33 @@ vi.mock("./FirstRun", async () => {
     },
   };
 });
+const undo = vi.hoisted(() => vi.fn());
 vi.mock("./Terminals", () => ({
-  default: ({ team, onNewTeam }: { team: string | null; onNewTeam: () => void }) => (
+  default: ({ team, onNewTeam, onReview }: { team: string | null; onNewTeam: () => void; onReview: (t: string, r: string) => void }) => (
     <div>
       <span>terminals for {team ?? "none"}</span>
       <button type="button" onClick={onNewTeam}>empty new team</button>
+      <button type="button" onClick={() => onReview("shop", "builder-1")}>open review</button>
+    </div>
+  ),
+}));
+vi.mock("./Review", () => ({
+  default: ({ team, role, onBack, onMerged, onDiscarded }: {
+    team: string; role: string; onBack: () => void;
+    onMerged: (m: object) => void; onDiscarded: (t: string) => void;
+  }) => (
+    <div>
+      <span>review of {team}/{role}</span>
+      <button type="button" onClick={onBack}>back</button>
+      <button type="button" onClick={() => onMerged({ role, base: "main", problem: null, undo: "u1" })}>merge</button>
+      <button type="button" onClick={() => onMerged({ role, base: "main", problem: "Couldn't archive its worktree: locked", undo: "u2" })}>merge, archive fails</button>
+      <button type="button" onClick={() => onDiscarded("Discarded builder-1's work.")}>discard</button>
+    </div>
+  ),
+  Notice: ({ children, ms, onDone, action }: { children: React.ReactNode; ms: number; onDone: () => void; action?: React.ReactNode }) => (
+    <div>
+      <span data-testid="notice">{children}</span>{action}
+      <button type="button" onClick={onDone}>notice ends after {ms}</button>
     </div>
   ),
 }));
@@ -35,7 +57,7 @@ vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun }: { onClose:
 ) }));
 vi.mock("./AddAgent", () => ({ default: ({ team, roles }: { team: string; roles: string[] }) => <div>add agent to {team}: {roles.join(",")}</div> }));
 const setSetting = vi.hoisted(() => vi.fn());
-vi.mock("./bridge", () => ({ setSetting }));
+vi.mock("./bridge", () => ({ setSetting, reviewUndo: undo }));
 
 import Shell, { liveTeams } from "./Shell";
 
@@ -165,4 +187,50 @@ test("the team stays fixed while Terminals is open, however it was reached", asy
     expect(screen.getByText("terminals for beta")).toBeTruthy();
     cleanup();
   }
+});
+
+async function openReview() {
+  render(<Shell />);
+  await flush();
+  fireEvent.click(screen.getByRole("tab", { name: "Terminals" }));
+  fireEvent.click(screen.getByRole("button", { name: "open review" }));
+}
+
+test("Review replaces the frame and goes back to Terminals", async () => {
+  await openReview();
+  expect(screen.getByText("review of shop/builder-1")).toBeTruthy();
+  expect(screen.queryByRole("tablist")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "back" }));
+  expect(screen.getByRole("button", { name: "open review" })).toBeTruthy();
+});
+
+test("a merge returns to Terminals with the notice, and Undo reports back", async () => {
+  undo.mockResolvedValue({ role: "builder-1", base: "main" });
+  await openReview();
+  fireEvent.click(screen.getByRole("button", { name: "merge" }));
+  expect(screen.getByTestId("notice").textContent).toBe("Merged builder-1 into main. Its worktree is archived.");
+  expect(screen.getByRole("button", { name: "open review" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "notice ends after 120000" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await act(async () => {});
+  expect(undo).toHaveBeenCalledWith("u1");
+  expect(screen.getByTestId("notice").textContent).toBe("Undone. builder-1's work is back, ready to review.");
+});
+
+test("a refused Undo says why, and an archive problem is shown", async () => {
+  undo.mockRejectedValue("main has moved on since the merge, so it can't be undone here.");
+  await openReview();
+  fireEvent.click(screen.getByRole("button", { name: "merge, archive fails" }));
+  expect(screen.getByTestId("notice").textContent).toContain("Couldn't archive its worktree: locked");
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await act(async () => {});
+  expect(screen.getByTestId("notice").textContent).toContain("moved on");
+});
+
+test("a discard returns with its notice, which goes by itself", async () => {
+  await openReview();
+  fireEvent.click(screen.getByRole("button", { name: "discard" }));
+  expect(screen.getByTestId("notice").textContent).toBe("Discarded builder-1's work.");
+  fireEvent.click(screen.getByRole("button", { name: "notice ends after 8000" }));
+  expect(screen.queryByTestId("notice")).toBeNull();
 });

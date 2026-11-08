@@ -65,8 +65,20 @@ UNDO = {'quiet': (_undo_quiet, 'Stop', None),
         'add_agent': (_undo_add, 'Stop', UNDO_S)}
 
 
+def register_merge(review):
+    """Step 9's merges: the Review object holds what an Undo needs, and logs its own row."""
+    UNDO['merge'] = (lambda e, rt: review.undo(e['id']), 'Undo', UNDO_S)
+    APPLIES['merge'] = lambda e: e['id'] in review.undos
+
+
+# action -> whether it still applies right now: a pair removed in Settings has nothing left to stop.
+APPLIES = {'quiet': lambda e: quiet.is_quiet(e['pair'][0], e['pair'][1])}
+LOGS_ITS_OWN_UNDO = ('merge',)
+
+
 def _still_applies(e):
-    return e.get('action') != 'quiet' or quiet.is_quiet(e['pair'][0], e['pair'][1])
+    check = APPLIES.get(e.get('action'))
+    return not check or check(e)
 
 
 def _available(e, undone, now):
@@ -118,7 +130,8 @@ def undo(id, rt, path=None, now=None):
         UNDO[e['action']][0](e, rt)
     except Exception as err:  # a failed Undo is a message on the row, and stays available to try again
         return {'ok': False, 'detail': str(err)[:120]}
-    live.record('undo', e.get('agent'), 'You undid this.', team=e.get('team'), log=path, now=now, of=id, undid=_title(e))
+    if e['action'] not in LOGS_ITS_OWN_UNDO:
+        live.record('undo', e.get('agent'), 'You undid this.', team=e.get('team'), log=path, now=now, of=id, undid=_title(e))
     return {'ok': True, 'detail': ''}
 
 

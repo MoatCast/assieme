@@ -144,7 +144,7 @@ class CliServeTest(unittest.TestCase):
         sock, handlers = srv.call_args.args
         self.assertEqual(sock, '/s/b.sock')
         self.assertTrue({'brain.snapshot', 'pane.act', 'project.check', 'team.presets', 'team.start', 'team.suggest', 'team.view', 'team.map',
-                         'activity.undo', 'settings.set'} <= set(handlers))
+                         'activity.undo', 'settings.set', 'review.merge', 'review.undo'} <= set(handlers))
         self.assertTrue(callable(srv.call_args.kwargs['tick']))
 
 

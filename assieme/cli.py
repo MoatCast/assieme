@@ -12,7 +12,7 @@ import os
 import sys
 import time
 
-from . import adapters, answers, live, newteam, preset, quiet, report, rules, runtime, serve, service, status, team, teammap, worktree
+from . import activity, adapters, answers, live, newteam, preset, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
 
 
 def main(argv=None):
@@ -130,6 +130,8 @@ def _serve():
     suggested = answers.Answers()
 
     brain = teammap.Brain(claude, codex, rt, starter, suggested)
+    reviews = review.Review(rt, newteam.teams_dir())
+    activity.register_merge(reviews)
 
     def tick():
         live.watch_once(claude, codex)
@@ -141,7 +143,8 @@ def _serve():
                  'team.presets': lambda: newteam.presets(),
                  'team.start': starter.start,
                  'team.suggest': newteam.suggest,
-                 **brain.handlers()},
+                 **brain.handlers(),
+                 **reviews.handlers()},
                 tick=tick)
     return 0
 
