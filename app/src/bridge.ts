@@ -279,7 +279,7 @@ export const reviewEditor = (team: string, role: string, file: string, line?: nu
   brain<{ ok: boolean }>("review.open_editor", { team, role, file, line });
 export const openLink = (url: string) => openUrl(url);
 
-export type Assistants = { clients: { id: string; label: string; connected: boolean }[]; problems: string[] };
+export type Assistants = { clients: { id: string; label: string; connected: boolean; blocked?: boolean }[]; problems: string[] };
 /** These run each client's own command, which can take several seconds apiece. */
 export const assistantsStatus = () => invoke<Assistants>("brain_call", { method: "assistants.status", params: {}, timeoutS: 60 });
 export const assistantsConnect = () => invoke<Assistants>("brain_call", { method: "assistants.connect", params: {}, timeoutS: 120 });

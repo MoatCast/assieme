@@ -233,7 +233,7 @@ test("Connect connects every assistant, and Disconnect takes it back", async () 
   await flush();
   expect(b.assistantsConnect).toHaveBeenCalledOnce();
   screen.getByText("Connected");
-  screen.getByText("Claude Code, Codex and the Claude app can see your teams and help design new ones. Restart the Claude app to use it there.");
+  screen.getByText("Claude Code, Codex and the Claude app can see your teams and help design new ones.");
   fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
   await flush();
   expect(b.assistantsDisconnect).toHaveBeenCalledOnce();
@@ -256,5 +256,26 @@ test("With no assistant installed there's nothing to press", async () => {
   b.assistantsStatus.mockResolvedValue({ clients: [], problems: [] });
   await open();
   screen.getByText(/Install Claude Code or Codex/);
+  expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
+});
+
+test("While the Claude app is open the others still connect, and it says how to add it", async () => {
+  const clients = (connected: boolean) => ({ problems: [], clients: [
+    { id: "claude", label: "Claude Code", connected }, { id: "desktop", label: "the Claude app", connected: false, blocked: true },
+  ] });
+  b.assistantsStatus.mockResolvedValue(clients(false));
+  b.assistantsConnect.mockResolvedValue(clients(true));
+  await open();
+  screen.getByText("Let Claude Code see your teams and help design new ones. They ask you before changing anything. To add the Claude app, quit it, then come back here.");
+  fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+  await flush();
+  screen.getByText("Connected");
+  screen.getByText("Claude Code can see your teams and help design new ones. To add the Claude app, quit it, then come back here.");
+});
+
+test("With only the Claude app, and it open, there's nothing to press yet", async () => {
+  b.assistantsStatus.mockResolvedValue({ problems: [], clients: [{ id: "desktop", label: "the Claude app", connected: false, blocked: true }] });
+  await open();
+  screen.getByText(/quit it, then come back here/);
   expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
 });

@@ -1,5 +1,7 @@
 """The one Connect button: adds `assieme mcp` to every installed client, using each client's own command where it has
-one. The Claude app has only a config file: one that doesn't parse is left alone and reported."""
+one. The Claude app has only a config file: one that doesn't parse is left alone and reported. While the app is open it
+rewrites that file from memory within seconds, dropping anything added (seen on 8 November 2026), so it is only written
+with the app closed; until then the client is `blocked`."""
 import json
 import os
 import shutil
@@ -27,6 +29,13 @@ def _load(path):
     if not isinstance(data, dict):
         raise ValueError('not a settings object')
     return data
+
+
+def _desktop_open(run):
+    try:
+        return run(['pgrep', '-x', 'Claude'], capture_output=True, text=True, timeout=TIMEOUT_S).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def _desktop_add(path):
@@ -75,7 +84,11 @@ def _has(client, run, home):
 
 def status(run=subprocess.run, which=shutil.which, home=None):
     """Each installed client, and whether the server is in it."""
-    return [{'id': c, 'label': LABELS[c], 'connected': _has(c, run, home)} for c in installed(which, home)]
+    out = [{'id': c, 'label': LABELS[c], 'connected': _has(c, run, home)} for c in installed(which, home)]
+    for c in out:
+        if c['id'] == 'desktop' and not c['connected'] and _desktop_open(run):
+            c['blocked'] = True
+    return out
 
 
 def _each(action, run, which, home):
@@ -91,7 +104,7 @@ def _each(action, run, which, home):
 def connect(run=subprocess.run, which=shutil.which, home=None):
     def add(c):
         if c == 'desktop':
-            return _desktop_add(desktop_config(home))
+            return None if _desktop_open(run) else _desktop_add(desktop_config(home))
         if _has(c, run, home):  # an older copy of the app may have left another path behind
             _cli([c, 'mcp', 'remove', NAME], run)
         scope = ['--scope', 'user'] if c == 'claude' else []

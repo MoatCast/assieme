@@ -53,15 +53,17 @@ function YourAssistants() {
     setBusy(false);
   };
   useEffect(() => { void run(assistantsStatus); }, []);
-  const clients = got?.clients ?? [];
+  const clients = (got?.clients ?? []).filter((c) => !c.blocked); // the Claude app can't be connected while it's open
+  const blocked = got?.clients.some((c) => c.blocked) ?? false;
   const labels = clients.map((c) => c.label);
   const names = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}` : labels[0] ?? "";
   const connected = clients.length > 0 && clients.every((c) => c.connected);
-  const restart = clients.some((c) => c.id === "desktop") ? " Restart the Claude app to use it there." : "";
+  const quit = blocked ? " To add the Claude app, quit it, then come back here." : "";
   const sub = !got ? "Let your assistants see your teams and help design new ones."
-    : !clients.length ? "Install Claude Code or Codex, and they can see your teams and help design new ones."
-    : connected ? `${names} can see your teams and help design new ones.${restart}`
-    : `Let ${names} see your teams and help design new ones. They ask you before changing anything.`;
+    : !clients.length && !blocked ? "Install Claude Code or Codex, and they can see your teams and help design new ones."
+    : !clients.length ? "To let the Claude app see your teams and help design new ones, quit it, then come back here."
+    : connected ? `${names} can see your teams and help design new ones.${quit}`
+    : `Let ${names} see your teams and help design new ones. They ask you before changing anything.${quit}`;
   return (
     <>
       <Row title="Your assistants" sub={sub}>

@@ -30,11 +30,11 @@
   font-size: 13px; font-weight: 500; line-height: 16px; white-space: pre; }
 .btn-small.primary { background: var(--quiet-ink); border-color: var(--quiet-ink); color: var(--quiet-on-ink); }
 .btn-small:disabled { opacity: 0.5; cursor: default; }
-.switch { appearance: none; flex-shrink: 0; width: 34px; height: 20px; margin: 0; position: relative; border-radius: var(--quiet-radius-control); background: var(--quiet-control); cursor: pointer; }
-.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 8px; background: #fff; box-shadow: 0 1px 2px #00000026; }
-.switch:checked { background: var(--quiet-ink); }
-.switch:checked::after { transform: translateX(14px); box-shadow: none; }
-.switch:disabled { opacity: 0.45; cursor: default; }
+.settings .switch { appearance: none; flex-shrink: 0; width: 34px; height: 20px; margin: 0; position: relative; border-radius: var(--quiet-radius-control); background: var(--quiet-control); cursor: pointer; }
+.settings .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 8px; background: #fff; box-shadow: 0 1px 2px #00000026; }
+.settings .switch:checked { background: var(--quiet-ink); }
+.settings .switch:checked::after { transform: translateX(14px); box-shadow: none; }
+.settings .switch:disabled { opacity: 0.45; cursor: default; }
 .set-block { display: flex; flex-direction: column; gap: 12px; }
 .set-sub { display: flex; flex-direction: column; gap: 4px; }
 .set-sub h2 { margin: 0; font-size: 17px; font-weight: 600; line-height: 22px; color: var(--quiet-ink); }

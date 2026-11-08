@@ -434,11 +434,13 @@ class ConnectTest(unittest.TestCase):
         self.addCleanup(d.cleanup)
         self.home = d.name
         self.cfg = connect.desktop_config(self.home)
-        self.have, self.ran = set(), []
+        self.have, self.ran, self.app_open = set(), [], False
         self.which = lambda c: c if c in ('claude', 'codex') else None
 
     def run_(self, args, **kw):
         self.ran.append(args)
+        if args[0] == 'pgrep':
+            return Done(0 if self.app_open else 1)
         client, verb = args[0], args[2]
         if verb == 'get':
             return Done(0 if client in self.have else 1)
@@ -479,6 +481,20 @@ class ConnectTest(unittest.TestCase):
         self.go(connect.disconnect)
         with open(self.cfg) as f:
             self.assertEqual(json.load(f), {'theme': 'dark', 'mcpServers': {'other': {'command': 'x'}}})
+
+    def test_the_claude_app_isnt_written_while_it_is_open(self):
+        os.makedirs(os.path.dirname(self.cfg))
+        with open(self.cfg, 'w') as f:
+            json.dump({'theme': 'dark'}, f)
+        self.app_open = True
+        got = self.go(connect.connect)
+        self.assertEqual(got['problems'], [])
+        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': False, 'blocked': True})
+        with open(self.cfg) as f:
+            self.assertEqual(json.load(f), {'theme': 'dark'})
+        self.app_open = False
+        got = self.go(connect.connect)
+        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': True})
 
     def test_a_damaged_config_is_left_alone_and_reported(self):
         os.makedirs(os.path.dirname(self.cfg))
