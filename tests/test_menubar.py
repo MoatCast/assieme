@@ -79,11 +79,10 @@ class NeedsYouTest(Case):
         self.assertEqual([b['label'] for b in got[0]['buttons']], ['Open', 'Behind a flag', 'To main'])
         self.assertEqual(self.events(t), [])
 
-    def test_labels_never_carry_a_comma_and_stay_short(self):
+    def test_labels_stay_short(self):
         long = {'id': 'f', 'text': 'q', 'buttons': [
             {'id': 'a', 'label': 'Yes, allow all edits during this session and everything else too (shift+tab)', 'kind': 'menu'}]}
         label = self.events(team(pane(state='asking', fix=long)))[0]['buttons'][1]['label']
-        self.assertNotIn(',', label)
         self.assertLessEqual(len(label), menubar.MAX_LABEL)
 
     def test_a_plain_question_waits_for_its_answers_then_goes_without(self):

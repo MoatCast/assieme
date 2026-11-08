@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Rect, RunEvent, Runtime, WebviewWindow, Window, WindowEvent};
-use tauri_plugin_notification::{Action, ActionPerformed, ActionType, NotificationExt};
+use mac_usernotifications::{Action, AuthorizationStatus, Notification, NotificationSettingStatus, get_notification_settings, request_auth};
 
 const POLL: Duration = Duration::from_secs(10);
 const CLICK_THAT_CLOSED: Duration = Duration::from_millis(300);
@@ -25,13 +25,13 @@ enum Press {
     Button(String),
 }
 
-/// What a press on a notification means. macOS reports a button by its title, and "tap" for the notification itself.
+/// What a press on a notification means: "tap" is the notification itself, anything else a button's id.
 fn press_for(action: &str, event: &Value) -> Option<Press> {
     if action == "tap" {
         return Some(Press::Open);
     }
     let buttons = event["buttons"].as_array()?;
-    let b = buttons.iter().find(|b| b["label"] == action || b["id"] == action)?;
+    let b = buttons.iter().find(|b| b["id"] == action)?;
     Some(match b["id"].as_str()? {
         "open" => Press::Open,
         id => Press::Button(id.to_string()),
@@ -54,44 +54,44 @@ pub fn open_window<R: Runtime>(app: &AppHandle<R>, team: Option<&str>, role: Opt
     }
 }
 
-fn on_press<R: Runtime>(app: AppHandle<R>, performed: &ActionPerformed) {
-    let Some(event) = performed.notification().and_then(|n| n.extra().get("event")).cloned() else {
-        return open_window(&app, None, None, None); // can't tell which: the app is the safe answer
-    };
+fn on_press<R: Runtime>(app: &AppHandle<R>, action: &str, event: &Value) {
     let (team, role, view) = (event["team"].as_str(), event["role"].as_str(), event["view"].as_str());
-    match press_for(performed.action_id(), &event) {
-        Some(Press::Open) => open_window(&app, team, role, view),
+    match press_for(action, event) {
+        Some(Press::Open) => open_window(app, team, role, view),
         Some(Press::Button(button)) => {
             let reply = bridge::call_at(&bridge::brain_socket(), "pane.act",
                 json!({"team": team, "role": role, "fix": event["fix"], "button": button}));
             // The question changed, or the press failed: show it rather than leave them believing it was answered.
             if !reply.is_ok_and(|r| r["ok"] == true) {
-                open_window(&app, team, role, view);
+                open_window(app, team, role, view);
             }
         }
         None => {}
     }
 }
 
+/// One thread per notification, waiting for what's done with it. It ends once it's pressed or dismissed.
 fn show<R: Runtime>(app: &AppHandle<R>, event: &Value) {
-    let n = app.notification();
-    let key = event["key"].as_str().unwrap_or_default();
-    let actions: Vec<Action> = event["buttons"].as_array().into_iter().flatten()
-        .filter_map(|b| Some(Action::builder(b["label"].as_str()?, b["label"].as_str()?).build()))
-        .collect();
-    let _ = n.register_action_types(vec![ActionType::builder(key).actions(actions).build()]);
-    let _ = n.builder()
-        .title(event["title"].as_str().unwrap_or("Assieme"))
-        .body(event["body"].as_str().unwrap_or_default())
-        .action_type_id(key)
-        .extra("event", event)
-        .show();
+    let (app, event) = (app.clone(), event.clone());
+    std::thread::spawn(move || {
+        let mut n = Notification::new()
+            .title(event["title"].as_str().unwrap_or("Assieme"))
+            .message(event["body"].as_str().unwrap_or_default());
+        for b in event["buttons"].as_array().into_iter().flatten() {
+            n = n.action(Action::button(b["id"].as_str().unwrap_or_default(), b["label"].as_str().unwrap_or_default()));
+        }
+        let response = tauri::async_runtime::block_on(async { n.send().await?.response().await });
+        match response {
+            Ok(r) if r.is_dismiss_action() || r.is_timed_out() => {}
+            Ok(r) => on_press(&app, if r.is_default_action() { "tap" } else { &r.action_identifier }, &event),
+            Err(e) => eprintln!("notification not shown: {e}"), // for example, notifications are off: the panel says so
+        }
+    });
 }
 
 fn poll_forever<R: Runtime>(app: AppHandle<R>) {
     // First, so nothing is sent before the person has answered macOS's question. Later runs return at once.
-    let asked = notify_rust::request_auth_blocking();
-    eprintln!("notifications: asked {asked:?}, now {:?}", notify_rust::get_notification_settings_blocking());
+    let _ = tauri::async_runtime::block_on(request_auth());
     let mut shown = None;
     loop {
         // A brain that isn't running shows no count; First run deals with that.
@@ -153,12 +153,6 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         })
         .build(app)?;
     let handle = app.clone();
-    // Registered before anything is shown: the plugin only reports presses on notifications shown after this.
-    let _ = app.notification().on_action(move |performed| {
-        let (app, performed) = (handle.clone(), performed.clone());
-        std::thread::spawn(move || on_press(app, &performed)); // a brain call: the plugin asks for a quick return
-    });
-    let handle = app.clone();
     std::thread::spawn(move || poll_forever(handle));
     Ok(())
 }
@@ -191,16 +185,14 @@ pub fn fit_panel<R: Runtime>(app: &AppHandle<R>, height: f64) -> Result<(), Stri
     w.set_size(tauri::LogicalSize::new(PANEL_WIDTH, height.clamp(60.0, PANEL_MAX_HEIGHT))).map_err(|e| e.to_string())
 }
 
-/// Whether banners can't reach the person. notify-rust doesn't re-export the status types, so they're told apart by
-/// name. A failed read counts as on: no false alarm.
-fn off_for(status: &str, alerts: &str) -> bool {
-    !matches!(status, "Authorized" | "Provisional" | "Ephemeral") || alerts == "Disabled"
+/// Whether banners can't reach the person. A failed read counts as on: no false alarm.
+pub async fn notifications_off() -> bool {
+    get_notification_settings().await.is_ok_and(|s| off_for(s.authorization_status, s.alert_enabled))
 }
 
-pub fn notifications_off() -> bool {
-    notify_rust::get_notification_settings_blocking().is_ok_and(|s| {
-        off_for(&format!("{:?}", s.authorization_status), &format!("{:?}", s.alert_enabled))
-    })
+fn off_for(status: AuthorizationStatus, alerts: NotificationSettingStatus) -> bool {
+    !matches!(status, AuthorizationStatus::Authorized | AuthorizationStatus::Provisional | AuthorizationStatus::Ephemeral)
+        || matches!(alerts, NotificationSettingStatus::Disabled)
 }
 
 pub fn hide_panel<R: Runtime>(app: &AppHandle<R>) {
@@ -223,15 +215,15 @@ mod tests {
     }
 
     #[test]
-    fn buttons_are_told_apart_by_title() {
-        assert_eq!(press_for("Open", &event()), Some(Press::Open));
-        assert_eq!(press_for("Behind a flag", &event()), Some(Press::Button("b1".into())));
+    fn buttons_are_told_apart_by_id() {
+        assert_eq!(press_for("open", &event()), Some(Press::Open));
+        assert_eq!(press_for("b1", &event()), Some(Press::Button("b1".into())));
     }
 
     #[test]
     fn an_unknown_press_does_nothing() {
-        assert_eq!(press_for("To main", &event()), None);
-        assert_eq!(press_for("To main", &json!({})), None);
+        assert_eq!(press_for("b2", &event()), None);
+        assert_eq!(press_for("b2", &json!({})), None);
     }
 
     #[test]
@@ -242,19 +234,12 @@ mod tests {
 
     #[test]
     fn notifications_count_as_off_unless_clearly_on() {
-        assert!(!off_for("Authorized", "Enabled"));
-        assert!(!off_for("Provisional", "NotSupported"));
-        assert!(off_for("Denied", "Disabled"));
-        assert!(off_for("NotDetermined", "NotSupported"));
-        assert!(off_for("Authorized", "Disabled"));
-    }
-
-    /// The plugin's own path from what's shown to what's reported: the brain's event must survive it.
-    #[test]
-    fn the_event_comes_back_with_the_press() {
-        let performed: ActionPerformed = serde_json::from_value(json!({
-            "actionId": "Open", "inputValue": null,
-            "notification": {"id": 1, "groupSummary": false, "extra": {"event": event()}}})).unwrap();
-        assert_eq!(performed.notification().unwrap().extra()["event"], event());
+        use AuthorizationStatus::*;
+        use NotificationSettingStatus::*;
+        assert!(!off_for(Authorized, Enabled));
+        assert!(!off_for(Provisional, NotSupported));
+        assert!(off_for(Denied, Disabled));
+        assert!(off_for(NotDetermined, NotSupported));
+        assert!(off_for(Authorized, Disabled));
     }
 }

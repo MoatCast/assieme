@@ -117,7 +117,7 @@ async fn menu_fit(app: tauri::AppHandle, height: f64) -> Result<(), String> {
 
 #[tauri::command]
 async fn notifications_off() -> bool {
-    tauri::async_runtime::spawn_blocking(menubar::notifications_off).await.unwrap_or(false)
+    menubar::notifications_off().await
 }
 
 /// The one fix macOS leaves to the person: its own page for notifications.
@@ -132,7 +132,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
         .manage(Streams::default())
         .manage(menubar::LastHidden::default())
         .setup(|app| Ok(menubar::setup(app.handle())?))

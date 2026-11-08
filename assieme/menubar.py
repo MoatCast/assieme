@@ -30,11 +30,10 @@ def _short(text, limit=MAX_BODY):
 
 
 def _labels(buttons):
-    """Notification buttons. The first is always Open: on macOS clicking "Options" itself presses the first action, and a
-    slip must never answer an agent. The system splits actions on commas and tells them apart by title."""
+    """Notification buttons. The first is always Open, so a slip on the Options menu can never answer an agent."""
     out, seen = [OPEN], {OPEN['label']}
     for b in buttons:
-        label = _short(b['label'].replace(',', ' '), MAX_LABEL)
+        label = _short(b['label'], MAX_LABEL)
         if b['kind'] != 'reply' and label not in seen:
             seen.add(label)
             out.append({'id': b['id'], 'label': label})
