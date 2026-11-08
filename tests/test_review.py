@@ -2,6 +2,7 @@
 requests use a fake runner or a local bare repository."""
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -65,7 +66,8 @@ class Base(unittest.TestCase):
         write(f'{self.teams}/demo/team.toml', f'name = "demo"\nproject = "{self.repo}"\n')
         self.rt = FakeRt()
         self.log = os.path.join(self.root, 'actions.jsonl')
-        self.r = Review(self.rt, self.teams, thread=sync_thread, log=self.log, which=lambda c: None)
+        self.r = Review(self.rt, self.teams, thread=sync_thread, log=self.log, which=lambda c: None,
+                        claude_dir=f'{self.root}/claude', codex_dir=f'{self.root}/codex')
 
     def wt(self, role):
         return f'{self.repo}/.assieme/worktrees/{role}'
@@ -286,7 +288,13 @@ class Tests(Base):
 
 class Notes(Base):
     def notes(self, *lines, author='reviewer'):
-        write(f'{self.wt(author)}/.assieme/review-notes.jsonl', '\n'.join(lines) + '\n')
+        """What a Claude Code reviewer said, in a transcript as Claude Code keeps it."""
+        os.makedirs(self.wt(author), exist_ok=True)
+        slug = re.sub(r'[^A-Za-z0-9]', '-', self.wt(author))
+        text = '\n'.join(f'ASSIEME-NOTE {x}' for x in lines)
+        write(f'{self.root}/claude/{slug}/s.jsonl',
+              json.dumps({'type': 'assistant', 'message': {'content': [{'type': 'text', 'text': f'Verdict: changes needed.\n{text}'}]}}) + '\n'
+              + json.dumps({'type': 'user', 'message': {'content': 'ASSIEME-NOTE ' + self.line(text='from the brief')}}) + '\n')
 
     def line(self, **over):
         return json.dumps({'branch': 'builder-1', 'file': 'a.py', 'line': 2, 'text': 'cap it', **over})
@@ -298,6 +306,19 @@ class Notes(Base):
         got = self.r.get('demo', 'builder-1')['notes']
         self.assertEqual([(n['author'], n['file'], n['line'], n['text']) for n in got],
                          [('reviewer', 'a.py', 2, 'cap it'), ('reviewer', 'a.py', 2, 'long name')])
+
+    def test_reads_a_codex_reviewers_notes_only_from_its_own_folder(self):
+        self.branch('builder-1', {'a.py': 'A\n'})
+        os.makedirs(self.wt('reviewer'))
+
+        def session(name, cwd):
+            write(f'{self.root}/codex/2026/{name}.jsonl',
+                  json.dumps({'type': 'session_meta', 'payload': {'cwd': cwd}}) + '\n'
+                  + json.dumps({'type': 'response_item', 'payload': {'type': 'message', 'role': 'assistant', 'content': [
+                      {'type': 'output_text', 'text': f'ASSIEME-NOTE {self.line(text=name)}'}]}}) + '\n')
+        session('mine', self.wt('reviewer'))
+        session('another-project', self.root)
+        self.assertEqual([n['text'] for n in self.r.get('demo', 'builder-1')['notes']], ['mine'])
 
     def test_ignore_hides_a_note(self):
         self.branch('builder-1', {'a.py': 'A\n'})
@@ -464,10 +485,11 @@ class Undoing(Base):
         with self.assertRaisesRegex(ReviewError, 'no longer'):
             self.r.undo(uid)
 
+    line = Notes.line
+
     def test_notes_come_back(self):
         self.branch('builder-1', {'a.py': 'one\nTWO\nthree\n'})
-        write(f"{self.wt('reviewer')}/.assieme/review-notes.jsonl",
-              json.dumps({'branch': 'builder-1', 'file': 'a.py', 'line': 2, 'text': 'hm'}) + '\n')
+        Notes.notes(self, json.dumps({'branch': 'builder-1', 'file': 'a.py', 'line': 2, 'text': 'hm'}))
         uid = self.r.merge('demo', 'builder-1', self.r.get('demo', 'builder-1')['tip'])['undo']
         self.r.undo(uid)
         self.assertEqual(len(self.r.get('demo', 'builder-1')['notes']), 1)

@@ -3,6 +3,7 @@
 Git is the source of truth: the branches `assieme/<team>/<role>` are the list. The brain keeps only test results
 per commit and undo records, both in memory. Refusals raise ReviewError with a sentence for the screen.
 """
+import glob
 import hashlib
 import json
 import os
@@ -14,13 +15,14 @@ import time
 import tomllib
 import uuid
 
-from . import live, preset, runtime, status, team as team_mod, worktree
+from . import adapters, live, preset, runtime, status, team as team_mod, worktree
 
 MAX_DIFF = 2_000_000
 TESTS_TIMEOUT_S = 900
 PUSH_TIMEOUT_S = 120
 EDITORS = ('cursor', 'code', 'zed', 'subl')
 NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
+NOTE = re.compile(r'^[\s`>]*ASSIEME-NOTE\s+(\{.*\})', re.M)
 CANT_START = re.compile(r'No module named pytest|Failed to spawn|command not found', re.I)
 RUNNING = {'state': 'running', 'text': 'Running the tests…', 'detail': ''}
 CANT_RUN = {'state': 'none', 'text': "Couldn't run the tests", 'detail': ''}
@@ -89,11 +91,30 @@ def _numstat(text):
     return files
 
 
+def _claude_said(path):
+    said = (adapters._text_of((o.get('message') or {}).get('content')) for o in adapters._rows(path) if o.get('type') == 'assistant')
+    return [x for x in said if x]
+
+
+def _codex_said(path):
+    cwd, said = None, []
+    for o in adapters._rows(path):
+        p = o.get('payload') or {}
+        if o.get('type') == 'session_meta':
+            cwd = p.get('cwd')
+        elif p.get('type') == 'message' and p.get('role') == 'assistant':
+            said.append(' '.join(b.get('text', '') for b in p.get('content') or [] if isinstance(b, dict)))
+    return cwd, said
+
+
 class Review:
-    def __init__(self, rt, teams, run=subprocess.run, which=shutil.which, thread=threading.Thread, log=None):
+    def __init__(self, rt, teams, run=subprocess.run, which=shutil.which, thread=threading.Thread, log=None,
+                 claude_dir=None, codex_dir=None):
         self.rt, self.teams, self.run, self.which, self.thread, self.log = rt, teams, run, which, thread, log
+        self.claude_dir = claude_dir or os.path.expanduser('~/.claude/projects')
+        self.codex_dir = codex_dir or os.path.expanduser('~/.codex/sessions')
         self.lock = threading.RLock()  # one merge, undo or discard at a time
-        self.tests, self.test_locks, self.undos = {}, {}, {}
+        self.tests, self.test_locks, self.undos, self.transcripts = {}, {}, {}, {}
 
     def _git(self, cwd, *args, **kw):
         return self.run(['git', '-C', cwd, *args], capture_output=True, encoding='utf-8', errors='replace', **kw)
@@ -261,17 +282,36 @@ class Review:
         with open(self._ignored_path(project), 'w') as f:
             json.dump(sorted(ids), f)
 
+    def _read_once(self, path, read):
+        """A transcript's parsed form, read again only when it changes: Review polls every few seconds."""
+        when = os.path.getmtime(path)
+        if self.transcripts.get(path, (None,))[0] != when:
+            self.transcripts[path] = (when, read(path))
+        return self.transcripts[path][1]
+
+    def _said(self, path):
+        """What the agent in this folder said, from the transcripts both CLIs keep. Reviewers can't write files (Claude
+        Code without Write, Codex in a read-only sandbox), but what they say is always recorded."""
+        out = []
+        real = os.path.realpath(path)
+        slug = re.sub(r'[^A-Za-z0-9]', '-', real)  # how Claude Code names a folder's transcripts
+        for f in glob.glob(os.path.join(self.claude_dir, slug, '*.jsonl')):
+            out += self._read_once(f, _claude_said)
+        st = os.stat(path)
+        since = getattr(st, 'st_birthtime', st.st_mtime)  # sessions older than this worktree can't be about it
+        for f in glob.glob(os.path.join(self.codex_dir, '**', '*.jsonl'), recursive=True):
+            if os.path.getmtime(f) >= since:
+                cwd, said = self._read_once(f, _codex_said)
+                if cwd and os.path.realpath(cwd) == real:
+                    out += said
+        return out
+
     def _notes(self, project, role, branch):
-        """What reviewers wrote about this branch. They are agents' words: bad lines are skipped, never fatal."""
+        """What reviewers said about this branch. They are agents' words: bad lines are skipped, never fatal."""
         root, out = os.path.join(project, '.assieme', 'worktrees'), []
         ignored = self._ignored(project)
         for author in sorted(os.listdir(root)) if os.path.isdir(root) else []:
-            try:
-                with open(os.path.join(root, author, '.assieme', 'review-notes.jsonl'), errors='replace') as f:
-                    lines = f.read().splitlines()
-            except OSError:
-                continue
-            for raw in lines:
+            for raw in NOTE.findall('\n'.join(self._said(os.path.join(root, author)))):
                 try:
                     n = json.loads(raw)
                     if n['branch'] not in (role, branch) or type(n['line']) is not int:

@@ -4,10 +4,8 @@ When a change is ready, review its diff against what was asked: correctness firs
 The first line of your review is the verdict: approve, or changes needed. Then list each problem with the file,
 the line and why it matters.
 
-For each problem, also append one line of JSON to `.assieme/review-notes.jsonl` in your own folder, so it shows on
-that line in the person's Review screen. `branch` is the name of the agent whose work you are reviewing, and `line`
-is the line number in the new version of the file:
+For each problem, also say one line starting with ASSIEME-NOTE and then JSON, so it shows on that line in the
+person's Review screen. `branch` is the name of the agent whose work you are reviewing, and `line` is the line number
+in the new version of the file. Say it in your reply; don't write it to a file:
 
-{"branch": "builder-1", "file": "payments/retry.py", "line": 15, "text": "cap=8.0 means a 5th attempt can wait 9.6s."}
-
-Git ignores that folder, so writing there doesn't count as editing.
+ASSIEME-NOTE {"branch": "builder-1", "file": "payments/retry.py", "line": 15, "text": "cap=8.0 means a 5th attempt can wait 9.6s."}
