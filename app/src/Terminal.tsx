@@ -28,6 +28,8 @@ export default function Terminal({ session, address, typing: startTyping = false
   const [reconnecting, setReconnecting] = useState(false);
   const [finished, setFinished] = useState(false);
   const live = session === "assieme";
+  const typingNow = useRef(startTyping);
+  typingNow.current = typing;
 
   useEffect(() => {
     const term = new Xterm({ fontFamily: "Geist Mono, ui-monospace, monospace", fontSize: 12.5, convertEol: false, theme: THEME });
@@ -59,12 +61,13 @@ export default function Terminal({ session, address, typing: startTyping = false
     let attempt = 0;
     let retry: ReturnType<typeof setTimeout> | undefined;
     const input = term.onData((d) => {
-      if (typing && handle) void handle.input(d);
+      if (typingNow.current && handle) void handle.input(d);
     });
 
     const connect = async () => {
       try {
-        handle = await openTerminal(address, term.cols, term.rows, !typing, (b) => term.write(b), () => {
+        // Never watch-only: only an attach that sizes the terminal lets the agent draw for this pane (it starts at 200 columns).
+        handle = await openTerminal(address, term.cols, term.rows, false, (b) => term.write(b), () => {
           if (stopped) return;
           void handle?.close(); // release the bridge's side of the lost stream
           handle = null;
@@ -112,12 +115,12 @@ export default function Terminal({ session, address, typing: startTyping = false
       void handle?.close();
       term.dispose();
     };
-  }, [session, address, typing, live]);
+  }, [session, address, live]);
 
   return (
     <div className="terminal">
       <div className="terminal-bar">
-        {live && !typing && (
+        {live && !typing && !finished && (
           <button type="button" onClick={() => setTyping(true)}>
             Type here
           </button>

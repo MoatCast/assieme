@@ -692,6 +692,12 @@ class PullRequests(Base):
         with self.assertRaisesRegex(ReviewError, 'pushed.*not logged in'):
             self.r.pull_request('demo', 'builder-1')
 
+    def test_a_remote_gh_doesnt_know_says_the_branch_is_pushed(self):
+        git(self.repo, 'remote', 'add', 'origin', 'git@example.invalid:me/shop.git')
+        self.fake(types.SimpleNamespace(returncode=1, stdout='', stderr="none of the git remotes point to a known GitHub host"))
+        self.r.which = lambda c: '/x/gh' if c == 'gh' else None
+        self.assertEqual(self.r.pull_request('demo', 'builder-1')['url'], None)
+
     def test_no_gh_opens_the_compare_page_on_github(self):
         git(self.repo, 'remote', 'add', 'origin', 'git@github.com:me/shop.git')
         self.fake(None)

@@ -74,7 +74,7 @@ test("assieme session attaches and writes bytes", async () => {
   render(<Terminal session="assieme" address="t3" />);
   await flush();
   expect(openTerminal).toHaveBeenCalledTimes(1);
-  expect(lastOpen!.observe).toBe(true);
+  expect(lastOpen!.observe).toBe(false); // it has to size the terminal, or the agent draws for 200 columns
   act(() => lastOpen!.onData(new TextEncoder().encode("hello")));
   expect(xterms[0].written.join("")).toContain("hello");
 });
@@ -103,12 +103,14 @@ test("closing the component closes the stream", async () => {
   expect(handle.close).toHaveBeenCalled();
 });
 
-test("type here switches to a typing stream", async () => {
+test("keys reach the agent only after Type here, on the same stream", async () => {
   render(<Terminal session="assieme" address="t3" />);
   await flush();
+  act(() => xterms[xterms.length - 1].dataHandler("x"));
+  expect(handle.input).not.toHaveBeenCalled();
   fireEvent.click(screen.getByText("Type here"));
   await flush();
-  expect(lastOpen!.observe).toBe(false);
+  expect(openTerminal).toHaveBeenCalledTimes(1);
   act(() => xterms[xterms.length - 1].dataHandler("x"));
   expect(handle.input).toHaveBeenCalledWith("x");
 });

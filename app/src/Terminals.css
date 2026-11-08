@@ -16,7 +16,7 @@
   border-right: 1px solid var(--quiet-line); white-space: nowrap; }
 .terminals .strip-count .dot { background: var(--quiet-needs-you); box-shadow: 0 0 0 3px #c8432b26; }
 .terminals .strip-lines { flex: 1; min-width: 0; display: flex; gap: 18px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.terminals .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(300px, 1fr); gap: 12px; flex: 1; }
+.terminals .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(300px, 1fr); gap: 12px; flex: 1; min-height: 0; }
 @media (min-width: 1200px) { .terminals .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .terminals .pane { display: flex; flex-direction: column; min-height: 0; background: var(--quiet-surface);
   border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); overflow: hidden; }
@@ -32,7 +32,7 @@
 .terminals .state-asking .pane-state, .terminals .state-stuck .pane-state { color: var(--quiet-needs-you-text); }
 .terminals .state-working .dot { background: var(--quiet-working); }
 .terminals .state-waiting .dot { background: var(--quiet-waste); }
-.terminals .pane-screen { flex: 1; min-height: 0; display: flex; background: var(--quiet-term); }
+.terminals .pane-screen { flex: 1; min-height: 0; overflow: hidden; display: flex; background: var(--quiet-term); }
 .terminals .pane-screen .terminal { flex: 1; min-width: 0; gap: 0; }
 .terminals .pane-screen .terminal-bar { padding: 4px 12px; background: var(--quiet-surface); border-bottom: 1px solid var(--quiet-line); }
 .terminals .pane-screen .terminal-screen { border-radius: 0; }

@@ -261,3 +261,16 @@ test("an added agent that stopped at its hook review says so on the Team tab", a
   await open(MAP(), { starting: [{ team: "shop", project: "/p", done: false, error: null, roles: [{ role: "z", state: "starting", detail: "" }] }] });
   expect(screen.getByText("Starting z…")).toBeTruthy();
 });
+
+test("a group of one reads in the singular", async () => {
+  const groups = [{ name: "lead", roles: ["a"], states: { a: "idle" as const }, need_you: 0, edges: [] }];
+  await open(MAP({ groups }));
+  expect(screen.getByText("1 agent")).toBeTruthy();
+});
+
+test("groups with no wake-ups between them stack in two columns", () => {
+  const box = (id: string) => ({ id, width: 270, height: 70 });
+  const placed = layout(["a", "b", "c", "d"].map(box), [], [{ from: "a", to: "c" }, { from: "b", to: "d" }], "TB", 56);
+  expect(placed.boxes.c.y).toBeGreaterThan(placed.boxes.a.y);
+  expect(placed.width).toBeLessThan(4 * 270);
+});

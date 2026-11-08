@@ -3,10 +3,11 @@
 Starting one agent: its worktree, the agent with our status hook, the folder-trust prompt (asked once per
 project, answered with explicit keys), then its first status report, and only then its brief and task.
 """
+import re
 import time
 from dataclasses import dataclass
 
-from . import launch, prompts, worktree
+from . import launch, prompts, runtime, worktree
 
 TEAM, ROLE, BRIEFED = 'assieme.team', 'assieme.role', 'assieme.briefed'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
@@ -51,9 +52,40 @@ def stop(rt, name):
     return len(live)
 
 
-def _brief(rt, t, role, task):
-    rt.send(t, role.brief.strip() + (f'\n\n{task}' if task else ''))
+WAIT_FOR_PARENT = '{parent} will send you your work. Until then, wait and do nothing.'
+REPORT_TO_YOU = ('These agents report to you and wait for you to send them work:\n{agents}\n'
+                 'They do nothing until you do this. As soon as there is work for one of them, such as a commit to review, '
+                 'send it. You are not finished until you have.')
+
+
+def terminal_name(team_name, role_name):
+    return re.sub(r'[^\w.-]', '-', f'{team_name}-{role_name}')  # all hc accepts in a name
+
+
+def _brief(rt, t, role, task, tm):
+    """An agent with a parent gets its work from that parent: the whole task would have it do the same work again.
+    A parent is told who reports to it here, in its first message: a note sent mid-turn can go missing."""
+    parts = [role.brief.strip()]
+    kids = [r for r in tm.roles if r.parent == role.name]
+    if kids:
+        parts.append(REPORT_TO_YOU.format(agents='\n'.join(
+            f'- {r.name}: `hc send {terminal_name(tm.name, r.name)} "..."`' for r in kids)))
+    if task:
+        parts.append(task)
+    elif role.parent:
+        parts.append(WAIT_FOR_PARENT.format(parent=role.parent))
+    rt.send(t, '\n\n'.join(parts))
     rt.label(t, {BRIEFED: '1'})
+
+
+def _tell_parent(tm, role, address, rt, addresses):
+    """An agent added to a running team: its parent's first message is long gone."""
+    if role.parent and addresses.get(role.parent):
+        try:
+            rt.send(addresses[role.parent], f'assieme: {role.name} now reports to you and waits for work. '
+                                            f'Reach it with `hc send {terminal_name(tm.name, role.name)} "..."`.')
+        except runtime.RuntimeError_:  # the parent has gone: the new agent still started
+            pass
 
 
 def _review_hint(rt, role, t):
@@ -62,14 +94,14 @@ def _review_hint(rt, role, t):
 
 
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
-    t = rt.start(launch.argv(role), cwd, {TEAM: tm.name, ROLE: role.name}, parent=parent)
+    t = rt.start(launch.argv(role), cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
     deadline = clock.monotonic() + FIRST_STATUS_S
     while True:
         info = rt.get(t)
         if info.get('state') == 'finished':
             return Started(role.name, t, 'exited', _tail(rt, t))
         if info.get('status'):
-            _brief(rt, t, role, task)
+            _brief(rt, t, role, task, tm)
             return Started(role.name, t, 'running')
         screen = rt.read(t)
         keys = prompts.trust_keys(screen)
@@ -103,13 +135,16 @@ def start(tm, task, rt, ask, only=None, clock=time):
     cwds = {r.name: worktree.ensure(tm, r) for r in roles if r.name not in live}
     out, trusted, addresses = [], set(), {name: r['address'] for name, r in live.items()}
     for role in roles:
+        mine = task if only or not role.parent else None  # asked of this one agent, or the team's top
         row = live.get(role.name)
         if row is None:
-            s = _start_role(tm, role, task, rt, ask, trusted, addresses.get(role.parent), cwds[role.name], clock)
+            s = _start_role(tm, role, mine, rt, ask, trusted, addresses.get(role.parent), cwds[role.name], clock)
+            if only and not task and s.state == 'running':
+                _tell_parent(tm, role, s.address, rt, addresses)
         elif row['briefed']:
             s = Started(role.name, row['address'], 'already-running')
         elif row['status']:  # live but never briefed, e.g. after the user answered Codex's hook review
-            _brief(rt, row['address'], role, task)
+            _brief(rt, row['address'], role, mine, tm)
             s = Started(role.name, row['address'], 'running')
         else:
             s = Started(role.name, row['address'], 'needs-you', _review_hint(rt, role, row['address']))

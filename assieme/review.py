@@ -533,6 +533,9 @@ class Review:
             if found and (r.returncode == 0 or 'already exists' in (r.stderr or '')):
                 logged(f'Opened a pull request for {role}')
                 return {'url': found.group(0)}
+            if 'known GitHub host' in (r.stderr or ''):  # a remote gh knows nothing about: nothing went wrong
+                logged(f"Pushed {role}'s branch for a pull request")
+                return {'url': None, 'detail': 'The branch is pushed. Open the pull request on your git host.'}
             logged(f"Pushed {role}'s branch; the pull request didn't open")
             raise ReviewError(f"The branch is pushed, but the pull request didn't open: {(r.stderr or '').strip()}")
         logged(f"Pushed {role}'s branch for a pull request")

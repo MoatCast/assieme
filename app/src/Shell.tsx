@@ -64,8 +64,8 @@ export default function Shell() {
   return (
     <div className="shell">
       {shown !== "first-run" && (
-        <div className="shell-bar" hidden={!!review}>
-          <div className="shell-left">
+        <div className="shell-bar" hidden={!!review} data-tauri-drag-region>
+          <div className="shell-left" data-tauri-drag-region>
             <svg className="brand" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
               <path d="M9 5 4.5 13M9 5l4.5 8" fill="none" stroke="#2747d9" strokeWidth="1.6" strokeLinecap="round" />
               <circle cx="9" cy="4.5" r="2.5" fill="#2747d9" /><circle cx="4.5" cy="13.5" r="2.5" fill="#2747d9" /><circle cx="13.5" cy="13.5" r="2.5" fill="#2747d9" />
@@ -90,7 +90,7 @@ export default function Shell() {
                 }}>{label}</button>
             ))}
           </div>
-          <div className="shell-right">
+          <div className="shell-right" data-tauri-drag-region>
             {started && (
               <button type="button" className="add-agent" onClick={() => setAdding(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -108,6 +108,7 @@ export default function Shell() {
           </div>
         </div>
       )}
+      {shown === "first-run" && !review && <div className="window-strip" data-tauri-drag-region />}
       {/* First run stays mounted so its snapshot poll keeps the team list fresh. */}
       <div className="shell-page" hidden={!!review || shown !== "first-run"}>
         <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} />
@@ -134,10 +135,9 @@ export default function Shell() {
       )}
       {review && (
         <div className="shell-page">
-          <Review key={`${review.team}/${review.role}`} team={review.team} role={review.role} onBack={() => setReview(null)}
+          <Review key={`${review.team}/${review.role}`} team={review.team} role={review.role} from={TABS.find(([id]) => id === shown)?.[1]} onBack={() => setReview(null)}
             onMerged={(m) => {
               setReview(null);
-              setTab("terminals");
               setNotice("");
               setMerged(m);
             }}

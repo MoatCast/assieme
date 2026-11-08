@@ -34,7 +34,7 @@ class FakeRuntime:
 
     def start(self, argv, cwd, labels, name=None, parent=None):
         t = f't{len(self.started) + 1}'
-        self.started.append({'argv': argv, 'cwd': cwd, 'labels': labels, 'parent': parent, 'address': t})
+        self.started.append({'argv': argv, 'cwd': cwd, 'labels': labels, 'parent': parent, 'address': t, 'name': name})
         self.role_of[t] = labels['assieme.role']
         return t
 
@@ -224,6 +224,57 @@ class StartTest(unittest.TestCase):
     def test_only_unknown_role(self):
         with self.assertRaisesRegex(team.TeamError, 'nobody'):
             self.start(FakeRuntime(), demo(COORD), only='nobody')
+
+
+class WhoGetsTheTaskTest(StartTest):
+    REVIEWER = Role('reviewer', 'claude', 'r.md', 'You review.', parent='coordinator')
+
+    def sent_to(self, rt, role):
+        t = next(s['address'] for s in rt.started if s['labels'][team.ROLE] == role)
+        return [text for to, text in rt.sent if to == t]
+
+    def run_team(self, *roles, task='fix bug', **kw):
+        rt = FakeRuntime(statuses={r.name: [{'state': 'idle'}] for r in roles})
+        self.start(rt, demo(*roles), task=task, **kw)
+        return rt
+
+    def test_the_top_agent_gets_the_task(self):
+        rt = self.run_team(COORD, self.REVIEWER)
+        self.assertIn('fix bug', self.sent_to(rt, 'coordinator')[0])
+
+    def test_an_agent_with_a_parent_waits_for_it_instead(self):
+        rt = self.run_team(COORD, self.REVIEWER)
+        first = self.sent_to(rt, 'reviewer')[0]
+        self.assertNotIn('fix bug', first)
+        self.assertIn('coordinator will send you your work', first)
+
+    def test_a_parents_first_message_says_how_to_reach_its_agents(self):
+        rt = self.run_team(COORD, BUILDER, self.REVIEWER)
+        [first] = self.sent_to(rt, 'coordinator')  # one message: a note sent mid-turn can go missing
+        self.assertIn('builder-1: `hc send demo-builder-1 "..."`', first)
+        self.assertIn('reviewer: `hc send demo-reviewer "..."`', first)
+        self.assertIn('fix bug', first)
+
+    def test_terminals_are_named_so_the_brief_can_name_them(self):
+        rt = self.run_team(COORD, self.REVIEWER)
+        self.assertEqual([s['name'] for s in rt.started], ['demo-coordinator', 'demo-reviewer'])
+
+    def test_a_request_for_one_agent_reaches_it_though_it_has_a_parent(self):
+        rt = FakeRuntime(statuses={'reviewer': [{'state': 'idle'}]}, existing=[])
+        self.start(rt, demo(COORD, self.REVIEWER), task='fix the note', only='reviewer')
+        self.assertIn('fix the note', self.sent_to(rt, 'reviewer')[0])
+
+    def test_an_added_agent_waits_and_its_parent_hears(self):
+        rt = FakeRuntime(statuses={'reviewer': [{'state': 'idle'}]},
+                         existing=[{'address': 't9', 'state': 'live', 'labels': {team.TEAM: 'demo', team.ROLE: 'coordinator'}, 'status': {'state': 'idle'}}])
+        self.start(rt, demo(COORD, self.REVIEWER), task=None, only='reviewer')
+        self.assertIn('coordinator will send you your work', self.sent_to(rt, 'reviewer')[0])
+        self.assertIn('hc send demo-reviewer', [text for to, text in rt.sent if to == 't9'][0])
+
+    def test_two_agents_at_the_top_both_get_it(self):
+        other = Role('other', 'claude', 'o.md', 'You build too.')
+        rt = self.run_team(COORD, other)
+        self.assertIn('fix bug', self.sent_to(rt, 'other')[0])
 
 
 class StatusStopTest(unittest.TestCase):

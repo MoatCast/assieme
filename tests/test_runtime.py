@@ -58,6 +58,7 @@ class FakeCoreTest(unittest.TestCase):
         t = self.rt.start(['sh'], cwd='/w', labels={'assieme.team': 'demo'}, parent='t1')
         self.assertEqual(t, 't9')
         p = self.server.requests[-1]['params']
+        self.assertIs(p['outlive_parent'], True)  # merging a parent must not end the agents reporting to it
         self.assertEqual((p['argv'], p['cwd'], p['labels'], p['wait'], p['parent']), (['sh'], '/w', {'assieme.team': 'demo'}, False, 't1'))
 
     def test_label_sets_labels(self):

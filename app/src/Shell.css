@@ -1,5 +1,5 @@
 .shell { position: relative; display: flex; flex-direction: column; height: 100vh; background: var(--quiet-fog); }
-.shell-bar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; min-height: 32px; position: relative;
+.shell-bar { display: flex; align-items: center; gap: 10px; padding: 0 20px 0 90px; height: 53px; box-sizing: border-box; flex-shrink: 0; position: relative; /* 90: past the window buttons */
   background: var(--quiet-surface); border-bottom: 1px solid var(--quiet-line); }
 .shell-bar .brand { flex-shrink: 0; }
 .shell-bar .team-pick { font: inherit; font-size: 14px; font-weight: 500; color: var(--quiet-ink); border: 0; background: none; cursor: pointer; }
@@ -8,6 +8,7 @@
 .shell-bar .tabs button { font: inherit; font-size: 13px; line-height: 16px; border: 0; background: none; cursor: pointer;
   color: var(--quiet-slate); padding: 5px 14px; border-radius: 999px; }
 .shell-bar .tabs button.on { background: var(--quiet-surface); color: var(--quiet-accent); font-weight: 600; box-shadow: 0 1px 2px #1b24331a; }
+.window-strip { height: 40px; flex-shrink: 0; } /* First run has no bar: the window buttons and dragging need a place */
 .shell-page { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 .shell-page[hidden], .shell-bar[hidden] { display: none; }
 /* The top bar's three lanes, from Paper "v2 — Team: needs you": equal sides keep the tabs centred. */

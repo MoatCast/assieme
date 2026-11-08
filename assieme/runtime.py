@@ -96,6 +96,7 @@ class Runtime:
             p['name'] = name
         if parent:
             p['parent'] = parent
+            p['outlive_parent'] = True  # the parent only hears its news: merging or stopping it must not end its reports
         return self.call('terminal.run', **p)['address']
 
     def send(self, t, text, timeout_s=30):

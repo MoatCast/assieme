@@ -286,6 +286,7 @@ export default function Settings({ team, onClose, onShowFirstRun }: { team: stri
 
   return (
     <div className="settings" role="dialog" aria-label="Settings">
+      <div className="settings-drag" data-tauri-drag-region />
       <nav className="settings-nav">
         <div className="settings-sections">
           {SECTIONS.map(([id, label]) => (

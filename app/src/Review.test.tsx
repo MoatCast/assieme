@@ -312,3 +312,10 @@ test("a notice goes by itself", async () => {
   await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
   expect(done).toHaveBeenCalled();
 });
+
+test("the back link names where you came from", async () => {
+  render(<Review team="shop" role="builder-1" from="Team" onBack={onBack} onMerged={onMerged} onDiscarded={onDiscarded} />);
+  await act(async () => {});
+  await click("Team");
+  expect(onBack).toHaveBeenCalled();
+});

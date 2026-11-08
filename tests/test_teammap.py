@@ -614,3 +614,11 @@ class AutomaticMemory(unittest.TestCase):
 
     def test_a_codex_log_with_no_limit_never_runs_alone(self):
         self.assertEqual(self.run_it(self.pane(source='codex', context=400_000)), [])
+
+    def test_a_fix_names_the_agent_by_its_role_not_its_log(self):
+        a = log_agent('b', 'idle', context=160_000)
+        a.name = '-Users-me-code-shop-assieme-worktrees-b'
+        a.peers = {log_agent('c')}
+        rows = [{'address': 't1', 'state': 'live', 'cwd': a.cwd, 'created_ms': 1, 'labels': {team.TEAM: 'shop', team.ROLE: 'b'}}]
+        p = panes.view('shop', rows, [a], NOW, lambda _: '', None)['panes'][0]
+        self.assertTrue(p['fix']['text'].startswith('b holds'), p['fix']['text'])

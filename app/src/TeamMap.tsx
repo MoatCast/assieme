@@ -162,7 +162,9 @@ export function GroupsMap({ groups, onOpen }: { groups: MapGroup[]; onOpen: (nam
   const [open, setOpen] = useState<Set<string>>(new Set());
   const size = (g: MapGroup) => (open.has(g.name) ? GROUP_OPEN : GROUP);
   const links = groups.flatMap((g) => g.edges.map((e) => ({ from: g.name, to: e.to })));
-  const placed = layout(groups.map((g) => ({ id: g.name, ...size(g) })), links, [], "TB", 56);
+  // With no wake-ups yet, nothing places the groups: two columns, or a long row shrinks them past reading.
+  const columns = links.length ? [] : groups.slice(2).map((g, i) => ({ from: groups[i].name, to: g.name }));
+  const placed = layout(groups.map((g) => ({ id: g.name, ...size(g) })), links, columns, "TB", 56);
   const svg = groups.flatMap((g) => g.edges.map((e) => {
     const line = placed.lines[`${g.name}>${e.to}`];
     return line ? (
@@ -188,7 +190,7 @@ export function GroupsMap({ groups, onOpen }: { groups: MapGroup[]; onOpen: (nam
             style={{ left: b.x, top: b.y, width: b.width }}>
             <div className="group-head">
               <b>{g.name}</b>
-              <small>{g.roles.length} agents</small>
+              <small>{g.roles.length === 1 ? "1 agent" : `${g.roles.length} agents`}</small>
               <span className="grow" />
               {g.need_you > 0 && <span className="group-need">{g.need_you} need{g.need_you === 1 ? "s" : ""} you</span>}
               <button type="button" className="chevron" aria-label={`${isOpen ? "Close" : "Show"} ${g.name}`} aria-expanded={isOpen} onClick={() => toggle(g.name)}>

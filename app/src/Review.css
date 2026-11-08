@@ -11,7 +11,7 @@
 .review button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; padding: 0; }
 .review button:disabled { opacity: 0.5; cursor: default; }
 
-.review-bar { display: flex; align-items: center; gap: 14px; padding: 10px 20px; border-bottom: 1px solid var(--quiet-line); flex-shrink: 0; }
+.review-bar { display: flex; align-items: center; gap: 14px; height: 53px; box-sizing: border-box; padding: 0 20px 0 90px; /* 90: past the window buttons */ border-bottom: 1px solid var(--quiet-line); flex-shrink: 0; }
 .review .crumbs { font-size: 14px; line-height: 18px; }
 .review .crumbs strong { font-weight: 600; }
 .review .crumb { text-decoration: none; }

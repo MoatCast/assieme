@@ -137,18 +137,19 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
             strip.append({'role': role, 'state': state, 'text': f'{role} is asking: {text}'})
         else:
             s = next((s for s in suggestions if a and s.agent == a.name), None)
+            said = s.text.replace(a.name, role) if s else ''  # the log's name for it is a long folder path
             if state == 'stuck' and a and a.cmds:
                 p['command'] = a.cmds[-1] if show_commands else adapters.program(a.cmds[-1])
             if state in ('stuck', 'waiting'):
-                p['detail'] = _cap(a.detail if a and a.detail else (s.text if s else ''))
+                p['detail'] = _cap(a.detail if a and a.detail else said)
                 verb = 'seems stuck' if state == 'stuck' else 'has work waiting'
                 strip.append({'role': role, 'state': state,
                               'text': f'{role} {verb}' + (f': {a.detail}' if a and a.detail else '')})
             if s:
                 label = {'nudge': 'Ask it to try another way' if state == 'stuck' else 'Nudge',
                          'compact': 'Compact', 'tell': 'Tell it to stop retrying'}[s.action]
-                p['detail'] = p['detail'] or _cap(s.text)
-                p['fix'] = _fix(role, [dict(_button(role, 'action', label, s.message), action=s.action)], s.text)
+                p['detail'] = p['detail'] or _cap(said)
+                p['fix'] = _fix(role, [dict(_button(role, 'action', label, s.message), action=s.action)], said)
         out.append(p)
     strip.sort(key=lambda x: URGENT.index(x['state']))
     return {'team': team_name, 'panes': out, 'strip': strip}

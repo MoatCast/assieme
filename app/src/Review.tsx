@@ -145,10 +145,11 @@ function FileDiff({ data, path, busy, onNote }: {
 type Dialog = "ask" | "discard" | "merge" | null;
 
 /** Review, from Paper "v2 — Review": one agent's branch, its checks and diff, and what to do with it. */
-export default function Review({ team, role, pollMs = 5000, onBack, onMerged, onDiscarded }: {
+export default function Review({ team, role, pollMs = 5000, from = "Terminals", onBack, onMerged, onDiscarded }: {
   team: string;
   role: string;
   pollMs?: number;
+  from?: string;
   onBack: () => void;
   onMerged: (result: MergeResult) => void;
   onDiscarded: (text: string) => void;
@@ -213,13 +214,13 @@ export default function Review({ team, role, pollMs = 5000, onBack, onMerged, on
   const crumbs = (
     <div className="crumbs">
       <strong>{data?.project ?? team}</strong> · This Mac /{" "}
-      <button type="button" className="crumb" onClick={onBack}>Terminals</button> / <strong>{role}</strong>
+      <button type="button" className="crumb" onClick={onBack}>{from}</button> / <strong>{role}</strong>
     </div>
   );
   if (!data)
     return (
       <div className="review">
-        <div className="review-bar">{crumbs}</div>
+        <div className="review-bar" data-tauri-drag-region>{crumbs}</div>
         {problem && <div className="refused">{problem}</div>}
       </div>
     );
@@ -238,7 +239,7 @@ export default function Review({ team, role, pollMs = 5000, onBack, onMerged, on
 
   return (
     <div className="review">
-      <div className="review-bar">
+      <div className="review-bar" data-tauri-drag-region>
         {crumbs}
         <div className="grow" />
         <button type="button" className="quiet" disabled={busy} onClick={() => setDialog("discard")}>Discard</button>
