@@ -10,3 +10,11 @@
 .shell-bar .tabs button.on { background: var(--quiet-surface); color: var(--quiet-accent); font-weight: 600; box-shadow: 0 1px 2px #1b24331a; }
 .shell-page { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 .shell-page[hidden] { display: none; }
+/* The top bar's three lanes, from Paper "v2 — Team: needs you": equal sides keep the tabs centred. */
+.shell-bar .shell-left, .shell-bar .shell-right { display: flex; align-items: center; flex: 1; min-width: 0; gap: 6px; }
+.shell-bar .shell-right { justify-content: flex-end; gap: 14px; }
+.shell-bar .where { font-size: 14px; line-height: 18px; color: var(--quiet-mute); white-space: nowrap; }
+.shell-bar .add-agent { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; line-height: 16px;
+  color: var(--quiet-ink); background: none; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control);
+  padding: 6px 12px; cursor: pointer; }
+.shell-bar .gear { display: flex; background: none; border: 0; padding: 0; cursor: pointer; }

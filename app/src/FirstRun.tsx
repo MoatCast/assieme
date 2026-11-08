@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { snapshot, type Agent, type Snapshot } from "./bridge";
+import ChangeGroups from "./ChangeGroups";
 import NewTeam from "./NewTeam";
 import Terminal from "./Terminal";
 import "./FirstRun.css";
@@ -12,6 +13,7 @@ const STATES: Record<string, string> = {
 };
 const plural = (n: number) => (n === 1 ? "1 agent" : `${n} agents`);
 const folderName = (cwd: string | null) => (cwd ? cwd.replace(/\/+$/, "").split("/").pop() || cwd : "Other folders");
+const groupName = (a: Agent) => a.group ?? folderName(a.cwd);
 
 function Check({ ok }: { ok: boolean }) {
   return (
@@ -27,11 +29,16 @@ function Check({ ok }: { ok: boolean }) {
 
 /** First run: the agents found on this Mac, grouped by project folder, and a live terminal for any of them. */
 /** onSnapshot: the shell reuses this poll for its team list (one snapshot poll for the whole app). */
-export default function FirstRun({ pollMs = 5000, onSnapshot }: { pollMs?: number; onSnapshot?: (s: Snapshot) => void }) {
+export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
+  pollMs?: number;
+  onSnapshot?: (s: Snapshot) => void;
+  onOpenTeam?: () => void;
+}) {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
   const [creating, setCreating] = useState(false);
+  const [grouping, setGrouping] = useState(false);
   const report = useRef(onSnapshot);
   report.current = onSnapshot;
 
@@ -62,7 +69,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot }: { pollMs?: numbe
   const agents = snap?.agents ?? [];
   const count = (source: string) => agents.filter((a) => a.source === source).length;
   const groups = new Map<string, Agent[]>();
-  for (const a of agents) groups.set(folderName(a.cwd), [...(groups.get(folderName(a.cwd)) ?? []), a]);
+  for (const a of agents) groups.set(groupName(a), [...(groups.get(groupName(a)) ?? []), a]);
   const teams = new Map<string, Snapshot["teams"]>();
   for (const t of (snap?.teams ?? []).filter((t) => t.state === "live"))
     teams.set(t.team, [...(teams.get(t.team) ?? []), t]);
@@ -101,6 +108,12 @@ export default function FirstRun({ pollMs = 5000, onSnapshot }: { pollMs?: numbe
           ))}
         </div>
         {offline && <div className="offline">Reconnecting…</div>}
+        {onOpenTeam && (
+          <div className="open-team">
+            <button type="button" onClick={onOpenTeam}>Open my team</button>
+            <span>and notify me when an agent needs me</span>
+          </div>
+        )}
         <p className="footnote">Assieme runs on this Mac and has no server of its own. Settings, Privacy shows what it keeps.</p>
       </section>
 
@@ -182,7 +195,11 @@ export default function FirstRun({ pollMs = 5000, onSnapshot }: { pollMs?: numbe
             ))}
           </>
         )}
+        {!open && agents.length > 0 && (
+          <p className="change-groups">Not right? <button type="button" onClick={() => setGrouping(true)}>Change the groups</button></p>
+        )}
       </section>
+      {grouping && <ChangeGroups onClose={() => setGrouping(false)} />}
     </div>
   );
 }

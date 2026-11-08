@@ -62,7 +62,7 @@
 .newteam .practice + .practice { border-top: 1px solid var(--quiet-line); }
 .newteam .practice b { display: block; font-weight: 500; font-size: 14px; line-height: 18px; color: var(--quiet-ink); }
 .newteam .practice small { display: block; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
-.newteam .toggle { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--quiet-line-strong);
+.newteam .toggle { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--quiet-control);
   position: relative; cursor: pointer; margin: 0; flex-shrink: 0; transition: background 0.15s; }
 .newteam .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
   background: var(--quiet-surface); transition: transform 0.15s; }

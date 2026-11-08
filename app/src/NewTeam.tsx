@@ -48,7 +48,7 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
       setPresets(all);
       setPractices(p.practices);
       setModels(p.models);
-      setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, true])));
+      setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, p.practice_defaults?.[g.id] !== false])));
       if (all.length) {
         setChosen(all[0].id);
         setRoles(fit(all[0].roles));

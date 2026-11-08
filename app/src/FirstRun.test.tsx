@@ -4,6 +4,7 @@ import type { Snapshot } from "./bridge";
 
 const snapshot = vi.fn<() => Promise<Snapshot>>();
 vi.mock("./bridge", () => ({ snapshot: () => snapshot() }));
+vi.mock("./ChangeGroups", () => ({ default: () => <div>change the groups sheet</div> }));
 vi.mock("./NewTeam", () => ({
   default: ({ clis, onClose }: { clis: { codex: boolean }; onClose: () => void }) => (
     <div>
@@ -171,4 +172,23 @@ test("a finished start keeps roles that need you or quit", async () => {
   const card = screen.getByTestId("starting-shop");
   expect(within(card).getByText("Running")).toBeTruthy();
   expect(within(card).getByText(/review its hooks once/)).toBeTruthy();
+});
+
+test("Open my team and Change the groups", async () => {
+  snapshot.mockResolvedValue(SNAP);
+  const openTeam = vi.fn();
+  render(<FirstRun pollMs={100000} onOpenTeam={openTeam} />);
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: "Open my team" }));
+  expect(openTeam).toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Change the groups" }));
+  expect(screen.getByText("change the groups sheet")).toBeTruthy();
+});
+
+test("a person's own group wins over the folder name", async () => {
+  snapshot.mockResolvedValue({ ...SNAP, agents: [{ ...agent("a", "/x/one"), group: "mine" }, { ...agent("b", "/x/two"), group: "mine" }] });
+  render(<FirstRun pollMs={100000} />);
+  await act(async () => {});
+  expect(within(screen.getByTestId("project-mine")).getByText("a")).toBeTruthy();
+  expect(within(screen.getByTestId("project-mine")).getByText("b")).toBeTruthy();
 });
