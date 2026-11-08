@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { reviewUndo, setSetting, type MergeResult, type Snapshot } from "./bridge";
+import { useEffect, useState } from "react";
+import { reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
 import FirstRun from "./FirstRun";
@@ -40,6 +40,7 @@ export default function Shell() {
   const [review, setReview] = useState<{ team: string; role: string } | null>(null);
   const [merged, setMerged] = useState<MergeResult | null>(null);
   const [notice, setNotice] = useState("");
+  const [draft, setDraft] = useState<TeamDraft | null>(null);
   const { names, neediest } = liveTeams(snap);
   const team = picked && names.includes(picked) ? picked : neediest; // a pick sticks until that team stops
   const started = (snap?.teams ?? []).some((t) => t.team === team && t.state === "live");
@@ -50,6 +51,18 @@ export default function Shell() {
     setTab("team");
     void setSetting("first_run_done", true).catch(() => {}); // only a convenience: it asks again next time
   };
+
+  // An assistant's draft opens in New team as soon as nothing is being filled in there.
+  const waiting = snap?.draft ?? null;
+  useEffect(() => {
+    if (!waiting || creating) return;
+    void takeDraft(waiting).then((d) => {
+      if (!d) return;
+      setSettings(false);
+      setDraft(d);
+      setCreating(true);
+    }).catch(() => {}); // the next snapshot tries again
+  }, [waiting, creating]);
 
   const undo = async (m: MergeResult) => {
     setMerged(null);
@@ -155,7 +168,8 @@ export default function Shell() {
       )}
       {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
       {creating && (
-        <NewTeam clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setCreating(false)} />
+        <NewTeam key={draft?.id ?? "new"} clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} draft={draft}
+          onClose={() => { setCreating(false); setDraft(null); }} />
       )}
       {adding && team && (
         <AddAgent team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}

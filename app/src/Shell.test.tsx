@@ -45,7 +45,9 @@ vi.mock("./Review", () => ({
     </div>
   ),
 }));
-vi.mock("./NewTeam", () => ({ default: () => <div>new team screen</div> }));
+vi.mock("./NewTeam", () => ({ default: ({ draft, onClose }: { draft?: { why: string } | null; onClose: () => void }) => (
+  <div><span>new team screen{draft ? `, drafted: ${draft.why}` : ""}</span><button type="button" onClick={onClose}>close new team</button></div>
+) }));
 vi.mock("./Team", () => ({
   default: ({ team, onOpenTerminal }: { team: string | null; onOpenTerminal: (r: string) => void }) => (
     <div><span>team tab for {team ?? "none"}</span><button type="button" onClick={() => onOpenTerminal("a")}>open a</button></div>
@@ -57,7 +59,8 @@ vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun }: { onClose:
 ) }));
 vi.mock("./AddAgent", () => ({ default: ({ team, roles }: { team: string; roles: string[] }) => <div>add agent to {team}: {roles.join(",")}</div> }));
 const setSetting = vi.hoisted(() => vi.fn());
-vi.mock("./bridge", () => ({ setSetting, reviewUndo: undo }));
+const takeDraft = vi.hoisted(() => vi.fn());
+vi.mock("./bridge", () => ({ setSetting, reviewUndo: undo, takeDraft }));
 
 import Shell, { liveTeams } from "./Shell";
 
@@ -233,4 +236,18 @@ test("a discard returns with its notice, which goes by itself", async () => {
   expect(screen.getByTestId("notice").textContent).toBe("Discarded builder-1's work.");
   fireEvent.click(screen.getByRole("button", { name: "notice ends after 8000" }));
   expect(screen.queryByTestId("notice")).toBeNull();
+});
+
+test("an assistant's draft opens in New team, once", async () => {
+  takeDraft.mockReset();
+  takeDraft.mockResolvedValue({ id: "d1", why: "small change" });
+  snap.current = SNAP([], { draft: "d1" });
+  render(<Shell />);
+  await act(async () => {});
+  expect(takeDraft).toHaveBeenCalledWith("d1");
+  screen.getByText("new team screen, drafted: small change");
+  takeDraft.mockResolvedValue(null); // the brain gave it away already
+  fireEvent.click(screen.getByRole("button", { name: "close new team" }));
+  await act(async () => {});
+  expect(screen.queryByText(/new team screen/)).toBeNull();
 });

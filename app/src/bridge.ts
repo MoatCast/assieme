@@ -37,6 +37,8 @@ export type Snapshot = {
   starting: Starting[];
   found_teams?: string[];
   first_run_done?: boolean;
+  /** An assistant's draft waiting to open in New team. */
+  draft?: string | null;
 };
 
 export type AgentKind = "claude" | "codex";
@@ -70,6 +72,7 @@ export type Starting = {
 };
 export type TeamForm = { project: string; task: string; roles: RoleDraft[]; practices: Record<string, boolean> };
 export type Suggestion = { roles: RoleDraft[]; why: string };
+export type TeamDraft = TeamForm & { id: string; why: string };
 
 export type TerminalHandle = {
   input(text: string): Promise<unknown>;
@@ -80,6 +83,8 @@ export type TerminalHandle = {
 const brain = <T>(method: string, params: object = {}) => invoke<T>("brain_call", { method, params });
 
 export const snapshot = () => brain<Snapshot>("brain.snapshot");
+/** Hands over the draft and removes it from the brain: it opens once. */
+export const takeDraft = (id: string) => brain<TeamDraft | null>("draft.take", { id });
 export const checkProject = (path: string) => brain<{ ok: boolean; reason?: string }>("project.check", { path });
 export const teamPresets = () =>
   brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions; practice_defaults?: Record<string, boolean> }>("team.presets");
