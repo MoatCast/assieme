@@ -12,7 +12,8 @@ for text in [*map(str, range(1, 10)), '9+']:
     d.rounded_rectangle([INSET * K, INSET * K, (wide - INSET) * K - 1, (TALL - INSET) * K - 1],
                         radius=(TALL - 2 * INSET) * K // 2, fill=RED)
     font = ImageFont.truetype('/System/Library/Fonts/SFNS.ttf', 44 * K)
-    font.set_variation_by_axes([700, 44, 0][:len(font.get_variation_axes())])
+    # Bold, everything else as the font's own default, whichever order it lists its axes in.
+    font.set_variation_by_axes([700 if a['name'] in (b'Weight', 'Weight') else a['default'] for a in font.get_variation_axes()])
     d.text((wide * K / 2, TALL * K / 2), text, font=font, fill='white', anchor='mm')
     name = 'more' if text == '9+' else text
     im.resize((wide, TALL), Image.LANCZOS).save(Path(__file__).parent / f'{name}.png')
