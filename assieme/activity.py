@@ -4,7 +4,9 @@ Undo exists only where it really undoes something. A message already delivered, 
 Another step adds its own by putting an entry in UNDO; the brain checks the time limit, never the app.
 """
 
-from . import live, preset, quiet, settings, status, team
+import os
+
+from . import live, newteam, preset, quiet, settings, status, team
 
 UNDO_S = 24 * 3600
 MAX_ROWS = 500
@@ -50,6 +52,10 @@ def _undo_add(e, rt):
     if labels.get(team.TEAM) != e.get('team') or labels.get(team.ROLE) != e.get('agent'):
         raise ValueError('That terminal is no longer this agent.')  # only remove terminals you started
     rt.kill(e['address'])
+    try:
+        newteam.forget_role(os.path.join(newteam.teams_dir(), e['team']), e['agent'])
+    except (preset.PresetError, OSError):
+        pass  # no saved folder to tidy: the agent itself has stopped
 
 
 # action -> (fn(entry, rt), button label, seconds it stays available or None for as long as it applies)
@@ -94,7 +100,7 @@ def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the 
             reason = f"It didn't work: {e.get('detail') or 'no reason given'}"
         can = _available(e, undone, now) is None
         rows.append({'id': e.get('id'), 'at': local.strftime('%H:%M') if local else '', 'day': local.strftime('%Y-%m-%d') if local else '',
-                     'title': _title(e), 'reason': reason, 'by': by, 'ok': e.get('ok', True), 'agent': e.get('agent'),
+                     'title': _title(e), 'reason': reason, 'by': by, 'ok': e.get('ok', True), 'agent': e.get('agent'), 'action': e.get('action'),
                      'undo': {'label': UNDO[e['action']][1]} if can else None})
     return {'rows': rows}
 

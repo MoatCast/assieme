@@ -8,7 +8,7 @@ import time
 import unittest
 from unittest import mock
 
-from assieme import newteam, preset, team
+from assieme import live, newteam, preset, settings, team
 
 SAVED = '''name = "{name}"
 project = "/tmp/x"
@@ -45,7 +45,7 @@ class PresetsTest(unittest.TestCase):
         self.assertEqual([r['name'] for r in full],
                          ['planner', 'builder-1', 'builder-2', 'builder-3', 'reviewer', 'tester'])
         self.assertTrue(all(r['job'] and r['brief'] and 'Team practices' not in r['brief'] for r in full))
-        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief', 'model', 'effort'})
+        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief', 'model', 'effort', 'group'})
         self.assertIsNone(full[0]['parent'])
         self.assertEqual(full[4]['checkout'], 'read-only')
         self.assertEqual([g['id'] for g in p['practices']['groups']][0], 'messages')
@@ -416,3 +416,63 @@ class ModelOptionsTest(unittest.TestCase):
         p = newteam.presets(teams=self.d)
         self.assertIn('claude', p['models'])
         self.assertEqual({(r['model'], r['effort']) for r in p['presets'][0]['roles']}, {(None, None)})
+
+
+class AddAgentTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.env = mock.patch.dict(os.environ, {'XDG_STATE_HOME': self.tmp.name})
+        self.env.start()
+        self.teams = os.path.join(self.tmp.name, 'teams')
+        os.makedirs(self.teams)
+        self.project = os.path.join(self.tmp.name, 'proj')
+        os.makedirs(self.project)
+        subprocess.run(['git', 'init', '-q'], cwd=self.project, check=True)
+        subprocess.run(['git', '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'x'], cwd=self.project, check=True)
+        newteam.save(self.project, [{'name': 'lead', 'agent': 'claude', 'brief': 'lead brief'}], {}, 'shop', self.teams)
+
+    def tearDown(self):
+        self.env.stop()
+        self.tmp.cleanup()
+
+    def starter(self):
+        class Now:
+            def __init__(self, target, daemon):
+                self.target = target
+
+            def start(self):
+                self.target()
+        return newteam.Starter(object(), self.teams, thread=Now, which=lambda c: '/x/' + c)
+
+    def test_add_agent_appends_and_starts_only_it(self):
+        with mock.patch.object(newteam.team, 'start', return_value=[newteam.team.Started('b', 't5', 'running')]) as start:
+            self.assertEqual(self.starter().add_agent('shop', {'name': 'b', 'agent': 'codex', 'kind': 'builder', 'parent': 'lead'}), {'team': 'shop'})
+        self.assertEqual(start.call_args.kwargs['only'], 'b')
+        self.assertEqual(sorted(newteam.roster('shop', self.teams)), ['b', 'lead'])
+        [e] = live.recent_actions()
+        self.assertEqual((e['action'], e['agent'], e['address'], e['team']), ('add_agent', 'b', 't5', 'shop'))
+        self.assertTrue(os.path.isdir(os.path.join(self.project, '.assieme', 'worktrees', 'b')))
+
+    def test_add_agent_bad_name_taken(self):
+        for name in ('lead', 'Bad Name'):
+            with self.assertRaises(newteam.NewTeamError):
+                self.starter().add_agent('shop', {'name': name, 'agent': 'codex', 'kind': 'builder'})
+        self.assertEqual(sorted(newteam.roster('shop', self.teams)), ['lead'])
+
+    def test_add_agent_no_saved_folder(self):
+        with self.assertRaisesRegex(newteam.NewTeamError, "started from the command line"):
+            self.starter().add_agent('other', {'name': 'b', 'agent': 'codex', 'kind': 'builder'})
+
+    def test_failed_start_frees_the_name(self):
+        with mock.patch.object(newteam.team, 'start', side_effect=OSError('no')):
+            self.starter().add_agent('shop', {'name': 'b', 'agent': 'codex', 'kind': 'builder'})
+        self.assertEqual(sorted(newteam.roster('shop', self.teams)), ['lead'])
+        self.assertEqual(live.recent_actions(), [])
+
+    def test_group_survives_being_saved(self):
+        newteam.save(self.project, [{'name': 'x', 'agent': 'claude', 'brief': 'b', 'group': 'payments'}], {}, 'g', self.teams)
+        self.assertEqual(newteam.roster('g', self.teams)['x']['group'], 'payments')
+
+    def test_practice_defaults_reach_presets(self):
+        settings.set_value('practices.reviews', False)
+        self.assertEqual(newteam.presets(self.teams)['practice_defaults'], {'reviews': False})

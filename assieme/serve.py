@@ -11,7 +11,7 @@ import threading
 import time
 import traceback
 
-from . import runtime, status, team
+from . import runtime, settings, status, team, teammap
 
 CLIS = {'claude': 'claude', 'codex': 'codex', 'hc': 'hc', 'herdr': 'herdr'}
 
@@ -29,9 +29,13 @@ def snapshot(claude_dir, codex_dir, now, rt, which=shutil.which, hours=12, start
         teams = team.status(rt)
     except runtime.RuntimeError_:
         teams = []  # the assieme core isn't running: no Assieme teams yet
+    st = settings.load()
+    found = teammap.found_groups(agents, st['groups'], {t.get('cwd') for t in teams if t['state'] == 'live'})
     return {'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'clis': {k: bool(which(v)) for k, v in CLIS.items()},
-            'agents': [a.as_dict(now) | {'cwd': a.cwd, 'herdr_address': a.herdr_address} for a in agents],
+            'agents': [a.as_dict(now) | {'cwd': a.cwd, 'herdr_address': a.herdr_address,
+                                         'group': teammap.group_of(a, st['groups'])} for a in agents],
+            'found_teams': sorted(found), 'first_run_done': st['first_run_done'],
             'alerts': alerts, 'queue': status.owner_queue(agents, now), 'stalls': status.stalls(agents, now),
             'teams': teams, 'starting': list(starting)}
 

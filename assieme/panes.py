@@ -93,7 +93,7 @@ def _fix(role, buttons, text):
     return {'id': _id(role, text, tuple(b['id'] for b in buttons)), 'text': text, 'buttons': buttons}
 
 
-def view(team_name, rows, agents, now, read, answers):
+def view(team_name, rows, agents, now, read, answers, show_commands=False):
     rows = sorted(_latest(_current_run(rows)), key=lambda r: r.get('created_ms') or 0)
     matched = match(rows, agents)
     addr = {a.name: t for t, a in matched.items()}
@@ -109,7 +109,8 @@ def view(team_name, rows, agents, now, read, answers):
         state = _state(r, a, roots)
         argv0 = os.path.basename((r.get('argv') or [''])[0])
         p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
-             'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None}
+             'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
+             'command': None}
         if state == 'exited':
             lines = [x.strip() for x in (read(r['address']) or '').splitlines() if x.strip()]
             p['detail'] = lines[-1] if lines else ''
@@ -130,6 +131,9 @@ def view(team_name, rows, agents, now, read, answers):
             strip.append({'role': role, 'state': state, 'text': f'{role} is asking: {text}'})
         else:
             s = next((s for s in suggestions if a and s.agent == a.name), None)
+            if state == 'stuck' and a and a.cmds:
+                words = a.cmds[-1].split()
+                p['command'] = a.cmds[-1] if show_commands else (os.path.basename(words[0]) if words else None)
             if state in ('stuck', 'waiting'):
                 p['detail'] = _cap(a.detail if a and a.detail else (s.text if s else ''))
                 verb = 'seems stuck' if state == 'stuck' else 'has work waiting'

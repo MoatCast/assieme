@@ -103,6 +103,7 @@ class Agent:
         self.ask_since = None     # F9: since when
         self.context = 0          # A2: input tokens of its latest call, i.e. what every wake re-reads
         self.refused = []         # A5: (datetime, label, why, advice) refusals seen in the log tail
+        self.context_limit = None # Codex says how big its memory is; Claude Code's follows from the size
 
     def as_dict(self, now):
         return {'agent': self.name, 'source': self.source, 'state': self.state, 'detail': self.detail,
@@ -219,6 +220,7 @@ def _codex(agent, rows, show_text):
                 agent.refused.append((ts, tool[1], 'Codex sandbox or approval', ''))
         elif kind == 'token_count' and isinstance(p.get('info'), dict):
             agent.context = (p['info'].get('last_token_usage') or {}).get('input_tokens') or agent.context
+            agent.context_limit = p['info'].get('model_context_window') or agent.context_limit
 
 
 def _finish(agent, now):
@@ -241,6 +243,75 @@ def _finish(agent, now):
         agent.detail = f"same command x{REPEATS}: {tool[1] if tool else 'Bash'}"
     else:
         agent.detail = f'running {tool[1]}' if tool else 'thinking'
+
+
+def memory_limit(agent):
+    """How much context this agent can hold, or None if its log doesn't say. Claude Code's is 200K, or 1M once a session
+    has gone past that."""
+    if agent.source == 'codex':
+        return agent.context_limit
+    return 200_000 if agent.context <= 200_000 else 1_000_000
+
+
+def _short(command, show_text):
+    if isinstance(command, list):
+        command = ' '.join(map(str, command))
+    words = (command or '').split()
+    return ' '.join(words) if show_text else (os.path.basename(words[0]) if words else '')
+
+
+EDITS = {'Edit', 'Write', 'NotebookEdit', 'MultiEdit'}
+
+
+def recent_actions(path, source, show_text=False, n=4):
+    """An agent's last few commands and edits, newest first, as (datetime, plain words). Program and file names only
+    unless show_text: arguments can hold secrets. Messages are never included."""
+    try:
+        rows = _tail_rows(path)
+    except OSError:
+        return []
+    out, by_id = [], {}
+    for o in rows:
+        ts = parse_ts(o.get('timestamp'))
+        if not ts:
+            continue
+        if source == 'codex':
+            p = o.get('payload') or {}
+            if p.get('type') in ('function_call', 'custom_tool_call'):
+                args = p.get('arguments') or p.get('input') or ''
+                try:
+                    args = json.loads(args) if isinstance(args, str) else args
+                except ValueError:
+                    args = {}
+                cmd = (args.get('cmd') or args.get('command')) if isinstance(args, dict) else None
+                if cmd:
+                    out.append([ts, f'Ran {_short(cmd, show_text)}'])
+                elif p.get('name') == 'apply_patch':
+                    out.append([ts, 'Edited files'])
+            continue
+        msg = o.get('message') or {}
+        content = msg.get('content')
+        if o.get('type') == 'assistant':
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get('type') == 'tool_use':
+                    inp = b.get('input') or {}
+                    if b.get('name') == 'Bash':
+                        out.append([ts, f"Ran {_short(inp.get('command'), show_text)}"])
+                    elif b.get('name') in EDITS:
+                        out.append([ts, f"Edited {os.path.basename(inp.get('file_path') or inp.get('notebook_path') or 'a file')}"])
+                    else:
+                        continue
+                    by_id[b.get('id')] = out[-1]
+        elif o.get('type') == 'user' and not o.get('isMeta'):
+            text = content if isinstance(content, str) else ' '.join(
+                b.get('text', '') for b in content if isinstance(b, dict) and b.get('type') == 'text') if isinstance(content, list) else ''
+            sender, _ = wake_sender(text)
+            if text and sender != HUMAN:
+                out.append([ts, f'Took a note from {sender}'])
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get('type') == 'tool_result' and b.get('is_error') and b.get('tool_use_id') in by_id:
+                    by_id[b['tool_use_id']][1] += ', failed'
+    return [(ts, text) for ts, text in reversed(out)][:n]
 
 
 def _ago(seconds):
