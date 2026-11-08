@@ -185,9 +185,11 @@ def recent_actions(path=None, n=5):
     out = []
     for line in lines:
         try:
-            out.append(json.loads(line))
+            entry = json.loads(line)
         except ValueError:
-            pass
+            continue
+        if isinstance(entry, dict):
+            out.append(entry)
     return out
 
 
