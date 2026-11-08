@@ -287,7 +287,9 @@ class Review:
     def get(self, team, role):
         project, base, branch, path = self._ctx(team, role)
         tip, files = self._tip(project, branch), self._files(project, base, branch)
-        diff = self._git(project, 'diff', '-M', f'{base}...{branch}').stdout
+        # The viewer reads git's plain format, whatever the person's own git settings say.
+        diff = self._git(project, '-c', 'core.quotepath=off', 'diff', '-M', '--no-color', '--no-ext-diff', '--src-prefix=a/',
+                         '--dst-prefix=b/', f'{base}...{branch}').stdout
         too_big = len(diff) > MAX_DIFF
         for f in files:
             f['missing'] = not os.path.isfile(os.path.join(path, f['path']))
