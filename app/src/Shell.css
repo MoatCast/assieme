@@ -1,10 +1,12 @@
 .shell { display: flex; flex-direction: column; height: 100vh; background: var(--quiet-fog); }
-.shell-bar { display: flex; align-items: center; gap: 16px; padding: 10px 16px; min-height: 32px; position: relative; }
-.shell-bar .team-pick { font: inherit; font-size: 15px; font-weight: 600; color: #000; border: 0; background: none; cursor: pointer; }
+.shell-bar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; min-height: 32px; position: relative;
+  background: var(--quiet-surface); border-bottom: 1px solid var(--quiet-line); }
+.shell-bar .brand { flex-shrink: 0; }
+.shell-bar .team-pick { font: inherit; font-size: 14px; font-weight: 500; color: var(--quiet-ink); border: 0; background: none; cursor: pointer; }
 .shell-bar .tabs { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px;
-  background: #eceef1; border-radius: 999px; }
+  background: var(--quiet-fog); border-radius: 999px; }
 .shell-bar .tabs button { font: inherit; font-size: 13px; line-height: 16px; border: 0; background: none; cursor: pointer;
-  color: var(--quiet-slate); padding: 6px 14px; border-radius: 999px; }
-.shell-bar .tabs button.on { background: var(--quiet-surface); color: #000; font-weight: 500; box-shadow: 0 1px 2px #1b24331a; }
+  color: var(--quiet-slate); padding: 5px 14px; border-radius: 999px; }
+.shell-bar .tabs button.on { background: var(--quiet-surface); color: var(--quiet-accent); font-weight: 600; box-shadow: 0 1px 2px #1b24331a; }
 .shell-page { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 .shell-page[hidden] { display: none; }

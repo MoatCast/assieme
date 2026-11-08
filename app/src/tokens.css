@@ -1,20 +1,34 @@
-/* The Paper "C · Quiet" design tokens (file "Assieme"). Light only for now. */
+/* The Paper "C · Quiet v2" look (file "Assieme"). Light only for now; dark mode is step 29. */
 :root {
-  --quiet-bg: #ffffff;
+  --quiet-bg: #ebeff5;
   --quiet-surface: #ffffff;
-  --quiet-fog: #f4f5f7;
-  --quiet-line: #e3e6ea;
-  --quiet-control: #d5dae0;
-  --quiet-ink: #1b2433;
+  --quiet-fog: #ebeff5;
+  --quiet-line: #d5dbe4;
+  --quiet-line-strong: #bec6d2; /* secondary buttons, map nodes, switches when off */
+  --quiet-control: #808a99; /* form fields only */
+  --quiet-edge: #808a99;
+  --quiet-ink: #17253f;
   --quiet-on-ink: #ffffff;
-  --quiet-slate: #5e6773;
-  --quiet-mute: #7d8692;
-  --quiet-working: #3e8e5e;
-  --quiet-waste: #c98a1b;
-  --quiet-needs-you: #c8432b;
-  --quiet-needs-you-tint: #fbf1ee;
+  --quiet-slate: #4f5b6d;
+  --quiet-mute: #5f6b7e;
+  --quiet-accent: #2747d9; /* selected tab and brand mark only */
+  --quiet-working: #3e8e5e; /* dots */
+  --quiet-working-text: #2a7348;
+  --quiet-waste: #a36e0e;
+  --quiet-waste-text: #7a5410;
+  --quiet-needs-you: #c8432b; /* dots and borders */
+  --quiet-needs-you-text: #9c3a25;
+  --quiet-needs-you-tint: #fae9e4;
+  --quiet-needs-you-line: #ebc8be;
+  --quiet-tip-tint: #f9f0da;
+  --quiet-tip-line: #e3c887;
+  --quiet-tip-text: #5e4a1e;
+  --quiet-term: #141b28;
+  --quiet-term-text: #dce2eb;
+  --quiet-sheet-shadow: 0 1px 3px #1b24330f;
   --quiet-radius-control: 999px;
   --quiet-radius-card: 18px;
+  --quiet-radius-sheet: 16px;
   --quiet-radius-panel: 24px;
   --quiet-radius-inner: 12px;
   --quiet-font-ui: system-ui, -apple-system, sans-serif;

@@ -12,6 +12,15 @@ type Props = { session: string; address: string; typing?: boolean };
 const BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 /** One agent's terminal. `assieme` agents stream live (watch first, "Type here" to type); others are read-only. */
+// The dark terminal colours from Paper "v2 — Terminals"; every colour clears 4.5:1 on the background.
+const THEME = {
+  background: "#141b28", foreground: "#dce2eb", cursor: "#dce2eb", cursorAccent: "#141b28",
+  selectionBackground: "#3a4a66", black: "#141b28", red: "#f39a87", green: "#7fd0a0", yellow: "#e5b865",
+  blue: "#8fb3f0", magenta: "#d3a6e8", cyan: "#7fcfd6", white: "#dce2eb", brightBlack: "#9aa5b6", brightRed: "#f7b3a5",
+  brightGreen: "#9fe0ba", brightYellow: "#efcb8a", brightBlue: "#aac7f5", brightMagenta: "#e0bff0", brightCyan: "#9fdfe4",
+  brightWhite: "#ffffff",
+};
+
 export default function Terminal({ session, address, typing: startTyping = false }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [typing, setTyping] = useState(startTyping);
@@ -21,7 +30,7 @@ export default function Terminal({ session, address, typing: startTyping = false
   const live = session === "assieme";
 
   useEffect(() => {
-    const term = new Xterm({ fontFamily: "Geist Mono, ui-monospace, monospace", fontSize: 12, convertEol: false });
+    const term = new Xterm({ fontFamily: "Geist Mono, ui-monospace, monospace", fontSize: 12.5, convertEol: false, theme: THEME });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(box.current!);

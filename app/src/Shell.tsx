@@ -32,6 +32,10 @@ export default function Shell() {
   return (
     <div className="shell">
       <div className="shell-bar">
+        <svg className="brand" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
+          <path d="M9 5 4.5 13M9 5l4.5 8" fill="none" stroke="#2747d9" strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="9" cy="4.5" r="2.5" fill="#2747d9" /><circle cx="4.5" cy="13.5" r="2.5" fill="#2747d9" /><circle cx="13.5" cy="13.5" r="2.5" fill="#2747d9" />
+        </svg>
         {tab === "terminals" && names.length > 0 && (
           <select className="team-pick" aria-label="Team" value={team ?? ""} onChange={(e) => setPicked(e.target.value)}>
             {names.map((n) => <option key={n} value={n}>{n}</option>)}
