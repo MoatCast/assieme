@@ -14,7 +14,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from . import adapters, quiet, report, rules, status
+from . import adapters, quiet, report, rules, settings, status
 
 REFRESH = 5               # seconds between redraws
 COST_EVERY = 600          # seconds between recomputing the 24 h cost line
@@ -259,12 +259,10 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
         terminals = status.herdr_terminals() if use_herdr else None
         agents = status.collect(claude_dir, codex_dir, now, hours, herdr=terminals, running=status.running_cwds(),
                                 rules_for=rules_for)
-        for to, n, why in quiet.deliver(agents):
-            _log(log_path(), {'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': 'deliver', 'agent': to,
-                              'address': to, 'reason': why, 'ok': True, 'detail': f'{n} quiet note(s)'})
+        quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now))
         stalls = status.stalls(agents, now)
         queue = status.owner_queue(agents, now)
-        announce(queue, stalls, now)
+        announce(queue, stalls, now, switches=settings.load()['notify'])
         return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals), queue, acted(now), now,
                                             cost['send_less'])
 
@@ -402,9 +400,20 @@ def watch_once(claude_dir, codex_dir, hours=12, use_herdr=True):
                             herdr=status.herdr_terminals() if use_herdr else None,
                             running=status.running_cwds())
     at = now.astimezone().strftime('%H:%M')
-    lines = [f'{at}  {title}: {body}' for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now)]
-    lines += [f'{at}  delivered {n} quiet note(s) to {to} ({why})' for to, n, why in quiet.deliver(agents)]
+    switches = settings.load()['notify']
+    lines = [f'{at}  {title}: {body}' for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now,
+                                                                  switches=switches)]
+    lines += [f'{at}  delivered {n} quiet note(s) to {to} ({why})'
+              for to, n, why in quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now))]
     return lines
+
+
+def record_delivery(notes, why, now=None):
+    senders = {}
+    for n in notes:
+        senders[n['from_cwd']] = senders.get(n['from_cwd'], 0) + 1
+    record('deliver', notes[-1]['to'], why, detail=f'{len(notes)} quiet note(s)', by='auto', address=notes[-1]['to'], now=now,
+           to_cwd=notes[-1]['to_cwd'], **{'from': senders})
 
 
 def acted(now, path=None):

@@ -9,6 +9,8 @@ import shutil
 import socket
 import subprocess
 
+from . import quiet
+
 # Variables that mark "running inside another agent session". An inherited one turns off agents' transcripts
 # (CLAUDE_CODE_CHILD_SESSION) or confuses them; configuration and logins (CODEX_HOME, CLAUDE_CODE_USE_BEDROCK,
 # tokens) are kept.
@@ -50,7 +52,11 @@ class Runtime:
         if os.path.exists(self.sock):
             os.remove(self.sock)
         os.makedirs(os.path.dirname(self.sock), exist_ok=True)
-        env = clean_env(os.environ) | {'HC_SESSION': self.session, 'HC_SOCKET': self.sock}
+        # Agents inherit the core's PATH, so their `hc send` goes through quiet send. A core started before this keeps
+        # its old PATH until it restarts: its agents' notes are simply not held.
+        shim = quiet.install()
+        env = clean_env(os.environ) | {'HC_SESSION': self.session, 'HC_SOCKET': self.sock,
+                                       'PATH': shim + os.pathsep + os.environ.get('PATH', '')}
         r = subprocess.run(['hc', 'server', 'start'], env=env, capture_output=True, text=True)
         if r.returncode != 0:
             raise RuntimeError_('start_failed', f'hc server start failed: {(r.stderr or r.stdout).strip()}')
