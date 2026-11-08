@@ -12,6 +12,7 @@ from . import live, prompts, status, team
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
 CHANGED = 'This question changed. Take a look.'
+ANSWERED = 'You answered its question.'  # never the question: the action log keeps no words of the agents'
 
 
 def _real(path):
@@ -164,7 +165,6 @@ def act(team_name, role, fix, button, view_now, rt, log=None, now=None):
             ok, detail = True, 'sent'
     except Exception as e:  # a failed press is a message on the pane, never a dead brain call
         ok, detail = False, str(e)[:120]
-    live._log(log or live.log_path(), {'at': (now or status.now_utc()).strftime('%Y-%m-%dT%H:%M:%SZ'),
-                                       'action': action, 'agent': role, 'address': p['address'], 'team': team_name,
-                                       'reason': f['text'], 'ok': ok, 'detail': detail})
+    live.record(action, role, f['text'] if b.get('action') else ANSWERED, ok, detail, team=team_name,
+                address=p['address'], log=log, now=now)
     return {'ok': ok, 'detail': detail}

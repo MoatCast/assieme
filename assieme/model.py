@@ -39,6 +39,7 @@ class Session:
     turns: list = field(default_factory=list)
     refusals: collections.Counter = field(default_factory=collections.Counter)  # (label, why) -> count
     rule_notes: dict = field(default_factory=dict)  # why -> advice (F4)
+    cwd: str = None     # its working folder, to pick out one team's sessions
 
     def wake(self, sender, channel, text='', show_text=False, ts=None):
         self.turns.append(Turn(sender, channel, text=' '.join(text.split())[:80] if show_text else '', ts=ts))

@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from dataclasses import dataclass
 
 from . import adapters, quiet, report, rules, status
@@ -153,9 +154,17 @@ def run_action(s, runner=None, log=None, now=None):
             detail = ((res.stdout or res.stderr or '').strip().splitlines() or ['sent' if ok else 'failed'])[-1][:120]
         except (OSError, subprocess.SubprocessError) as e:
             ok, detail = False, str(e)[:120]
-    _log(log or log_path(), {'at': (now or status.now_utc()).strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': s.action,
-                             'agent': s.agent, 'address': s.address, 'reason': s.text, 'ok': ok, 'detail': detail})
+    record(s.action, s.agent, s.text, ok, detail, address=s.address, log=log, now=now)
     return ok, detail
+
+
+def record(action, agent, reason, ok=True, detail='', team=None, by='you', address=None, log=None, now=None, **extra):
+    """One Activity row. `extra` is what Undo needs (see activity.UNDO). Returns the entry."""
+    entry = {'id': uuid.uuid4().hex[:12], 'at': (now or status.now_utc()).strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': action,
+             'agent': agent, 'address': address, 'team': team, 'by': by, 'reason': reason, 'ok': ok, 'detail': detail,
+             **extra}
+    _log(log or log_path(), entry)
+    return entry
 
 
 def _log(path, entry):
@@ -335,7 +344,7 @@ def notify(title, body, runner=None):
         pass
 
 
-def announce(queue, stalls, now, store=None, notifier=notify):
+def announce(queue, stalls, now, store=None, notifier=notify, switches=None):
     """Notify once per new item in the owner's queue and per new stall. Returns the (title, body) pairs sent.
 
     Seen items are remembered in the state folder, so restarting assieme doesn't repeat them. Only names and kinds
@@ -348,13 +357,14 @@ def announce(queue, stalls, now, store=None, notifier=notify):
     except (OSError, ValueError):
         seen = {}
     sent = []
-    for q in queue:
+    switches = switches or {}
+    for q in queue if switches.get('needs_you', True) else ():
         if q['key'] in seen or q['seconds'] > NOTIFY_MAX_AGE:
             continue
         body = f"{q['kind']}, waiting {status._ago(q['seconds'])}" + (
             f"; holds up {', '.join(q['blocks'])}" if q['blocks'] else '')
         sent.append((q['key'], f"{q['agent']} needs you", body))
-    for st in stalls:
+    for st in stalls if switches.get('stalls', True) else ():
         key = 'stall|' + '|'.join(sorted(r['agent'] for r in st.get('roots', [])))
         if key not in seen and st['quiet_seconds'] <= NOTIFY_MAX_AGE:
             sent.append((key, 'Team stalled', st['text'][:220]))
