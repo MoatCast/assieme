@@ -107,7 +107,7 @@ class StartTest(unittest.TestCase):
     def test_brief_sent_only_after_first_status(self):
         rt = FakeRuntime(statuses={'coordinator': [None, None, None, {'state': 'idle'}]})
         out = self.start(rt, demo(COORD), task='fix bug')
-        self.assertEqual(rt.sent, [('t1', 'You coordinate.\n\nfix bug')])
+        self.assertEqual(rt.sent, [('t1', f'You coordinate.\n\n{team.TOOLS}\n\nfix bug')])
         self.assertEqual(rt.gets[(id(rt.statuses), 't1')], 4)
         self.assertEqual(out[0].state, 'running')
 
@@ -192,7 +192,7 @@ class StartTest(unittest.TestCase):
                  'labels': {'assieme.team': 'demo', 'assieme.role': 'coordinator'}}]
         rt = FakeRuntime(existing=live)
         out = self.start(rt, demo(COORD), task='go')
-        self.assertEqual(rt.sent, [('t7', 'You coordinate.\n\ngo')])
+        self.assertEqual(rt.sent, [('t7', f'You coordinate.\n\n{team.TOOLS}\n\ngo')])
         self.assertEqual(rt.labelled, [('t7', {'assieme.briefed': '1'})])
         self.assertEqual((out[0].state, rt.started), ('running', []))
 
@@ -251,11 +251,11 @@ class WhoGetsTheTaskTest(StartTest):
     def test_a_parents_first_message_says_how_to_reach_its_agents(self):
         rt = self.run_team(COORD, BUILDER, self.REVIEWER)
         [first] = self.sent_to(rt, 'coordinator')  # one message: a note sent mid-turn can go missing
-        self.assertIn('builder-1: `hc send demo-builder-1 "..."`', first)
-        self.assertIn('reviewer: `hc send demo-reviewer "..."`', first)
+        self.assertIn('- builder-1\n', first)
+        self.assertIn('- reviewer\n', first)
         self.assertIn('fix bug', first)
 
-    def test_terminals_are_named_so_the_brief_can_name_them(self):
+    def test_terminals_are_named(self):
         rt = self.run_team(COORD, self.REVIEWER)
         self.assertEqual([s['name'] for s in rt.started], ['demo-coordinator', 'demo-reviewer'])
 
@@ -269,7 +269,7 @@ class WhoGetsTheTaskTest(StartTest):
                          existing=[{'address': 't9', 'state': 'live', 'labels': {team.TEAM: 'demo', team.ROLE: 'coordinator'}, 'status': {'state': 'idle'}}])
         self.start(rt, demo(COORD, self.REVIEWER), task=None, only='reviewer')
         self.assertIn('coordinator will send you your work', self.sent_to(rt, 'reviewer')[0])
-        self.assertIn('hc send demo-reviewer', [text for to, text in rt.sent if to == 't9'][0])
+        self.assertIn('message_agent, as "reviewer"', [text for to, text in rt.sent if to == 't9'][0])
 
     def test_two_agents_at_the_top_both_get_it(self):
         other = Role('other', 'claude', 'o.md', 'You build too.')

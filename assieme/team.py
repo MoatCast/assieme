@@ -53,7 +53,9 @@ def stop(rt, name):
 
 
 WAIT_FOR_PARENT = '{parent} will send you your work. Until then, wait and do nothing.'
-REPORT_TO_YOU = ('These agents report to you and wait for you to send them work:\n{agents}\n'
+TOOLS = ('Your assieme tools: message_agent reaches a teammate by name, list_teammates shows who is here. If you are '
+         "stuck, or only the person can decide, call report and end your turn. Don't use `hc send`.")
+REPORT_TO_YOU = ('These agents report to you and wait for you to send them work (with message_agent):\n{agents}\n'
                  'They do nothing until you do this. As soon as there is work for one of them, such as a commit to review, '
                  'send it. You are not finished until you have.')
 
@@ -65,11 +67,11 @@ def terminal_name(team_name, role_name):
 def _brief(rt, t, role, task, tm):
     """An agent with a parent gets its work from that parent: the whole task would have it do the same work again.
     A parent is told who reports to it here, in its first message: a note sent mid-turn can go missing."""
-    parts = [role.brief.strip()]
+    parts = [role.brief.strip(), TOOLS]
     kids = [r for r in tm.roles if r.parent == role.name]
     if kids:
         parts.append(REPORT_TO_YOU.format(agents='\n'.join(
-            f'- {r.name}: `hc send {terminal_name(tm.name, r.name)} "..."`' for r in kids)))
+            f'- {r.name}' for r in kids)))
     if task:
         parts.append(task)
     elif role.parent:
@@ -83,7 +85,7 @@ def _tell_parent(tm, role, address, rt, addresses):
     if role.parent and addresses.get(role.parent):
         try:
             rt.send(addresses[role.parent], f'assieme: {role.name} now reports to you and waits for work. '
-                                            f'Reach it with `hc send {terminal_name(tm.name, role.name)} "..."`.')
+                                            f'Reach it with message_agent, as "{role.name}".')
         except runtime.RuntimeError_:  # the parent has gone: the new agent still started
             pass
 

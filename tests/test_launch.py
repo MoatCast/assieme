@@ -95,3 +95,17 @@ class ModelEffortTest(unittest.TestCase):
         self.assertEqual(ok('claude', None, 'ultra'), 'Claude Code has no thinking effort "ultra".')
         self.assertEqual(ok('codex', 'gpt"; rm', None), 'Model names use letters, digits, dots and dashes.')
         self.assertEqual(ok('claude', 'a b', None), 'Model names use letters, digits, dots and dashes.')
+
+
+class McpTest(unittest.TestCase):
+    def test_claude_gets_the_server_and_needs_no_permission_for_it(self):
+        a = launch.argv(role('claude'))
+        self.assertEqual(json.loads(a[a.index('--mcp-config') + 1])['mcpServers']['assieme']['args'], ['-P', '-m', 'assieme', 'mcp'])
+        self.assertEqual(json.loads(a[a.index('--settings') + 1])['permissions']['allow'], ['mcp__assieme'])
+
+    def test_codex_gets_the_server_with_the_variables_that_name_the_agent(self):
+        a = launch.argv(role('codex'))
+        conf = tomllib.loads('\n'.join(a[i + 1] for i, x in enumerate(a) if x == '-c' and a[i + 1].startswith('mcp_servers.')))
+        s = conf['mcp_servers']['assieme']
+        self.assertEqual(s['args'], ['-P', '-m', 'assieme', 'mcp'])
+        self.assertIn('HC_TERMINAL_ID', s['env_vars'])

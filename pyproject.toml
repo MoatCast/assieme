@@ -9,7 +9,7 @@ description = "Who woke whom in multi-agent coding teams, what each wake cost, a
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["mcp>=2.3,<3"]  # only `assieme mcp` imports it; the brain stays standard library
 
 [project.scripts]
 assieme = "assieme.cli:main"
@@ -18,7 +18,7 @@ assieme = "assieme.cli:main"
 packages = ["assieme"]
 
 [tool.setuptools.package-data]
-assieme = ["practices.toml", "presets/*/*", "presets/briefs/*"]
+assieme = ["practices.toml", "presets/*/*", "presets/briefs/*", "guide/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
