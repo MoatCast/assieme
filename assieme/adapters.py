@@ -9,7 +9,7 @@ import json
 import os
 import re
 
-from . import rules
+from . import detect, rules
 from .model import HUMAN, Session, parse_ts
 
 WAKE_MARKERS = [
@@ -72,6 +72,33 @@ def _text_of(content):
     return None
 
 
+def box_path():
+    """F10: where a metrics source writes, one row per reading."""
+    base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
+    return os.path.join(base, 'assieme', 'boxes.jsonl')
+
+
+def box_metrics(path, since):
+    """{"ts": "...", "box": "x", "cpu": 18, "rate": 120, "usd_per_hour": 0.5}; `"box": "local"` is the baseline."""
+    try:
+        rows = list(_rows(path))
+    except OSError:
+        return []
+    out = []
+    for r in rows:
+        ts = parse_ts(r.get('ts'))
+        if ts and ts >= since and r.get('box'):
+            out.append({**r, 'ts': ts, 'box': str(r['box'])})
+    return out
+
+
+def _output_text(out):
+    """A Codex tool's output: a string, or a list of text blocks."""
+    if isinstance(out, list):
+        return '\n'.join(b.get('text', '') for b in out if isinstance(b, dict))
+    return out if isinstance(out, str) else json.dumps(out)
+
+
 def _strip_common_prefix(names):
     """Project folder names -> short agent names.
 
@@ -127,9 +154,10 @@ def claude_code(root, since, show_text=False, user_settings=None, cwd_rules=None
 
 def _claude_session(path, agent, parent, since, show_text, rules_for=lambda cwd: []):
     s = Session(agent, 'claude-code')
-    seen, tools, cwd = set(), {}, None
+    seen, tools, cwd, jobs, refused_at = set(), {}, None, {}, None
     for o in _rows(path):
-        cwd = o.get('cwd') or cwd
+        cwd = s.cwd = o.get('cwd') or cwd
+        branch = o.get('gitBranch')
         ts = parse_ts(o.get('timestamp'))
         if not ts or ts < since:
             continue
@@ -141,26 +169,41 @@ def _claude_session(path, agent, parent, since, show_text, rules_for=lambda cwd:
                 sender, channel = wake_sender(text)
                 if parent and not s.turns:
                     sender, channel = parent, 'subagent'
-                s.wake(sender, channel, text, show_text, ts)
+                s.wake(sender, channel, text, show_text, ts, branch)
+                detect.note_wake(s, text, branch)
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_result' and b.get('is_error'):
                     out = b.get('content')
                     out = out if isinstance(out, str) else json.dumps(out)
+                    label, name, cmd, fpath = tools.get(b.get('tool_use_id'), ('?', None, None, None))
                     if rules.REFUSED.search(out):
-                        label, name, cmd, fpath = tools.get(b.get('tool_use_id'), ('?', None, None, None))
                         why, note = rules.explain(out, name, cmd, rules_for(cwd), fpath)
                         s.refusals[(label, why)] += 1
+                        refused_at = (why, ts)
                         if note:
                             s.rule_notes[why] = note
+                    elif name == 'Bash':
+                        sig = detect.failure_sig(out)
+                        if sig:
+                            s.failures.append((ts, sig, len(s.turns), label))
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get('type') == 'tool_result' and b.get('tool_use_id') in jobs:
+                    jobs.pop(b['tool_use_id']).end = ts
         elif o.get('type') == 'assistant' and msg.get('usage'):
+            if refused_at:  # F8: what a refusal cost is the wait until the agent's next move
+                s.refusal_seconds[refused_at[0]] += (ts - refused_at[1]).total_seconds()
+                refused_at = None
             if msg.get('id') not in seen:  # one call is logged once per content block
                 seen.add(msg.get('id'))
                 u = msg['usage']
                 s.call(u.get('input_tokens', 0) + u.get('cache_read_input_tokens', 0)
-                       + u.get('cache_creation_input_tokens', 0), u.get('output_tokens', 0))
+                       + u.get('cache_creation_input_tokens', 0), u.get('output_tokens', 0), ts)
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_use':
                     inp = b.get('input') or {}
+                    job = detect.note_call(s, b.get('name'), inp.get('command'), ts, b.get('id'), branch)
+                    if job:
+                        jobs[b.get('id')] = job
                     tools[b.get('id')] = (command_label(b.get('name'), inp.get('command'), show_text), b.get('name'),
                                           inp.get('command'), inp.get('file_path'))
     s.cwd = cwd
@@ -182,8 +225,8 @@ def codex(root, since, show_text=False):
 
 def _codex_session(path, since, show_text):
     s = Session('codex:?', 'codex')
-    thread_id = parent_id = None
-    last_total, tool_label = None, {}
+    thread_id = parent_id = branch = None
+    last_total, tool_label, jobs = None, {}, {}
     for o in _rows(path):
         p = o.get('payload') or {}
         if o.get('type') == 'session_meta':
@@ -195,6 +238,7 @@ def _codex_session(path, since, show_text):
             kind = 'subagent' if spawn else (sub.get('other') or '')
             s.agent = f"codex:{os.path.basename(p.get('cwd') or '') or '?'}" + (f'/{kind}' if kind else '')
             s.cwd = p.get('cwd')
+            branch = (p.get('git') or {}).get('branch')
             continue
         ts = parse_ts(o.get('timestamp'))
         if not ts or ts < since:
@@ -208,13 +252,14 @@ def _codex_session(path, since, show_text):
             sender, channel = wake_sender(text)
             if (parent_id or 'subagent' in s.agent) and not s.turns:
                 sender, channel = 'codex:parent', 'spawn'
-            s.wake(sender, channel, text, show_text, ts)
+            s.wake(sender, channel, text, show_text, ts, branch)
+            detect.note_wake(s, text, branch)
         elif kind == 'token_count' and isinstance(p.get('info'), dict):
             total = (p['info'].get('total_token_usage') or {}).get('total_tokens')
             last = p['info'].get('last_token_usage') or {}
             if total != last_total:  # the same count is re-emitted between calls
                 last_total = total
-                s.call(last.get('input_tokens', 0), last.get('output_tokens', 0))  # input already includes cached
+                s.call(last.get('input_tokens', 0), last.get('output_tokens', 0), ts)  # input already includes cached
         elif kind in ('function_call', 'custom_tool_call'):
             args = p.get('arguments') or p.get('input') or ''
             try:
@@ -222,11 +267,22 @@ def _codex_session(path, since, show_text):
             except ValueError:
                 pass
             cmd = (args.get('cmd') or args.get('command')) if isinstance(args, dict) else args
-            tool_label[p.get('call_id')] = command_label(p.get('name') or '?', cmd, show_text)
+            cmd = ' '.join(map(str, cmd)) if isinstance(cmd, list) else (cmd if isinstance(cmd, str) else '')
+            inner = detect.commands_of(cmd)
+            tool_label[p.get('call_id')] = command_label(p.get('name') or '?', inner[0] if inner else cmd, show_text)
+            job = detect.note_call(s, p.get('name'), cmd, ts, p.get('call_id'), branch)
+            if job:
+                jobs[p.get('call_id')] = job
         elif kind in ('function_call_output', 'custom_tool_call_output'):
-            out = p.get('output')
-            if CODEX_REFUSED.search(out if isinstance(out, str) else json.dumps(out)):
+            out = _output_text(p.get('output'))
+            if p.get('call_id') in jobs:
+                jobs.pop(p['call_id']).end = ts
+            if CODEX_REFUSED.search(out):
                 s.refusals[(tool_label.get(p.get('call_id'), '?'), 'Codex sandbox or approval')] += 1
+            elif detect.codex_failed(out):
+                sig = detect.failure_sig(out)
+                if sig:
+                    s.failures.append((ts, sig, len(s.turns), tool_label.get(p.get('call_id'), '?')))
     return thread_id, parent_id, s
 
 
@@ -246,7 +302,7 @@ def generic(path, since, show_text=False):
         if o.get('type') == 'wake':
             s.wake(str(o.get('from') or HUMAN), 'generic', str(o.get('text') or ''), show_text, ts)
         elif o.get('type') == 'call':
-            s.call(int(o.get('input_tokens') or 0), int(o.get('output_tokens') or 0))
+            s.call(int(o.get('input_tokens') or 0), int(o.get('output_tokens') or 0), ts)
         elif o.get('type') == 'refusal':
             s.refusals[(command_label('cmd', str(o.get('command') or ''), show_text), str(o.get('why') or 'reported'))] += 1
     yield from (s for s in sessions.values() if s.calls)

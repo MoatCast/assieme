@@ -11,8 +11,8 @@ import re
 import shlex
 import subprocess
 
-from . import rules
-from .adapters import CODEX_REFUSED, _strip_common_prefix, command_label, program, wake_sender
+from . import detect, rules
+from .adapters import CODEX_REFUSED, _output_text, _strip_common_prefix, box_metrics, box_path, command_label, program, wake_sender
 from .model import HUMAN, parse_ts
 
 STUCK_AFTER = 15 * 60       # working with no new log row for this long
@@ -104,6 +104,10 @@ class Agent:
         self.context = 0          # A2: input tokens of its latest call, i.e. what every wake re-reads
         self.refused = []         # A5: (datetime, label, why, advice) refusals seen in the log tail
         self.context_limit = None # Codex says how big its memory is; Claude Code's follows from the size
+        self.heavy = []           # F6: (datetime, kind, full suite?, label, tool id) heavy commands in the log tail
+        self.heavy_end = {}       # F6: tool id -> when its result came
+        self.failures = []        # F7: (datetime, fingerprint, turn, label) failed commands in the log tail
+        self.samples = []         # F5: (datetime, input tokens) per call in the log tail
 
     def as_dict(self, now):
         return {'agent': self.name, 'source': self.source, 'state': self.state, 'detail': self.detail,
@@ -127,6 +131,7 @@ def _claude(agent, rows, show_text, rules_for=lambda cwd: []):
             if u:
                 agent.context = (u.get('input_tokens', 0) + u.get('cache_read_input_tokens', 0)
                                  + u.get('cache_creation_input_tokens', 0)) or agent.context
+                agent.samples.append((ts, agent.context))
             blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
             texts = [b.get('text', '') for b in blocks if b.get('type') == 'text' and b.get('text', '').strip()]
             if texts:  # only whether it ends with a question is kept, never the text
@@ -140,6 +145,7 @@ def _claude(agent, rows, show_text, rules_for=lambda cwd: []):
                     if cmd:
                         agent.cmds.append(cmd)
                         agent.sends += [(ts, t) for t in _send_targets(cmd)]
+                        _note_heavy(agent, cmd, ts, b.get('id'))
             if msg.get('stop_reason') == 'end_turn':
                 agent.state = 'idle'
             elif msg.get('stop_reason'):
@@ -158,10 +164,25 @@ def _claude(agent, rows, show_text, rules_for=lambda cwd: []):
             for b in content if isinstance(content, list) else []:
                 if isinstance(b, dict) and b.get('type') == 'tool_result':
                     tool = agent.pending.pop(b.get('tool_use_id'), None)
+                    agent.heavy_end[b.get('tool_use_id')] = ts
                     out = b.get('content') if isinstance(b.get('content'), str) else json.dumps(b.get('content'))
                     if b.get('is_error') and tool and rules.REFUSED.search(out or ''):
                         why, advice = rules.explain(out, tool[0], tool[2], rules_for(agent.cwd))
                         agent.refused.append((ts, tool[1], why, advice))
+                    elif b.get('is_error') and tool and tool[0] == 'Bash':
+                        _note_failure(agent, out, ts, tool[1])
+
+
+def _note_heavy(agent, command, ts, call_id):
+    for c in detect.commands_of(command):
+        for kind, full, label in detect.heavy_runs(c, detect.project_heavy(agent.cwd)):
+            agent.heavy.append((ts, kind, full, label, call_id))
+
+
+def _note_failure(agent, text, ts, label):
+    sig = detect.failure_sig(text)
+    if sig:
+        agent.failures.append((ts, sig, agent.turn_start, label))
 
 
 def _note_wake(agent, ts, text):
@@ -216,14 +237,21 @@ def _codex(agent, rows, show_text):
             if cmd:
                 agent.cmds.append(cmd)
                 agent.sends += [(ts, t) for t in _send_targets(cmd)]
+                _note_heavy(agent, cmd, ts, p.get('call_id'))
         elif kind in ('function_call_output', 'custom_tool_call_output'):
             tool = agent.pending.pop(p.get('call_id'), None)
-            out = p.get('output') if isinstance(p.get('output'), str) else json.dumps(p.get('output'))
+            agent.heavy_end[p.get('call_id')] = ts
+            out = _output_text(p.get('output'))
             if tool and CODEX_REFUSED.search(out or ''):
                 agent.refused.append((ts, tool[1], 'Codex sandbox or approval', ''))
+            elif tool and detect.codex_failed(out):
+                inner = detect.commands_of(tool[2])
+                _note_failure(agent, out, ts, command_label('Bash', inner[0], show_text) if inner else tool[1])
         elif kind == 'token_count' and isinstance(p.get('info'), dict):
             agent.context = (p['info'].get('last_token_usage') or {}).get('input_tokens') or agent.context
             agent.context_limit = p['info'].get('model_context_window') or agent.context_limit
+            if (p['info'].get('last_token_usage') or {}).get('input_tokens'):
+                agent.samples.append((ts, agent.context))
 
 
 def _finish(agent, now):
@@ -492,10 +520,17 @@ def summary(agents):
     return head, alerts
 
 
+def warnings(agents, now):
+    """F5, F6, F7 and F10 as they stand right now: each one says what, why and the fix."""
+    boxes = box_metrics(box_path(), now - dt.timedelta(hours=detect.BOX_LIVE_HOURS))
+    return detect.live_findings(agents, now) + detect.box_findings(boxes)
+
+
 def to_text(agents, now):
     head, alerts = summary(agents)
     lines = [f"assieme status  {now.astimezone().strftime('%H:%M')}  {head}"]
-    lines += [f"  !! {s['text']}" for s in stalls(agents, now)] + [f'  ! {x}' for x in alerts] + ['']
+    lines += [f"  !! {s['text']}" for s in stalls(agents, now)] + [f'  ! {x}' for x in alerts]
+    lines += [f"  ! {w['line']}" for w in warnings(agents, now)] + ['']
     return '\n'.join(lines + table(agents, now)) + '\n'
 
 
@@ -512,6 +547,7 @@ def to_json(agents, now):
     return json.dumps({'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'summary': head, 'alerts': alerts,
                        'queue': owner_queue(agents, now),
                        'stalls': stalls(agents, now),
+                       'warnings': warnings(agents, now),
                        'agents': [a.as_dict(now) for a in agents]}, indent=2)
 
 

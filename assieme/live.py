@@ -36,6 +36,7 @@ class Suggestion:
     hint: str = ''        # the fix, when it is the person's to make
     yours: bool = False   # a decision only the owner can make
     pair: tuple = None    # quiet: (from_cwd, to_cwd, label)
+    label: str = ''       # the button's words on the agent's card, when `tell` means more than stop retrying
 
 
 def log_path():
@@ -102,9 +103,17 @@ def suggest(agents, stalls, addr, queue=(), done=(), now=None, send_less=()):
                                f'assieme: `{label}` has been refused {n} times by {why}. Do not retry it. '
                                'Do the task another way, or ask the owner if you really need it.'))
                 break
+    warnings = status.warnings(agents, now)
+    for w in warnings:  # F6, F7: told once per agent, after any refusal loop; F10 is the owner's to fix
+        if w['message']:
+            add(Suggestion(w['what'], w['agent'], addr.get(w['agent']), 'tell', w['message'], label=w['label']))
+        elif w['kind'] == 'box':
+            add(Suggestion(w['what'], w['agent'], hint=w['fix'], yours=True))
+    growing = {w['agent']: w['per_hour'] for w in warnings if w['kind'] == 'growth'}
     for a in agents:  # A2: an idle team agent with a big context re-reads all of it on every wake
         if a.state == 'idle' and a.context >= COMPACT_AT and a.peers:  # a one-off session won't be woken: leave it
-            add(Suggestion(f'{a.name} holds {a.context // 1000}K tokens of context; every wake re-reads it',
+            pace = f' and is growing {growing[a.name] // 1000}K an hour' if a.name in growing else ''
+            add(Suggestion(f'{a.name} holds {a.context // 1000}K tokens of context{pace}; every wake re-reads it',
                            a.name, addr.get(a.name), 'compact', '/compact'))
     for x in send_less:  # A3: the costliest empty pairs can be made quiet with one key
         f, t = _find(agents, x['from']), _find(agents, x['to'])

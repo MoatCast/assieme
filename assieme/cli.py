@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, live, newteam, preset, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
+from . import activity, adapters, answers, detect, live, machine, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
 
 
 def main(argv=None):
@@ -35,6 +35,8 @@ def main(argv=None):
     r.add_argument('--rules', action='append', default=[], metavar='FILE',
                    help='a Claude Code settings file whose deny rules explain refusals (repeatable); '
                         "running agents' --settings files are found automatically")
+    r.add_argument('--metrics', metavar='FILE', help='paid-compute readings, JSONL (default: boxes.jsonl in the state folder)')
+    r.add_argument('--prs', action='store_true', help='also ask `gh` about merged pull requests (goes over the network)')
     s = sub.add_parser('status', help='live health of each agent: working, stuck, waiting on you, ...')
     s.add_argument('--hours', type=float, default=12, help='agents with log activity in this window')
     s.add_argument('--json', action='store_true')
@@ -88,7 +90,15 @@ def main(argv=None):
     for path in args.generic:
         sessions += adapters.generic(path, since, args.show_text)
 
-    r = report.aggregate(sessions, dt.datetime.now(dt.timezone.utc), args.hours)
+    now = dt.datetime.now(dt.timezone.utc)
+    r = report.aggregate(sessions, now, args.hours, adapters.box_metrics(args.metrics or adapters.box_path(), since),
+                         machine.read(since))
+    weight = process.report({s.cwd for s in sessions}, since, now, process.run_gh if args.prs else None)
+    r['process'] = {'items': [{k: v for k, v in i.items() if k != 'sha'} for i in weight['items']],
+                    'gates': {**detect.gate_hours(sessions), **weight['gates']}}
+    gate = process.gate_finding(detect.gate_hours(sessions), weight['gates'])
+    r['findings'] += weight['findings'] + ([gate] if gate else [])
+    r['detectors'].append(weight['detector'])
     meta = {'hours': args.hours, 'since': since.strftime('%Y-%m-%dT%H:%M:%SZ')}
     sys.stdout.write(report.to_json(r, meta) + '\n' if args.json else report.to_md(r, meta, args.show_text))
     return 0
@@ -135,7 +145,7 @@ def _serve():
     activity.register_merge(reviews)
 
     def tick():
-        for step in (lambda: live.watch_once(claude, codex), brain.tick):
+        for step in (lambda: live.watch_once(claude, codex), brain.tick, lambda: machine.tick(status.now_utc())):
             try:
                 step()
             except Exception:  # one failing step must not stop notifications, delivery or the others
