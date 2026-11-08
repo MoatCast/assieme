@@ -266,6 +266,46 @@ test("keeps polling for test results while open", async () => {
   expect(b.reviewGet).toHaveBeenCalledTimes(2);
 });
 
+test("a file whose name has a space shows its diff", async () => {
+  const diff = `diff --git a/my file.py b/my file.py
+index 1111111..2222222 100644
+--- a/my file.py\t
++++ b/my file.py\t
+@@ -1,1 +1,1 @@
+-a = 1
++a = 2
+`;
+  b.reviewGet.mockResolvedValue(withChecks({ diff, notes: [], files: [{ path: "my file.py", add: 1, del: 1, binary: false, missing: false }] }));
+  await open();
+  expect(screen.getByText("a = 2")).toBeInTheDocument();
+});
+
+test("note buttons wait while an action runs", async () => {
+  let finish = () => {};
+  b.reviewNote.mockReturnValue(new Promise((r) => { finish = () => r({ ok: true }); }));
+  await open();
+  fireEvent.click(screen.getAllByRole("button", { name: "Ask builder-1 to fix it" })[0]);
+  await flush();
+  for (const button of screen.getAllByRole("button", { name: "Ask builder-1 to fix it" })) expect(button).toBeDisabled();
+  finish();
+  await flush();
+});
+
+test("the first look asks for a fresh test run, later polls don't", async () => {
+  await open();
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(b.reviewGet.mock.calls.map((c) => c[2])).toEqual([true, false]);
+});
+
+test("re-rendering doesn't restart a notice's wait", async () => {
+  const done = vi.fn();
+  const view = render(<Notice ms={1000} onDone={done}><b>Hello</b></Notice>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+  view.rerender(<Notice ms={1000} onDone={done}><b>Hello</b></Notice>);
+  await act(async () => { await vi.advanceTimersByTimeAsync(600); });
+  expect(done).toHaveBeenCalled();
+});
+
 test("a notice goes by itself", async () => {
   const done = vi.fn();
   render(<Notice ms={1000} onDone={done}>Hello</Notice>);

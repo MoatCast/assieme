@@ -164,7 +164,8 @@ export type MergeResult = { role: string; base: string; problem: string | null; 
 const slow = <T>(method: string, params: object, timeoutS: number) => invoke<T>("brain_call", { method, params, timeoutS });
 
 export const reviewWaiting = () => brain<ReviewWaiting[]>("review.waiting");
-export const reviewGet = (team: string, role: string) => slow<ReviewData>("review.get", { team, role }, 60);
+/** `retest` tries a failed or impossible test run again; the screen asks for it when it opens. */
+export const reviewGet = (team: string, role: string, retest = false) => slow<ReviewData>("review.get", { team, role, retest }, 60);
 export const reviewMerge = (team: string, role: string, tip: string, force: boolean) =>
   slow<MergeResult>("review.merge", { team, role, tip, force }, 60);
 export const reviewUndo = (id: string) => slow<{ role: string; base: string }>("review.undo", { id }, 60);

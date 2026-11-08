@@ -25,7 +25,7 @@ export function Notice({ children, ms, onDone, action }: {
   useEffect(() => {
     const t = setTimeout(() => done.current(), ms);
     return () => clearTimeout(t);
-  }, [ms, children]);
+  }, [ms]); // a new message gets a new `key`; a re-render must not restart the wait
   return (
     <div className="notice" role="status">
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#7fd19d" strokeWidth="2" strokeLinecap="round" /></svg>
@@ -49,10 +49,11 @@ function CheckRow({ check }: { check: ReviewCheck }) {
   );
 }
 
-function NoteCard({ note, role, away, onAct }: {
+function NoteCard({ note, role, away, busy, onAct }: {
   note: ReviewNote;
   role: string;
   away: boolean;
+  busy: boolean;
   onAct: (id: string, action: "fix" | "ignore") => void;
 }) {
   return (
@@ -62,8 +63,8 @@ function NoteCard({ note, role, away, onAct }: {
       </div>
       <div className="note-text">{note.text}</div>
       <div className="note-actions">
-        <button type="button" className="note-fix" onClick={() => onAct(note.id, "fix")}>Ask {role} to fix it</button>
-        <button type="button" className="note-ignore" onClick={() => onAct(note.id, "ignore")}>Ignore</button>
+        <button type="button" className="note-fix" disabled={busy} onClick={() => onAct(note.id, "fix")}>Ask {role} to fix it</button>
+        <button type="button" className="note-ignore" disabled={busy} onClick={() => onAct(note.id, "ignore")}>Ignore</button>
       </div>
     </div>
   );
@@ -80,9 +81,15 @@ function firstLine(hunks: HunkData[]): number | undefined {
   return computeNewLineNumber(changes.find(isInsert) ?? changes[0]) || undefined;
 }
 
-function FileDiff({ data, path, onNote }: {
+/** Git ends a path that has spaces with a tab on its ---/+++ lines. */
+const samePath = (a: string, b: string) => a.trimEnd() === b;
+const fileIn = (files: ReturnType<typeof parseDiff>, path: string) =>
+  files.find((f) => samePath(f.newPath, path)) ?? files.find((f) => samePath(f.oldPath, path));
+
+function FileDiff({ data, path, busy, onNote }: {
   data: ReviewData;
   path: string;
+  busy: boolean;
   onNote: (id: string, action: "fix" | "ignore") => void;
 }) {
   const parsed = useMemo(() => {
@@ -92,7 +99,7 @@ function FileDiff({ data, path, onNote }: {
       return null; // the file list and Open in editor still work
     }
   }, [data.diff]);
-  const file = parsed?.find((f) => f.newPath === path) ?? parsed?.find((f) => f.oldPath === path);
+  const file = parsed ? fileIn(parsed, path) : undefined;
   const notes = data.notes.filter((n) => n.file === path);
   const hunks = file?.hunks ?? [];
   const changes = hunks.flatMap((h) => h.changes);
@@ -105,7 +112,7 @@ function FileDiff({ data, path, onNote }: {
   for (const change of changes) {
     const here = isDelete(change) ? [] : notes.filter((n) => n.line === computeNewLineNumber(change));
     if (here.length)
-      widgets[getChangeKey(change)] = here.map((n) => <NoteCard key={n.id} note={n} role={data.role} away={false} onAct={onNote} />);
+      widgets[getChangeKey(change)] = here.map((n) => <NoteCard key={n.id} note={n} role={data.role} away={false} busy={busy} onAct={onNote} />);
   }
   const info = data.files.find((f) => f.path === path);
   const message = !parsed ? "This diff couldn't be read. Open the file in your editor."
@@ -113,7 +120,7 @@ function FileDiff({ data, path, onNote }: {
     : !hunks.length ? "No lines changed in this file." : null;
   return (
     <div className="diff-area">
-      {away.map((n) => <NoteCard key={n.id} note={n} role={data.role} away onAct={onNote} />)}
+      {away.map((n) => <NoteCard key={n.id} note={n} role={data.role} away busy={busy} onAct={onNote} />)}
       {message ? <p className="diff-message">{message}</p> : file && (
         <Diff viewType="unified" diffType={file.type} hunks={hunks} widgets={widgets} renderGutter={gutter}
           className="review-diff">
@@ -162,7 +169,7 @@ export default function Review({ team, role, pollMs = 5000, onBack, onMerged, on
     const poll = async () => {
       clearTimeout(timer);
       try {
-        const d = await reviewGet(team, role);
+        const d = await reviewGet(team, role, !loaded.current);
         if (!stopped) {
           if (!loaded.current) setProblem(""); // an action's refusal stays; only a failed first load clears here
           loaded.current = true;
@@ -278,11 +285,11 @@ export default function Review({ team, role, pollMs = 5000, onBack, onMerged, on
                 <span className="count">{file.add > 0 && <i className="add">+{file.add}</i>} {file.del > 0 && <i className="del">−{file.del}</i>}</span>
                 <div className="grow" />
                 <button type="button" className="open-editor" disabled={file.missing} onClick={() => act(() => {
-                  const parsed = data.diff ? parseDiff(data.diff).find((f) => f.newPath === file.path) : undefined;
+                  const parsed = data.diff ? fileIn(parseDiff(data.diff), file.path) : undefined;
                   return reviewEditor(team, role, file.path, parsed ? firstLine(parsed.hunks) : undefined);
                 })}>Open in editor</button>
               </div>
-              {!data.too_big && <FileDiff data={data} path={file.path} onNote={note} />}
+              {!data.too_big && <FileDiff data={data} path={file.path} busy={busy} onNote={note} />}
             </>
           )}
         </main>
@@ -334,7 +341,7 @@ export default function Review({ team, role, pollMs = 5000, onBack, onMerged, on
           </div>
         </div>
       )}
-      {sent && <Notice ms={6000} onDone={() => setSent("")}>{sent}</Notice>}
+      {sent && <Notice key={sent} ms={6000} onDone={() => setSent("")}>{sent}</Notice>}
     </div>
   );
 }

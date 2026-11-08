@@ -20,6 +20,7 @@ from . import adapters, live, preset, runtime, status, team as team_mod, worktre
 MAX_DIFF = 2_000_000
 TESTS_TIMEOUT_S = 900
 PUSH_TIMEOUT_S = 120
+DEPENDENCIES = ('node_modules', '.venv', 'venv')
 EDITORS = ('cursor', 'code', 'zed', 'subl')
 NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
 NOTE = re.compile(r'^[\s`>]*ASSIEME-NOTE\s+(\{.*\})', re.M)
@@ -63,8 +64,6 @@ def test_command(path):
 
 def test_result(cmd, rc, output):
     """What a finished test run means, in words for the Checks list."""
-    if rc == 127 or CANT_START.search(output):
-        return CANT_RUN
     if rc == 5 and 'pytest' in cmd:  # pytest: nothing collected
         return {**CANT_RUN, 'text': 'No tests found'}
     # A Cargo workspace prints one result per crate; others end on the total (Vitest's file count comes first).
@@ -72,6 +71,8 @@ def test_result(cmd, rc, output):
     passed = pick([int(x) for x in re.findall(r'(\d+) passed', output)])
     failed = pick([int(x) for x in re.findall(r'(\d+) failed', output)])
     total = passed + failed
+    if rc == 127 or (rc != 0 and not total and CANT_START.search(output)):  # a real failure may log those words too
+        return CANT_RUN
     if rc == 0:
         return {'state': 'ok', 'text': f'Tests pass, {passed} of {total}' if total else 'Tests pass', 'detail': ''}
     tail = '\n'.join(output.strip().splitlines()[-15:])
@@ -220,21 +221,35 @@ class Review:
         return {'live': True, 'working': (r.get('status') or {}).get('state') == 'working', 'address': r['address']}
 
     def _run_tests(self, project, path, tip, cmd):
+        """In a throwaway checkout of the commit: the result is about exactly that commit, and whatever the tests
+        generate can't look like the agent's uncommitted work."""
         key = (project, tip)
+        checkout = os.path.join(project, '.assieme', 'test-runs', tip)
         with self.test_locks.setdefault(project, threading.Lock()):  # one heavy test suite at a time per project
+            self._git(project, 'worktree', 'remove', '--force', checkout)  # left behind if the brain stopped mid-run
             try:
+                if self._git(project, 'worktree', 'add', '--detach', checkout, tip).returncode != 0:
+                    self.tests[key] = CANT_RUN
+                    return
+                for name in DEPENDENCIES:  # installed in the agent's worktree, and not part of the commit
+                    if os.path.isdir(os.path.join(path, name)) and not os.path.exists(os.path.join(checkout, name)):
+                        os.symlink(os.path.join(path, name), os.path.join(checkout, name))
                 env = runtime.clean_env(os.environ) | {'CI': '1', 'NO_COLOR': '1'}  # no watch mode, no colour codes
-                r = self.run(cmd, cwd=path, env=env, capture_output=True, encoding='utf-8', errors='replace',
+                r = self.run(cmd, cwd=checkout, env=env, capture_output=True, encoding='utf-8', errors='replace',
                              stdin=subprocess.DEVNULL, timeout=TESTS_TIMEOUT_S)
                 self.tests[key] = test_result(cmd, r.returncode, (r.stdout or '') + (r.stderr or ''))
             except subprocess.TimeoutExpired:
                 self.tests[key] = {'state': 'bad', 'text': 'Tests took over 15 minutes, so they were stopped', 'detail': ''}
             except OSError:
                 self.tests[key] = CANT_RUN
+            finally:
+                self._git(project, 'worktree', 'remove', '--force', checkout)
 
-    def _tests_check(self, project, path, tip):
+    def _tests_check(self, project, path, tip, retest=False):
         key = (project, tip)
         with self.lock:
+            if retest and self.tests.get(key, {}).get('state') in ('bad', 'none'):
+                del self.tests[key]  # opening Review again tries again, say after installing what was missing
             got = self.tests.get(key)
             if got:
                 return got
@@ -244,8 +259,8 @@ class Review:
             self.thread(target=lambda: self._run_tests(project, path, tip, cmd), daemon=True).start()
         return self.tests[key]
 
-    def _checks(self, name, role, project, base, branch, path, tip, files):
-        out = [dict(self._tests_check(project, path, tip), id='tests')]
+    def _checks(self, name, role, project, base, branch, path, tip, files, retest=False):
+        out = [dict(self._tests_check(project, path, tip, retest), id='tests')]
         found = self._conflicts(project, base, branch)
         if found is None:
             out.append({'id': 'conflicts', 'state': 'none', 'text': "Couldn't check for conflicts", 'detail': ''})
@@ -258,7 +273,7 @@ class Review:
         overlaps = []
         for other, other_branch in self._team_branches(project, name):
             if other != role:
-                theirs = self._git(project, 'diff', '--name-only', f'{base}...{other_branch}').stdout.split('\n')
+                theirs = self._git(project, 'diff', '--name-only', '-z', f'{base}...{other_branch}').stdout.split('\0')
                 shared = sorted(mine & set(theirs))
                 if shared:
                     overlaps.append(f'{other} also changed {", ".join(shared)}')
@@ -325,7 +340,7 @@ class Review:
                     out.append(note)
         return out
 
-    def get(self, team, role):
+    def get(self, team, role, retest=False):
         project, base, branch, path = self._ctx(team, role)
         tip, files = self._tip(project, branch), self._files(project, base, branch)
         # The viewer reads git's plain format, whatever the person's own git settings say.
@@ -337,7 +352,7 @@ class Review:
         return {'team': team, 'role': role, 'project': os.path.basename(project), 'base': base, 'branch': branch,
                 'tip': tip, 'ahead': self._ahead(project, base, branch), 'files': files,
                 'diff': '' if too_big else diff, 'too_big': too_big,
-                'checks': self._checks(team, role, project, base, branch, path, tip, files),
+                'checks': self._checks(team, role, project, base, branch, path, tip, files, retest),
                 'notes': self._notes(project, role, branch), 'agent': self._agent(team, role)}
 
     def _write_log(self, entry):
@@ -382,6 +397,8 @@ class Review:
         old = self._tip(project, base)
         checkout = self._checkout_of(project, base)
         if checkout:
+            if self._git(checkout, 'rev-parse', '--verify', '--quiet', 'MERGE_HEAD').returncode == 0:
+                raise ReviewError(f'Your {base} checkout is in the middle of a merge. Finish it, then merge again.')
             r = self._git(checkout, 'merge', '--no-ff', '--no-edit', '-m', message, branch)
             if r.returncode != 0:
                 said = (r.stderr or '') + (r.stdout or '')
@@ -414,9 +431,12 @@ class Review:
                 raise ReviewError('The tests have not passed on this branch.')
             if not force and self._agent(team, role)['working']:
                 raise ReviewError(f'{role} is still working.')
-            old, new = self._do_merge(project, base, branch, role)
             notes = {n['id'] for n in self._notes(project, role, branch)}
-            self._set_ignored(project, self._ignored(project) | notes)
+            old, new = self._do_merge(project, base, branch, role)
+            try:
+                self._set_ignored(project, self._ignored(project) | notes)
+            except OSError:
+                pass  # the merge stands: old notes showing again is the lesser problem
             problem = self._archive(project, team, role, branch, path, tip)
             uid = uuid.uuid4().hex
             self.undos[uid] = {'team': team, 'role': role, 'project': project, 'base': base, 'branch': branch,
@@ -483,8 +503,8 @@ class Review:
             raise ReviewError("Couldn't push the branch: it took over 2 minutes.") from None
         if r.returncode != 0:
             raise ReviewError(f"Couldn't push the branch: {r.stderr.strip()}")
-        self._write_log({'id': uuid.uuid4().hex, 'team': team, 'agent': role, 'action': 'pull-request', 'undo': False,
-                         'title': f"Opened a pull request for {role}", 'reason': f'Pushed {branch} to origin.'})
+        logged = lambda title: self._write_log({'id': uuid.uuid4().hex, 'team': team, 'agent': role, 'undo': False,
+                                                'action': 'pull-request', 'title': title, 'reason': f'Pushed {branch} to origin.'})
         if self.which('gh'):
             try:
                 r = self.run(['gh', 'pr', 'create', '--fill', '--base', base, '--head', branch], cwd=project,
@@ -493,8 +513,11 @@ class Review:
                 raise ReviewError("The branch is pushed, but the pull request didn't open: it took over 2 minutes.") from None
             found = re.search(r'https://\S+', (r.stdout or '') + (r.stderr or ''))
             if found and (r.returncode == 0 or 'already exists' in (r.stderr or '')):
+                logged(f'Opened a pull request for {role}')
                 return {'url': found.group(0)}
+            logged(f"Pushed {role}'s branch; the pull request didn't open")
             raise ReviewError(f"The branch is pushed, but the pull request didn't open: {(r.stderr or '').strip()}")
+        logged(f"Pushed {role}'s branch for a pull request")
         github = re.search(r'github\.com[:/](.+?)(?:\.git)?/?$', origin.stdout.strip())
         if github:
             return {'url': f'https://github.com/{github.group(1)}/compare/{base}...{branch}?expand=1'}

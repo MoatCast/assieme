@@ -179,6 +179,11 @@ class Reading(Base):
         c = self.check(self.r.get('demo', 'builder-1'), 'own-files')
         self.assertEqual((c['state'], c['text']), ('warn', 'builder-2 also changed a.py'))
 
+    def test_overlap_finds_non_ascii_names(self):
+        self.branch('builder-1', {'caf\u00e9.py': 'A\n'})
+        self.branch('builder-2', {'caf\u00e9.py': 'B\n'})
+        self.assertEqual(self.check(self.r.get('demo', 'builder-1'), 'own-files')['text'], 'builder-2 also changed caf\u00e9.py')
+
     def test_uncommitted_changes_only_appear_when_true(self):
         self.branch('builder-1', {'a.py': 'A\n'})
         self.assertEqual([c['id'] for c in self.r.get('demo', 'builder-1')['checks']], ['tests', 'conflicts', 'own-files'])
@@ -250,10 +255,56 @@ class Tests(Base):
         got = self.r.get('demo', 'builder-1')
         self.assertEqual(self.check(got, 'tests')['text'], 'Tests pass, 2 of 2')
         self.r.get('demo', 'builder-1')
-        self.assertEqual(calls, [(['python3', '-m', 'pytest', '-q'], self.wt('builder-1'), '1')])
+        tip = self.r.get('demo', 'builder-1')['tip']
+        self.assertEqual(calls, [(['python3', '-m', 'pytest', '-q'], f'{self.repo}/.assieme/test-runs/{tip}', '1')])
         self.branch('builder-1', {'a.py': 'B\n'})
         self.r.get('demo', 'builder-1')
         self.assertEqual(len(calls), 2)
+
+    def test_what_tests_generate_stays_out_of_the_agents_worktree(self):
+        seen = {}
+
+        def run(cmd, **kw):
+            if cmd[0] == 'python3':
+                seen['dep'] = os.path.islink(f"{kw['cwd']}/.venv")
+                write(f"{kw['cwd']}/coverage.xml", 'generated\n')
+                seen['commit'] = git(kw['cwd'], 'rev-parse', 'HEAD')
+                return types.SimpleNamespace(returncode=0, stdout='1 passed', stderr='')
+            return subprocess.run(cmd, **kw)
+        self.r.run = run
+        tip = self.branch('builder-1', {'pytest.ini': '[pytest]\n'})
+        os.makedirs(f"{self.wt('builder-1')}/.venv")
+        write(f'{self.repo}/.git/info/exclude', '.assieme/\n.venv\n')
+        got = self.r.get('demo', 'builder-1')
+        self.assertEqual((seen['commit'], seen['dep']), (tip, True))
+        self.assertEqual(self.check(got, 'tests')['state'], 'ok')
+        self.assertFalse(os.path.exists(f"{self.wt('builder-1')}/coverage.xml"))
+        self.assertNotIn('uncommitted', [c['id'] for c in self.r.get('demo', 'builder-1')['checks']])
+        self.assertEqual(os.listdir(f'{self.repo}/.assieme/test-runs'), [])
+        self.assertEqual(git(self.repo, 'worktree', 'list').count('\n'), 1)
+
+    def test_a_real_failure_mentioning_a_missing_command_is_still_a_failure(self):
+        py = ['python3', '-m', 'pytest', '-q']
+        self.assertEqual(result_of(py, 1, 'sh: foo: command not found\n1 failed, 2 passed')['state'], 'bad')
+        self.assertEqual(result_of(py, 0, 'sh: foo: command not found\n3 passed')['state'], 'ok')
+        self.assertEqual(result_of(py, 1, 'sh: pytest: command not found')['state'], 'none')
+
+    def test_opening_review_again_retries_a_failed_run_only(self):
+        runs, codes = [], [1, 0]
+
+        def run(cmd, **kw):
+            if cmd[0] == 'python3':
+                runs.append(cmd)
+                return types.SimpleNamespace(returncode=codes[len(runs) - 1], stdout='', stderr='')
+            return subprocess.run(cmd, **kw)
+        self.r.run = run
+        self.branch('builder-1', {'pytest.ini': '[pytest]\n'})
+        self.assertEqual(self.check(self.r.get('demo', 'builder-1'), 'tests')['state'], 'bad')
+        self.assertEqual(self.check(self.r.get('demo', 'builder-1'), 'tests')['state'], 'bad')
+        self.assertEqual(len(runs), 1)
+        self.assertEqual(self.check(self.r.get('demo', 'builder-1', retest=True), 'tests')['state'], 'ok')
+        self.r.get('demo', 'builder-1', retest=True)
+        self.assertEqual(len(runs), 2)
 
     def test_shows_running_until_the_thread_finishes(self):
         waiting = []
@@ -445,6 +496,28 @@ class Merging(Base):
         self.assertEqual(open(f'{self.repo}/a.py').read(), 'my own edit\n')
         self.assertTrue(os.path.isdir(self.wt('builder-1')))
 
+    def test_the_persons_unfinished_merge_is_left_alone(self):
+        tip = self.branch('builder-1', {'b.py': 'agent\n'})
+        git(self.repo, 'switch', '-qc', 'theirs')
+        write(f'{self.repo}/a.py', 'THEIRS\n')
+        git(self.repo, 'commit', '-qam', 'theirs')
+        git(self.repo, 'switch', '-q', 'main')
+        write(f'{self.repo}/a.py', 'MINE\n')
+        git(self.repo, 'commit', '-qam', 'mine')
+        subprocess.run(['git', '-C', self.repo, 'merge', 'theirs'], capture_output=True)
+        head = git(self.repo, 'rev-parse', 'MERGE_HEAD')
+        with self.assertRaisesRegex(ReviewError, 'middle of a merge'):
+            self.r.merge('demo', 'builder-1', tip)
+        self.assertEqual(git(self.repo, 'rev-parse', 'MERGE_HEAD'), head)
+
+    def test_a_failure_while_reading_notes_happens_before_main_moves(self):
+        tip = self.branch('builder-1', {'a.py': 'A\n'})
+        before = self.main_tip()
+        self.r._notes = lambda *a: (_ for _ in ()).throw(OSError('gone'))
+        with self.assertRaises(OSError):
+            self.r.merge('demo', 'builder-1', tip)
+        self.assertEqual(self.main_tip(), before)
+
     def test_unrelated_local_changes_survive_merge_and_undo(self):
         tip = self.branch('builder-1', {'a.py': 'one\nTWO\nthree\n'})
         write(f'{self.repo}/b.py', 'my own edit\n')
@@ -588,6 +661,14 @@ class PullRequests(Base):
         self.r.which = lambda c: '/x/gh' if c == 'gh' else None
         self.assertEqual(self.r.pull_request('demo', 'builder-1')['url'], 'https://github.com/me/shop/pull/7')
         self.assertEqual(self.calls[1], ['gh', 'pr', 'create', '--fill', '--base', 'main', '--head', 'assieme/demo/builder-1'])
+
+    def test_the_log_only_says_opened_when_it_opened(self):
+        git(self.repo, 'remote', 'add', 'origin', 'git@example.invalid:me/shop.git')
+        self.fake(types.SimpleNamespace(returncode=1, stdout='', stderr='not logged in'))
+        self.r.which = lambda c: '/x/gh' if c == 'gh' else None
+        with self.assertRaises(ReviewError):
+            self.r.pull_request('demo', 'builder-1')
+        self.assertIn("didn't open", json.loads(open(self.log).read().splitlines()[-1])['title'])
 
     def test_an_existing_pull_request_is_reused(self):
         git(self.repo, 'remote', 'add', 'origin', 'git@example.invalid:me/shop.git')

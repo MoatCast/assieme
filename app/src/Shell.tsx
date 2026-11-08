@@ -93,12 +93,12 @@ export default function Shell() {
         </div>
       )}
       {merged && (
-        <Notice ms={120_000} onDone={() => setMerged(null)}
+        <Notice key={merged.undo} ms={120_000} onDone={() => setMerged(null)}
           action={<button type="button" onClick={() => undo(merged)}>Undo</button>}>
           Merged <strong>{merged.role}</strong> into {merged.base}. {merged.problem ?? "Its worktree is archived."}
         </Notice>
       )}
-      {notice && <Notice ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
+      {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
       {creating && (
         <NewTeam clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setCreating(false)} />
       )}
