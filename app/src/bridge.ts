@@ -23,6 +23,7 @@ export type TeamRow = {
   state: string;
   status: string | null;
   briefed: boolean;
+  cwd?: string | null;
 };
 
 export type Snapshot = {

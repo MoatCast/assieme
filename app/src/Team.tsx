@@ -177,7 +177,8 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
           {offline && <div className="offline">Reconnecting…</div>}
           {here.flatMap((s, i) => {
             if (s.error) return [<p key={i} className="start-error">Couldn’t add the agent: {s.error}</p>];
-            return s.roles.filter((r) => !s.done || UNSETTLED.includes(r.state)).map((r) => (
+            const stopped = (role: string) => map.panes.some((p) => p.role === role && p.state === "exited");
+            return s.roles.filter((r) => !s.done || (UNSETTLED.includes(r.state) && !stopped(r.role))).map((r) => (
               <p key={`${i}-${r.role}`} className={s.done ? "start-error" : "start-note"}>
                 {s.done ? `${r.role} needs you: ${r.detail || "it didn’t come up."}` : `Starting ${r.role}…`}
               </p>

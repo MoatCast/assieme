@@ -69,7 +69,9 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
   const agents = snap?.agents ?? [];
   const count = (source: string) => agents.filter((a) => a.source === source).length;
   const groups = new Map<string, Agent[]>();
-  for (const a of agents) groups.set(groupName(a), [...(groups.get(groupName(a)) ?? []), a]);
+  // An agent of a running Assieme team is listed under that team, not found a second time by its folder.
+  const inTeams = new Set((snap?.teams ?? []).filter((t) => t.state === "live").map((t) => t.cwd));
+  for (const a of agents) if (!inTeams.has(a.cwd ?? undefined)) groups.set(groupName(a), [...(groups.get(groupName(a)) ?? []), a]);
   const teams = new Map<string, Snapshot["teams"]>();
   for (const t of (snap?.teams ?? []).filter((t) => t.state === "live"))
     teams.set(t.team, [...(teams.get(t.team) ?? []), t]);

@@ -228,6 +228,10 @@ test("an added agent that stopped at its hook review says so on the Team tab", a
   await open(MAP(), { starting: [{ team: "shop", project: "/p", done: true, error: null, roles: [{ role: "y", state: "running", detail: "" }] }] });
   expect(screen.queryByText(/y needs you/)).toBeNull();
   cleanup();
+  const gone = { team: "shop", project: "/p", done: true, error: null, roles: [{ role: "b", state: "needs-you", detail: "review" }] };
+  await open(MAP({ panes: [pane("a"), pane("b", { state: "exited" })] }), { starting: [gone] });
+  expect(screen.queryByText(/b needs you/)).toBeNull();
+  cleanup();
   await open(MAP(), { starting: [{ team: "shop", project: "/p", done: false, error: null, roles: [{ role: "z", state: "starting", detail: "" }] }] });
   expect(screen.getByText("Starting z…")).toBeTruthy();
 });

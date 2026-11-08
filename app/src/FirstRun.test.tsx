@@ -192,3 +192,13 @@ test("a person's own group wins over the folder name", async () => {
   expect(within(screen.getByTestId("project-mine")).getByText("a")).toBeTruthy();
   expect(within(screen.getByTestId("project-mine")).getByText("b")).toBeTruthy();
 });
+
+test("an agent of a running team isn't found a second time by its folder", async () => {
+  snapshot.mockResolvedValue({ ...SNAP, agents: [{ ...agent("kid", "/p/wt/kid"), group: "p" }, agent("solo", "/x/solo")],
+    teams: [{ team: "p", role: "kid", address: "t2", state: "live", status: "idle", briefed: true, cwd: "/p/wt/kid" }] });
+  render(<FirstRun pollMs={100000} />);
+  await act(async () => {});
+  expect(screen.queryByTestId("project-p")).toBeNull();
+  expect(screen.getByTestId("team-p")).toBeTruthy();
+  expect(screen.getByTestId("project-solo")).toBeTruthy();
+});
