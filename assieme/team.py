@@ -40,7 +40,7 @@ def status(rt, name=None):
             continue
         rows.append({'team': labels[TEAM], 'role': labels.get(ROLE), 'address': x['address'],
                      'state': x.get('state'), 'status': (x.get('status') or {}).get('state'),
-                     'briefed': labels.get(BRIEFED) == '1'})
+                     'briefed': labels.get(BRIEFED) == '1', 'cwd': x.get('cwd')})
     return rows
 
 

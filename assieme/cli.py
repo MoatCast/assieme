@@ -11,8 +11,9 @@ import json
 import os
 import sys
 import time
+import traceback
 
-from . import adapters, answers, live, newteam, panes, preset, quiet, report, review, rules, runtime, serve, service, status, team, worktree
+from . import activity, adapters, answers, live, newteam, preset, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
 
 
 def main(argv=None):
@@ -129,11 +130,16 @@ def _serve():
     starter = newteam.Starter(rt, newteam.teams_dir())
     suggested = answers.Answers()
 
-    def team_view(team_name):
-        now = status.now_utc()
-        rows = [r for r in rt.list({team.TEAM: team_name}, all=True) if (r.get('labels') or {}).get(team.TEAM) == team_name]
-        agents = status.collect(claude, codex, now, running=status.running_cwds())
-        return panes.view(team_name, rows, agents, now, lambda a: rt.read(a, lines=40), suggested)
+    brain = teammap.Brain(claude, codex, rt, starter, suggested)
+    reviews = review.Review(rt, newteam.teams_dir())
+    activity.register_merge(reviews)
+
+    def tick():
+        for step in (lambda: live.watch_once(claude, codex), brain.tick):
+            try:
+                step()
+            except Exception:  # one failing step must not stop notifications, delivery or the others
+                traceback.print_exc()
     serve.serve(serve.brain_socket_path(),
                 {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
                                                           starting=starter.records()),
@@ -141,11 +147,9 @@ def _serve():
                  'team.presets': lambda: newteam.presets(),
                  'team.start': starter.start,
                  'team.suggest': newteam.suggest,
-                 'team.view': lambda team: team_view(team),
-                 'pane.act': lambda team, role, fix, button: panes.act(team, role, fix, button,
-                                                                       lambda: team_view(team), rt)}
-                | review.Review(rt, newteam.teams_dir()).handlers(),
-                tick=lambda: live.watch_once(claude, codex))
+                 **brain.handlers(),
+                 **reviews.handlers()},
+                tick=tick)
     return 0
 
 

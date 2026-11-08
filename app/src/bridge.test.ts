@@ -82,3 +82,21 @@ test("teamView and paneAct call the brain", async () => {
   await bridge.paneAct(a);
   expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "pane.act", params: a });
 });
+
+test("the new brain calls use the brain's method names", async () => {
+  const { activityList, activityUndo, agentDetail, listTeams, quietPairs, quietSet, setGroups, setSetting, stopTeam, teamMap, tipApply, getSettings } = bridge;
+  invoke.mockResolvedValue({});
+  const calls: [() => unknown, string, object][] = [
+    [() => teamMap("t"), "team.map", { team: "t" }], [() => agentDetail("t", "r"), "agent.detail", { team: "t", role: "r" }],
+    [() => tipApply("t", "x"), "tip.apply", { team: "t", tip: "x" }], [() => stopTeam("t"), "team.stop", { team: "t" }],
+    [() => listTeams(), "teams.list", {}], [() => activityList("t", "you"), "activity.list", { team: "t", filter: "you" }],
+    [() => activityUndo("i"), "activity.undo", { id: "i" }], [() => getSettings(), "settings.get", {}],
+    [() => setSetting("k", 1), "settings.set", { key: "k", value: 1 }], [() => quietPairs("t"), "quiet.pairs", { team: "t" }],
+    [() => quietSet({ from_cwd: "a", to_cwd: "b", label: "l", on: true }), "quiet.set", { from_cwd: "a", to_cwd: "b", label: "l", on: true }],
+    [() => setGroups({ a: "b" }), "groups.set", { groups: { a: "b" } }],
+  ];
+  for (const [call, method, params] of calls) {
+    await call();
+    expect(invoke).toHaveBeenLastCalledWith("brain_call", { method, params });
+  }
+});

@@ -9,7 +9,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, launch, preset, runtime, team, worktree
+from . import ask, live, launch, preset, runtime, settings, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -43,7 +43,7 @@ def kind_brief(kind):
 
 def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
-            'brief': r.brief, 'model': r.model, 'effort': r.effort}
+            'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group}
 
 
 def _as_preset(folder, id_, label=None):
@@ -67,7 +67,8 @@ def presets(teams=None):
             break
         except (preset.PresetError, OSError):
             continue  # a half-written or hand-edited folder: try the next one
-    return {'presets': builtin, 'practices': preset.practices(), 'last': last, 'models': model_options()}
+    return {'presets': builtin, 'practices': preset.practices(), 'last': last, 'models': model_options(),
+            'practice_defaults': settings.load()['practices']}
 
 
 CLAUDE_MODELS = (('fable', 'Fable'), ('opus', 'Opus'), ('sonnet', 'Sonnet'))  # Claude Code's own aliases
@@ -137,23 +138,54 @@ def team_name(project, taken):
     return name
 
 
+def _toml_str(v):
+    return json.dumps(v, ensure_ascii=False)  # ASCII escapes would split emoji into surrogates TOML rejects
+
+
+def _role_toml(r):
+    q = _toml_str
+    out = ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
+           f'checkout = {q(r.get("checkout", "branch"))}']
+    out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group') if r.get(key)]
+    return out + ['']
+
+
+def forget_role(folder, name):
+    """Take a role back out of a saved team, so it doesn't return at the next start and its name is free again."""
+    tm = preset.load(folder, practices=False)
+    with open(os.path.join(folder, 'team.toml'), 'rb') as f:
+        data = tomllib.load(f)
+    keep = [r for r in data.get('role', []) if r.get('name') != name]
+    by_name = {r.name: r for r in tm.roles}
+    gone = by_name.get(name)
+    roles = [_role_dict(by_name[r['name']]) for r in keep]
+    for r in roles:  # whoever reported to it now reports one level up, or the saved team would no longer load
+        if r['parent'] == name:
+            r['parent'] = gone.parent if gone else None
+    save(tm.project, roles, tm.practices, tm.name, os.path.dirname(folder))
+
+
+def roster(name, teams=None):
+    """What the saved team folder says about each role. A team started from the command line has none."""
+    try:
+        tm = preset.load(os.path.join(teams or teams_dir(), name), practices=False)
+    except (preset.PresetError, OSError):
+        return {}
+    return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
+
+
 def save(project, roles, practices, name, teams):
     """Write the team folder `preset.load` reads; TOML strings are written as JSON strings, which TOML accepts."""
     folder = os.path.join(teams, name)
     if os.path.isdir(folder):
         shutil.rmtree(folder)
     os.makedirs(folder)
-    q = lambda v: json.dumps(v, ensure_ascii=False)  # ASCII escapes would split emoji into surrogates TOML rejects
+    q = _toml_str
     out = [f'name = {q(name)}', f'project = {q(os.path.abspath(project))}', '']
     if practices:
         out += ['[practices]'] + [f'{k} = {"true" if v else "false"}' for k, v in practices.items()] + ['']
     for r in roles:
-        out += ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
-                f'checkout = {q(r.get("checkout", "branch"))}']
-        for key in ('parent', 'model', 'effort'):
-            if r.get(key):
-                out.append(f'{key} = {q(r[key])}')
-        out.append('')
+        out += _role_toml(r)
         with open(os.path.join(folder, f'{r["name"]}.md'), 'w') as f:
             f.write(r['brief'].rstrip('\n') + '\n')
     with open(os.path.join(folder, 'team.toml'), 'w') as f:
@@ -234,6 +266,57 @@ class Starter:
                         r['state'], r['detail'] = s.state, s.note
         except Exception as e:  # anything here would otherwise vanish with the thread
             rec['error'] = str(e)
+        finally:
+            with self.lock:
+                rec['done'], rec['done_at'] = True, self.now()
+
+    def add_agent(self, team_name, role):
+        """One more agent for a running team: added to its saved folder, then started like any other."""
+        folder = os.path.join(self.teams, team_name)
+        if not os.path.isfile(os.path.join(folder, 'team.toml')):
+            raise NewTeamError('start', "This team was started from the command line, so agents can't be added here.")
+        role = dict(role)
+        kind = role.pop('kind', None)
+        if kind in KINDS:
+            role.setdefault('checkout', KINDS[kind][1])
+            if not (role.get('brief') or '').strip():
+                role['brief'] = kind_brief(kind)
+        tm = preset.load(folder, practices=False)
+        have = [_role_dict(r) for r in tm.roles]
+        validate(have + [role])
+        missing = launch.missing_clis([preset.Role(role['name'], role['agent'], '', '')], which=self.which)
+        if missing:
+            raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then try again.')
+        name = role['name']
+        with open(os.path.join(folder, f'{name}.md'), 'w') as f:
+            f.write(role['brief'].rstrip('\n') + '\n')
+        with open(os.path.join(folder, 'team.toml'), 'a') as f:
+            f.write('\n'.join(_role_toml(role)) + '\n')
+        tm = preset.load(folder)
+        try:
+            worktree.ensure(tm, next(r for r in tm.roles if r.name == name))
+        except worktree.WorktreeError as e:
+            forget_role(folder, name)
+            raise NewTeamError('start', str(e)) from None
+        rec = {'team': team_name, 'project': tm.project, 'done': False, 'error': None, 'done_at': None,
+               'roles': [{'role': name, 'state': 'starting', 'detail': ''}]}
+        with self.lock:
+            self.recs.append(rec)
+        self.thread(target=lambda: self._run_added(rec, tm, name, folder), daemon=True).start()
+        return {'team': team_name}
+
+    def _run_added(self, rec, tm, name, folder):
+        try:
+            [s] = team.start(tm, None, self.rt, ask=lambda q: True, only=name)
+            with self.lock:
+                rec['roles'][0]['state'], rec['roles'][0]['detail'] = s.state, s.note
+            if s.state == 'exited':
+                forget_role(folder, name)
+            else:
+                live.record('add_agent', name, 'You added it to this team.', team=tm.name, address=s.address)
+        except Exception as e:
+            rec['error'] = str(e)
+            forget_role(folder, name)
         finally:
             with self.lock:
                 rec['done'], rec['done_at'] = True, self.now()

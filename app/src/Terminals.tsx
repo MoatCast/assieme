@@ -19,15 +19,16 @@ const commits = (n: number) => `${n} commit${n === 1 ? "" : "s"}`;
 const needsYou = (p: Pane) => p.state === "asking" || p.state === "stuck";
 
 /** Terminals: every agent of one Assieme team, live, with what needs you on its pane. */
-export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview }: {
+export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, initialFocus = null }: {
   team: string | null;
   pollMs?: number;
   onNewTeam: () => void;
   onReview: (team: string, role: string) => void;
+  initialFocus?: string | null;
 }) {
   const [waiting, setWaiting] = useState<ReviewWaiting[]>([]);
   const [view, setView] = useState<TeamView | null>(null);
-  const [focus, setFocus] = useState<string | null>(null);
+  const [focus, setFocus] = useState<string | null>(initialFocus);
   const [pending, setPending] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [pressed, setPressed] = useState<Set<string>>(new Set()); // fix ids already acted on: no second send
@@ -141,7 +142,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview }: 
         <span className="pane-state">{[STATE[p.state], p.state === "exited" ? "" : ago(p.since_s)].filter(Boolean).join(" · ")}</span>
       </div>
       <div className="pane-screen">
-        <Terminal session="assieme" address={p.address} typing={full && p.live} />
+        <Terminal session={p.session ?? "assieme"} address={p.address} typing={full && p.live} />
       </div>
       {(p.fix || notes[p.role] || (p.state === "exited" && p.detail)) && (
         <div className="fix">

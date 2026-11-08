@@ -13,7 +13,7 @@ from . import rules
 from .model import HUMAN, Session, parse_ts
 
 WAKE_MARKERS = [
-    (re.compile(r'<hc from="\S+ ([\w.-]+)">'), 'hc'),                          # herdr: <hc from="<term> <agent>">
+    (re.compile(r'<hc from="(?:\S+ )?([\w./-]+)"'), 'hc'),                      # <hc from="t2">, or "<term> <name>" 
     (re.compile(r'<teammate-message teammate_id="([\w.-]+)"'), 'team'),         # Claude Code Agent Teams
     (re.compile(r'^\s*<task-notification>'), 'notify'),                         # a background subagent finished
 ]
@@ -31,14 +31,19 @@ def wake_sender(text):
     return HUMAN, HUMAN
 
 
+def program(command):
+    """The program a shell command runs. Never a leading `API_KEY=...`: that can be a secret."""
+    words = [w for w in (command or '').split() if not re.match(r'^\w+=', w)]
+    return os.path.basename(words[0]) if words else ''
+
+
 def command_label(tool, command, show_text):
     """A refused call -> a short label. Only the program name unless --show-text: arguments can hold secrets."""
     if not command:
         return tool
     if isinstance(command, list):
         command = ' '.join(map(str, command))
-    words = command.split()
-    return f"{tool}: {' '.join(words[:3])[:60] if show_text else (words[0] if words else '')}"
+    return f"{tool}: {' '.join(command.split()[:3])[:60] if show_text else program(command)}"
 
 
 def _rows(path):
@@ -158,6 +163,7 @@ def _claude_session(path, agent, parent, since, show_text, rules_for=lambda cwd:
                     inp = b.get('input') or {}
                     tools[b.get('id')] = (command_label(b.get('name'), inp.get('command'), show_text), b.get('name'),
                                           inp.get('command'), inp.get('file_path'))
+    s.cwd = cwd
     return s
 
 
@@ -188,6 +194,7 @@ def _codex_session(path, since, show_text):
             parent_id = spawn.get('parent_thread_id')
             kind = 'subagent' if spawn else (sub.get('other') or '')
             s.agent = f"codex:{os.path.basename(p.get('cwd') or '') or '?'}" + (f'/{kind}' if kind else '')
+            s.cwd = p.get('cwd')
             continue
         ts = parse_ts(o.get('timestamp'))
         if not ts or ts < since:

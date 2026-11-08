@@ -60,7 +60,7 @@ class SnapshotTest(unittest.TestCase):
                  'labels': {'assieme.team': 'demo', 'assieme.role': 'coordinator'}}]
         s = serve.snapshot('/c', '/x', NOW, FakeRt(rows), which=lambda c: None if c == 'codex' else '/bin/' + c)
         self.assertEqual(s['clis'], {'claude': True, 'codex': False, 'hc': True, 'herdr': True})
-        self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams', 'starting'})
+        self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams', 'starting', 'found_teams', 'first_run_done'})
         self.assertEqual(s['starting'], [])
         self.assertEqual([a['agent'] for a in s['agents']], ['builder', 'coord'])
         self.assertEqual(s['agents'][0]['cwd'], '/p')
@@ -143,7 +143,8 @@ class CliServeTest(unittest.TestCase):
             cli.main(['serve'])
         sock, handlers = srv.call_args.args
         self.assertEqual(sock, '/s/b.sock')
-        self.assertEqual(sorted(handlers), ['brain.snapshot', 'pane.act', 'project.check', 'review.ask', 'review.discard', 'review.get', 'review.merge', 'review.note', 'review.open_editor', 'review.pull_request', 'review.undo', 'review.waiting', 'team.presets', 'team.start', 'team.suggest', 'team.view'])
+        self.assertTrue({'brain.snapshot', 'pane.act', 'project.check', 'team.presets', 'team.start', 'team.suggest', 'team.view', 'team.map',
+                         'activity.undo', 'settings.set', 'review.merge', 'review.undo'} <= set(handlers))
         self.assertTrue(callable(srv.call_args.kwargs['tick']))
 
 

@@ -1,37 +1,55 @@
 import { useState } from "react";
-import { reviewUndo, type MergeResult, type Snapshot } from "./bridge";
+import { reviewUndo, setSetting, type MergeResult, type Snapshot } from "./bridge";
+import Activity from "./Activity";
+import AddAgent from "./AddAgent";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
 import Review, { Notice } from "./Review";
+import Settings from "./Settings";
+import Team from "./Team";
 import Terminals from "./Terminals";
 import "./Shell.css";
 
-type Tab = "first-run" | "terminals";
+type Tab = "first-run" | "team" | "terminals" | "activity";
 
-/** The live team names, and the one Terminals opens on: most agents at a prompt, else the last listed. */
+const TABS = [["team", "Team"], ["terminals", "Terminals"], ["activity", "Activity"]] as const;
+
+/** The live team names, and the one to open on: most agents at a prompt, else the last listed, else a found team. */
 export function liveTeams(snap: Snapshot | null): { names: string[]; neediest: string | null } {
   const rows = (snap?.teams ?? []).filter((t) => t.state === "live");
-  const names = [...new Set(rows.map((t) => t.team))];
-  let neediest: string | null = names.length ? names[names.length - 1] : null;
+  const started = [...new Set(rows.map((t) => t.team))];
+  const names = [...started, ...(snap?.found_teams ?? []).filter((n) => !started.includes(n))];
+  let neediest: string | null = started.length ? started[started.length - 1] : names[0] ?? null;
   let most = 0;
-  for (const n of names) {
+  for (const n of started) {
     const blocked = rows.filter((t) => t.team === n && t.status === "blocked").length;
     if (blocked > most) [most, neediest] = [blocked, n];
   }
   return { names, neediest };
 }
 
-/** The app's frame: First run and Terminals as tabs, and the team picker for Terminals. */
+/** The app's frame: the top bar with its team picker and tabs, and First run until "Open my team" is pressed. */
 export default function Shell() {
-  const [tab, setTab] = useState<Tab>("first-run");
+  const [tab, setTab] = useState<Tab | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [focus, setFocus] = useState<string | null>(null);
   const [review, setReview] = useState<{ team: string; role: string } | null>(null);
   const [merged, setMerged] = useState<MergeResult | null>(null);
   const [notice, setNotice] = useState("");
   const { names, neediest } = liveTeams(snap);
   const team = picked && names.includes(picked) ? picked : neediest; // a pick sticks until that team stops
+  const started = (snap?.teams ?? []).some((t) => t.team === team && t.state === "live");
+  // Until the first snapshot answers, nothing decides: First run is what a new person should see.
+  const shown: Tab = tab ?? (snap?.first_run_done ? "team" : "first-run");
+
+  const openTeam = () => {
+    setTab("team");
+    void setSetting("first_run_done", true).catch(() => {}); // only a convenience: it asks again next time
+  };
 
   const undo = async (m: MergeResult) => {
     setMerged(null);
@@ -45,36 +63,72 @@ export default function Shell() {
 
   return (
     <div className="shell">
-      <div className="shell-bar" hidden={!!review}>
-        <svg className="brand" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
-          <path d="M9 5 4.5 13M9 5l4.5 8" fill="none" stroke="#2747d9" strokeWidth="1.6" strokeLinecap="round" />
-          <circle cx="9" cy="4.5" r="2.5" fill="#2747d9" /><circle cx="4.5" cy="13.5" r="2.5" fill="#2747d9" /><circle cx="13.5" cy="13.5" r="2.5" fill="#2747d9" />
-        </svg>
-        {tab === "terminals" && names.length > 0 && (
-          <select className="team-pick" aria-label="Team" value={team ?? ""} onChange={(e) => setPicked(e.target.value)}>
-            {names.map((n) => <option key={n} value={n}>{n}</option>)}
-          </select>
-        )}
-        <div className="tabs" role="tablist">
-          {([["first-run", "First run"], ["terminals", "Terminals"]] as const).map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""}
-              onClick={() => {
-                // Terminals opens on the neediest team and stays there: switching under the person would move
-                // focus, and typing, to another team's agent.
-                if (id === "terminals" && !(picked && names.includes(picked))) setPicked(neediest);
-                setTab(id);
-              }}>{label}</button>
-          ))}
+      {shown !== "first-run" && (
+        <div className="shell-bar" hidden={!!review}>
+          <div className="shell-left">
+            <svg className="brand" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
+              <path d="M9 5 4.5 13M9 5l4.5 8" fill="none" stroke="#2747d9" strokeWidth="1.6" strokeLinecap="round" />
+              <circle cx="9" cy="4.5" r="2.5" fill="#2747d9" /><circle cx="4.5" cy="13.5" r="2.5" fill="#2747d9" /><circle cx="13.5" cy="13.5" r="2.5" fill="#2747d9" />
+            </svg>
+            {names.length > 0 && (
+              <select className="team-pick" aria-label="Team" value={team ?? ""}
+                onChange={(e) => { setPicked(e.target.value); setFocus(null); }}>
+                {names.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            )}
+            {names.length > 0 && <span className="where">· This Mac</span>}
+          </div>
+          <div className="tabs" role="tablist">
+            {TABS.map(([id, label]) => (
+              <button key={id} type="button" role="tab" aria-selected={shown === id} className={shown === id ? "on" : ""}
+                onClick={() => {
+                  // A tab keeps its team: switching under the person would move focus, and typing, to another
+                  // team's agent.
+                  if (!(picked && names.includes(picked))) setPicked(neediest);
+                  setFocus(null);
+                  setTab(id);
+                }}>{label}</button>
+            ))}
+          </div>
+          <div className="shell-right">
+            {started && (
+              <button type="button" className="add-agent" onClick={() => setAdding(true)}>
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Add agent
+              </button>
+            )}
+            <button type="button" className="gear" aria-label="Settings" onClick={() => setSettings(true)}>
+              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="9" cy="9" r="2.4" />
+                <path d="M9 2v2M9 14v2M2 9h2M14 9h2M4 4l1.4 1.4M12.6 12.6L14 14M4 14l1.4-1.4M12.6 5.4L14 4" />
+              </svg>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
       {/* First run stays mounted so its snapshot poll keeps the team list fresh. */}
-      <div className="shell-page" hidden={!!review || tab !== "first-run"}>
-        <FirstRun pollMs={5000} onSnapshot={setSnap} />
+      <div className="shell-page" hidden={!!review || shown !== "first-run"}>
+        <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} />
       </div>
-      {tab === "terminals" && !review && (
+      {shown === "team" && !review && (
         <div className="shell-page">
-          <Terminals key={team ?? ""} team={team} pollMs={3000} onNewTeam={() => setCreating(true)}
+          <Team key={team ?? ""} team={team} pollMs={5000} starting={snap?.starting ?? []}
+            onNewTeam={() => setCreating(true)}
+            onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
+            onSeeAll={() => setTab("activity")} />
+        </div>
+      )}
+      {shown === "terminals" && !review && (
+        <div className="shell-page">
+          <Terminals key={`${team ?? ""}:${focus ?? ""}`} team={team} pollMs={3000} initialFocus={focus} onNewTeam={() => setCreating(true)}
             onReview={(t, role) => setReview({ team: t, role })} />
+        </div>
+      )}
+      {shown === "activity" && !review && (
+        <div className="shell-page">
+          <Activity key={team ?? ""} team={team} />
         </div>
       )}
       {review && (
@@ -101,6 +155,14 @@ export default function Shell() {
       {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
       {creating && (
         <NewTeam clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setCreating(false)} />
+      )}
+      {adding && team && (
+        <AddAgent team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}
+          clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setAdding(false)} />
+      )}
+      {settings && (
+        <Settings team={team} onClose={() => setSettings(false)}
+          onShowFirstRun={() => { setSettings(false); setTab("first-run"); }} />
       )}
     </div>
   );

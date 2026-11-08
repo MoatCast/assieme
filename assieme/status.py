@@ -12,7 +12,7 @@ import shlex
 import subprocess
 
 from . import rules
-from .adapters import CODEX_REFUSED, _strip_common_prefix, command_label, wake_sender
+from .adapters import CODEX_REFUSED, _strip_common_prefix, command_label, program, wake_sender
 from .model import HUMAN, parse_ts
 
 STUCK_AFTER = 15 * 60       # working with no new log row for this long
@@ -103,6 +103,7 @@ class Agent:
         self.ask_since = None     # F9: since when
         self.context = 0          # A2: input tokens of its latest call, i.e. what every wake re-reads
         self.refused = []         # A5: (datetime, label, why, advice) refusals seen in the log tail
+        self.context_limit = None # Codex says how big its memory is; Claude Code's follows from the size
 
     def as_dict(self, now):
         return {'agent': self.name, 'source': self.source, 'state': self.state, 'detail': self.detail,
@@ -111,6 +112,9 @@ class Agent:
 
 def _claude(agent, rows, show_text, rules_for=lambda cwd: []):
     for o in rows:
+        if o.get('type') == 'system' and o.get('subtype') == 'compact_boundary':
+            agent.context = 0  # history was summarised, and no usage row may follow until its next call
+            continue
         ts = parse_ts(o.get('timestamp'))
         if not ts:
             continue
@@ -219,6 +223,7 @@ def _codex(agent, rows, show_text):
                 agent.refused.append((ts, tool[1], 'Codex sandbox or approval', ''))
         elif kind == 'token_count' and isinstance(p.get('info'), dict):
             agent.context = (p['info'].get('last_token_usage') or {}).get('input_tokens') or agent.context
+            agent.context_limit = p['info'].get('model_context_window') or agent.context_limit
 
 
 def _finish(agent, now):
@@ -241,6 +246,74 @@ def _finish(agent, now):
         agent.detail = f"same command x{REPEATS}: {tool[1] if tool else 'Bash'}"
     else:
         agent.detail = f'running {tool[1]}' if tool else 'thinking'
+
+
+def memory_limit(agent):
+    """How much context this agent can hold, or None if its log doesn't say. Claude Code's is 200K, or 1M once a session
+    has gone past that."""
+    if agent.source == 'codex':
+        return agent.context_limit
+    return 200_000 if agent.context <= 200_000 else 1_000_000
+
+
+def _short(command, show_text):
+    if isinstance(command, list):
+        command = ' '.join(map(str, command))
+    return ' '.join((command or '').split()) if show_text else program(command)
+
+
+EDITS = {'Edit', 'Write', 'NotebookEdit', 'MultiEdit'}
+
+
+def recent_actions(path, source, show_text=False, n=4):
+    """An agent's last few commands and edits, newest first, as (datetime, plain words). Program and file names only
+    unless show_text: arguments can hold secrets. Messages are never included."""
+    try:
+        rows = _tail_rows(path)
+    except OSError:
+        return []
+    out, by_id = [], {}
+    for o in rows:
+        ts = parse_ts(o.get('timestamp'))
+        if not ts:
+            continue
+        if source == 'codex':
+            p = o.get('payload') or {}
+            if p.get('type') in ('function_call', 'custom_tool_call'):
+                args = p.get('arguments') or p.get('input') or ''
+                try:
+                    args = json.loads(args) if isinstance(args, str) else args
+                except ValueError:
+                    args = {}
+                cmd = (args.get('cmd') or args.get('command')) if isinstance(args, dict) else None
+                if cmd:
+                    out.append([ts, f'Ran {_short(cmd, show_text)}'])
+                elif p.get('name') == 'apply_patch':
+                    out.append([ts, 'Edited files'])
+            continue
+        msg = o.get('message') or {}
+        content = msg.get('content')
+        if o.get('type') == 'assistant':
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get('type') == 'tool_use':
+                    inp = b.get('input') or {}
+                    if b.get('name') == 'Bash':
+                        out.append([ts, f"Ran {_short(inp.get('command'), show_text)}"])
+                    elif b.get('name') in EDITS:
+                        out.append([ts, f"Edited {os.path.basename(inp.get('file_path') or inp.get('notebook_path') or 'a file')}"])
+                    else:
+                        continue
+                    by_id[b.get('id')] = out[-1]
+        elif o.get('type') == 'user' and not o.get('isMeta'):
+            text = content if isinstance(content, str) else ' '.join(
+                b.get('text', '') for b in content if isinstance(b, dict) and b.get('type') == 'text') if isinstance(content, list) else ''
+            sender, _ = wake_sender(text)
+            if text and sender != HUMAN:
+                out.append([ts, f'Took a note from {sender}'])
+            for b in content if isinstance(content, list) else []:
+                if isinstance(b, dict) and b.get('type') == 'tool_result' and b.get('is_error') and b.get('tool_use_id') in by_id:
+                    by_id[b['tool_use_id']][1] += ', failed'
+    return [(ts, text) for ts, text in reversed(out)][:n]
 
 
 def _ago(seconds):
@@ -266,14 +339,17 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
     names = _strip_common_prefix(sorted(latest))
     for d, path in latest.items():
         a = Agent(names[d], 'claude-code', path)
-        _claude(a, _tail_rows(path), show_text, rules_for)
-        for sp in glob.glob(os.path.join(path[:-len('.jsonl')], 'subagents', '*.jsonl')):
-            if now.timestamp() - os.path.getmtime(sp) > SUBAGENT_WINDOW:
-                continue
-            child = Agent(f'{a.name}/sub', 'claude-code', sp)
-            _claude(child, _tail_rows(sp), show_text, rules_for)
-            if child.last:
-                a.children.append(child)
+        try:
+            _claude(a, _tail_rows(path), show_text, rules_for)
+            for sp in glob.glob(os.path.join(path[:-len('.jsonl')], 'subagents', '*.jsonl')):
+                if now.timestamp() - os.path.getmtime(sp) > SUBAGENT_WINDOW:
+                    continue
+                child = Agent(f'{a.name}/sub', 'claude-code', sp)
+                _claude(child, _tail_rows(sp), show_text, rules_for)
+                if child.last:
+                    a.children.append(child)
+        except (AttributeError, TypeError, KeyError, ValueError, OSError):
+            continue  # one damaged log loses that agent, never the whole view
         if a.last:
             agents.append(a)
 
@@ -281,9 +357,12 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
     for path in glob.glob(os.path.join(codex_dir, '**', '*.jsonl'), recursive=True):
         if os.path.getmtime(path) < cutoff:
             continue
-        meta = _first_row(path).get('payload') or {}
         a = Agent('', 'codex', path)
-        _codex(a, [_first_row(path)] + _tail_rows(path), show_text)
+        try:
+            meta = _first_row(path).get('payload') or {}
+            _codex(a, [_first_row(path)] + _tail_rows(path), show_text)
+        except (AttributeError, TypeError, KeyError, ValueError, OSError):
+            continue  # one damaged log loses that agent, never the whole view
         if not a.last:
             continue
         src = meta.get('source') if isinstance(meta.get('source'), dict) else {}

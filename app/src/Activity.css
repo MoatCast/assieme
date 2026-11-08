@@ -1,0 +1,28 @@
+/* Activity, from Paper "v2 — Activity". */
+.activity { flex: 1; min-height: 0; display: flex; justify-content: center; padding: 12px; box-sizing: border-box; overflow: auto; }
+.activity-sheet { width: 816px; max-width: 100%; align-self: stretch; min-height: min-content; display: flex; flex-direction: column; gap: 28px; padding: 28px; box-sizing: border-box;
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-sheet); box-shadow: var(--quiet-sheet-shadow); }
+.activity-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.activity-head > div:first-child { display: flex; flex-direction: column; gap: 6px; }
+.activity-head h1 { margin: 0; font-size: 26px; line-height: 32px; font-weight: 700; letter-spacing: -0.02em; color: var(--quiet-ink); }
+.activity-head p { margin: 0; font-size: 14px; line-height: 18px; color: var(--quiet-slate); }
+.activity-filters { display: flex; gap: 6px; flex-shrink: 0; }
+.activity-filters button { padding: 6px 12px; background: none; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-control); color: var(--quiet-slate);
+  font: inherit; font-size: 13px; line-height: 16px; cursor: pointer; }
+.activity-filters button.on { background: var(--quiet-ink); border-color: var(--quiet-ink); color: var(--quiet-on-ink); }
+.activity-empty { margin: 0; font-size: 14px; color: var(--quiet-slate); }
+.activity-day { display: flex; flex-direction: column; gap: 12px; }
+.activity-day-name { font-size: 13px; font-weight: 600; line-height: 16px; color: var(--quiet-slate); }
+.activity-rows { display: flex; flex-direction: column; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); }
+.activity-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px; }
+.activity-row + .activity-row { border-top: 1px solid var(--quiet-line); }
+.activity-at { width: 44px; flex-shrink: 0; padding-top: 1px; font-size: 13px; line-height: 16px; color: var(--quiet-mute); }
+.activity-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 13px; line-height: 16px; color: var(--quiet-slate); overflow-wrap: anywhere; }
+.activity-text b { font-size: 14px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
+.activity-note { color: var(--quiet-needs-you-text); }
+.activity-row button { padding: 5px 10px; background: none; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-control); color: var(--quiet-ink);
+  font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; cursor: pointer; }
+.activity-row button:disabled { opacity: 0.5; cursor: default; }
+.undo-ask { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 240px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); text-align: right; }
+.undo-ask button { font: inherit; font-size: 13px; padding: 0; background: none; border: 0; color: var(--quiet-slate); cursor: pointer; }
+.undo-ask button:last-child { font-weight: 600; color: var(--quiet-ink); }

@@ -25,11 +25,15 @@ Suggest the two most likely short answers the owner might give, each at most {ma
 the owner would type them to the agent. Reply with only one JSON object: {{"answers": ["...", "..."]}}'''
 
 
+def default_workdir():
+    return os.path.join(tempfile.gettempdir(), 'assieme-answers')
+
+
 class Answers:
     def __init__(self, ask=ask_mod.ask_agent, thread=threading.Thread, now=time.time, workdir=None):
         self.ask, self.thread, self.now = ask, thread, now
         # Never the agent's own folder: the suggester's session there would look like the agent's newest log.
-        self.workdir = workdir or os.path.join(tempfile.gettempdir(), 'assieme-answers')
+        self.workdir = workdir or default_workdir()
         self.lock, self.cache, self.running = threading.Lock(), {}, set()
 
     def get(self, key, question):

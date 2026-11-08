@@ -1,9 +1,10 @@
 """A3 quiet send: routine notes between agents wait for the receiver's next turn instead of waking it.
 
 How it fits together:
-- The owner marks a sender -> receiver pair quiet (one key in the live view). Pairs live in quiet.json.
-- Agents keep typing `hc send`. A small `hc` shim, put ahead of the real `hc` on the agents' PATH by
-  `assieme quiet on`, holds notes on quiet pairs in a queue and passes everything else to the real hc.
+- The owner marks a sender -> receiver pair quiet (Settings or a saving tip in the app, one key in the live view).
+  Pairs live in quiet.json.
+- Agents keep typing `hc send`. A small `hc` shim holds notes on quiet pairs in a queue and passes everything else to
+  the real hc. Agents started in Assieme get it from the core's PATH; for others, `assieme quiet on` prints the line.
 - The live view and `assieme watch` deliver held notes as one batch while the receiver is busy (so the note
   joins its current turn), or after MAX_HOLD if it stays idle: one wake instead of many.
 
@@ -162,7 +163,9 @@ def shim_main(argv, run=subprocess.run, cwd=None, now=None):
     if not info.get('cwd') or not is_quiet(sender_cwd, info['cwd']):
         return passthrough(['send'] + args)
     _hold({'at': now or time.time(), 'from_cwd': sender_cwd, 'from': os.path.basename(sender_cwd),
-           'to': target, 'to_cwd': _real(info['cwd']), 'text': text})
+           'to': target, 'to_cwd': _real(info['cwd']), 'text': text,
+           'session': os.environ.get('HC_SESSION'), 'socket': os.environ.get('HC_SOCKET'),
+           'role': (info.get('labels') or {}).get('assieme.role'), 'team': (info.get('labels') or {}).get('assieme.team')})
     sys.stdout.write(json.dumps({'held': True, 'for': target,
                                  'note': 'quiet send: delivered with its next turn, not waking it now'}) + '\n')
     return 0
@@ -177,25 +180,53 @@ def batch_text(notes):
     return '\n'.join(lines)
 
 
-def deliver(agents, now=None, run=subprocess.run):
+def hold_note(to, to_cwd, text, session, socket, now=None):
+    """A note from Assieme itself, delivered the same way: with the agent's next turn."""
+    _hold({'at': now or time.time(), 'from_cwd': '', 'from': 'assieme', 'to': to, 'to_cwd': _real(to_cwd), 'text': text,
+           'session': session, 'socket': socket})
+
+
+def _env(note):
+    """The core a note must go back through. A plain `hc send` would reach the default session."""
+    return os.environ | {'HC_SESSION': note['session'], 'HC_SOCKET': note['socket']} if note.get('session') else None
+
+
+def deliver(agents, now=None, run=subprocess.run, on_batch=None):
     """Send held notes: into a busy receiver's current turn, or after MAX_HOLD anyway. Returns what was sent."""
     now = now or time.time()
     heartbeat()
     by_cwd = {_real(a.cwd): a for a in agents if getattr(a, 'cwd', None)}
     hc = real_hc()
     sent = []
-    for to_cwd, notes in held().items():
+    for to_cwd, all_notes in held().items():
         a = by_cwd.get(to_cwd)
         busy = a is not None and a.state in ('working', 'waiting on subagents')
-        overdue = now - min(n['at'] for n in notes) >= MAX_HOLD
         gone = a is not None and a.state == 'exited'
-        if not hc or not (busy or overdue) or gone:
-            continue
-        res = run([hc, 'send', notes[-1]['to'], batch_text(notes)], capture_output=True, text=True, timeout=60)
-        if res.returncode == 0:
-            _drop(notes)
-            sent.append((notes[-1]['to'], len(notes), 'busy' if busy else 'overdue'))
+        batches = {}
+        for n in all_notes:
+            batches.setdefault(n.get('session'), []).append(n)
+        for notes in batches.values():
+            overdue = now - min(n['at'] for n in notes) >= MAX_HOLD
+            if not hc or not (busy or overdue) or gone:
+                continue
+            res = run([hc, 'send', notes[-1]['to'], batch_text(notes)], capture_output=True, text=True, timeout=60,
+                      env=_env(notes[-1]))
+            if res.returncode == 0:
+                _drop(notes)
+                why = 'busy' if busy else 'overdue'
+                sent.append((notes[-1]['to'], len(notes), why))
+                if on_batch:
+                    on_batch(notes, why)
     return sent
+
+
+def savings(pair, entries, edge, total_tokens):
+    """Share of the team's tokens a quiet pair saved: wake-ups avoided (notes minus batches) x that edge's average."""
+    if not edge or not edge.get('wakes') or not total_tokens:
+        return 0
+    counts = [e['from'][pair['from_cwd']] for e in entries
+              if e.get('action') == 'deliver' and e.get('to_cwd') == pair['to_cwd'] and pair['from_cwd'] in (e.get('from') or {})]
+    return max(0, sum(counts) - len(counts)) * edge['tokens'] / edge['wakes'] / total_tokens
 
 
 # --- quiet on / off-------------------------------------------------------------------------------------------
@@ -211,7 +242,7 @@ def install():
     p = os.path.join(d, 'hc')
     with open(p, 'w') as f:
         f.write(f'#!/bin/sh\n# assieme quiet send: holds notes on quiet pairs, passes everything else to the real hc.\n'
-                f'exec "{sys.executable}" -m assieme shim "$@"\n')
+                f'exec "{sys.executable}" -P -m assieme shim "$@"\n')  # -P: never import from the worktree
     os.chmod(p, 0o755)
     return d
 

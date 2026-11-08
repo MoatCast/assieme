@@ -11,9 +11,10 @@ import shutil
 import subprocess
 import sys
 import time
+import uuid
 from dataclasses import dataclass
 
-from . import adapters, quiet, report, rules, status
+from . import adapters, quiet, report, rules, settings, status
 
 REFRESH = 5               # seconds between redraws
 COST_EVERY = 600          # seconds between recomputing the 24 h cost line
@@ -153,9 +154,18 @@ def run_action(s, runner=None, log=None, now=None):
             detail = ((res.stdout or res.stderr or '').strip().splitlines() or ['sent' if ok else 'failed'])[-1][:120]
         except (OSError, subprocess.SubprocessError) as e:
             ok, detail = False, str(e)[:120]
-    _log(log or log_path(), {'at': (now or status.now_utc()).strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': s.action,
-                             'agent': s.agent, 'address': s.address, 'reason': s.text, 'ok': ok, 'detail': detail})
+    record(s.action, s.agent, s.text, ok, detail, address=s.address, log=log, now=now,
+           **({'pair': list(s.pair)} if s.pair else {}))
     return ok, detail
+
+
+def record(action, agent, reason, ok=True, detail='', team=None, by='you', address=None, log=None, now=None, **extra):
+    """One Activity row. `extra` is what Undo needs (see activity.UNDO). Returns the entry."""
+    entry = {'id': uuid.uuid4().hex[:12], 'at': (now or status.now_utc()).strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': action,
+             'agent': agent, 'address': address, 'team': team, 'by': by, 'reason': reason, 'ok': ok, 'detail': detail,
+             **extra}
+    _log(log or log_path(), entry)
+    return entry
 
 
 def _log(path, entry):
@@ -176,9 +186,11 @@ def recent_actions(path=None, n=5):
     out = []
     for line in lines:
         try:
-            out.append(json.loads(line))
+            entry = json.loads(line)
         except ValueError:
-            pass
+            continue
+        if isinstance(entry, dict):
+            out.append(entry)
     return out
 
 
@@ -250,12 +262,10 @@ def run(claude_dir, codex_dir, hours=12, use_herdr=True):
         terminals = status.herdr_terminals() if use_herdr else None
         agents = status.collect(claude_dir, codex_dir, now, hours, herdr=terminals, running=status.running_cwds(),
                                 rules_for=rules_for)
-        for to, n, why in quiet.deliver(agents):
-            _log(log_path(), {'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': 'deliver', 'agent': to,
-                              'address': to, 'reason': why, 'ok': True, 'detail': f'{n} quiet note(s)'})
+        quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now))
         stalls = status.stalls(agents, now)
         queue = status.owner_queue(agents, now)
-        announce(queue, stalls, now)
+        announce(queue, stalls, now, switches=settings.load()['notify'])
         return now, agents, stalls, suggest(agents, stalls, addresses(agents, terminals), queue, acted(now), now,
                                             cost['send_less'])
 
@@ -335,7 +345,7 @@ def notify(title, body, runner=None):
         pass
 
 
-def announce(queue, stalls, now, store=None, notifier=notify):
+def announce(queue, stalls, now, store=None, notifier=notify, switches=None):
     """Notify once per new item in the owner's queue and per new stall. Returns the (title, body) pairs sent.
 
     Seen items are remembered in the state folder, so restarting assieme doesn't repeat them. Only names and kinds
@@ -348,13 +358,14 @@ def announce(queue, stalls, now, store=None, notifier=notify):
     except (OSError, ValueError):
         seen = {}
     sent = []
-    for q in queue:
+    switches = switches or {}
+    for q in queue if switches.get('needs_you', True) else ():
         if q['key'] in seen or q['seconds'] > NOTIFY_MAX_AGE:
             continue
         body = f"{q['kind']}, waiting {status._ago(q['seconds'])}" + (
             f"; holds up {', '.join(q['blocks'])}" if q['blocks'] else '')
         sent.append((q['key'], f"{q['agent']} needs you", body))
-    for st in stalls:
+    for st in stalls if switches.get('stalls', True) else ():
         key = 'stall|' + '|'.join(sorted(r['agent'] for r in st.get('roots', [])))
         if key not in seen and st['quiet_seconds'] <= NOTIFY_MAX_AGE:
             sent.append((key, 'Team stalled', st['text'][:220]))
@@ -392,9 +403,22 @@ def watch_once(claude_dir, codex_dir, hours=12, use_herdr=True):
                             herdr=status.herdr_terminals() if use_herdr else None,
                             running=status.running_cwds())
     at = now.astimezone().strftime('%H:%M')
-    lines = [f'{at}  {title}: {body}' for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now)]
-    lines += [f'{at}  delivered {n} quiet note(s) to {to} ({why})' for to, n, why in quiet.deliver(agents)]
+    switches = settings.load()['notify']
+    lines = [f'{at}  {title}: {body}' for title, body in announce(status.owner_queue(agents, now), status.stalls(agents, now), now,
+                                                                  switches=switches)]
+    lines += [f'{at}  delivered {n} quiet note(s) to {to} ({why})'
+              for to, n, why in quiet.deliver(agents, on_batch=lambda notes, why: record_delivery(notes, why, now))]
     return lines
+
+
+def record_delivery(notes, why, now=None):
+    senders = {}
+    for n in notes:
+        senders[n['from_cwd']] = senders.get(n['from_cwd'], 0) + 1
+    last = notes[-1]
+    record('deliver', last.get('role') or last['to'], f'{len(notes)} note(s) held for its next turn.', detail=why, by='auto',
+           team=last.get('team'), address=last['to'], now=now,
+           to_cwd=last['to_cwd'], **{'from': senders})
 
 
 def acted(now, path=None):

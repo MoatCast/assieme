@@ -13,6 +13,7 @@ export type Agent = {
   herdr: string | null;
   cwd: string | null;
   herdr_address: string | null;
+  group?: string;
 };
 
 export type TeamRow = {
@@ -22,6 +23,7 @@ export type TeamRow = {
   state: string;
   status: string | null;
   briefed: boolean;
+  cwd?: string | null;
 };
 
 export type Snapshot = {
@@ -33,6 +35,8 @@ export type Snapshot = {
   stalls: unknown[];
   teams: TeamRow[];
   starting: Starting[];
+  found_teams?: string[];
+  first_run_done?: boolean;
 };
 
 export type AgentKind = "claude" | "codex";
@@ -78,7 +82,7 @@ const brain = <T>(method: string, params: object = {}) => invoke<T>("brain_call"
 export const snapshot = () => brain<Snapshot>("brain.snapshot");
 export const checkProject = (path: string) => brain<{ ok: boolean; reason?: string }>("project.check", { path });
 export const teamPresets = () =>
-  brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions }>("team.presets");
+  brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions; practice_defaults?: Record<string, boolean> }>("team.presets");
 /** Start creates a git worktree per agent before it answers, which can take a while on a large repository. */
 export const startTeam = (form: TeamForm) =>
   invoke<{ team: string }>("brain_call", { method: "team.start", params: form, timeoutS: 120 });
@@ -129,6 +133,9 @@ export type Pane = {
   role: string;
   agent: AgentKind;
   address: string;
+  session?: string;
+  reachable?: boolean;
+  command?: string | null;
   state: "asking" | "stuck" | "waiting" | "working" | "idle" | "exited";
   since_s: number | null;
   detail: string;
@@ -140,6 +147,89 @@ export type TeamView = { team: string; panes: Pane[]; strip: { role: string; tex
 export const teamView = (team: string) => brain<TeamView>("team.view", { team });
 export const paneAct = (a: { team: string; role: string; fix: string; button: string }) =>
   brain<{ ok: boolean; detail: string }>("pane.act", a);
+
+export type MapNode = { role: string; state: Pane["state"]; since_s: number | null; agent: AgentKind; parent: string | null; group: string | null };
+export type MapEdge = { from: string; to: string; wakes: number; empty: number; noisy: { per_hour: number } | null };
+export type MapGroup = {
+  name: string;
+  roles: string[];
+  states: Record<string, Pane["state"]>;
+  need_you: number;
+  edges: { to: string; wakes: number; noisy: { per_hour: number } | null }[];
+};
+export type Tip = { id: string; from: string; to: string; share: number };
+export type ActivityRow = {
+  id: string | null;
+  at: string;
+  day: string;
+  title: string;
+  reason: string;
+  by: string;
+  ok: boolean;
+  action: string;
+  undo: { label: string; confirm?: string } | null;
+};
+export type TeamMap = {
+  team: string;
+  found: boolean;
+  stopped: boolean;
+  title: string;
+  subtitle: string;
+  panes: Pane[];
+  strip: { role: string; text: string }[];
+  nodes: MapNode[];
+  edges: MapEdge[];
+  waits: { from: string; to: string }[];
+  groups: MapGroup[] | null;
+  tips: Tip[];
+  done: ActivityRow[];
+  spend: { tokens: number; waste_share: number } | null;
+};
+export type AgentDetail = {
+  role: string;
+  cli: AgentKind;
+  job: string;
+  state: Pane["state"];
+  since_s: number | null;
+  detail: string;
+  fix: Pane["fix"];
+  reachable: boolean;
+  command: string | null;
+  memory: { pct: number; amber: boolean } | null;
+  recent: { at: string; text: string }[];
+  wakers: { role: string; count: number }[];
+  empty_wakes: number;
+};
+export type Settings = {
+  fixes: Record<"nudge" | "compact" | "tell", "ask" | "auto">;
+  practices: Record<string, boolean>;
+  notify: { needs_you: boolean; stalls: boolean; finished: boolean };
+  show_commands: boolean;
+  groups: Record<string, string>;
+  first_run_done: boolean;
+};
+export type QuietPair = { from_cwd: string; to_cwd: string; label: string; saved: number | null };
+export type TeamListing = { name: string; kind: "assieme" | "found"; agents: number };
+export type FoundAgent = { name: string; cwd: string; group: string };
+
+export const teamMap = (team: string) => brain<TeamMap>("team.map", { team });
+export const agentDetail = (team: string, role: string) => brain<AgentDetail | null>("agent.detail", { team, role });
+export const tipApply = (team: string, tip: string) => brain<{ ok: boolean; detail: string }>("tip.apply", { team, tip });
+/** Creating a worktree can take a while on a large repository. */
+export const addAgent = (team: string, role: Partial<RoleDraft> & { kind: string }) =>
+  invoke<{ team: string }>("brain_call", { method: "team.add_agent", params: { team, role }, timeoutS: 120 });
+export const stopTeam = (team: string) => brain<{ stopped: number }>("team.stop", { team });
+export const listTeams = () => brain<{ teams: TeamListing[]; found_agents: FoundAgent[] }>("teams.list");
+export const activityList = (team: string | null, filter: "all" | "you" | "auto") =>
+  brain<{ rows: ActivityRow[] }>("activity.list", { team, filter });
+export const activityUndo = (id: string) => brain<{ ok: boolean; detail: string }>("activity.undo", { id });
+export const getSettings = () => brain<Settings>("settings.get");
+export const setSetting = (key: string, value: unknown) => brain<Settings>("settings.set", { key, value });
+export const quietPairs = (team: string | null) =>
+  brain<{ pairs: QuietPair[]; agents: { role: string; cwd: string }[]; held: number }>("quiet.pairs", { team });
+export const quietSet = (a: { from_cwd: string; to_cwd: string; label: string; on: boolean }) =>
+  brain<{ ok: boolean }>("quiet.set", a);
+export const setGroups = (groups: Record<string, string>) => brain<Settings>("groups.set", { groups });
 
 export type ReviewCheck = { id: string; state: "ok" | "bad" | "warn" | "running" | "none"; text: string; detail: string };
 export type ReviewNote = { id: string; author: string; file: string; line: number; text: string };
