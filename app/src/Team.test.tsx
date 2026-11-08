@@ -220,3 +220,14 @@ test("clicking a node opens its detail", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   expect(screen.queryByText("Codex · fixes tests")).toBeNull();
 });
+
+test("an added agent that stopped at its hook review says so on the Team tab", async () => {
+  await open(MAP(), { starting: [{ team: "shop", project: "/p", done: true, error: null, roles: [{ role: "x", state: "needs-you", detail: "codex wants you to review its hooks once" }] }] });
+  expect(screen.getByText("x needs you: codex wants you to review its hooks once")).toBeTruthy();
+  cleanup();
+  await open(MAP(), { starting: [{ team: "shop", project: "/p", done: true, error: null, roles: [{ role: "y", state: "running", detail: "" }] }] });
+  expect(screen.queryByText(/y needs you/)).toBeNull();
+  cleanup();
+  await open(MAP(), { starting: [{ team: "shop", project: "/p", done: false, error: null, roles: [{ role: "z", state: "starting", detail: "" }] }] });
+  expect(screen.getByText("Starting z…")).toBeTruthy();
+});

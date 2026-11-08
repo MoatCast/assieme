@@ -9,6 +9,8 @@ const SAYS: Partial<Record<Pane["state"], string>> = {
   asking: "is asking you", stuck: "seems stuck", waiting: "has work waiting",
 };
 
+const UNSETTLED = ["needs-you", "not-reporting", "exited"];
+
 export function tokens(n: number) {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${Math.round(n / 1e3)}K`;
@@ -164,7 +166,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
     setTipNote(r.ok ? "" : r.detail);
     refresh.current();
   };
-  const here = starting.filter((s) => s.team === team && (!s.done || s.error));
+  const here = starting.filter((s) => s.team === team);
 
   return (
     <div className="team">
@@ -173,11 +175,14 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
           <h1>{group ? `${group.name}: ${map.title.charAt(0).toLowerCase()}${map.title.slice(1)}` : map.title}</h1>
           <p>{group ? `${group.roles.length} of ${map.nodes.length} agents.` : map.subtitle}</p>
           {offline && <div className="offline">Reconnecting…</div>}
-          {here.map((s) => (
-            <p key={s.team} className={s.error ? "start-error" : "start-note"}>
-              {s.error ? `Couldn’t add the agent: ${s.error}` : `Starting ${s.roles.map((r) => r.role).join(", ")}…`}
-            </p>
-          ))}
+          {here.flatMap((s, i) => {
+            if (s.error) return [<p key={i} className="start-error">Couldn’t add the agent: {s.error}</p>];
+            return s.roles.filter((r) => !s.done || UNSETTLED.includes(r.state)).map((r) => (
+              <p key={`${i}-${r.role}`} className={s.done ? "start-error" : "start-note"}>
+                {s.done ? `${r.role} needs you: ${r.detail || "it didn’t come up."}` : `Starting ${r.role}…`}
+              </p>
+            ));
+          })}
         </div>
         <div className="well">
           {group && <button type="button" className="back-groups" onClick={() => setOpened(null)}>‹ All groups</button>}

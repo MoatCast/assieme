@@ -83,3 +83,23 @@ class CoreTest(QuietTestCase):
             runtime.Runtime(sock=os.path.join(self.tmp.name, 'c.sock')).ensure_core()
         self.assertTrue(seen['PATH'].startswith(quiet.shim_dir() + os.pathsep))
         self.assertTrue(os.path.exists(os.path.join(quiet.shim_dir(), 'hc')))
+
+
+class DeliveryRowTest(QuietTestCase):
+    def test_delivery_row_names_role_and_team(self):
+        quiet._hold({'at': 1, 'from_cwd': SENDER, 'from': 'x', 'to': 't2', 'to_cwd': RECEIVER, 'text': 'hi', 'role': 'kid', 'team': 'shop'})
+        from assieme import live
+        live.record_delivery(quiet.held()[RECEIVER], 'busy')
+        [e] = live.recent_actions()
+        self.assertEqual((e['agent'], e['team'], e['address']), ('kid', 'shop', 't2'))
+
+    def test_shim_notes_who_the_receiver_is(self):
+        def hc(cmd, **kw):
+            if cmd[1] == 'get':
+                import subprocess, json
+                return subprocess.CompletedProcess(cmd, 0, json.dumps({'cwd': RECEIVER, 'labels': {'assieme.team': 'shop', 'assieme.role': 'kid'}}), '')
+            return FakeHC()(cmd, **kw)
+        with mock.patch('sys.stdout'):
+            quiet.shim_main(['send', 'coord', 'routine'], run=hc, cwd=SENDER)
+        [n] = quiet.held()[RECEIVER]
+        self.assertEqual((n['role'], n['team']), ('kid', 'shop'))

@@ -163,7 +163,8 @@ def shim_main(argv, run=subprocess.run, cwd=None, now=None):
         return passthrough(['send'] + args)
     _hold({'at': now or time.time(), 'from_cwd': sender_cwd, 'from': os.path.basename(sender_cwd),
            'to': target, 'to_cwd': _real(info['cwd']), 'text': text,
-           'session': os.environ.get('HC_SESSION'), 'socket': os.environ.get('HC_SOCKET')})
+           'session': os.environ.get('HC_SESSION'), 'socket': os.environ.get('HC_SOCKET'),
+           'role': (info.get('labels') or {}).get('assieme.role'), 'team': (info.get('labels') or {}).get('assieme.team')})
     sys.stdout.write(json.dumps({'held': True, 'for': target,
                                  'note': 'quiet send: delivered with its next turn, not waking it now'}) + '\n')
     return 0

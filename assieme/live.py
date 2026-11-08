@@ -414,8 +414,10 @@ def record_delivery(notes, why, now=None):
     senders = {}
     for n in notes:
         senders[n['from_cwd']] = senders.get(n['from_cwd'], 0) + 1
-    record('deliver', notes[-1]['to'], why, detail=f'{len(notes)} quiet note(s)', by='auto', address=notes[-1]['to'], now=now,
-           to_cwd=notes[-1]['to_cwd'], **{'from': senders})
+    last = notes[-1]
+    record('deliver', last.get('role') or last['to'], f'{len(notes)} note(s) held for its next turn.', detail=why, by='auto',
+           team=last.get('team'), address=last['to'], now=now,
+           to_cwd=last['to_cwd'], **{'from': senders})
 
 
 def acted(now, path=None):
