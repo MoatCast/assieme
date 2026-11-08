@@ -538,3 +538,33 @@ class BrainTest(MapCase):
         self.assertTrue({'team.view', 'team.map', 'pane.act', 'agent.detail', 'tip.apply', 'team.add_agent', 'team.stop',
                          'teams.list', 'activity.list', 'activity.undo', 'settings.get', 'settings.set', 'quiet.pairs',
                          'quiet.set', 'groups.set'} <= names)
+
+
+class RealCheckFindingsTest(MapCase):
+    def brain(self, rows):
+        d = tempfile.mkdtemp()
+        return teammap.Brain(os.path.join(d, 'c'), os.path.join(d, 'x'), FakeRt(rows), None, NoAnswers())
+
+    def test_pairs_with_running_agents_lists_them_for_this_team(self):
+        quiet.set_pair(f'{WT}/a', f'{WT}/b', 'a to b')
+        got = self.brain([row('a'), row('b')]).pairs('shop')
+        self.assertEqual([c['role'] for c in got['agents']], ['a', 'b'])
+        self.assertEqual(got['pairs'][0]['label'], 'a to b')
+
+    def test_all_idle_subtitle_reads_plainly(self):
+        self.assertEqual(self.build([row('a'), row('b')])['subtitle'], "Two idle or done. You'll get a notification if one needs you.")
+        m = self.build([row('a', 'working'), row('b'), row('c')])
+        self.assertEqual(m['subtitle'], "One working, two idle or done. You'll get a notification if one needs you.")
+        m = self.build([row('a', 'working')])
+        self.assertEqual(m['subtitle'], "One working. You'll get a notification if one needs you.")
+
+    def test_detail_names_who_sent_a_note_by_role(self):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, 's.jsonl')
+        with open(p, 'w') as f:
+            f.write(json.dumps({'type': 'user', 'timestamp': '2026-11-08T11:00:00Z', 'message': {'content': '<hc from="t-b">go</hc>'}}) + '\n')
+        a = log_agent('a')
+        a.path = p
+        rows = [row('a'), row('b')]
+        got = teammap.detail('shop', 'a', self.build(rows, [a]), [a], {}, NOW, rows)
+        self.assertEqual(got['recent'][0]['text'], 'Took a note from b')

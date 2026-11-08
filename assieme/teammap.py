@@ -151,7 +151,11 @@ def _subtitle(panes_, gs, need):
     rest = total - need
     if not need:
         working = sum(p['state'] == 'working' for p in panes_)
-        head = f'{_word(working)} working, {total - working} idle or done.' if total else ''
+        rest = total - working
+        if working and rest:
+            head = f'{_word(working)} working, {_word(rest).lower()} idle or done.'
+        else:
+            head = f'{_word(working)} working.' if working else f'{_word(rest)} idle or done.' if rest else ''
         return f"{head} You'll get a notification if one needs you.".strip()
     if gs:
         return f'{total} agents in {len(gs)} groups. The other {rest} are working or done.'
@@ -222,6 +226,11 @@ def _wakers(a, alias, now):
     return [{'role': r, 'count': n} for r, n in sorted(counts.items(), key=lambda x: (-x[1], x[0]))]
 
 
+def _named(text, alias):
+    head, sep, who = text.rpartition('Took a note from ')
+    return f'{head}{sep}{alias.get(who, who)}' if sep else text
+
+
 def detail(team_name, role, built, agents, roster, now, rows=None, show_commands=False):
     p = next((x for x in built['panes'] if x['role'] == role), None)
     if not p:
@@ -243,7 +252,7 @@ def detail(team_name, role, built, agents, roster, now, rows=None, show_commands
             'since_s': p['since_s'], 'detail': p['detail'], 'fix': p['fix'], 'address': p['address'],
             'reachable': p.get('reachable', True), 'session': p.get('session', 'assieme'),
             'command': p.get('command'), 'memory': memory,
-            'recent': [{'at': ts.astimezone().strftime('%H:%M'), 'text': text} for ts, text in recent],
+            'recent': [{'at': ts.astimezone().strftime('%H:%M'), 'text': _named(text, alias)} for ts, text in recent],
             'wakers': _wakers(a, alias, now) if a else [], 'empty_wakes': sum(e['empty'] for e in edge_in)}
 
 
@@ -390,7 +399,7 @@ class Brain:
             settings.set_value(key, value)
         return settings.load()
 
-    def pairs(self, team=None):
+    def pairs(self, team_name=None):
         now = status.now_utc()
         rows = self._assieme_rows()
         entries = live.recent_actions(None, activity.MAX_ROWS)
@@ -408,7 +417,7 @@ class Brain:
                 saved = quiet.savings(p, today_only, edge, sum(a['tokens'] for a in rep['agents'].values()))
             out.append({**p, 'saved': saved})
         choices = [{'role': r['labels'].get(team.ROLE), 'cwd': _real(r.get('cwd'))} for r in rows
-                   if r.get('state') == 'live' and (not team or r['labels'][team.TEAM] == team)]
+                   if r.get('state') == 'live' and (not team_name or r['labels'][team.TEAM] == team_name)]
         return {'pairs': out, 'agents': choices, 'held': sum(len(v) for v in quiet.held().values())}
 
     def set_pair(self, from_cwd, to_cwd, label, on):
