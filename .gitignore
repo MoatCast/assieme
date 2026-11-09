@@ -5,3 +5,5 @@ dist/
 .venv/
 .DS_Store
 .planban/
+ROADMAP.md
+FEATURES.md

@@ -1,184 +1,120 @@
 # Assieme
 
-Keeps a team of coding agents moving, so you don't have to keep asking "Status".
+**Run a team of coding agents without babysitting it.** Assieme starts mixed teams of Claude Code and Codex agents,
+shows you their live terminals, notices when one needs help, and fixes the problem with your say-so.
 
-Assieme reads the logs your agents already write (Claude Code with its subagents and Agent Teams, Codex,
-herdr `hc` messages) and tells you, in plain words:
+> [!IMPORTANT]
+> **Work in progress: a macOS app is coming soon.** There is no download yet, things will change, and some features
+> have only had light real-world use. You can try it today by building from source on an Apple silicon Mac.
 
-- **what needs you**: an agent waiting on your answer, a stuck agent, a whole team stalled and who it waits on;
-- **what it costs**: who woke whom, and how many tokens went on wake-ups that did no work;
-- **what keeps being refused**, which rule did it, and a narrower rule to use instead.
+## What sets it apart
 
-Every alert comes with a fix. When Assieme can carry the fix out itself (today: nudging a stuck agent through
-herdr), it takes one key and a confirmation. Nothing acts on its own.
+Most agent coordinators give you a place to start agents and see what they're doing. You still have to notice the
+problem, work out why it happened and decide what to do. Assieme is built around that part of the job.
 
-Local only, no telemetry, no config, standard library only, message text hidden by default.
-See [DESIGN.md](DESIGN.md) and [ROADMAP.md](ROADMAP.md).
-
-## Start
-
-Python 3.10+. Install it once with [uv](https://docs.astral.sh/uv/), giving the path to this folder:
-
-```bash
-uv tool install --editable ~/path/to/assieme
-```
-
-Then run `assieme` from anywhere. It finds Claude Code, Codex and herdr by itself. `--editable` means changes
-to this folder take effect without reinstalling. Remove it with `uv tool uninstall assieme`. (`pipx install
---editable <path>` works too.)
-
-## The live view
-
-`assieme` with no command opens a view that refreshes every 5 seconds:
+**It tells you why a team has stopped, not just that it has.** Assieme follows the chain of who is waiting on whom
+down to the cause:
 
 ```
-assieme  14:02  1 stuck, 1 waiting on you, 6 idle, 3 exited
-
-!! Team stalled for 10 min: 2 agents wait on steward (builder, coord); steward waits on you (asked 10 min ago)
-Needs you (1):
-  [1] steward: a permission prompt, waiting 10 min; holds up builder, coord  -> answer it in hc attach t2
-Other alerts:
-  [2] builder is stuck: silent 18 min, last Bash: pytest  -> press 2 to nudge
-
-Last 24 h: wakes that did no work cost 414M tokens (30% of input). Cut first: builder -> coord (82M).
+!! Team stalled for 10 min: 2 agents wait on lead (builder, reviewer); lead waits on you (asked 10 min ago)
 ```
 
-**Needs you** is your queue: only decisions that are yours, longest-blocking first. That covers a question, a plan
-to approve, a Codex approval, a permission prompt herdr reports, or a reply that ended with a question in a turn
-you started. Each item shows how long it has waited and which agents it holds up. A new item, or a new team
-stall, pops up one desktop notification (macOS Notification Centre, or `notify-send` on Linux). Notifications
-carry names only, never message text, and items older than 2 hours never pop up.
+**Every alert comes with a fix.** Each one says what is wrong, why it matters and the one action that fixes it. Fixes
+start as a question. You can press one button, or switch that kind of fix to automatic once you trust it. Every action
+is logged with its reason, and those that can be undone have an Undo button.
 
-**Other alerts** are fixes Assieme can carry out itself, through `hc send`:
-
-| Fix | When | What it sends |
+| Problem | How Assieme spots it | The fix |
 |---|---|---|
-| nudge | an agent is stuck, a message never started a turn, or an idle agent holds up a stalled team | a short note on what looks wrong and what to do |
-| tell | the same command was refused twice in 30 minutes | which rule refused it, and to stop retrying (the alert also shows the narrower rule for you) |
-| compact | a team agent is idle with 150K+ tokens of context, which every wake re-reads | `/compact` |
+| An agent is stuck | No progress for 15 minutes, the same command repeating, or the agent says so | Ask it to try another way |
+| A command keeps being refused | It names the rule that refused it and finds where the rule came from | Tell the agent to stop retrying, and suggest you a narrower rule |
+| An agent keeps hitting the same failure | The same failure keeps coming back | Tell it to change approach |
+| Memory is filling up | It measures how fast the context grows | Free up memory at the next pause |
+| Tests are wasting time | The full suite repeats, or heavy jobs overlap | Ask the agent to run fewer tests, or to wait its turn |
+| A decision is yours | A question, approval or permission prompt | Your queue, longest-blocking first, with suggested answers |
 
-| make it quiet | a pair is one of the costliest senders of wakes that did no work | nothing: it turns on quiet send for that pair |
+**It shows what agents cost each other.** Every message between agents can wake one that re-reads its whole context.
+Assieme traces who woke whom, what each wake cost and which ones did no work, then names the pairs most worth cutting.
+*Quiet send* holds routine notes and hands them over with the receiver's next turn, while questions and urgent notes
+still go at once.
 
-A fix you carried out stays hidden for 15 minutes.
+**Agents report for themselves.** Agents inside a team use Assieme's MCP tools to message each other and to say when
+they are stuck or need a decision, so status comes from the agent as well as from its logs.
 
-### Quiet send
+**A new team starts the way a tuned one ends.** Teams get built-in practices learned from running real agent teams:
+one coordinator for outside-world work, reviewers that only read, at most two repair attempts, clear stop rules and a
+fixed handoff format. Optional groups can be switched off, while the basics stay on.
 
-Most wakes between agents are routine notes ("suite done") that the receiver only has to read. On a quiet pair,
-those notes are held and handed over as one batch while the receiver is busy anyway, so they join its current
-turn instead of starting a new one. If the receiver stays idle for 20 minutes, the batch goes anyway: one wake
-instead of many. Questions (ending in `?`) and notes starting with `URGENT` or `!` always go at once, and an agent
-can force any note with `hc send --now`. A failed delivery stays held, nothing is dropped.
+**Your assistant can help, but you stay in charge.** Connect Claude Code, Codex or the Claude app with one button.
+They can read team status and design a team with you. Anything that changes something asks you first, and a new team
+only ever starts when you click Start.
 
-Agents keep typing `hc send`. Turn it on once:
+## What you can do today
+
+- **Create a team:** pick a project and mix Claude Code and Codex agents, each with its own role, model and thinking
+  effort. Presets and *Help me choose* cover the common shapes.
+- **Watch and type:** see a live grid of terminals that keep running when the window closes, and open any one full size
+  to type into it.
+- **See the team:** a map of who wakes whom, what needs you, what's ready to review, and today's token use.
+- **Review each agent's work:** every agent that edits gets its own git worktree and branch. One screen has the diff,
+  test results, conflict and file checks, and reviewer notes, with Ask for changes, Open pull request, Merge, Discard,
+  and Undo after a merge.
+- **Answer from anywhere:** a menu bar badge counts what needs you, with answer buttons in its panel. Mac notifications
+  carry the same answers.
+- **Keep your existing agents:** Assieme finds agents already running in plain terminals or herdr and shows them, with
+  fewer actions available.
+- **Check it all afterwards:** Activity lists everything Assieme did and why, with Undo where it can be undone.
+
+**Coming next:** the macOS download, a task board, budgets with "pause and ask me", remote machines over SSH, a shared
+team brief, scheduled runs, a live preview per agent, more agent CLIs, and dark mode. A Rust runtime, forked from
+herdr-core, is in `runtime/` and tested side by side with the original, but the app doesn't use it yet.
+
+## Safe by default
+
+- It never kills an agent without asking, never widens permission rules and never answers a permission prompt for you.
+- Fixes ask first until you choose otherwise, and an agent's work stays on its own branch until you merge it.
+- It runs on your Mac with no telemetry. It talks only to what you use: your agents, your git remote when you push or
+  open a pull request, and any assistant you connect.
+- Reports and the terminal views hide message text unless you pass `--show-text`. Mac notifications can show an agent's
+  question, including on your lock screen, so you can answer it.
+
+## Try it from source
+
+You need an Apple silicon Mac, [uv](https://docs.astral.sh/uv/), Node, Rust, and Claude Code or Codex.
 
 ```bash
-assieme quiet on     # installs the hc stand-in and prints the one PATH line for your agents' start script
-assieme quiet status # stand-in installed? deliverer running? which pairs are quiet, how many notes held
-assieme quiet off    # removes it
+git clone https://github.com/MoatCast/assieme.git
+cd assieme/app
+npm install
+sh scripts/bundle.sh
+npx tauri build --bundles app
+open src-tauri/target/release/bundle/macos/Assieme.app
 ```
 
-Then mark pairs quiet in the live view. Held notes are delivered by `assieme` or `assieme watch`; when
-neither is running, the stand-in passes every note straight through.
+`bundle.sh` downloads a pinned Python and herdr-core and checks them against their published checksums. The app's First
+run screen offers to start its background service. The app isn't notarised yet, so macOS may ask you to allow it.
 
-Press a number to act on an alert. Assieme shows the exact message it will send and waits for `y`. Every
-action is logged to `~/.local/state/assieme/actions.jsonl` and listed in the view. `q` quits.
-Piped into another program, it prints one snapshot instead.
+## Command line
 
-## Commands
-
-```bash
-assieme status            # one snapshot: one line per agent, alerts first
-assieme status --watch    # the same, refreshing every 5 s
-assieme watch             # no screen: just the notifications, for a background tab
-assieme report --hours 24 # who woke whom, what it cost, what was refused (Markdown; --json for data)
-```
-
-### Start a team
-
-A preset is a folder with a `team.toml` (the team's name, project and roles: Claude Code or Codex, model, parent,
-`checkout = "branch"` or `"read-only"`) and one Markdown brief per role. Each agent gets its own git worktree under
-`<project>/.assieme/worktrees/<role>`, runs in its own `hc` session (`HC_SESSION=assieme`, separate from herdr),
-and gets its brief once its first turn has ended. Needs `hc` (herdr-core) installed.
+The app is the main way in, and everything you need day to day is there. For power users and scripts, install the
+commands with `uv tool install .` from this folder (Python 3.11+). Starting teams from here also needs herdr-core's `hc`
+on your PATH.
 
 ```bash
+assieme                                        # live view: what needs you, alerts, one-key fixes
+assieme status [--watch] [--json]              # one line per agent, alerts first
+assieme report --hours 24 [--json]             # who woke whom, what it cost, what was refused
+assieme watch                                  # no screen: just the notifications
 assieme team start ~/presets/checkout --task "Add retries to the payment client"
-assieme team status checkout    # one line per agent: terminal, live or finished, idle/working/blocked
+assieme team status checkout
 assieme team stop checkout
+assieme quiet on|off|status                    # quiet send for agents using `hc send`
+assieme mcp                                    # the MCP server, for clients that start it themselves
 ```
 
-Assieme asks once per project before answering an agent's "trust this folder?" prompt. Codex asks you to review
-Assieme's status hooks once; `assieme team start` prints the command to open that agent and answer it, and
-running `assieme team start` again afterwards sends that agent its brief.
+A preset is a folder with a `team.toml` (the team's name, project and roles) and one Markdown brief per role. Each role
+picks Claude Code or Codex, a model, a parent, and `checkout = "branch"` or `"read-only"`.
 
-### Live health
-
-```bash
-assieme status            # one line per agent, alerts first
-assieme status --watch    # refresh every 5 s until Ctrl-C
-assieme status --json
-```
-
-Each agent active in the last 12 hours (`--hours`) gets one state, read from its own logs:
-
-| State | Means |
-|---|---|
-| stuck | working, but no new log row for 15 min, the same command 4 times in a row, or a subagent gone silent |
-| waiting on you | it asked a question, Codex wants approval, or herdr reports a permission prompt |
-| idle, work waiting | another agent sent it a message (`hc send`) that started no turn |
-| waiting on subagents | its turn ended but subagents are still running |
-| working | in a turn, with the running tool named |
-| idle | turn over |
-| exited | its session is closed: no Claude Code or Codex process runs in its folder |
-
-**Stall alarm.** Agents that message each other form a team. When nobody on a team is making progress but work
-is open, the top line says so and traces the chain of who waits on whom, for example:
-
-```
-!! Team stalled for 10 min: 2 agents wait on steward (builder, coord); steward waits on you (asked 10 min ago)
-```
-
-An agent waits on another when its last message went there and nothing came back, or when it runs `hc wait` on
-it. A report that the receiver read and finished with does not count as waiting. Chains end at a person, a stuck
-agent, a message that never started a turn, or two agents waiting on each other.
-
-When herdr-core is installed, the HERDR column shows herdr's own status for the same terminal (`unreported`
-when the agent never told herdr). Use `--no-herdr` to skip it. Command arguments are hidden unless `--show-text`.
-
-### Report options
-
-The report opens with **Send less**: what wakes that did no work cost in total, and the agent pairs most worth
-cutting (each worth at least 1% of input), for example:
-
-```
-1. builder -> coord: 198 of 252 wakes did no work and cost 82.0M tokens (6% of all input); batch these notes or stop sending them
-```
-
-The wake table shows each pair's wakes per hour over the window and in the last hour, and flags a pair that just
-got noisy (10+ wakes in the last hour and at least 3x its usual rate).
-
-**Refused commands** say where each refusal came from and what to do about it: a named deny rule and the file it
-lives in, the auto-mode classifier and its reason, a built-in safety check, or the Codex sandbox. A rule that
-matched a word in the command rather than the program being run is called out with a narrower rule to use
-instead, for example:
-
-```
-steward: 'Bash: hc' refused 4 times by deny rule `Bash(*cloud-launch*)` (build/herdr/steward.json); the rule matched
-a word in the command, not the program run (hc); deny running it instead: `Bash(cloud-launch:*)`
-```
-
-Rules are read from each agent's `.claude/settings*.json`, `~/.claude/settings.json`, and the `--settings` file of
-any running Claude Code agent. For past runs, pass role files with `--rules FILE` (repeatable); those are tried for
-every agent, after its own. Assieme only suggests; it never edits settings.
-
-Options: `--claude-dir` (default `~/.claude/projects`), `--codex-dir` (default `~/.codex/sessions`),
-`--generic FILE` (repeatable), `--show-text` (adds wake snippets and full command prefixes; off by default).
-
-Flags are raised for an agent-to-agent edge with more than 20 empty wakes, a command refused 3+ times by one
-agent, or a context above 250K tokens.
-
-### Generic events
-
-Any tool can be added by writing JSONL like:
+`assieme report` also reads other tools through `--generic FILE`, as JSONL like this:
 
 ```json
 {"ts": "2026-11-07T10:00:00Z", "agent": "builder", "type": "wake", "from": "coordinator"}
@@ -186,14 +122,30 @@ Any tool can be added by writing JSONL like:
 {"ts": "2026-11-07T10:00:09Z", "agent": "builder", "type": "refusal", "command": "git push"}
 ```
 
-## Test
+## How it's built
+
+| Layer | Built with |
+|---|---|
+| **App** | Tauri 2, Rust, React 19, TypeScript, xterm.js |
+| **Brain** | A Python background service (standard library), with detection, fixes and team rules |
+| **MCP server** | A separate process using the official MCP Python SDK |
+| **Runtime** | herdr-core today, with Assieme's own fork in `runtime/` for later |
+
+To build the Rust runtime, first run `git submodule update --init` to fetch Ghostty's terminal library; you'll also
+need Zig 0.16. See [DESIGN.md](DESIGN.md) and [FORK-PLAN.md](FORK-PLAN.md) for more detail.
+
+## Tests
 
 ```bash
-python -m unittest
+uv run --with pytest python -m pytest
+cd app && npx vitest run && npx tsc --noEmit
+cd app/src-tauri && cargo test
 ```
 
-Tests build synthetic logs in a temporary directory; no real logs are read.
+Tests use synthetic logs only. No real logs are read or committed.
 
 ## Licence
 
-Apache-2.0. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE). The runtime in `runtime/` is a fork of
+[herdr-core](https://github.com/herdrdev/herdr-core), also Apache-2.0, and keeps its own notices. Assieme isn't
+affiliated with or endorsed by herdr.
