@@ -3,7 +3,8 @@ import datetime as dt
 import os
 import unittest
 
-from assieme import panes, team
+from assieme import launch, panes, team
+from assieme.preset import Role
 from assieme.status import Agent
 
 NOW = dt.datetime(2026, 11, 7, 12, 0, tzinfo=dt.timezone.utc)
@@ -49,6 +50,15 @@ def view(rows, agents=(), screens=None, answers=None):
 
 def pane(v, role):
     return next(p for p in v['panes'] if p['role'] == role)
+
+
+class AgentKindTest(unittest.TestCase):
+    def test_a_codex_agent_started_with_the_push_block_is_still_codex(self):
+        for kind in ('claude', 'codex'):
+            r = row('dev')
+            r['argv'] = launch.argv(Role('dev', kind, 'b.md', 'brief'), which=lambda n: f'/home/me/.local/bin/{n}')
+            self.assertEqual(r['argv'][0], '/usr/bin/env')
+            self.assertEqual(pane(view([r]), 'dev')['agent'], kind)
 
 
 class MatchTest(unittest.TestCase):

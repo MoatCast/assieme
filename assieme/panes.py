@@ -99,6 +99,14 @@ def _fix(role, buttons, text):
     return {'id': _id(role, text, tuple(b['id'] for b in buttons)), 'text': text, 'buttons': buttons}
 
 
+def _program(argv):
+    """The program an argv runs: past a leading `env` and its KEY=VALUE words (the push block wraps agents in them)."""
+    words = list(argv or [''])
+    while words[1:] and (os.path.basename(words[0]) == 'env' or '=' in words[0]):
+        words.pop(0)
+    return os.path.basename(words[0])
+
+
 def view(team_name, rows, agents, now, read, answers, show_commands=False):
     rows = sorted(_latest(_current_run(rows)), key=lambda r: r.get('created_ms') or 0)
     matched = match(rows, agents)
@@ -121,7 +129,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
             report = reports.current(team_name, role, r)
         if report:
             state = 'asking' if report['state'] == 'need_decision' else 'stuck'
-        argv0 = os.path.basename((r.get('argv') or [''])[0])
+        argv0 = _program(r.get('argv'))
         p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
              'command': None, 'memory_full': _memory_full(a)}
