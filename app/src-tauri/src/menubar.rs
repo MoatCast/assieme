@@ -99,20 +99,25 @@ fn on_press<R: Runtime>(app: &AppHandle<R>, action: &str, event: &Value) {
     }
 }
 
-/// One thread per notification, waiting for what's done with it. It ends once it's pressed or dismissed.
+/// A small task per notification, waiting for what's done with it, so ones nobody answers cost no thread. It ends once
+/// it's pressed or dismissed.
 fn show<R: Runtime>(app: &AppHandle<R>, event: &Value) {
     let (app, event) = (app.clone(), event.clone());
-    std::thread::spawn(move || {
+    tauri::async_runtime::spawn(async move {
         let mut n = Notification::new()
             .title(event["title"].as_str().unwrap_or("Assieme"))
             .message(event["body"].as_str().unwrap_or_default());
         for b in event["buttons"].as_array().into_iter().flatten() {
             n = n.action(Action::button(b["id"].as_str().unwrap_or_default(), b["label"].as_str().unwrap_or_default()));
         }
-        let response = tauri::async_runtime::block_on(async { n.send().await?.response().await });
+        let response = async { n.send().await?.response().await }.await;
         match response {
             Ok(r) if r.is_dismiss_action() || r.is_timed_out() => {}
-            Ok(r) => on_press(&app, if r.is_default_action() { "tap" } else { &r.action_identifier }, &event),
+            Ok(r) => {
+                let action = if r.is_default_action() { "tap".to_string() } else { r.action_identifier.clone() };
+                // A press calls the brain over its socket: that must not hold up the other notifications' tasks.
+                let _ = tauri::async_runtime::spawn_blocking(move || on_press(&app, &action, &event)).await;
+            }
             Err(e) => eprintln!("notification not shown: {e}"), // for example, notifications are off: the panel says so
         }
     });

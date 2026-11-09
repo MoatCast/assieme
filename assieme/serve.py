@@ -54,12 +54,15 @@ def handle(request, handlers):
 
 class _Handler(socketserver.StreamRequestHandler):
     def handle(self):
-        for line in self.rfile:
-            try:
-                reply = handle(json.loads(line), self.server.handlers)
-            except ValueError:
-                reply = {'jsonrpc': '2.0', 'id': None, 'error': {'code': -32700, 'message': 'not JSON'}}
-            self.wfile.write((json.dumps(reply) + '\n').encode())
+        try:
+            for line in self.rfile:
+                try:
+                    reply = handle(json.loads(line), self.server.handlers)
+                except ValueError:
+                    reply = {'jsonrpc': '2.0', 'id': None, 'error': {'code': -32700, 'message': 'not JSON'}}
+                self.wfile.write((json.dumps(reply) + '\n').encode())
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # the client hung up before its reply: it no longer wants it
 
 
 def _ticker(tick, every_s):

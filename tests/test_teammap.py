@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import os
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -483,6 +484,30 @@ class BrainTest(MapCase):
     def brain(self, rows=()):
         d = tempfile.mkdtemp()
         return teammap.Brain(os.path.join(d, 'c'), os.path.join(d, 'x'), FakeRt(rows), None, NoAnswers())
+
+    def test_one_view_reads_the_logs_once_for_the_same_terminals(self):
+        b = self.brain()
+        with mock.patch.object(status, 'running_cwds', return_value=set()) as cwds, \
+             mock.patch.object(status, 'collect', return_value=[]) as collect:
+            with b.one_view():
+                b._collect(NOW, [{'address': 't1'}])
+                b._collect(NOW, [{'address': 't1'}])
+                b._collect(NOW, [{'address': 't2'}])
+            self.assertEqual(collect.call_count, 2)
+            self.assertEqual(cwds.call_count, 1)
+            b._collect(NOW, [{'address': 't1'}])  # the view has ended: fresh again
+            self.assertEqual(collect.call_count, 3)
+
+    def test_one_view_is_only_for_the_thread_that_opened_it(self):
+        b = self.brain()
+        with mock.patch.object(status, 'running_cwds', return_value=set()), \
+             mock.patch.object(status, 'collect', return_value=[]) as collect:
+            with b.one_view():
+                b._collect(NOW, None)
+                t = threading.Thread(target=b._collect, args=(NOW, None))
+                t.start()
+                t.join()
+            self.assertEqual(collect.call_count, 2)
 
     def test_team_map_unknown_team_is_empty(self):
         with mock.patch.object(status, 'herdr_terminals', return_value=None), mock.patch.object(status, 'running_cwds', return_value=set()):

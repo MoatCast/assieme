@@ -4,8 +4,10 @@ Nothing is detected here. Cards come from `panes.view` (so the same advice as th
 `report.aggregate` run on one team's sessions, and notes from `quiet`. Polling must stay cheap: only the brain's
 tick reads whole logs (`Today`); `build` uses the copy it left.
 """
+import contextlib
 import dataclasses
 import datetime as dt
+import json
 import os
 import subprocess
 import threading
@@ -312,19 +314,43 @@ class Brain:
         self.claude_dir, self.codex_dir, self.rt, self.starter, self.answers = claude_dir, codex_dir, rt, starter, answers
         self.herdr = herdr or HerdrRt()
         self.today = Today(claude_dir, codex_dir)
+        self._view = threading.local()
+
+    @contextlib.contextmanager
+    def one_view(self):
+        """Within this, on this thread, logs and terminals are read once: a poll asks about every team, and each would
+        read them all again. Outside it, every call is fresh, so a press always acts on what is true now."""
+        self._view.seen = {}
+        try:
+            yield
+        finally:
+            self._view.seen = None
+
+    def _once(self, key, read):
+        seen = getattr(self._view, 'seen', None)
+        if seen is None:
+            return read()
+        if key not in seen:
+            seen[key] = read()
+        return seen[key]
+
+    def terminals(self):
+        return self._once('herdr', status.herdr_terminals)
 
     def _assieme_rows(self, name=None):
         try:
-            rows = self.rt.list({team.TEAM: name} if name else {}, all=True)
+            rows = self._once(('rows', name), lambda: self.rt.list({team.TEAM: name} if name else {}, all=True))
         except runtime.RuntimeError_:
             return []
         return [r for r in rows if (r.get('labels') or {}).get(team.TEAM) and (not name or r['labels'][team.TEAM] == name)]
 
     def _collect(self, now, herdr):
-        return status.collect(self.claude_dir, self.codex_dir, now, herdr=herdr, running=status.running_cwds())
+        return self._once(('agents', json.dumps(herdr, sort_keys=True, default=str)),
+                          lambda: status.collect(self.claude_dir, self.codex_dir, now, herdr=herdr,
+                                                 running=self._once('running', status.running_cwds)))
 
     def _found(self, now):
-        agents = self._collect(now, status.herdr_terminals())
+        agents = self._collect(now, self.terminals())
         taken = {r.get('cwd') for r in self._assieme_rows() if r.get('state') == 'live'}
         return agents, found_groups(agents, settings.load()['groups'], taken)
 

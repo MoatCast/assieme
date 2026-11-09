@@ -230,14 +230,25 @@ class Tools:
             names = [os.path.join(self._drafts(), n) for n in os.listdir(self._drafts()) if n.endswith('.json')]
         except OSError:
             return None
-        return os.path.basename(min(names, key=os.path.getmtime))[:-5] if names else None
+        ages = {}
+        for path in names:
+            try:
+                ages[path] = os.path.getmtime(path)
+            except OSError:  # the app took it just now
+                pass
+        return os.path.basename(min(ages, key=ages.get))[:-5] if ages else None
 
     def draft_take(self, id):
         path = os.path.join(self._drafts(), f'{os.path.basename(id)}.json')
         try:
             with open(path) as f:
                 draft = json.load(f)
-        except (OSError, ValueError):
+        except OSError:
+            return None
+        except ValueError:
+            draft = None
+        if not isinstance(draft, dict):  # kept to look at, but no longer in the way of the next draft
+            os.replace(path, path + '.damaged')
             return None
         os.remove(path)
         return draft

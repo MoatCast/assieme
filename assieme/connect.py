@@ -49,7 +49,10 @@ def _desktop_add(path):
 
 
 def _desktop_remove(path):
-    data = _load(path)
+    try:
+        data = _load(path)
+    except FileNotFoundError:
+        return  # no settings file: it can't be connected
     if NAME in data.get('mcpServers', {}):
         del data['mcpServers'][NAME]
         quiet._write_json(path, data)

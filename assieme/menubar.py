@@ -135,12 +135,19 @@ class Menubar:
                             'title': f"{p['role']} stopped", 'body': _short(body or 'It stopped and reported back.'),
                             'buttons': [OPEN]}
 
-    def _ready(self, waiting, teams, now):
+    def _ready(self, waiting, teams, now, known, showing):
+        """Asking Review starts the project's tests and reads its whole diff, so only for a notification still to come."""
         states = {(name, p['role']): p['state'] for name, built, _ in teams for p in built['panes']}
         for w in waiting:
             age = now.timestamp() - w.get('at', 0)
             if states.get((w['team'], w['role'])) in ('working', *teammap.NEEDS_YOU) or age > live.NOTIFY_MAX_AGE:
                 continue  # a busy agent's commit is routine progress; a question notifies on its own
+            key = f"ready|{w['team']}|{w['role']}|{w.get('tip')}"
+            if key in known:
+                yield key, {}  # still true: remembered, so it can't pop up again
+                continue
+            if not showing:
+                continue
             try:
                 # Starts the tests once per commit, as opening Review would. Review keeps the result.
                 tests = next(c for c in self.reviews.get(w['team'], w['role'])['checks'] if c['id'] == 'tests')
@@ -149,7 +156,7 @@ class Menubar:
             if tests['state'] == 'running' and age < TESTS_WAIT_S:
                 continue
             said = {'ok': ' Tests pass.', 'bad': ' Tests fail.'}.get(tests['state'], '')
-            yield f"ready|{w['team']}|{w['role']}|{w.get('tip')}", {
+            yield key, {
                 'kind': 'finished', 'team': w['team'], 'role': w['role'], 'view': 'review', 'fix': None,
                 'title': 'Ready to review',
                 'body': _short(f"{w['role']} finished “{w.get('subject', '')}”.{said}"), 'buttons': []}
@@ -165,7 +172,9 @@ class Menubar:
         """What should pop up now, once each. Paused: nothing is marked sent, so what's still true when it ends notifies
         then, and what was resolved meanwhile never does."""
         ready_roles = {(w['team'], w['role']) for w in waiting}
-        found = [*self._needs(teams), *self._stops(teams, ready_roles), *self._ready(waiting, teams, now), *self._stalls(stalls)]
+        showing = not pause_until() and st['notify'].get('finished', True)
+        found = [*self._needs(teams), *self._stops(teams, ready_roles), *self._ready(waiting, teams, now, self._load(), showing),
+                 *self._stalls(stalls)]
         with self.lock:
             seen = self._load()
             before = set(seen)
@@ -189,8 +198,9 @@ class Menubar:
         now = status.now_utc()
         self.polled = now
         st = settings.load()
-        teams = self._teams(now)
-        agents = self.brain._collect(now, status.herdr_terminals())
+        with self.brain.one_view():
+            teams = self._teams(now)
+            agents = self.brain._collect(now, self.brain.terminals())
         stalls = status.stalls(agents, now)
         # The brain's plain notifications take over if the app quits: they mustn't repeat what's been shown.
         live.announce(status.owner_queue(agents, now), stalls, now, notifier=lambda *_: None, switches=st['notify'])

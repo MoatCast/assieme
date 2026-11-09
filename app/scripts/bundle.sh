@@ -18,9 +18,18 @@ res="$repo/app/src-tauri/resources"
 check() {
   "$res/python/bin/python3" -P -c 'import assieme, tomllib, assieme.mcpserver' || { echo "bundle broken: Python or assieme"; exit 1; }
   "$res/hc-bin/hc" --version | grep -q "$HC_VERSION" || { echo "bundle broken: hc is not $HC_VERSION"; exit 1; }
+  [ -z "$(diff -rq -x __pycache__ "$repo/assieme" "$res/python/lib/python3.13/site-packages/assieme")" ] || { echo "bundle stale: its Assieme differs from this checkout"; exit 1; }
   echo "bundle ok"
 }
+install_assieme() {
+  # Deps first, then Assieme over itself: pip would otherwise keep an installed copy with the same version number.
+  PIP_DISABLE_PIP_VERSION_CHECK=1 "$res/python/bin/python3" -m pip install --quiet --no-warn-script-location "$repo"
+  rm -rf "$repo/build"  # setuptools would otherwise reuse deleted files from an earlier build
+  PIP_DISABLE_PIP_VERSION_CHECK=1 "$res/python/bin/python3" -m pip install --quiet --no-warn-script-location --no-deps --force-reinstall "$repo"
+}
 [ "${1:-}" = "--check" ] && { check; exit 0; }
+# Every `tauri build`: Assieme only, on top of what's there; the first one downloads Python and hc too.
+[ "${1:-}" = "--refresh" ] && [ -x "$res/python/bin/python3" ] && [ -x "$res/hc-bin/hc" ] && { echo "Assieme"; install_assieme; check; exit 0; }
 
 [ "$(uname -s)-$(uname -m)" = "Darwin-arm64" ] || { echo "bundle.sh builds for macOS on Apple silicon only"; exit 1; }
 tmp=$(mktemp -d)
@@ -49,5 +58,5 @@ printf '#!/bin/sh\nexec "$(dirname "$0")/../hc/%s" "$@"\n' "${bin#"$res/hc/"}" >
 chmod +x "$res/hc-bin/hc"
 
 echo "Assieme"
-PIP_DISABLE_PIP_VERSION_CHECK=1 "$res/python/bin/python3" -m pip install --quiet --no-warn-script-location "$repo"
+install_assieme
 check

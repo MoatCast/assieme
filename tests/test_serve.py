@@ -76,6 +76,25 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual(s['teams'], [])
 
 
+class ClientLeftTest(unittest.TestCase):
+    def go(self, error):
+        class Out:
+            def write(self, _):
+                raise error
+        h = serve._Handler.__new__(serve._Handler)
+        h.rfile, h.wfile = [b'{"id": 1, "method": "x"}\n'], Out()
+        h.server = mock.Mock(handlers={})
+        h.handle()
+
+    def test_a_client_that_hung_up_is_not_an_error(self):
+        self.go(BrokenPipeError())
+        self.go(ConnectionResetError())
+
+    def test_other_write_errors_still_surface(self):
+        with self.assertRaises(OSError):
+            self.go(OSError('disk'))
+
+
 class HandleTest(unittest.TestCase):
     def test_handle_unknown_method(self):
         r = serve.handle({'id': 3, 'method': 'nope'}, {})

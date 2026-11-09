@@ -143,6 +143,38 @@ class ReadyTest(Case):
         self.assertEqual(len(self.events(team(), waiting=[ready()])), 1)
 
 
+class ReadyStartsNoWorkTest(Case):
+    """Asking Review starts the project's tests and reads its whole diff: only when a notification depends on it."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(self.m.reviews, 'get', wraps=self.m.reviews.get)
+        self.get = p.start()
+        self.addCleanup(p.stop)
+
+    def test_paused_runs_no_tests(self):
+        settings.set_value('notify_paused_until', (NOW + dt.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ'))
+        self.assertEqual(self.events(team(pane('builder-1')), waiting=[ready()]), [])
+        self.get.assert_not_called()
+
+    def test_finished_switched_off_runs_no_tests(self):
+        off = {**ST, 'notify': {**ST['notify'], 'finished': False}}
+        self.assertEqual(self.events(team(pane('builder-1')), waiting=[ready()], st=off), [])
+        self.get.assert_not_called()
+
+    def test_already_notified_asks_once_and_stays_remembered(self):
+        self.assertEqual(len(self.events(team(pane('builder-1')), waiting=[ready()])), 1)
+        later = NOW + dt.timedelta(seconds=menubar.FORGET_S + 60)
+        self.assertEqual(self.events(team(pane('builder-1')), waiting=[ready()], now=later), [])
+        self.assertEqual(self.get.call_count, 1)
+
+    def test_still_true_after_a_pause_it_notifies_then(self):
+        settings.set_value('notify_paused_until', (NOW + dt.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%SZ'))
+        self.events(team(pane('builder-1')), waiting=[ready()])
+        settings.set_value('notify_paused_until', None)
+        self.assertEqual(len(self.events(team(pane('builder-1')), waiting=[ready()])), 1)
+
+
 class StopTest(Case):
     def agent(self):
         return {'t-builder-1': Agent('builder-1', 'claude-code', '/logs/b.jsonl')}

@@ -270,6 +270,30 @@ class ToolsTest(State):
             t.draft_save(os.path.join(self.dir, 'repo'), [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}], practices={'made-up': False})
         self.assertIsNone(t.draft_next())
 
+    def test_a_damaged_draft_doesnt_block_the_next(self):
+        t = self.tools()
+        good = t.draft_save(self.repo(), [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}])['id']
+        for name, body in (('bad1', '{not json'), ('bad2', '[1, 2]')):
+            path = os.path.join(t._drafts(), f'{name}.json')
+            with open(path, 'w') as f:
+                f.write(body)
+            os.utime(path, (1, 1))  # the oldest, so it comes first
+            self.assertEqual(t.draft_next(), name)
+            self.assertIsNone(t.draft_take(name))
+            self.assertTrue(os.path.exists(path + '.damaged'))  # kept to look at, no longer offered
+        self.assertEqual(t.draft_next(), good)
+
+    def test_a_draft_taken_while_listing_is_not_an_error(self):
+        t = self.tools()
+        got = t.draft_save(self.repo(), [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}])['id']
+        real = os.path.getmtime
+        def vanished(path):
+            if path.endswith(f'{got}.json'):
+                raise FileNotFoundError(path)
+            return real(path)
+        with mock.patch.object(os.path, 'getmtime', vanished):
+            self.assertIsNone(t.draft_next())
+
     def test_take_cant_leave_the_drafts_folder(self):
         secret = os.path.join(self.dir, 'assieme', 'settings.json')
         settings.set_value('show_commands', True)
@@ -449,6 +473,17 @@ class ConnectTest(unittest.TestCase):
 
     def go(self, fn):
         return fn(run=self.run_, which=self.which, home=self.home)
+
+    def test_disconnect_with_no_claude_app_settings_file_is_fine(self):
+        os.makedirs(os.path.dirname(self.cfg))
+        self.assertFalse(os.path.exists(self.cfg))
+        self.assertEqual(self.go(connect.disconnect)['problems'], [])
+
+    def test_disconnect_still_reports_a_damaged_settings_file(self):
+        os.makedirs(os.path.dirname(self.cfg))
+        with open(self.cfg, 'w') as f:
+            f.write('{not json')
+        self.assertEqual(len(self.go(connect.disconnect)['problems']), 1)
 
     def test_connect_adds_to_each_client_and_disconnect_removes(self):
         got = self.go(connect.connect)
