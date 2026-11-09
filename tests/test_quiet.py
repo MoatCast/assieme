@@ -172,6 +172,16 @@ class TeamTest(QuietTestCase):
         quiet.uninstall()
         self.assertFalse(os.path.exists(os.path.join(d, 'hc')))
 
+    def test_install_writes_the_push_blocker_git_runs(self):
+        d = quiet.install()
+        p = os.path.join(d, 'git-remote-assieme-push-blocked')
+        self.assertTrue(os.access(p, os.X_OK))
+        r = subprocess.run([p, 'origin', 'assieme-push-blocked://x'], capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('Assieme blocks pushes for this team', r.stdout + r.stderr)
+        quiet.uninstall()
+        self.assertFalse(os.path.exists(p))
+
     def test_cli_routes_shim_before_option_parsing(self):
         with mock.patch.object(quiet, 'shim_main', return_value=0) as m:
             cli.main(['shim', 'send', '--if', 'idle', 'coord', 'x'])

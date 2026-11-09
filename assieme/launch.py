@@ -73,5 +73,12 @@ def _codex(role):
     return a
 
 
-def argv(role):
-    return _claude(role) if role.agent == 'claude' else _codex(role)
+# An empty prefix matches every remote; pushes go to a git-remote helper (quiet.install writes it) that refuses. Fetch is untouched.
+BLOCK_PUSH = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'url.assieme-push-blocked://.pushInsteadOf', 'GIT_CONFIG_VALUE_0': ''}
+
+
+def argv(role, block_push=True, which=shutil.which):
+    """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on."""
+    a = _claude(role) if role.agent == 'claude' else _codex(role)
+    a[0] = which(a[0]) or a[0]
+    return ['/usr/bin/env', *(f'{k}={v}' for k, v in BLOCK_PUSH.items()), *a] if block_push else a

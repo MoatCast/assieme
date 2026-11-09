@@ -247,6 +247,9 @@ def savings(pair, entries, edge, total_tokens):
 
 # --- quiet on / off-------------------------------------------------------------------------------------------
 
+BLOCKER = 'git-remote-assieme-push-blocked'
+
+
 def shim_dir():
     return _path('bin')
 
@@ -260,11 +263,16 @@ def install():
         f.write(f'#!/bin/sh\n# assieme quiet send: holds notes on quiet pairs, passes everything else to the real hc.\n'
                 f'exec "{sys.executable}" -P -m assieme shim "$@"\n')  # -P: never import from the worktree
     os.chmod(p, 0o755)
+    p = os.path.join(d, BLOCKER)  # git runs this for assieme-push-blocked:// remotes (see launch.BLOCK_PUSH)
+    with open(p, 'w') as f:
+        f.write('#!/bin/sh\necho "Assieme blocks pushes for this team. Ask the person to push, or turn the safety practice off." >&2\nexit 1\n')
+    os.chmod(p, 0o755)
     return d
 
 
 def uninstall():
-    try:
-        os.remove(os.path.join(shim_dir(), 'hc'))
-    except OSError:
-        pass
+    for name in ('hc', BLOCKER):
+        try:
+            os.remove(os.path.join(shim_dir(), name))
+        except OSError:
+            pass

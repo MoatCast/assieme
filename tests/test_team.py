@@ -98,6 +98,12 @@ class StartTest(unittest.TestCase):
         self.assertIsNone(rt.started[0]['parent'])
         self.assertEqual(rt.started[1]['parent'], 't1')
 
+    def test_the_safety_practice_decides_whether_pushes_are_blocked(self):
+        for practices, blocked in (({}, True), ({'safety': True}, True), ({'safety': False}, False)):
+            rt = FakeRuntime()
+            self.start(rt, Team('demo', '/p', practices, [COORD]))
+            self.assertEqual(rt.started[0]['argv'][0] == '/usr/bin/env', blocked, practices)
+
     def test_labels_and_cwd(self):
         rt = FakeRuntime()
         self.start(rt, demo(COORD))

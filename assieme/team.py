@@ -96,7 +96,7 @@ def _review_hint(rt, role, t):
 
 
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
-    t = rt.start(launch.argv(role), cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
+    t = rt.start(launch.argv(role, block_push=tm.practices.get('safety') is not False), cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
     deadline = clock.monotonic() + FIRST_STATUS_S
     while True:
         info = rt.get(t)
