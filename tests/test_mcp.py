@@ -507,6 +507,28 @@ class ConnectTest(unittest.TestCase):
         self.go(connect.connect)
         self.assertIn(['codex', 'mcp', 'remove', 'assieme'], self.ran)
 
+    def test_clients_installed_after_the_app_started_run_by_full_path(self):
+        self.which = lambda c: f'/home/me/.local/bin/{c}' if c in ('claude', 'codex') else None
+        real = self.run_
+        self.ran_as = []
+
+        def run(args, **kw):
+            self.ran_as.append(args[0])
+            return real([os.path.basename(args[0]), *args[1:]], **kw)
+        got = connect.connect(run=run, which=self.which, home=self.home)
+        self.assertEqual([c['connected'] for c in got['clients']], [True, True])
+        self.assertEqual(set(self.ran_as) - {'pgrep'}, {'/home/me/.local/bin/claude', '/home/me/.local/bin/codex'})
+
+    def test_connect_looks_in_local_bin_by_default(self):
+        home = tempfile.mkdtemp()
+        self.addCleanup(__import__('shutil').rmtree, home)
+        os.makedirs(os.path.join(home, '.local', 'bin'))
+        exe = os.path.join(home, '.local', 'bin', 'claude')
+        open(exe, 'w').close()
+        os.chmod(exe, 0o755)
+        with mock.patch.dict(os.environ, {'HOME': home, 'PATH': '/nonexistent', 'SHELL': '/usr/bin/false'}):
+            self.assertEqual(connect.installed(home=self.home), ['claude'])
+
     def test_only_installed_clients(self):
         self.which = lambda c: None
         self.assertEqual(self.go(connect.connect), {'clients': [], 'problems': []})

@@ -4,11 +4,10 @@ rewrites that file from memory within seconds, dropping anything added (seen on 
 with the app closed; until then the client is `blocked`."""
 import json
 import os
-import shutil
 import subprocess
 import sys
 
-from . import quiet
+from . import quiet, setup
 
 NAME = 'assieme'
 TIMEOUT_S = 30
@@ -65,7 +64,7 @@ def _desktop_has(path):
         return False
 
 
-def installed(which=shutil.which, home=None):
+def installed(which=setup.agent_path, home=None):  # also finds what was installed since the app started
     found = [c for c in ('claude', 'codex') if which(c)]
     return found + (['desktop'] if os.path.isdir(os.path.dirname(desktop_config(home))) else [])
 
@@ -76,18 +75,18 @@ def _cli(args, run):
         raise RuntimeError((r.stderr or r.stdout).strip()[:200] or 'it failed')
 
 
-def _has(client, run, home):
+def _has(client, run, home, which):
     if client == 'desktop':
         return _desktop_has(desktop_config(home))
     try:
-        return run([client, 'mcp', 'get', NAME], capture_output=True, text=True, timeout=TIMEOUT_S).returncode == 0
+        return run([which(client) or client, 'mcp', 'get', NAME], capture_output=True, text=True, timeout=TIMEOUT_S).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
 
-def status(run=subprocess.run, which=shutil.which, home=None):
+def status(run=subprocess.run, which=setup.agent_path, home=None):
     """Each installed client, and whether the server is in it."""
-    out = [{'id': c, 'label': LABELS[c], 'connected': _has(c, run, home)} for c in installed(which, home)]
+    out = [{'id': c, 'label': LABELS[c], 'connected': _has(c, run, home, which)} for c in installed(which, home)]
     for c in out:
         if c['id'] == 'desktop' and not c['connected'] and _desktop_open(run):
             c['blocked'] = True
@@ -104,23 +103,24 @@ def _each(action, run, which, home):
     return {'clients': status(run, which, home), 'problems': problems}
 
 
-def connect(run=subprocess.run, which=shutil.which, home=None):
+def connect(run=subprocess.run, which=setup.agent_path, home=None):
     def add(c):
         if c == 'desktop':
             return None if _desktop_open(run) else _desktop_add(desktop_config(home))
-        if _has(c, run, home):  # an older copy of the app may have left another path behind
-            _cli([c, 'mcp', 'remove', NAME], run)
+        exe = which(c) or c  # by full path: the PATH this process has may not include where it was installed
+        if _has(c, run, home, which):  # an older copy of the app may have left another path behind
+            _cli([exe, 'mcp', 'remove', NAME], run)
         scope = ['--scope', 'user'] if c == 'claude' else []
-        _cli([c, 'mcp', 'add', *scope, NAME, '--', *command()], run)
+        _cli([exe, 'mcp', 'add', *scope, NAME, '--', *command()], run)
     return _each(add, run, which, home)
 
 
-def disconnect(run=subprocess.run, which=shutil.which, home=None):
+def disconnect(run=subprocess.run, which=setup.agent_path, home=None):
     def remove(c):
         if c == 'desktop':
             return _desktop_remove(desktop_config(home))
-        if _has(c, run, home):
-            _cli([c, 'mcp', 'remove', *(['--scope', 'user'] if c == 'claude' else []), NAME], run)
+        if _has(c, run, home, which):
+            _cli([which(c) or c, 'mcp', 'remove', *(['--scope', 'user'] if c == 'claude' else []), NAME], run)
     return _each(remove, run, which, home)
 
 
