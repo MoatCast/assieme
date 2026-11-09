@@ -31,7 +31,7 @@ class CliTeamTest(unittest.TestCase):
 
     def test_team_start_prints_one_line_per_role(self):
         res = [Started('coordinator', 't1', 'running'),
-               Started('builder-1', 't2', 'needs-you', 'codex wants you to review its hooks once: HC_SESSION=assieme hc attach t2')]
+               Started('builder-1', 't2', 'needs-you', 'Codex wants you to review new hooks once. Open builder-1 in Terminals and choose.')]
         with mock.patch('assieme.cli.team.start', return_value=res):
             code, out, _ = run(['team', 'start', '/presets/demo', '--task', 'fix it'])
         self.assertEqual(code, 0)

@@ -34,11 +34,29 @@ class LaunchTest(unittest.TestCase):
     def test_codex_hooks_are_valid_toml(self):
         a = plain_argv(role('codex'))
         self.assertEqual(a[0], 'codex')
-        values = [a[i + 1] for i, x in enumerate(a) if x == '-c' and a[i + 1].startswith('hooks.')]
+        values = [a[i + 1] for i, x in enumerate(a) if x == '-c' and a[i + 1].startswith('hooks.')
+                  and not a[i + 1].startswith('hooks.state')]
         events = sorted(next(iter(tomllib.loads(v)['hooks'])) for v in values)
         self.assertEqual(events, EVENTS)
         stop = next(tomllib.loads(v) for v in values if 'Stop' in tomllib.loads(v)['hooks'])
         self.assertTrue(stop['hooks']['Stop'][0]['hooks'][0]['command'].endswith('-m assieme.hook idle'))
+
+    def test_codex_trusts_only_assiemes_own_hooks_for_this_run(self):
+        # A first Codex team stopped at "Hooks need review". Codex reads trust for -c hooks from the same -c layer.
+        a = plain_argv(role('codex'))
+        state = next(tomllib.loads(a[i + 1]) for i, x in enumerate(a) if x == '-c' and a[i + 1].startswith('hooks.state'))
+        keys = sorted(state['hooks']['state'])
+        self.assertEqual(keys, ['/<session-flags>/config.toml:' + k + ':0:0'
+                                for k in ('permission_request', 'session_start', 'stop', 'user_prompt_submit')])
+        self.assertTrue(all(v['trusted_hash'].startswith('sha256:') for v in state['hooks']['state'].values()))
+
+    def test_codex_hook_hash_matches_codex(self):
+        # Vector checked against the trust Codex 0.167 itself wrote for this hook (path changed, same algorithm).
+        self.assertEqual(launch.codex_hook_hash('session_start', '/opt/assieme/bin/python -P -m assieme.hook idle'),
+                         'sha256:' + __import__('hashlib').sha256(
+                             b'{"event_name":"session_start","hooks":[{"async":false,'
+                             b'"command":"/opt/assieme/bin/python -P -m assieme.hook idle","timeout":600,"type":"command"}]}'
+                         ).hexdigest())
 
     def test_codex_skips_update_prompt(self):
         # A real run stopped at Codex's "Update available" screen; agents must start without it.

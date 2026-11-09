@@ -90,9 +90,9 @@ def _tell_parent(tm, role, address, rt, addresses):
             pass
 
 
-def _review_hint(rt, role, t):
-    return (f'{role.agent} wants you to review its hooks once: '
-            f'HC_SESSION={getattr(rt, "session", "assieme")} HC_SOCKET={rt.sock} hc attach {t}')
+def _review_hint(role):
+    # Assieme's own hooks are trusted at launch; this is someone else's new hook. The CLI adds the attach command.
+    return f'{launch.NAMES.get(role.agent, role.agent)} wants you to review new hooks once. Open {role.name} in Terminals and choose.'
 
 
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
@@ -116,7 +116,7 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
             rt.keys(t, keys)
             deadline = clock.monotonic() + FIRST_STATUS_S
         elif prompts.hook_review(screen):
-            return Started(role.name, t, 'needs-you', _review_hint(rt, role, t))
+            return Started(role.name, t, 'needs-you', _review_hint(role))
         if clock.monotonic() >= deadline:
             return Started(role.name, t, 'not-reporting', _tail(rt, t))
         clock.sleep(1)
@@ -149,7 +149,7 @@ def start(tm, task, rt, ask, only=None, clock=time):
             _brief(rt, row['address'], role, mine, tm)
             s = Started(role.name, row['address'], 'running')
         else:
-            s = Started(role.name, row['address'], 'needs-you', _review_hint(rt, role, row['address']))
+            s = Started(role.name, row['address'], 'needs-you', _review_hint(role))
         addresses[role.name] = s.address
         out.append(s)
     return out

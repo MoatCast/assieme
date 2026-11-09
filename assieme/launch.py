@@ -2,6 +2,7 @@
 
 The brief is not on the command line: it is sent after the agent's first turn ends.
 """
+import hashlib
 import json
 import re
 import shlex
@@ -55,11 +56,27 @@ def _claude(role):
     return a
 
 
+CODEX_EVENTS = {'SessionStart': 'session_start', 'UserPromptSubmit': 'user_prompt_submit', 'Stop': 'stop',
+                'PermissionRequest': 'permission_request'}
+
+
+def codex_hook_hash(event, command):
+    """Codex's trust fingerprint for one command hook: sha256 of its normalized identity as sorted, compact JSON."""
+    ident = {'event_name': event, 'hooks': [{'type': 'command', 'command': command, 'timeout': 600, 'async': False}]}
+    return 'sha256:' + hashlib.sha256(json.dumps(ident, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
 def _codex(role):
     a = ['codex', '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
+    trust = []
     for e, s in HOOKS.items():
         # A JSON string is a valid TOML basic string.
         a += ['-c', f'hooks.{e}=[{{hooks=[{{type="command",command={json.dumps(hook_command(s))}}}]}}]']
+        key = f'/<session-flags>/config.toml:{CODEX_EVENTS[e]}:0:0'
+        trust.append(f'{json.dumps(key)}={{trusted_hash={json.dumps(codex_hook_hash(CODEX_EVENTS[e], hook_command(s)))}}}')
+    # Trust these four hooks for this run only, so a first Codex team doesn't stop at "Hooks need review".
+    # Any other hook (the person's, a project's, a plugin's) still goes through Codex's own review.
+    a += ['-c', 'hooks.state={' + ','.join(trust) + '}']
     # Codex hands MCP servers a short list of variables: these say which agent this is.
     a += ['-c', f'mcp_servers.assieme.command={json.dumps(_mcp()["command"])}',
           '-c', f'mcp_servers.assieme.args={json.dumps(_mcp()["args"])}',

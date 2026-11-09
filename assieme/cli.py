@@ -205,6 +205,7 @@ def _team(args):
                 if s.note:
                     print('\n'.join('    ' + line for line in s.note.splitlines()))
                 if s.state == 'needs-you':
+                    print(f'    open it: HC_SESSION={getattr(rt, "session", "assieme")} HC_SOCKET={rt.sock} hc attach {s.address}')
                     print(f'    then: assieme team start {args.preset}')
                 if s.state in ('exited', 'not-reporting'):
                     print(f'    retry: assieme team start {args.preset} --only {s.role}')

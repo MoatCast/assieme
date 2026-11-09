@@ -143,7 +143,8 @@ class StartTest(unittest.TestCase):
         rt = FakeRuntime(screens={'builder-1': [HOOKS]}, statuses={'builder-1': [None]})
         out = self.start(rt, demo(Role('builder-1', 'codex', 'b.md', 'x')))
         self.assertEqual(out[0].state, 'needs-you')
-        self.assertIn('HC_SESSION=assieme HC_SOCKET=/s/assieme/hc.sock hc attach t1', out[0].note)
+        # The app shows this note to people who may never use a shell: no command in it.
+        self.assertEqual(out[0].note, 'Codex wants you to review new hooks once. Open builder-1 in Terminals and choose.')
         self.assertEqual((rt.keyed, rt.sent), ([], []))
 
     def test_not_reporting_after_60s(self):
