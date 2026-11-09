@@ -83,6 +83,22 @@ test("teamView and paneAct call the brain", async () => {
   expect(invoke).toHaveBeenLastCalledWith("brain_call", { method: "pane.act", params: a });
 });
 
+test("setup calls use the brain's method names and arguments", async () => {
+  invoke.mockResolvedValue({});
+  const calls: [() => unknown, string, object][] = [
+    [() => bridge.setupStatus(), "setup.status", {}], [() => bridge.setupCommands(), "setup.commands", {}],
+    [() => bridge.installTools(), "setup.install_tools", {}],
+    [() => bridge.installAgent("codex"), "setup.install_agent", { agent: "codex" }],
+    [() => bridge.signinAgent("claude"), "setup.signin_agent", { agent: "claude" }],
+    [() => bridge.terminalState("t9"), "setup.terminal_state", { address: "t9" }],
+    [() => bridge.installStop("t9"), "setup.install_stop", { address: "t9" }],
+  ];
+  for (const [call, method, params] of calls) {
+    await call();
+    expect(invoke).toHaveBeenLastCalledWith("brain_call", { method, params });
+  }
+});
+
 test("the new brain calls use the brain's method names", async () => {
   const { activityList, activityUndo, agentDetail, listTeams, quietPairs, quietSet, setGroups, setSetting, stopTeam, teamMap, tipApply, getSettings } = bridge;
   invoke.mockResolvedValue({});

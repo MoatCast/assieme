@@ -307,3 +307,14 @@ export const assistantsConnect = () => invoke<Assistants>("brain_call", { method
 export const assistantsDisconnect = () => invoke<Assistants>("brain_call", { method: "assistants.disconnect", params: {}, timeoutS: 120 });
 export const serviceRunning = () => invoke<boolean>("service_running");
 export const serviceInstall = () => invoke<void>("service_install");
+
+export type SetupStatus = { git: boolean; agents: Record<AgentKind, { installed: boolean; signed_in: boolean }> };
+export type SetupCommands = Record<AgentKind, { name: string; install: string; signin: string; status: string }>;
+// The brain answers status in about 5 s, under the 20 s default call timeout.
+export const setupStatus = () => brain<SetupStatus>("setup.status");
+export const setupCommands = () => brain<SetupCommands>("setup.commands");
+export const installTools = () => brain<{ ok: boolean }>("setup.install_tools");
+export const installAgent = (agent: AgentKind) => brain<{ address: string }>("setup.install_agent", { agent });
+export const signinAgent = (agent: AgentKind) => brain<{ address: string }>("setup.signin_agent", { agent });
+export const terminalState = (address: string) => brain<"running" | "finished">("setup.terminal_state", { address });
+export const installStop = (address: string) => brain<{ ok: boolean }>("setup.install_stop", { address });

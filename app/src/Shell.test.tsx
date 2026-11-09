@@ -6,12 +6,12 @@ const snap = vi.hoisted(() => ({ current: null as Snapshot | null, report: null 
 vi.mock("./FirstRun", async () => {
   const { useEffect } = await import("react");
   return {
-    default: ({ onSnapshot, onOpenTeam }: { onSnapshot?: (s: Snapshot) => void; onOpenTeam?: () => void }) => {
+    default: ({ onSnapshot, onOpenTeam, onOpenSettings }: { onSnapshot?: (s: Snapshot) => void; onOpenTeam?: () => void; onOpenSettings?: (s: string) => void }) => {
       useEffect(() => {
         snap.report = onSnapshot ?? null;
         if (snap.current) onSnapshot?.(snap.current);
       }, [onSnapshot]);
-      return <div><span>first run screen</span><button type="button" onClick={onOpenTeam}>Open my team</button></div>;
+      return <div><span>first run screen</span><button type="button" onClick={onOpenTeam}>Open my team</button><button type="button" onClick={() => onOpenSettings?.("privacy")}>privacy link</button></div>;
     },
   };
 });
@@ -54,8 +54,8 @@ vi.mock("./Team", () => ({
   ),
 }));
 vi.mock("./Activity", () => ({ default: ({ team }: { team: string | null }) => <div>activity for {team}</div> }));
-vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun }: { onClose: () => void; onShowFirstRun: () => void }) => (
-  <div><span>settings screen</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button></div>
+vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun, section }: { onClose: () => void; onShowFirstRun: () => void; section?: string }) => (
+  <div><span>settings screen{section ? ` at ${section}` : ""}</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button></div>
 ) }));
 vi.mock("./AddAgent", () => ({ default: ({ team, roles }: { team: string; roles: string[] }) => <div>add agent to {team}: {roles.join(",")}</div> }));
 const setSetting = vi.hoisted(() => vi.fn());
@@ -164,6 +164,18 @@ test("Settings opens from the gear, closes, and can show First run", async () =>
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   fireEvent.click(screen.getByRole("button", { name: "first run again" }));
   expect(screen.getByText("first run screen")).toBeTruthy();
+});
+
+test("Privacy on First run opens Settings at Privacy, and the gear opens it plain", async () => {
+  snap.current = SNAP([], { first_run_done: false });
+  render(<Shell />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "privacy link" }));
+  expect(screen.getByText("settings screen at privacy")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "close settings" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open my team" }));
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByText("settings screen")).toBeTruthy();
 });
 
 test("no team at all still reaches the tabs", async () => {

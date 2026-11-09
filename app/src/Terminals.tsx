@@ -110,7 +110,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
         {waitingList}
       </div>
     );
-  if (!view) return <div className="terminals">{offline && <Offline />}</div>;
+  if (!view) return <div className="terminals">{offline && <Offline team />}</div>;
   if (!view.panes.length)
     return (
       <div className="terminals empty">
@@ -175,7 +175,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
   const focused = view.panes.find((p) => p.role === focus);
   return (
     <div className="terminals">
-      {offline && <Offline />}
+      {offline && <Offline team />}
       {view.strip.length > 0 && (
         <div className="strip">
           <span className="strip-count"><span className="dot" />{view.strip.length} need you</span>

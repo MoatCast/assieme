@@ -156,7 +156,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
     </div>
   );
   if (!team) return nothing("No team is running. Start one from New team.");
-  if (!map) return <div className="team">{offline && <Offline />}</div>;
+  if (!map) return <div className="team">{offline && <Offline team />}</div>;
   if (map.stopped) return nothing(`${map.team} has stopped. Start a new team when you’re ready.`);
 
   const group = map.groups?.find((g) => g.name === opened) ?? null;
@@ -174,7 +174,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
         <div className="team-title">
           <h1>{group ? `${group.name}: ${map.title.charAt(0).toLowerCase()}${map.title.slice(1)}` : map.title}</h1>
           <p>{group ? `${group.roles.length} of ${map.nodes.length} agents.` : map.subtitle}</p>
-          {offline && <Offline />}
+          {offline && <Offline team />}
           {here.flatMap((s, i) => {
             if (s.error) return [<p key={i} className="start-error">Couldn’t add the agent: {s.error}</p>];
             const stopped = (role: string) => map.panes.some((p) => p.role === role && p.state === "exited");

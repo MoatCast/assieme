@@ -19,7 +19,7 @@ export function badName(roles: RoleDraft[]): number {
 
 /** New team, step 1: project, task, starting team and agents. Step 2 is Recommended setup. */
 /** clis: null until the service has said which are installed. */
-export default function NewTeam({ clis, draft, retryMs = 3000, onClose }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; onClose: () => void }) {
+export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarted }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; onClose: () => void; onStarted?: () => void }) {
   const installed = AGENTS.filter(([id]) => clis?.[id]);
   const [offline, setOffline] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -138,6 +138,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose }: { clis
     setStartError("");
     try {
       await startTeam({ project, task: task.trim(), roles, practices: practiceOn });
+      onStarted?.();
       onClose();
     } catch (e) {
       const { field, message } = fieldOf(e);

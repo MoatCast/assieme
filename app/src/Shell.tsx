@@ -36,6 +36,7 @@ export default function Shell() {
   const [creating, setCreating] = useState(false);
   const [adding, setAdding] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [settingsAt, setSettingsAt] = useState<string | undefined>();
   const [focus, setFocus] = useState<string | null>(null);
   const [review, setReview] = useState<{ team: string; role: string } | null>(null);
   const [merged, setMerged] = useState<MergeResult | null>(null);
@@ -124,7 +125,7 @@ export default function Shell() {
                 Add agent
               </button>
             )}
-            <button type="button" className="gear" aria-label="Settings" onClick={() => setSettings(true)}>
+            <button type="button" className="gear" aria-label="Settings" onClick={() => { setSettingsAt(undefined); setSettings(true); }}>
               <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="9" cy="9" r="2.4" />
                 <path d="M9 2v2M9 14v2M2 9h2M14 9h2M4 4l1.4 1.4M12.6 12.6L14 14M4 14l1.4-1.4M12.6 5.4L14 4" />
@@ -136,7 +137,8 @@ export default function Shell() {
       {shown === "first-run" && !review && <div className="window-strip" data-tauri-drag-region />}
       {/* First run stays mounted so its snapshot poll keeps the team list fresh. */}
       <div className="shell-page" hidden={!!review || shown !== "first-run"}>
-        <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} />
+        <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} shown={shown === "first-run" && !review}
+          onOpenSettings={(section) => { setSettingsAt(section); setSettings(true); }} />
       </div>
       {shown === "team" && !review && (
         <div className="shell-page">
@@ -188,7 +190,7 @@ export default function Shell() {
           clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setAdding(false)} />
       )}
       {settings && (
-        <Settings team={team} onClose={() => setSettings(false)}
+        <Settings team={team} section={settingsAt} onClose={() => setSettings(false)}
           onShowFirstRun={() => { setSettings(false); setTab("first-run"); }} />
       )}
     </div>

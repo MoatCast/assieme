@@ -95,11 +95,11 @@ test("a stopped service isn't reported as missing agents, and New team recovers"
   b.teamPresets.mockRejectedValue(new Error("no brain"));
   render(<NewTeam clis={null} retryMs={1} onClose={vi.fn()} />);
   await flush();
-  expect(screen.getByText(/service isn’t answering/)).toBeTruthy();
+  expect(screen.getByText(/service isn’t running/)).toBeTruthy();
   expect(screen.queryByText(/Install Claude Code or Codex/)).toBeNull();
   b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS });
   expect(await screen.findByText("One agent")).toBeTruthy();
-  expect(screen.queryByText(/service isn’t answering/)).toBeNull();
+  expect(screen.queryByText(/service isn’t running/)).toBeNull();
 });
 
 test("while the agent check hasn't answered, it doesn't say to install one", async () => {

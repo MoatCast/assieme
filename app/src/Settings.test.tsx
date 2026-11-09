@@ -16,6 +16,13 @@ const VALUES = {
   show_commands: false, groups: {}, first_run_done: true,
 };
 const flush = () => act(async () => {});
+test("it can open straight at a section", async () => {
+  render(<Settings team="shop" section="privacy" onClose={vi.fn()} onShowFirstRun={vi.fn()} />);
+  await flush();
+  expect(screen.getByRole("button", { name: "Privacy" }).getAttribute("aria-current")).toBe("true");
+  expect(screen.getByText(/has no server of its own/)).toBeTruthy();
+});
+
 const open = async (section?: string) => {
   const calls = { close: vi.fn(), first: vi.fn() };
   render(<Settings team="shop" onClose={calls.close} onShowFirstRun={calls.first} />);

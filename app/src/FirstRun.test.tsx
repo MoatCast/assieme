@@ -1,16 +1,18 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type { Snapshot } from "./bridge";
+import type { SetupStatus, Snapshot } from "./bridge";
 
 const snapshot = vi.fn<() => Promise<Snapshot>>();
-vi.mock("./bridge", () => ({ snapshot: () => snapshot() }));
+const setupStatus = vi.fn<() => Promise<SetupStatus>>();
+vi.mock("./bridge", () => ({ snapshot: () => snapshot(), setupStatus: () => setupStatus() }));
 vi.mock("./ChangeGroups", () => ({ default: () => <div>change the groups sheet</div> }));
 vi.mock("./NewTeam", () => ({
-  default: ({ clis, onClose }: { clis: { codex: boolean }; onClose: () => void }) => (
+  default: ({ clis, onClose, onStarted }: { clis: { codex: boolean }; onClose: () => void; onStarted?: () => void }) => (
     <div>
       <h2>New team screen</h2>
       <span>{clis.codex ? "codex on" : "codex off"}</span>
       <button type="button" onClick={onClose}>close new team</button>
+      <button type="button" onClick={() => { onStarted?.(); onClose(); }}>start the team</button>
     </div>
   ),
 }));
@@ -40,10 +42,13 @@ const SNAP: Snapshot = {
 };
 
 const flush = () => act(async () => {});
+const NOT = { installed: false, signed_in: false };
 
 beforeEach(() => {
   vi.useFakeTimers();
   snapshot.mockReset();
+  setupStatus.mockReset();
+  setupStatus.mockResolvedValue({ git: true, agents: { claude: NOT, codex: NOT } });
 });
 afterEach(() => {
   cleanup();
@@ -99,6 +104,19 @@ test("with no answer at all it doesn't claim to be looking", async () => {
   expect(screen.getByText("Can’t reach Assieme’s service.")).toBeTruthy();
   expect(screen.queryByText("Looking for your agents…")).toBeNull();
   expect(screen.queryByText("Open my team")).toBeNull();
+});
+
+test("offline with no snapshot shows only Offline: no herdr row, no side panel, no checklist", async () => {
+  snapshot.mockRejectedValue(new Error("no brain"));
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+  screen.getByText("Assieme’s service isn’t running. Start it to continue. Any agents you have running keep going.");
+  expect(screen.queryByTestId("cli-herdr")).toBeNull();
+  expect(screen.queryByText("Grouped into teams by project folder")).toBeNull();
+  expect(screen.queryByText("What happens to your project")).toBeNull();
+  expect(screen.queryByText(/Developer tools/)).toBeNull();
+  expect(setupStatus).not.toHaveBeenCalled();
 });
 
 test("reconnecting then recovers", async () => {
@@ -219,7 +237,7 @@ test("before the service answers it doesn't claim anything is missing", async ()
   screen.getByText("Looking for your agents…");
   expect(screen.queryByText("No agents found yet.")).toBeNull();
   expect(screen.queryByText("not found")).toBeNull();
-  expect(screen.getAllByText("checking…")).toHaveLength(3);
+  expect(screen.getAllByText("checking…")).toHaveLength(2); // herdr has no row until it is found
 });
 
 test("once the service answers, what's missing is said", async () => {
@@ -227,5 +245,103 @@ test("once the service answers, what's missing is said", async () => {
   render(<FirstRun pollMs={1000} />);
   await flush();
   screen.getByText("No agents found yet.");
-  expect(screen.getAllByText("not found")).toHaveLength(3);
+  expect(screen.getAllByText("not found")).toHaveLength(2);
+});
+
+const NEW_USER: Snapshot = { ...SNAP, agents: [], teams: [], starting: [], clis: { claude: false, codex: false, hc: false, herdr: false } };
+
+test("people with agents or a team keep the existing screen", async () => {
+  for (const snap of [SNAP, { ...NEW_USER, agents: SNAP.agents }, { ...NEW_USER, teams: SNAP.teams }, { ...NEW_USER, starting: STARTING({}).starting }]) {
+    snapshot.mockResolvedValue(snap);
+    const { unmount } = render(<FirstRun pollMs={100000} />);
+    await flush();
+    expect(screen.queryByText("Let’s start your first team.")).toBeNull();
+    expect(screen.getByText("Grouped into teams by project folder")).toBeTruthy();
+    unmount();
+  }
+  expect(setupStatus).not.toHaveBeenCalled();
+});
+
+test("a new user sees the checklist instead of the agent list", async () => {
+  snapshot.mockResolvedValue(NEW_USER);
+  render(<FirstRun pollMs={100000} onOpenTeam={() => {}} />);
+  await flush();
+  screen.getByRole("heading", { name: "Let’s start your first team." });
+  screen.getByText("What happens to your project");
+  expect(screen.queryByText("Grouped into teams by project folder")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Open my team" })).toBeNull();
+  expect(screen.queryByTestId("cli-herdr")).toBeNull();
+});
+
+test("Start opens New team, and after Start moves to Team; closing starts nothing", async () => {
+  snapshot.mockResolvedValue(NEW_USER);
+  setupStatus.mockResolvedValue({ git: true, agents: { claude: { installed: true, signed_in: true }, codex: NOT } });
+  const openTeam = vi.fn();
+  render(<FirstRun pollMs={100000} onOpenTeam={openTeam} />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Start your first team" }));
+  screen.getByText("New team screen");
+  fireEvent.click(screen.getByText("close new team"));
+  expect(openTeam).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Start your first team" }));
+  fireEvent.click(screen.getByText("start the team"));
+  expect(openTeam).toHaveBeenCalledTimes(1);
+});
+
+test("New team started from the older screen doesn't move away", async () => {
+  snapshot.mockResolvedValue(SNAP);
+  const openTeam = vi.fn();
+  render(<FirstRun pollMs={100000} onOpenTeam={openTeam} />);
+  await flush();
+  fireEvent.click(screen.getByText("New team"));
+  fireEvent.click(screen.getByText("start the team"));
+  expect(openTeam).not.toHaveBeenCalled();
+});
+
+test("the herdr row shows only if herdr is installed", async () => {
+  snapshot.mockResolvedValue({ ...SNAP, clis: { ...SNAP.clis, herdr: false } });
+  const { unmount } = render(<FirstRun pollMs={100000} />);
+  await flush();
+  expect(screen.queryByTestId("cli-herdr")).toBeNull();
+  unmount();
+  snapshot.mockResolvedValue(SNAP);
+  render(<FirstRun pollMs={100000} />);
+  await flush();
+  screen.getByTestId("cli-herdr");
+});
+
+test("status is polled only while the checklist shows", async () => {
+  snapshot.mockResolvedValue(NEW_USER);
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  expect(setupStatus).toHaveBeenCalledTimes(1);
+  snapshot.mockResolvedValue(SNAP); // an agent turns up: the checklist goes away
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  screen.getByText("Grouped into teams by project folder");
+  const calls = setupStatus.mock.calls.length;
+  await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+  expect(setupStatus).toHaveBeenCalledTimes(calls);
+});
+
+test("a First run kept behind another screen doesn't poll the setup status", async () => {
+  snapshot.mockResolvedValue(NEW_USER);
+  render(<FirstRun pollMs={5000} shown={false} />);
+  await flush();
+  await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+  expect(setupStatus).not.toHaveBeenCalled();
+});
+
+test("Privacy opens Settings at Privacy on both screens", async () => {
+  const onOpenSettings = vi.fn();
+  snapshot.mockResolvedValue(SNAP);
+  const { unmount } = render(<FirstRun pollMs={100000} onOpenSettings={onOpenSettings} />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Settings, Privacy" }));
+  expect(onOpenSettings).toHaveBeenCalledWith("privacy");
+  unmount();
+  snapshot.mockResolvedValue(NEW_USER);
+  render(<FirstRun pollMs={100000} onOpenSettings={onOpenSettings} />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Settings, Privacy" }));
+  expect(onOpenSettings).toHaveBeenCalledTimes(2);
 });

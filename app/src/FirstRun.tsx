@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { snapshot, type Agent, type Snapshot } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
 import NewTeam from "./NewTeam";
+import NewUserChecklist from "./NewUserChecklist";
 import Offline from "./Offline";
 import Terminal from "./Terminal";
 import "./FirstRun.css";
@@ -30,15 +31,19 @@ function Check({ ok }: { ok: boolean }) {
 
 /** First run: the agents found on this Mac, grouped by project folder, and a live terminal for any of them. */
 /** onSnapshot: the shell reuses this poll for its team list (one snapshot poll for the whole app). */
-export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
+export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpenSettings, shown = true }: {
   pollMs?: number;
+  /** false while the shell keeps this screen mounted behind another one: the checklist then stops polling. */
+  shown?: boolean;
   onSnapshot?: (s: Snapshot) => void;
   onOpenTeam?: () => void;
+  onOpenSettings?: (section: string) => void;
 }) {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
-  const [creating, setCreating] = useState(false);
+  // "first": New team opened from the checklist, whose Start also moves on to Team.
+  const [creating, setCreating] = useState<false | "new" | "first">(false);
   const [grouping, setGrouping] = useState(false);
   const report = useRef(onSnapshot);
   report.current = onSnapshot;
@@ -81,7 +86,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
     { key: "claude", name: "Claude Code", found: !!snap?.clis.claude, note: plural(count("claude-code")) },
     { key: "codex", name: "Codex", found: !!snap?.clis.codex, note: plural(count("codex")) },
     { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected, so fixes can be sent" },
-  ];
+  ].filter((c) => c.key !== "herdr" || snap?.clis.herdr); // herdr gets a row only once it is found
 
   // A team shows here while it starts, if its start failed, or while an agent needs you or didn't come up.
   const settled = ["running", "already-running"];
@@ -89,11 +94,21 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
     (t) => !t.done || t.error || t.roles.some((r) => !settled.includes(r.state)),
   );
 
+  // A person with no agents, no running team and nothing starting gets the checklist; everyone else keeps this screen.
+  const newUser = shown && !!snap && !agents.length && !(snap.teams ?? []).some((t) => t.state === "live") && !starting.length;
+  const privacy = onOpenSettings ? (
+    <button type="button" className="link-btn" onClick={() => onOpenSettings("privacy")}>Settings, Privacy</button>
+  ) : "Settings, Privacy";
+
   return (
     <div className="first-run">
       {creating && (
-        <NewTeam clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null} onClose={() => setCreating(false)} />
+        <NewTeam clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null} onClose={() => setCreating(false)}
+          onStarted={creating === "first" ? onOpenTeam : undefined} />
       )}
+      {newUser ? (
+        <NewUserChecklist herdr={!!snap?.clis.herdr} onStart={() => setCreating("first")} onOpenSettings={onOpenSettings} />
+      ) : (<>
       <section className="intro">
         <div className="eyebrow">Welcome to Assieme</div>
         <h1>{!snap ? (offline ? "Can’t reach Assieme’s service." : "Looking for your agents…") : agents.length ? "We found your agents. There’s nothing to set up." : "No agents found yet."}</h1>
@@ -117,10 +132,10 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
             <span>and notify me when an agent needs me</span>
           </div>
         )}
-        <p className="footnote">Assieme runs on this Mac and has no server of its own. Settings, Privacy shows what it keeps.</p>
+        <p className="footnote">Assieme runs on this Mac and has no server of its own. {privacy} shows what it keeps.</p>
       </section>
 
-      <section className="panel">
+      {(snap || !offline) && <section className="panel">
         {open ? (
           <div className="viewer">
             <div className="viewer-head">
@@ -135,7 +150,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
           <>
             <div className="panel-top">
               <div className="panel-label">Grouped into teams by project folder</div>
-              <button type="button" className="new-team" onClick={() => setCreating(true)}>New team</button>
+              <button type="button" className="new-team" onClick={() => setCreating("new")}>New team</button>
             </div>
             {starting.map((t) => (
               <div className="project" key={`starting-${t.team}`} data-testid={`starting-${t.team}`}>
@@ -201,7 +216,8 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
         {!open && agents.length > 0 && (
           <p className="change-groups">Not right? <button type="button" onClick={() => setGrouping(true)}>Change the groups</button></p>
         )}
-      </section>
+      </section>}
+      </>)}
       {grouping && <ChangeGroups onClose={() => setGrouping(false)} />}
     </div>
   );

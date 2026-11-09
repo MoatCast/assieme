@@ -335,8 +335,8 @@ function Privacy({ values, set }: { values: Values; set: (k: string, v: unknown)
 }
 
 /** Settings: a sheet over the whole window, from the gear. */
-export default function Settings({ team, onClose, onShowFirstRun }: { team: string | null; onClose: () => void; onShowFirstRun: () => void }) {
-  const [section, setSection] = useState<Section>("general");
+export default function Settings({ team, section: first, onClose, onShowFirstRun }: { team: string | null; section?: string; onClose: () => void; onShowFirstRun: () => void }) {
+  const [section, setSection] = useState<Section>(SECTIONS.find(([id]) => id === first)?.[0] ?? "general");
   const [values, setValues] = useState<Values | null>(null);
   const [grouping, setGrouping] = useState(false);
   const [error, setError] = useState("");
