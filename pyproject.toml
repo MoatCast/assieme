@@ -5,11 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "assieme"
 version = "0.1.0"
-description = "Who woke whom in multi-agent coding teams, what each wake cost, and which commands keep being refused."
+description = "Run a team of Claude Code and Codex agents without babysitting it."
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.11"
 dependencies = ["mcp>=2.3,<3"]  # only `assieme mcp` imports it; the brain stays standard library
+
+[project.urls]
+Homepage = "https://github.com/MoatCast/assieme"
+Issues = "https://github.com/MoatCast/assieme/issues"
 
 [project.scripts]
 assieme = "assieme.cli:main"

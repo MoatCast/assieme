@@ -170,6 +170,11 @@ cd app/src-tauri && cargo test
 
 Tests use synthetic logs only. No real logs are read or committed.
 
+## Contributing
+
+This is a work in progress. Bug reports and ideas are welcome, but code contributions aren't being accepted yet. See
+[CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md) for how to report a security problem.
+
 ## Licence
 
 Apache-2.0. See [LICENSE](LICENSE). The runtime in `runtime/` is a fork of

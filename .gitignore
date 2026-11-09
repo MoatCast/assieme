@@ -4,9 +4,4 @@ build/
 dist/
 .venv/
 .DS_Store
-.planban/
-ROADMAP.md
-FEATURES.md
-docs/
-DESIGN.md
-FORK-PLAN.md
+.pytest_cache/
