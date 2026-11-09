@@ -119,6 +119,18 @@ class BlockPushTest(unittest.TestCase):
     def test_a_missing_agent_keeps_its_plain_name(self):
         self.assertEqual(launch.argv(role('codex'), block_push=False, which=lambda n: None)[0], 'codex')
 
+    def test_known_limit_a_remote_with_its_own_push_address_still_pushes(self):
+        # Documented in README.md and SECURITY.md: git doesn't apply pushInsteadOf to an explicit remote.<name>.pushurl.
+        with tempfile.TemporaryDirectory() as root:
+            env = dict(os.environ, GIT_CONFIG_GLOBAL='/dev/null', GIT_CONFIG_SYSTEM='/dev/null')
+            git = lambda *a, cwd=root, e=env: subprocess.run(['git', *a], cwd=cwd, env=e, capture_output=True, text=True)
+            git('init', '-q', '--bare', 'origin.git')
+            git('clone', '-q', 'origin.git', 'work')
+            work = os.path.join(root, 'work')
+            git('config', 'remote.origin.pushurl', os.path.join(root, 'origin.git'), cwd=work)
+            git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '--allow-empty', '-m', 'one', cwd=work)
+            self.assertEqual(git('push', '-q', 'origin', 'HEAD', cwd=work, e=env | launch.BLOCK_PUSH).returncode, 0)
+
     def test_the_setting_really_stops_a_push_and_keeps_fetch(self):
         with tempfile.TemporaryDirectory() as root:
             env = dict(os.environ, GIT_CONFIG_GLOBAL='/dev/null', GIT_CONFIG_SYSTEM='/dev/null')

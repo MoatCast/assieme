@@ -74,8 +74,9 @@ You don't need to write any of this into your briefs.
 Most brief rules are instructions to the agent, not hard limits. The exception is pushing: while Safe by default is on,
 every agent Assieme starts also gets a git setting that makes `git push` fail, while fetch and pull keep working. It is
 a guard rail, not a security boundary. It doesn't stop deploy tools, GitHub API calls (such as `gh` calling the API),
-or an agent that deliberately clears the setting. Assieme's own Open pull request runs from the brain and isn't
-affected. This was proven with real Claude Code and Codex agents against a local bare repository. Stricter enforcement
+or an agent that deliberately clears the setting. It also doesn't apply when the repository or your git settings give a
+remote its own push address. Assieme's own Open pull request runs from the brain and isn't affected. For a plain
+remote, this was proven with real Claude Code and Codex agents against a local bare repository. Stricter enforcement
 is planned alongside the new runtime.
 
 ## What you can do today

@@ -15,7 +15,8 @@ Assieme is a work in progress with no stable release yet, so fixes go to the `ma
   for read-only roles, not a security boundary.
 - While a team's Safe by default practice is on, every agent Assieme starts gets a git setting that makes `git push`
   fail. This is a guard rail, not a security boundary: it doesn't stop deploy tools, GitHub API calls (`gh` calling the
-  API, for instance), or an agent that deliberately clears the setting.
+  API, for instance), or an agent that deliberately clears the setting. It also doesn't apply when the repository or
+  your git settings give a remote its own push address.
 - Assieme checks sign-in by running each agent's status command with its output discarded. It never reads or stores
   agent tokens.
 - Asking you first happens in the MCP server. A program already running as your user, including an agent with shell
