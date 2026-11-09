@@ -4,6 +4,7 @@ import {
   type AgentKind, type SetupCommands, type SetupStatus,
 } from "./bridge";
 import Terminal from "./Terminal";
+import useModal from "./useModal";
 
 type Step = "confirm" | "installing" | "failed" | "signin";
 
@@ -36,7 +37,6 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
   const [commands, setCommands] = useState<SetupCommands | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const dialog = useRef<HTMLDivElement>(null);
   const name = commands?.[agent].name ?? (agent === "claude" ? "Claude Code" : "Codex");
 
   useEffect(() => { void setupCommands().then(setCommands).catch((e) => setError(message(e))); }, []);
@@ -65,16 +65,6 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
       void begin("signin");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Focus the sheet on open and the primary action on each step; give focus back to whoever opened it on close.
-  useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    return () => opener?.focus?.();
-  }, []);
-  useEffect(() => {
-    const primary = dialog.current?.querySelector<HTMLElement>(".sheet-actions .btn-primary:not(:disabled)");
-    (primary ?? dialog.current)?.focus();
-  }, [step, !!commands]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // While the installer runs, ask about it every pollMs, one question at a time. A terminal that ends proves nothing
   // (the installer can fail after curl exits 0), so only a fresh status saying the agent is there moves on.
@@ -115,25 +105,8 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
     onClose();
   };
 
-  // Escape does what Cancel or Skip for now does, except in the terminal, where it belongs to the program running there.
-  // Tab wraps inside the sheet.
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape" && !(e.target as HTMLElement).closest(".sheet-terminal")) {
-      e.stopPropagation();
-      void (step === "installing" || step === "signin" ? stopAndClose() : onClose());
-    } else if (e.key === "Tab") {
-      const items = [...(dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled), textarea, [tabindex]:not([tabindex='-1'])") ?? [])];
-      const [first, last] = [items[0], items[items.length - 1]];
-      if (!first) return;
-      if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  };
+  // Escape does what Cancel or Skip for now does.
+  const { ref: dialog, onKeyDown } = useModal(() => void (step === "installing" || step === "signin" ? stopAndClose() : onClose()), [step, !!commands]);
 
   const signedIn = !!status?.agents[agent].signed_in;
   const terminal = address && (

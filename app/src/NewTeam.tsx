@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { checkProject, fieldOf, pickFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type RoleDraft, type TeamDraft } from "./bridge";
+import { checkProject, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import FolderSheet from "./FolderSheet";
 import HelpMeChoose from "./HelpMeChoose";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
 import Offline from "./Offline";
-import RecommendedSetup from "./RecommendedSetup";
+import RecommendedSetup, { footerNote } from "./RecommendedSetup";
 import "./NewTeam.css";
 
 type Clis = { claude: boolean; codex: boolean };
@@ -11,6 +12,9 @@ const NAME = /^[a-z0-9-]+$/;
 const BAD_NAME = "Names use lower-case letters, digits and dashes, and must differ.";
 const AGENTS = [["claude", "Claude Code"], ["codex", "Codex"]] as const;
 const shortPath = (p: string) => p.replace(/^\/Users\/[^/]+/, "~");
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const changes = (n: number) =>
+  `${n === 1 ? "1 file has" : `${n} files have`} changes that aren’t in a saved version (uncommitted), so agents won’t see them.`;
 
 /** The first agent name that breaks the brain's rule, by index (the brain checks again on Start). */
 export function badName(roles: RoleDraft[]): number {
@@ -19,13 +23,16 @@ export function badName(roles: RoleDraft[]): number {
 
 /** New team, step 1: project, task, starting team and agents. Step 2 is Recommended setup. */
 /** clis: null until the service has said which are installed. */
-export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarted }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; onClose: () => void; onStarted?: () => void }) {
+export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000, onClose, onStarted }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; recheckMs?: number; onClose: () => void; onStarted?: () => void }) {
   const installed = AGENTS.filter(([id]) => clis?.[id]);
   const [offline, setOffline] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [practices, setPractices] = useState<Practices | null>(null);
   const [project, setProject] = useState("");
   const [projectError, setProjectError] = useState("");
+  const [check, setCheck] = useState<ProjectCheck | null>(null);
+  const [folderSheet, setFolderSheet] = useState(false);
+  const [noteError, setNoteError] = useState(""); // what went wrong with New folder or the installer
   const [task, setTask] = useState("");
   const [chosen, setChosen] = useState("");
   const [roles, setRoles] = useState<RoleDraft[]>([]);
@@ -117,18 +124,65 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarte
     setEdited(true);
   };
 
-  const chooseFolder = async () => {
-    const p = await pickFolder();
-    if (!p) return;
+  const use = async (p: string) => {
     setProject(p);
-    const c = await checkProject(p);
-    setProjectError(c.ok ? "" : c.reason ?? "");
+    setProjectError("");
+    setCheck(null);
+    setCheck(await checkProject(p));
+  };
+  const chooseFolder = async () => {
+    setNoteError("");
+    const p = await pickFolder();
+    if (p) await use(p);
+  };
+  const newFolder = async () => {
+    setNoteError("");
+    try {
+      const p = await pickNewFolder();
+      if (!p) return;
+      await folderCreate(p);
+      await use(p);
+    } catch (e) {
+      setNoteError(message(e));
+    }
+  };
+  const installDevTools = () => {
+    setNoteError("");
+    installTools().catch((e) => setNoteError(message(e)));
+  };
+  const saved = async () => {
+    setFolderSheet(false);
+    try {
+      setCheck(await checkProject(project));
+    } catch (e) {
+      setNoteError(message(e));
+    }
   };
 
-  const next = () => {
+  // Developer tools install in Apple's own window: ask again until they are there.
+  useEffect(() => {
+    if (!check?.tools || !project) return;
+    let stopped = false;
+    const timer = setInterval(() => checkProject(project).then((c) => !stopped && setCheck(c), () => {}), recheckMs);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [check?.tools, project, recheckMs]);
+
+  // Names are checked here and again by the brain on Start.
+  const named = () => {
     const bad = badName(roles);
-    if (bad >= 0) return setRoleErrors({ [bad]: BAD_NAME });
+    if (bad >= 0) setRoleErrors({ [bad]: BAD_NAME });
+    return bad < 0;
+  };
+  const next = () => {
+    if (!named()) return;
+    setStartError("");
     setStep(2);
+  };
+  const quick = () => {
+    if (named()) void start();
   };
 
   const start = async () => {
@@ -158,7 +212,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarte
   // The first thing still missing, or nothing once Next can be pressed.
   const missing = offline ? "Waiting for Assieme’s service."
     : !project ? "Choose a project folder to continue."
-    : projectError ? "Choose a different folder to continue."
+    : check?.tools ? "Install developer tools to continue."
+    : check?.setup ? "Set up this folder to continue."
+    : projectError || (check && !check.ok) ? "Choose a different folder to continue."
     : !task.trim() ? "Say what the team should work on to continue."
     : clis && !installed.length ? "Install Claude Code or Codex to continue."
     : installed.length && !roles.length ? "Add an agent to continue."
@@ -167,11 +223,18 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarte
 
   if (step === 2 && practices)
     return (
-      <RecommendedSetup practices={practices} project={project} roleCount={roles.length} value={practiceOn}
+      <RecommendedSetup practices={practices} roleCount={roles.length} value={practiceOn}
         onChange={setPracticeOn} onBack={() => setStep(1)} onStart={start} pending={pending} error={startError} />
     );
 
+  const warn = !!check?.ok && !!check.uncommitted;
+  const button = check?.tools ? { label: "Install developer tools", act: installDevTools }
+    : check?.setup ? { label: "Set up this folder", act: () => setFolderSheet(true) }
+    : warn ? { label: "Save them first", act: () => setFolderSheet(true) } : null;
+  const plainError = (check && !check.ok && !check.tools && !check.setup && !check.too_large && check.reason) || projectError;
+
   return (
+    <>
     <div className="newteam">
       <div className="panel">
         <header>
@@ -182,14 +245,23 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarte
           {offline && <Offline afterMs={0} />}
           <div className="field">
             <div className="label">Project</div>
-            <button type="button" className="box folder" onClick={chooseFolder}>
+            <div className="box folder">
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2 4.5h4l1.5 1.5H14v6.5H2z" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" />
               </svg>
               <span className="grow">{project ? shortPath(project) : "No folder chosen"}</span>
-              <span className="muted">Choose…</span>
-            </button>
-            {projectError && <p className="error">{projectError}</p>}
+              <button type="button" className="pick" onClick={newFolder}>New folder…</button>
+              <span className="muted" aria-hidden="true">·</span>
+              <button type="button" className="pick" onClick={chooseFolder}>Choose…</button>
+            </div>
+            {plainError && <p className="error">{plainError}</p>}
+            {noteError && <p className="error">{noteError}</p>}
+            {check && (button || check.too_large) && (
+              <div className="folder-note">
+                <span className={warn ? "warn" : ""}>{warn ? changes(check.uncommitted!) : check.reason}</span>
+                {button && <button type="button" className="action" onClick={button.act}>{button.label}</button>}
+              </div>
+            )}
           </div>
 
           <label className="field">
@@ -197,20 +269,6 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarte
             <input className="box" value={task} placeholder="Add rate limiting to the login endpoint"
               onChange={(e) => setTask(e.target.value)} />
           </label>
-
-          <div className="field">
-            <div className="label">Where should the agents run?</div>
-            <div className="where">
-              <label className="box option on">
-                <input type="radio" name="where" checked readOnly />
-                <span><b>This Mac</b> <span className="good">· recommended</span><small>Nothing to set up</small></span>
-              </label>
-              <label className="box option off">
-                <input type="radio" name="where" disabled />
-                <span><b>A remote machine</b><small>Coming later</small></span>
-              </label>
-            </div>
-          </div>
 
           <div className="field">
             <div className="row">
@@ -245,7 +303,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarte
           <div className="field">
             <div className="row">
               <div className="label">Agents</div>
-              <div className="muted small">Mix Claude Code and Codex however you like</div>
+              {installed.length > 1 && <div className="muted small">Mix Claude Code and Codex however you like</div>}
             </div>
             {why && <p className="muted">{why}</p>}
             {installed.length === 0 ? (
@@ -304,13 +362,17 @@ export default function NewTeam({ clis, draft, retryMs = 3000, onClose, onStarte
               <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M8 1.5l5.5 2v4c0 3.5-2.4 6-5.5 7-3.1-1-5.5-3.5-5.5-7v-4z" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" />
               </svg>
-              Agents can edit this project and are told not to push or deploy.
+              {footerNote(practiceOn.safety !== false)}
             </span>
           )}
+          {startError && <span className="error">{startError}</span>}
           <button type="button" className="quiet" onClick={onClose}>Cancel</button>
-          <button type="button" className="primary" disabled={!ready} onClick={next}>Next</button>
+          <button type="button" className="outline" disabled={!ready || pending} onClick={next}>Customise</button>
+          <button type="button" className="primary" disabled={!ready || pending} onClick={quick}>Start with recommended</button>
         </footer>
       </div>
     </div>
+    {folderSheet && <FolderSheet project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
+    </>
   );
 }

@@ -1,14 +1,15 @@
 import { useState } from "react";
 import type { Practices } from "./bridge";
 
-const folderName = (p: string) => p.replace(/\/+$/, "").split("/").pop() || p;
+/** The footer's line on pushing, for both steps: it follows the Safe by default practice. */
+export const footerNote = (safe: boolean) =>
+  safe ? "Agents work on their own copy and can't git push. They're told not to deploy." : "Agents work on their own copy and can git push.";
 const rules = (n: number) => (n === 1 ? "1 rule" : `${n} rules`);
 const agents = (n: number) => (n === 1 ? "Start 1 agent" : `Start ${n} agents`);
 
 /** New team, step 2: the built-in practices, one switch per group, then Start. */
-export default function RecommendedSetup({ practices, project, roleCount, value, onChange, onBack, onStart, pending, error }: {
+export default function RecommendedSetup({ practices, roleCount, value, onChange, onBack, onStart, pending, error }: {
   practices: Practices;
-  project: string;
   roleCount: number;
   value: Record<string, boolean>;
   onChange: (v: Record<string, boolean>) => void;
@@ -51,7 +52,7 @@ export default function RecommendedSetup({ practices, project, roleCount, value,
           )}
         </div>
         <footer role="contentinfo">
-          <span className="safe">Agents can read, edit and run files in {folderName(project)}.</span>
+          <span className="safe">{footerNote(value.safety !== false)}</span>
           {error && <span className="error">{error}</span>}
           <button type="button" className="quiet" onClick={onBack}>Back</button>
           <button type="button" className="primary" disabled={pending} onClick={onStart}>{agents(roleCount)}</button>

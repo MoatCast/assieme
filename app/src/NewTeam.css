@@ -20,15 +20,13 @@
 .newteam .grow { flex: 1; }
 .newteam .muted { color: var(--quiet-slate); font-size: 13px; line-height: 16px; }
 .newteam .small { font-size: 12px; color: var(--quiet-mute); }
-.newteam .good { color: var(--quiet-working-text); font-size: 12px; font-weight: 400; }
 .newteam .error { margin: 0; color: var(--quiet-needs-you-text); font-size: 13px; line-height: 16px; }
-.newteam .where { display: flex; gap: 10px; }
-.newteam .option { flex: 1; cursor: pointer; border-color: var(--quiet-line-strong); }
-.newteam .option.on { border: 1.5px solid var(--quiet-ink); }
-.newteam .option.off { cursor: default; }
-.newteam .option input { accent-color: var(--quiet-ink); margin: 0; }
-.newteam .option b { font-weight: 500; }
-.newteam .option small { display: block; color: var(--quiet-slate); font-size: 12px; line-height: 16px; }
+.newteam .pick { color: var(--quiet-slate); font-size: 13px; line-height: 16px; }
+.newteam .folder-note { display: flex; align-items: center; gap: 14px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+.newteam .folder-note > span { flex: 1; }
+.newteam .folder-note .warn { color: var(--quiet-waste-text); }
+.newteam .action { flex-shrink: 0; background: var(--quiet-ink); color: var(--quiet-on-ink); border-radius: 999px; padding: 7px 14px;
+  font-size: 13px; line-height: 16px; font-weight: 500; }
 .newteam .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .newteam .chip { border: 1px solid var(--quiet-line-strong); border-radius: 999px; padding: 7px 12px;
   color: var(--quiet-slate); font-size: 13px; line-height: 16px; }
@@ -56,6 +54,8 @@
 .newteam footer { border-top: 1px solid var(--quiet-line); padding: 16px 32px; display: flex; align-items: center; gap: 14px; }
 .newteam .safe { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; color: var(--quiet-slate); font-size: 13px; }
 .newteam .quiet { padding: 9px 12px; color: var(--quiet-slate); font-size: 14px; line-height: 18px; }
+.newteam .outline { border: 1px solid var(--quiet-control); border-radius: 999px; padding: 9px 18px; color: var(--quiet-ink);
+  font-size: 14px; line-height: 18px; font-weight: 500; }
 .newteam .primary { background: var(--quiet-ink); color: var(--quiet-on-ink); border-radius: 999px; padding: 9px 18px;
   font-size: 14px; line-height: 18px; font-weight: 500; }
 .newteam .practice { display: flex; align-items: center; gap: 14px; padding: 12px 16px; cursor: pointer; }
@@ -82,3 +82,12 @@
 .newteam .model-menu label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--quiet-slate); }
 .newteam .model-menu select { font: inherit; font-size: 13px; color: var(--quiet-ink); padding: 5px 8px; min-width: 150px;
   border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner); background: var(--quiet-surface); }
+
+/* Set up this folder / Save them first, from Paper "New team: set up folder, confirm". Outside .newteam: it is a modal. */
+.modal.folder { width: 480px; }
+.modal.folder .folder-small { color: var(--quiet-mute); font-size: 13px; line-height: 18px; }
+.modal.folder .folder-files { display: flex; flex-direction: column; gap: 6px; }
+.modal.folder .folder-files p { margin: 0; font-size: 13px; line-height: 18px; color: var(--quiet-slate); }
+.modal.folder .folder-files .link-btn { color: var(--quiet-ink); }
+.modal.folder .folder-box { padding: 10px 12px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); color: var(--quiet-ink);
+  font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; max-height: 180px; overflow: auto; }

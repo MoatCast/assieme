@@ -2,7 +2,7 @@
 // and the native bridge behind it.
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 export type Agent = {
@@ -86,7 +86,9 @@ const brain = <T>(method: string, params: object = {}) => invoke<T>("brain_call"
 export const snapshot = () => brain<Snapshot>("brain.snapshot");
 /** Hands over the draft and removes it from the brain: it opens once. */
 export const takeDraft = (id: string) => brain<TeamDraft | null>("draft.take", { id });
-export const checkProject = (path: string) => brain<{ ok: boolean; reason?: string }>("project.check", { path });
+/** setup, tools and too_large say which kind of problem `reason` is; uncommitted counts what Save them first would commit. */
+export type ProjectCheck = { ok: boolean; reason?: string; setup?: boolean; tools?: boolean; too_large?: boolean; uncommitted?: number };
+export const checkProject = (path: string) => brain<ProjectCheck>("project.check", { path });
 export const teamPresets = () =>
   brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions; practice_defaults?: Record<string, boolean> }>("team.presets");
 /** Start creates a git worktree per agent before it answers, which can take a while on a large repository. */
@@ -99,6 +101,11 @@ export const suggestTeam = (a: { project: string; size: string; review: string; 
 export async function pickFolder(): Promise<string | null> {
   const p = await open({ directory: true, multiple: false });
   return typeof p === "string" ? p : null;
+}
+
+/** The save dialog names a folder that doesn't exist yet; folderCreate makes it. */
+export async function pickNewFolder(): Promise<string | null> {
+  return (await save({ title: "New folder", defaultPath: "New project" })) ?? null;
 }
 
 const FIELD = /^(project|roles|role:\d+|start|suggest): ([\s\S]*)$/;
@@ -318,3 +325,8 @@ export const installAgent = (agent: AgentKind) => brain<{ address: string }>("se
 export const signinAgent = (agent: AgentKind) => brain<{ address: string }>("setup.signin_agent", { agent });
 export const terminalState = (address: string) => brain<"running" | "finished">("setup.terminal_state", { address });
 export const installStop = (address: string) => brain<{ ok: boolean }>("setup.install_stop", { address });
+/** Listing and saving walk the whole folder, so they get the long timeout. */
+export type FolderPreview = { files: number; sample: string[]; left_out: string[]; empty: boolean; first: boolean };
+export const folderPreview = (path: string) => slow<FolderPreview>("setup.folder_preview", { project: path }, 120);
+export const folderSave = (path: string) => slow<{ ok: boolean }>("setup.folder_save", { project: path }, 120);
+export const folderCreate = (path: string) => slow<{ path: string }>("setup.folder_create", { path }, 120);
