@@ -16,6 +16,27 @@ asm machine ls
 asm run --on box --cwd /srv/app cargo test
 ```
 
+The target can be any of these:
+
+| You write | ssh connects to |
+| --- | --- |
+| `vps` | the Host `vps` from `~/.ssh/config` (its user, port and key) |
+| `user@10.0.0.7` | `10.0.0.7` as `user`, on port 22 |
+| `user@10.0.0.7:2222` | `10.0.0.7` as `user`, on port 2222 |
+| `ssh://user@10.0.0.7:2222` | the same, in ssh's own URL form |
+
+A port goes after a colon, as in `user@host:2222`; asm passes it to ssh as `ssh://user@host:2222`.
+For a machine you use often, a Host entry keeps the details in one place:
+
+```text
+Host box
+  HostName 10.0.0.7
+  Port 2222
+  User user
+```
+
+Then `asm machine add box` is enough. The same targets work in Assieme's add-machine dialog, which also lists the Hosts from your SSH config.
+
 Without `--name`, the first host label becomes its name (IPs stay whole), shortened to 32 characters.
 Names that are taken or look like terminal ids get a numbered suffix: `t14` becomes `t14-2`.
 
@@ -40,7 +61,7 @@ A custom connection command receives a shell line as its last argument.
 It must carry stdin and stdout unchanged and ask no questions:
 
 ```sh
-asm machine add --name box --via 'ssh -p 2222 -i /home/me/.ssh/key user@host'
+asm machine add --name box --via 'ssh -i /home/me/.ssh/key -o ProxyJump=bastion user@host'
 asm machine add --name sandbox --temp --via 'fly ssh console -a my-app --pty=false -C'
 ```
 
