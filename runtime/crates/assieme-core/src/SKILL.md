@@ -170,7 +170,8 @@ Your harness's own file tools touch only the machine you run on. Use asm for
 remote files and commands. `asm machine ls` lists configured machines; see
 `asm machine --help` to configure SSH or `--via <cmd>` connections.
 Without `--name`, SSH machines use the first host label (IPs stay whole),
-shortened to 32 characters with `-2`, `-3`, etc. added if the name is taken.
+shortened to 32 characters with `-2`, `-3`, etc. added if the name is taken
+or looks like a terminal id (`t14` becomes `t14-2`).
 
 On Windows, `asm server status` never starts a core. If elevated SSH startup
 would block the same user's desktop session, open Assieme on that Windows
