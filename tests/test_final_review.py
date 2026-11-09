@@ -57,7 +57,7 @@ class CorruptLogTest(unittest.TestCase):
         from assieme import cli
         with mock.patch.object(cli.serve, 'serve') as srv, mock.patch.object(cli.serve, 'brain_socket_path', return_value='/s/b.sock'), \
                 mock.patch.object(cli.live, 'watch_once', side_effect=ValueError('bad log')), \
-                mock.patch.object(cli.teammap.Brain, 'tick') as second, mock.patch('traceback.print_exc'):
+                mock.patch.object(cli.teammap.Brain, 'tick') as second, mock.patch.object(cli.machine, 'tick'), mock.patch('traceback.print_exc'):
             cli.main(['serve'])
             srv.call_args.kwargs['tick']()
         second.assert_called_once()

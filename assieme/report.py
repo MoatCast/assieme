@@ -3,6 +3,7 @@ import collections
 import datetime as dt
 import json
 
+from . import detect
 from .model import HUMAN
 
 EMPTY_CALLS = 2              # a wake the receiver answers in at most this many calls did no work
@@ -15,8 +16,9 @@ SEND_LESS = 3                # how many edges the "send less" list names
 SEND_LESS_MIN_SHARE = 0.01   # ...each worth at least this share of all input tokens
 
 
-def aggregate(sessions, now=None, hours=None):
-    """now/hours describe the window; with them, edges also get hourly rates and a last-hour count."""
+def aggregate(sessions, now=None, hours=None, boxes=(), machine=()):
+    """now/hours describe the window; with them, edges also get hourly rates and a last-hour count.
+    boxes and machine are the optional F10 metrics and F6 samples, already read: this runs on the brain's refresh."""
     agents = collections.defaultdict(lambda: {'sessions': 0, 'calls': 0, 'tokens': 0, 'output': 0, 'peak': 0,
                                               'sources': set()})
     edges = collections.defaultdict(lambda: {'wakes': 0, 'empty': 0, 'tokens': 0, 'empty_tokens': 0, 'calls': 0,
@@ -67,8 +69,11 @@ def aggregate(sessions, now=None, hours=None):
     send_less = sorted(((f, t, e) for (f, t), e in edges.items()
                         if f != HUMAN and e['empty_tokens'] >= SEND_LESS_MIN_SHARE * total_tokens and e['empty_tokens']),
                        key=lambda x: -x[2]['empty_tokens'])[:SEND_LESS]
+    found = detect.analyse(sessions, now, hours, boxes, machine)
     return {
-        'agents': {k: {**v, 'sources': sorted(v['sources'])} for k, v in agents.items()},
+        'agents': {k: {**v, 'sources': sorted(v['sources']), **found['agents'].get(k, {})} for k, v in agents.items()},
+        'findings': found['findings'],
+        'detectors': found['detectors'],
         'edges': [{'from': f, 'to': t, **{**e, 'channels': sorted(e['channels'])}} for (f, t), e in edges.items()],
         'send_less': [{'from': f, 'to': t, 'empty': e['empty'], 'wakes': e['wakes'], 'empty_tokens': e['empty_tokens'],
                        'share': round(e['empty_tokens'] / total_tokens, 4) if total_tokens else 0,
@@ -91,17 +96,19 @@ def to_json(r, meta):
 def to_md(r, meta, show_text=False):
     total = sum(a['tokens'] for a in r['agents'].values())
     lines = [f"# assieme: last {meta['hours']} h (since {meta['since']})", '',
-             '## Flags', ''] + ([f'- {f}' for f in r['flags']] or ['- none']) + ['']
+             '## Flags', ''] + ([f'- {f}' for f in r['flags']] + [f"- {f['line']}" for f in r['findings']] or ['- none']) + ['']
     lines += ['## Send less', '',
               f"Wakes between agents that did no work cost {r['empty_tokens'] / 1e6:.1f}M tokens "
               f"({100 * r['empty_tokens'] / (total or 1):.0f}% of all input).", '']
     lines += [f"{i}. {x['text']}" for i, x in enumerate(r['send_less'], 1)] or ['- nothing to cut']
     lines += ['']
-    lines += ['## Agents', '', '| Agent | Source | Sessions | Calls | Input tokens | Share | Peak context |',
-              '|---|---|---|---|---|---|---|']
+    lines += ['## Agents', '', '| Agent | Source | Sessions | Calls | Input tokens | Share | Peak context | Growth an hour | '
+              'Changed nothing | Last hour |', '|---|---|---|---|---|---|---|---|---|---|']
     for name, a in sorted(r['agents'].items(), key=lambda kv: -kv[1]['tokens']):
         lines.append(f"| {name} | {', '.join(a['sources'])} | {a['sessions']} | {a['calls']} | "
-                     f"{a['tokens'] / 1e6:.1f}M | {100 * a['tokens'] / (total or 1):.0f}% | {a['peak'] // 1000}K |")
+                     f"{a['tokens'] / 1e6:.1f}M | {100 * a['tokens'] / (total or 1):.0f}% | {a['peak'] // 1000}K | "
+                     f"{a.get('growth_per_hour', 0) // 1000}K | {a.get('idle_tokens', 0) / 1e6:.1f}M | "
+                     f"{100 * a.get('share_last_hour', 0):.0f}% |")
     lines += ['', '## Who woke whom', '',
               '| From | To | Via | Wakes | Per hour | Last hour | Empty (<= %d calls) | Cost | Cost of empty |%s'
               % (EMPTY_CALLS, ' Last wake |' if show_text else ''),
@@ -114,6 +121,15 @@ def to_md(r, meta, show_text=False):
     lines += ['', '## Refused commands', '']
     lines += [f"- {x['agent']}: `{x['command']}` x{x['count']}, by {x['why']}" + (f". {x['advice']}" if x['advice'] else '')
               for x in r['refusals']] or ['- none']
+    if r.get('process'):
+        lines += ['', '## Process weight', '', '| Item | Hours | Changed lines | Commits | Fixes | Reviews | Checks |', '|---|---|---|---|---|---|---|']
+        for i in sorted(r['process']['items'], key=lambda i: -i['hours'])[:20]:
+            lines.append(f"| {i['repo']} {i['id']} | {i['hours']:.1f} | {i['lines']} | {i['commits']} | {i['fixes']} | "
+                         f"{'-' if i['reviews'] is None else i['reviews']} | {'-' if i['checks'] is None else i['checks']} |")
+        lines += ['', 'Hours by gate or rule: ' + (', '.join(
+            f'{k} {v:.1f}' for k, v in sorted(r['process']['gates'].items(), key=lambda kv: -kv[1])[:8]) or 'none')]
+    lines += ['', '## Detectors', '', '| Detector | Fired | Why |', '|---|---|---|']
+    lines += [f"| {d['id']} | {d['fired']} | {d['reason']} |" for d in r['detectors']]
     lines += ['', f"Total input tokens: {total / 1e6:.1f}M. A wake's cost is the receiver's input tokens summed over "
               'its calls in that turn, i.e. context x calls.']
     return '\n'.join(lines) + '\n'

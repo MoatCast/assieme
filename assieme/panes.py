@@ -146,7 +146,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
                 strip.append({'role': role, 'state': state,
                               'text': f'{role} {verb}' + (f': {a.detail}' if a and a.detail else '')})
             if s:
-                label = {'nudge': 'Ask it to try another way' if state == 'stuck' else 'Nudge',
+                label = s.label or {'nudge': 'Ask it to try another way' if state == 'stuck' else 'Nudge',
                          'compact': 'Compact', 'tell': 'Tell it to stop retrying'}[s.action]
                 p['detail'] = p['detail'] or _cap(said)
                 p['fix'] = _fix(role, [dict(_button(role, 'action', label, s.message), action=s.action)], said)
