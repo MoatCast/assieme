@@ -30,14 +30,19 @@ def git_ready(which=shutil.which, run=subprocess.run):
         return False
 
 
+PATH_MARK = '__assieme_path__='
+
+
 def _login_path():
     """The PATH the person's login shell has; an app opened from Finder only has the short system one."""
+    # -i too: nvm, where npm puts Claude Code and Codex, loads in .zshrc. A marker, since rc files may print banners.
     try:
-        r = subprocess.run([os.environ.get('SHELL') or '/bin/zsh', '-lc', 'echo $PATH'], stdin=subprocess.DEVNULL,
-                           capture_output=True, text=True, timeout=TIMEOUT_S)
-        return r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else ''
+        r = subprocess.run([os.environ.get('SHELL') or '/bin/zsh', '-ilc', f'echo {PATH_MARK}$PATH'],
+                           stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=TIMEOUT_S)
     except (OSError, subprocess.TimeoutExpired):
         return ''
+    lines = [ln.split(PATH_MARK, 1)[1] for ln in r.stdout.splitlines() if PATH_MARK in ln]
+    return lines[-1].strip() if lines else ''
 
 
 def agent_path(name, which=shutil.which, login_path=_login_path, clock=time.monotonic):
@@ -279,7 +284,7 @@ LABEL = 'assieme.setup'  # on every install and sign-in terminal; nothing else i
 AGENTS = {
     'claude': {'name': 'Claude Code', 'install': 'curl -fsSL https://claude.ai/install.sh | bash',
                'signin': 'claude auth login', 'status': 'claude auth status'},
-    'codex': {'name': 'Codex', 'install': 'curl -fsSL https://chatgpt.com/codex/install.sh | sh',
+    'codex': {'name': 'Codex', 'install': 'curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh',
               'signin': 'codex login', 'status': 'codex login status'},
 }
 

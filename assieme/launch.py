@@ -4,11 +4,12 @@ The brief is not on the command line: it is sent after the agent's first turn en
 """
 import hashlib
 import json
+import os
 import re
 import shlex
 import sys
 
-from . import setup
+from . import quiet, setup
 
 CLIS = {'claude': 'claude', 'codex': 'codex'}
 NAMES = {'claude': 'Claude Code', 'codex': 'Codex'}
@@ -99,4 +100,11 @@ def argv(role, block_push=True, which=setup.agent_path):
     """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on."""
     a = _claude(role) if role.agent == 'claude' else _codex(role)
     a[0] = which(a[0]) or a[0]
-    return ['/usr/bin/env', *(f'{k}={v}' for k, v in BLOCK_PUSH.items()), *a] if block_push else a
+    env = dict(BLOCK_PUSH) if block_push else {}
+    if os.path.isabs(a[0]):
+        # An npm-installed agent is a `#!/usr/bin/env node` script whose node sits beside it, and the core may be older
+        # than this brain, with a shorter PATH. Quiet send's folder stays first, as the core sets it.
+        shim, folder = quiet.shim_dir(), os.path.dirname(a[0])
+        rest = [p for p in os.environ.get('PATH', '').split(os.pathsep) if p and p not in (shim, folder)]
+        env['PATH'] = os.pathsep.join([shim, folder, *rest])
+    return ['/usr/bin/env', *(f'{k}={v}' for k, v in env.items()), *a] if env else a

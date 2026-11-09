@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import tomllib
 import unittest
+import unittest.mock
 
 from assieme import launch
 from assieme.preset import Role
@@ -40,6 +41,17 @@ class LaunchTest(unittest.TestCase):
         self.assertEqual(events, EVENTS)
         stop = next(tomllib.loads(v) for v in values if 'Stop' in tomllib.loads(v)['hooks'])
         self.assertTrue(stop['hooks']['Stop'][0]['hooks'][0]['command'].endswith('-m assieme.hook idle'))
+
+    def test_an_agent_outside_path_gets_its_own_folder_on_path(self):
+        # An npm Codex under nvm is a `#!/usr/bin/env node` script: started by full path from a bare PATH, it exited
+        # with "env: node: No such file or directory". Its node sits in the same folder.
+        from assieme import quiet
+        with unittest.mock.patch.dict(os.environ, {'PATH': '/usr/bin:/bin'}):
+            a = launch.argv(role('codex'), block_push=False, which=lambda n: '/u/.nvm/bin/codex')
+            self.assertEqual(a[:3], ['/usr/bin/env', f'PATH={quiet.shim_dir()}:/u/.nvm/bin:/usr/bin:/bin', '/u/.nvm/bin/codex'])
+            # Always set, even when the brain's PATH has the folder: the core's own PATH may be older and shorter.
+            b = launch.argv(role('codex'), block_push=False, which=lambda n: '/usr/bin/codex')
+            self.assertEqual(b[:3], ['/usr/bin/env', f'PATH={quiet.shim_dir()}:/usr/bin:/bin', '/usr/bin/codex'])
 
     def test_codex_trusts_only_assiemes_own_hooks_for_this_run(self):
         # A first Codex team stopped at "Hooks need review". Codex reads trust for -c hooks from the same -c layer.
@@ -128,11 +140,12 @@ class BlockPushTest(unittest.TestCase):
             a = launch.argv(role(agent), which=lambda n: f'/x/{n}')
             self.assertEqual(a[:1], ['/usr/bin/env'])
             self.assertIn('GIT_CONFIG_KEY_0=url.assieme-push-blocked://.pushInsteadOf', a)
-            self.assertEqual(a[a.index(f'/x/{agent}') - 1].split('=')[0], 'GIT_CONFIG_VALUE_0')
+            self.assertIn('GIT_CONFIG_VALUE_0=', a[:a.index(f'/x/{agent}')])
 
     def test_turning_safe_by_default_off_removes_the_block(self):
         a = launch.argv(role('claude'), block_push=False, which=lambda n: f'/x/{n}')
-        self.assertEqual(a[0], '/x/claude')
+        self.assertFalse(any(w.startswith('GIT_CONFIG') for w in a))
+        self.assertIn('/x/claude', a)
 
     def test_a_missing_agent_keeps_its_plain_name(self):
         self.assertEqual(launch.argv(role('codex'), block_push=False, which=lambda n: None)[0], 'codex')

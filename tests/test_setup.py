@@ -61,6 +61,16 @@ class AgentPath(unittest.TestCase):
         with tempfile.TemporaryDirectory() as home, mock.patch.dict(os.environ, {'HOME': home}):
             self.assertIsNone(setup.agent_path('claude', which=lambda n: None, login_path=lambda: '/nope'))
 
+    def test_login_path_includes_what_zshrc_adds_and_skips_banners(self):
+        # nvm (where npm puts Claude Code and Codex) loads in .zshrc, which a plain `zsh -lc` never reads.
+        with tempfile.TemporaryDirectory() as d:
+            sh = os.path.join(d, 'fakesh')
+            with open(sh, 'w') as f:
+                f.write('#!/bin/sh\ncase "$1" in *i*) echo "Welcome back"; eval "$2"; echo "bye";; *) echo /plain;; esac\n')
+            os.chmod(sh, 0o755)
+            with mock.patch.dict(os.environ, {'SHELL': sh, 'PATH': '/nvm/bin:/usr/bin:/bin'}):
+                self.assertEqual(setup._login_path(), '/nvm/bin:/usr/bin:/bin')
+
     def test_login_path_is_read_at_most_once_a_minute(self):
         reads, now = [], [0.0]
 
@@ -497,7 +507,9 @@ class SetupTerminals(unittest.TestCase):
 
     def test_the_table_has_the_specs_commands(self):
         self.assertEqual(setup.AGENTS['claude']['install'], 'curl -fsSL https://claude.ai/install.sh | bash')
-        self.assertEqual(setup.AGENTS['codex']['install'], 'curl -fsSL https://chatgpt.com/codex/install.sh | sh')
+        # Without CODEX_NON_INTERACTIVE the installer ends on "Start Codex now? [y/N]" and the sheet waits forever.
+        self.assertEqual(setup.AGENTS['codex']['install'],
+                         'curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh')
         self.assertEqual((setup.AGENTS['claude']['signin'], setup.AGENTS['codex']['signin']), ('claude auth login', 'codex login'))
         self.assertEqual(setup.commands()['codex']['install'], setup.AGENTS['codex']['install'])
 

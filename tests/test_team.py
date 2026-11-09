@@ -102,7 +102,7 @@ class StartTest(unittest.TestCase):
         for practices, blocked in (({}, True), ({'safety': True}, True), ({'safety': False}, False)):
             rt = FakeRuntime()
             self.start(rt, Team('demo', '/p', practices, [COORD]))
-            self.assertEqual(rt.started[0]['argv'][0] == '/usr/bin/env', blocked, practices)
+            self.assertEqual('GIT_CONFIG_COUNT=1' in rt.started[0]['argv'], blocked, practices)
 
     def test_labels_and_cwd(self):
         rt = FakeRuntime()
