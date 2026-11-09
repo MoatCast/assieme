@@ -11,6 +11,7 @@ from . import launch, prompts, runtime, worktree
 
 TEAM, ROLE, BRIEFED = 'assieme.team', 'assieme.role', 'assieme.briefed'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
+BRIEF_WAIT_S = 60     # for a screen that is still settling when the first status arrives
 TAIL_LINES = 8
 
 
@@ -64,7 +65,7 @@ def terminal_name(team_name, role_name):
     return re.sub(r'[^\w.-]', '-', f'{team_name}-{role_name}')  # all hc accepts in a name
 
 
-def _brief(rt, t, role, task, tm):
+def _brief(rt, t, role, task, tm, clock=time):
     """An agent with a parent gets its work from that parent: the whole task would have it do the same work again.
     A parent is told who reports to it here, in its first message: a note sent mid-turn can go missing."""
     parts = [role.brief.strip(), TOOLS]
@@ -76,7 +77,16 @@ def _brief(rt, t, role, task, tm):
         parts.append(task)
     elif role.parent:
         parts.append(WAIT_FOR_PARENT.format(parent=role.parent))
-    rt.send(t, '\n\n'.join(parts))
+    deadline = clock.monotonic() + BRIEF_WAIT_S
+    while True:
+        try:
+            rt.send(t, '\n\n'.join(parts))
+            break
+        except runtime.RuntimeError_ as e:
+            # Codex's start-up logo can keep animating past the 5 s hc waits for a screen to settle.
+            if e.kind != 'unavailable' or 'still starting' not in str(e) or clock.monotonic() >= deadline:
+                raise
+            clock.sleep(1)
     rt.label(t, {BRIEFED: '1'})
 
 
@@ -103,7 +113,7 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
         if info.get('state') == 'finished':
             return Started(role.name, t, 'exited', _tail(rt, t))
         if info.get('status'):
-            _brief(rt, t, role, task, tm)
+            _brief(rt, t, role, task, tm, clock)
             return Started(role.name, t, 'running')
         screen = rt.read(t)
         keys = prompts.trust_keys(screen)
@@ -146,7 +156,7 @@ def start(tm, task, rt, ask, only=None, clock=time):
         elif row['briefed']:
             s = Started(role.name, row['address'], 'already-running')
         elif row['status']:  # live but never briefed, e.g. after the user answered Codex's hook review
-            _brief(rt, row['address'], role, mine, tm)
+            _brief(rt, row['address'], role, mine, tm, clock)
             s = Started(role.name, row['address'], 'running')
         else:
             s = Started(role.name, row['address'], 'needs-you', _review_hint(role))

@@ -69,6 +69,8 @@ def codex_hook_hash(event, command):
 
 def _codex(role):
     a = ['codex', '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
+    # Its sandbox keeps .git read-only, so each commit is a request to step outside it: the person answers, in Assieme.
+    a += ['-c', 'approval_policy="on-request"', '-c', 'approvals_reviewer="user"']
     trust = []
     for e, s in HOOKS.items():
         # A JSON string is a valid TOML basic string.

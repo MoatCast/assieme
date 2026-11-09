@@ -53,6 +53,13 @@ class LaunchTest(unittest.TestCase):
             b = launch.argv(role('codex'), block_push=False, which=lambda n: '/usr/bin/codex')
             self.assertEqual(b[:3], ['/usr/bin/env', f'PATH={quiet.shim_dir()}:/usr/bin:/bin', '/usr/bin/codex'])
 
+    def test_codex_asks_the_person_before_leaving_its_sandbox(self):
+        # Codex keeps .git read-only in its sandbox, so a commit needs approval: the person gives it, each time.
+        a = plain_argv(role('codex'))
+        values = [a[i + 1] for i, x in enumerate(a) if x == '-c']
+        self.assertIn('approval_policy="on-request"', values)
+        self.assertIn('approvals_reviewer="user"', values)
+
     def test_codex_trusts_only_assiemes_own_hooks_for_this_run(self):
         # A first Codex team stopped at "Hooks need review". Codex reads trust for -c hooks from the same -c layer.
         a = plain_argv(role('codex'))

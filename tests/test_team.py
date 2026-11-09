@@ -2,7 +2,7 @@
 import unittest
 from unittest import mock
 
-from assieme import team
+from assieme import runtime, team
 from assieme.preset import Role, Team
 
 TRUST_CLAUDE = 'Quick safety check\n ❯ No, exit\n   Yes, I trust this folder'
@@ -116,6 +116,30 @@ class StartTest(unittest.TestCase):
         self.assertEqual(rt.sent, [('t1', f'You coordinate.\n\n{team.TOOLS}\n\nfix bug')])
         self.assertEqual(rt.gets[(id(rt.statuses), 't1')], 4)
         self.assertEqual(out[0].state, 'running')
+
+    def test_brief_waits_while_the_screen_is_still_settling(self):
+        # Codex's start-up logo animates past the 5 s hc waits: "t1 is still starting: its output has not settled".
+        rt = FakeRuntime()
+        refusals = [runtime.RuntimeError_('unavailable', 't1 is still starting: its output has not settled')] * 2
+        real = rt.send
+
+        def send(t, text, timeout_s=30):
+            if refusals:
+                raise refusals.pop()
+            return real(t, text, timeout_s)
+        rt.send = send
+        out = self.start(rt, demo(COORD), task='fix bug')
+        self.assertEqual(len(rt.sent), 1)
+        self.assertEqual(out[0].state, 'running')
+
+    def test_brief_gives_up_on_other_errors(self):
+        rt = FakeRuntime()
+
+        def send(t, text, timeout_s=30):
+            raise runtime.RuntimeError_('not_found', 'no terminal "t1"')
+        rt.send = send
+        with self.assertRaises(runtime.RuntimeError_):
+            self.start(rt, demo(COORD), task='fix bug')
 
     def test_claude_trust_asks_once_then_down_enter(self):
         second = Role('reviewer', 'claude', 'r.md', 'You review.')
