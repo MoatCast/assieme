@@ -41,25 +41,50 @@ function YourAssistants() {
   const [got, setGot] = useState<Assistants | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [outdated, setOutdated] = useState(false); // the app is newer than the background service
   const run = async (call: () => Promise<Assistants>) => {
     setBusy(true);
     try {
       const a = await call();
       setGot(a);
+      setOutdated(false);
       setError(a.problems.join(" "));
+    } catch (e) {
+      if (/no method/.test(String(e))) setOutdated(true);
+      else setError(String(e));
+    }
+    setBusy(false);
+  };
+  useEffect(() => { void run(assistantsStatus); }, []);
+  const update = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await serviceInstall();
+      for (let tries = 0; tries < 20; tries++) { // the service takes a moment to come back
+        try {
+          setGot(await assistantsStatus());
+          setOutdated(false);
+          setBusy(false);
+          return;
+        } catch {
+          await new Promise((done) => setTimeout(done, 500));
+        }
+      }
+      setError("The background service didn’t come back. Try again in a moment.");
     } catch (e) {
       setError(String(e));
     }
     setBusy(false);
   };
-  useEffect(() => { void run(assistantsStatus); }, []);
   const clients = (got?.clients ?? []).filter((c) => !c.blocked); // the Claude app can't be connected while it's open
   const blocked = got?.clients.some((c) => c.blocked) ?? false;
   const labels = clients.map((c) => c.label);
   const names = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}` : labels[0] ?? "";
   const connected = clients.length > 0 && clients.every((c) => c.connected);
   const quit = blocked ? " To add the Claude app, quit it, then come back here." : "";
-  const sub = !got ? "Let your assistants see your teams and help design new ones."
+  const sub = outdated ? "The background service is out of date, so it can’t connect your assistants yet. Your agents keep running while it updates."
+    : !got ? "Let your assistants see your teams and help design new ones."
     : !clients.length && !blocked ? "Install Claude Code or Codex, and they can see your teams and help design new ones."
     : !clients.length ? "To let the Claude app see your teams and help design new ones, quit it, then come back here."
     : connected ? `${names} can see your teams and help design new ones.${quit}`
@@ -67,9 +92,10 @@ function YourAssistants() {
   return (
     <>
       <Row title="Your assistants" sub={sub}>
-        {connected && <span className="state good"><i />Connected</span>}
-        {connected && <button type="button" className="btn-small" disabled={busy} onClick={() => run(assistantsDisconnect)}>Disconnect</button>}
-        {got && clients.length > 0 && !connected && <button type="button" className="btn-small primary" disabled={busy} onClick={() => run(assistantsConnect)}>Connect</button>}
+        {connected && !outdated && <span className="state good"><i />Connected</span>}
+        {connected && !outdated && <button type="button" className="btn-small" disabled={busy} onClick={() => run(assistantsDisconnect)}>Disconnect</button>}
+        {got && !outdated && clients.length > 0 && !connected && <button type="button" className="btn-small primary" disabled={busy} onClick={() => run(assistantsConnect)}>Connect</button>}
+        {outdated && <button type="button" className="btn-small primary" disabled={busy} onClick={update}>Update it</button>}
       </Row>
       {error && <p className="set-error assistants-error">{error}</p>}
     </>

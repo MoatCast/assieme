@@ -285,3 +285,27 @@ test("Privacy says what assistants can read and how long reports and drafts stay
   screen.getByText("What an agent said is blocking it, until its next turn. A team an assistant drafted, until it opens in New team.");
   screen.getByText("Once connected, an assistant can read your agents’ terminals when asked. What it reads goes wherever it normally sends your work.");
 });
+
+test("A service older than the app is said in plain words, with the fix", async () => {
+  b.assistantsStatus.mockRejectedValueOnce("no method 'assistants.status'");
+  b.assistantsStatus.mockResolvedValue(CLIENTS(false));
+  b.serviceInstall.mockResolvedValue(undefined);
+  await open();
+  screen.getByText(/background service is out of date/);
+  expect(screen.queryByText(/no method/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Update it" }));
+  await flush();
+  expect(b.serviceInstall).toHaveBeenCalledOnce();
+  screen.getByRole("button", { name: "Connect" });
+  expect(screen.queryByRole("button", { name: "Update it" })).toBeNull();
+});
+
+test("A failed update says why and can be tried again", async () => {
+  b.assistantsStatus.mockRejectedValue("no method 'assistants.status'");
+  b.serviceInstall.mockRejectedValue("launchctl failed");
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Update it" }));
+  await flush();
+  screen.getByText("launchctl failed");
+  screen.getByRole("button", { name: "Update it" });
+});

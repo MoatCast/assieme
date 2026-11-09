@@ -202,3 +202,21 @@ test("an agent of a running team isn't found a second time by its folder", async
   expect(screen.getByTestId("team-p")).toBeTruthy();
   expect(screen.getByTestId("project-solo")).toBeTruthy();
 });
+
+test("before the service answers it doesn't claim anything is missing", async () => {
+  snapshot.mockReturnValue(new Promise(() => {}));
+  render(<FirstRun pollMs={1000} />);
+  await flush();
+  screen.getByText("Looking for your agents…");
+  expect(screen.queryByText("No agents found yet.")).toBeNull();
+  expect(screen.queryByText("not found")).toBeNull();
+  expect(screen.getAllByText("checking…")).toHaveLength(3);
+});
+
+test("once the service answers, what's missing is said", async () => {
+  snapshot.mockResolvedValue({ ...SNAP, agents: [], clis: { claude: false, codex: false, hc: false, herdr: false } });
+  render(<FirstRun pollMs={1000} />);
+  await flush();
+  screen.getByText("No agents found yet.");
+  expect(screen.getAllByText("not found")).toHaveLength(3);
+});
