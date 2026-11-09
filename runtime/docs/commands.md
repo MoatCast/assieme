@@ -59,6 +59,8 @@ Per command: asm <command> --help
 Settings: ~/.config/assieme-core/config.toml. notes = false: asm types nothing
 on its own (no notes to parent agents, no <asm> tags on messages).
 shell = ["nu"] overrides the shell for new terminals and keep recovery.
+draft_wait = 60: seconds a draft holds sends and notes after your last key;
+0 keeps only the quiet pause. Changes apply to the next delivery.
 
 Examples
   asm run --on vps "cd app && npm test"     like ssh, in a terminal that stays
