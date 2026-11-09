@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 import unittest
 from types import SimpleNamespace
 
@@ -78,6 +79,14 @@ class ReadingCommands(unittest.TestCase):
         self.assertEqual(detect.commands_of(script), ['pytest -q', 'ls'])
         self.assertEqual(detect.commands_of('pytest -q'), ['pytest -q'])
         self.assertEqual(detect.commands_of('text(await tools.apply_patch(p));'), [])
+
+    def test_escaped_quotes_stay_inside_a_codex_command(self):
+        self.assertEqual(detect.commands_of(r'tools.x({cmd:"echo \"hi\"\nls"})'), ['echo "hi"\nls'])
+
+    def test_an_unclosed_codex_command_full_of_backslashes_is_quick(self):
+        started = time.perf_counter()
+        self.assertEqual(detect.commands_of('tools.x cmd: "' + '\\a' * 26), [])
+        self.assertLess(time.perf_counter() - started, 1)
 
     def test_read_only_commands_change_nothing(self):
         for cmd in ('ls -la', 'git status && git diff', 'hc send coord "ok"', 'cat a | grep b'):

@@ -73,7 +73,7 @@ READ_ONLY_GIT = {'status', 'log', 'diff', 'show', 'branch', 'rev-parse', 'blame'
 READ_ONLY_GH = {'view', 'list', 'checks', 'status', 'diff'}
 
 HEREDOC = re.compile(r"<<-?\s*['\"]?(\w+)['\"]?([^\n]*)\n.*?^\s*\1\s*$", re.S | re.M)
-SCRIPT_CMD = re.compile(r"""\bcmd\s*:\s*(["'`])((?:\\.|(?!\1).)*)\1""", re.S)
+SCRIPT_CMD = re.compile(r"""\bcmd\s*:\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1""", re.S)
 COMMIT_MESSAGE = re.compile(r"""\bgit\s+commit\b[^\n]*?\s(?:-\w*m|--message)[\s=]+"""
                             r"""(?:["']?\$\(cat\s+<<-?\s*['"]?\w+['"]?\s*\n\s*|["'])?\s*([^\n]*)""")
 FIX_SUBJECT = re.compile(r'^\W*(fix|fixes|fixed|bugfix|hotfix|address|re-?review|revert)\b', re.I)
