@@ -122,3 +122,12 @@ class WorkdirTest(unittest.TestCase):
         answers.Answers(ask=fake, thread=m, workdir=work).get('k', 'q?')
         m.run_all()
         self.assertEqual(seen['cwd'], work)  # its own session must not look like the agent's newest log
+
+    def test_the_agent_runs_by_the_path_it_was_found_at(self):
+        import subprocess
+        for found, first in (({'claude': '/home/me/.local/bin/claude'}, '/home/me/.local/bin/claude'),
+                             ({'codex': '/login/bin/codex'}, '/login/bin/codex')):
+            calls = []
+            ask.ask_agent('q', '/w', 60, which=found.get,
+                          run=lambda argv, **kw: calls.append(argv) or subprocess.CompletedProcess(argv, 0, 'x', ''))
+            self.assertEqual(calls[0][0], first)

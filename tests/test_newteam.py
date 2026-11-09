@@ -340,11 +340,11 @@ class SuggestTest(unittest.TestCase):
 
     def test_prefers_claude_then_codex(self):
         self.run_with(json.dumps(GOOD))
-        self.assertEqual(self.calls[0][0][:2], ['claude', '-p'])
+        self.assertEqual(self.calls[0][0][:2], ['/bin/claude', '-p'])
         codex = {'roles': [dict(GOOD['roles'][0], agent='codex')], 'why': ''}
         self.run_with(json.dumps(codex), which=lambda c: '/bin/codex' if c == 'codex' else None)
         argv = self.calls[0][0]
-        self.assertEqual(argv[:2], ['codex', 'exec'])
+        self.assertEqual(argv[:2], ['/bin/codex', 'exec'])
         self.assertIn('read-only', argv)
         self.fails('Install Claude Code or Codex, then reopen New team.', which=lambda c: None)
 

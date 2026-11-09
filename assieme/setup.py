@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 # Exit code 1 is what both status commands give when signed out (measured); anything else unclear counts as signed in.
 STATUS = {'claude': ['auth', 'status'], 'codex': ['login', 'status']}
@@ -58,10 +59,10 @@ def _signed_in(path, name, run):
 
 
 def status(run=subprocess.run):
-    agents = {}
-    for name in STATUS:
-        path = agent_path(name)
-        agents[name] = {'installed': bool(path), 'signed_in': bool(path) and _signed_in(path, name, run)}
+    paths = {name: agent_path(name) for name in STATUS}
+    with ThreadPoolExecutor(len(STATUS)) as pool:  # side by side, so two hanging commands still answer in one timeout
+        signed = {n: pool.submit(_signed_in, p, n, run) if p else None for n, p in paths.items()}
+    agents = {n: {'installed': bool(paths[n]), 'signed_in': bool(f and f.result())} for n, f in signed.items()}
     return {'git': git_ready(), 'agents': agents}
 
 

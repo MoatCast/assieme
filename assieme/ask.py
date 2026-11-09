@@ -37,6 +37,7 @@ def ask_agent(prompt, cwd, timeout_s, run=subprocess.run, which=setup.agent_path
             argv = argv[:4] + ['--strict-mcp-config'] + argv[4:] + NO_TOOLS
     else:
         argv = ['codex', 'exec', '--sandbox', 'read-only', '--skip-git-repo-check', '-']
+    argv[0] = which(have[0])  # by full path: the PATH this process has may not include where it was installed
     try:
         r = run(argv, input=prompt, cwd=cwd, env=runtime.clean_env(os.environ), capture_output=True, text=True,
                 timeout=timeout_s)

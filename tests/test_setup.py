@@ -2,6 +2,7 @@
 import os
 import subprocess
 import tempfile
+import time
 import unittest
 from types import SimpleNamespace as Done
 from unittest import mock
@@ -114,6 +115,14 @@ class Status(unittest.TestCase):
         for k in seen:
             self.assertEqual((k['stdout'], k['stderr']), (subprocess.DEVNULL, subprocess.DEVNULL))
             self.assertNotIn('capture_output', k)
+
+    def test_two_slow_commands_cost_one_wait_not_two(self):
+        def slow(argv, **k):
+            time.sleep(0.3)
+            return Done(returncode=0)
+        t = time.monotonic()
+        self.status(slow)
+        self.assertLess(time.monotonic() - t, 0.5)
 
     def test_not_installed_means_not_signed_in(self):
         got = self.status(fail_if_called, installed=())['agents']
