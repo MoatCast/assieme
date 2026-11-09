@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { installTools, setupStatus, type AgentKind, type SetupStatus } from "./bridge";
-import InstallSheet from "./InstallSheet";
+import Offline from "./Offline";
 
 const AGENTS: [AgentKind, string][] = [["claude", "Claude Code"], ["codex", "Codex"]];
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -41,21 +41,14 @@ const Todo = ({ name, text, error, children }: { name: string; text?: string; er
   </div>
 );
 
-/** First run for someone with no agents yet, from Paper "v2 — First run: new user" and its variants.
- *  Polls the setup status every 3 s, one call at a time, and only while it is on screen. */
-export default function NewUserChecklist({ herdr, onStart, onOpenSettings, pollMs = 3000 }: {
-  herdr: boolean;
-  onStart: () => void;
-  onOpenSettings?: (section: string) => void;
-  pollMs?: number;
-}) {
+/** The setup status, asked every pollMs, one call at a time, only while `enabled`:
+ *  asking starts the agents' own status commands, so it runs only while the checklist or the sheet shows. */
+export function useSetupStatus(enabled: boolean, pollMs = 3000) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
-  const [statusError, setStatusError] = useState("");
-  const [waiting, setWaiting] = useState(false); // Apple's installer was opened
-  const [toolsError, setToolsError] = useState("");
-  const [sheet, setSheet] = useState<{ agent: AgentKind; start: "install" | "signin" } | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!enabled) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
@@ -63,10 +56,10 @@ export default function NewUserChecklist({ herdr, onStart, onOpenSettings, pollM
         const s = await setupStatus();
         if (!stopped) {
           setStatus(s);
-          setStatusError("");
+          setError("");
         }
       } catch (e) {
-        if (!stopped) setStatusError(message(e));
+        if (!stopped) setError(message(e));
       }
       if (!stopped) timer = setTimeout(poll, pollMs);
     };
@@ -75,7 +68,27 @@ export default function NewUserChecklist({ herdr, onStart, onOpenSettings, pollM
       stopped = true;
       clearTimeout(timer);
     };
-  }, [pollMs]);
+  }, [enabled, pollMs]);
+
+  return { status, error };
+}
+
+/** First run for someone with no agents yet, from Paper "v2 — First run: new user" and its variants.
+ *  FirstRun owns the status poll and the install sheet, so they outlive this screen. */
+export default function NewUserChecklist({ status: got, statusError: gotError, offline = false, herdr, onSheet, onStart, onOpenSettings }: {
+  status: SetupStatus | null;
+  statusError: string;
+  /** The service isn't answering: claim nothing, show Offline. */
+  offline?: boolean;
+  herdr: boolean;
+  onSheet: (agent: AgentKind, start: "install" | "signin") => void;
+  onStart: () => void;
+  onOpenSettings?: (section: string) => void;
+}) {
+  const status = offline ? null : got;
+  const statusError = offline ? "" : gotError;
+  const [waiting, setWaiting] = useState(false); // Apple's installer was opened
+  const [toolsError, setToolsError] = useState("");
 
   const openInstaller = async () => {
     setToolsError("");
@@ -91,7 +104,7 @@ export default function NewUserChecklist({ herdr, onStart, onOpenSettings, pollM
   // Developer tools don't block starting: New team stops at its project check with the same fix.
   // A status that can't be read doesn't lock anyone out either.
   const ready = status ? installed.some(([id]) => status.agents[id].signed_in) : !!statusError;
-  const why = status ? (installed.length ? "after you’ve signed in" : "after you’ve added an agent") : "checking…";
+  const why = offline ? "" : status ? (installed.length ? "after you’ve signed in" : "after you’ve added an agent") : "checking…";
 
   return (
     <>
@@ -102,6 +115,7 @@ export default function NewUserChecklist({ herdr, onStart, onOpenSettings, pollM
           Assieme runs coding agents for you and tells you when one needs you. Setup may take a while, mostly downloads,
           and you won’t need to type any commands.
         </p>
+        {offline && <Offline />}
         {statusError && <p className="check-error" role="alert">Couldn’t check your setup: {statusError}</p>}
         {status && (
           <div className="checklist">
@@ -125,14 +139,14 @@ export default function NewUserChecklist({ herdr, onStart, onOpenSettings, pollM
                     <span className="check-name">{name}</span>
                     <span className="check-note">Installed, not signed in</span>
                   </div>
-                  <button type="button" className="outline" onClick={() => setSheet({ agent: id, start: "signin" })}>Sign in</button>
+                  <button type="button" className="outline" onClick={() => onSheet(id, "signin")}>Sign in</button>
                 </div>
               ))}
             {!installed.length && (
               <Todo name="An agent to do the work"
                 text="Pick the one you pay for. Claude Code needs a paid Claude plan. Codex works with ChatGPT, with limits on the free plan.">
                 {AGENTS.map(([id, name]) => (
-                  <button key={id} type="button" className="outline" onClick={() => setSheet({ agent: id, start: "install" })}>{`Install ${name}`}</button>
+                  <button key={id} type="button" className="outline" onClick={() => onSheet(id, "install")}>{`Install ${name}`}</button>
                 ))}
               </Todo>
             )}
@@ -156,7 +170,6 @@ export default function NewUserChecklist({ herdr, onStart, onOpenSettings, pollM
         <div><h3>You watch it live</h3><p>See what it’s doing, and step in whenever you like.</p></div>
         <div><h3>You decide what to keep</h3><p>Review the changes, then accept them or throw them away.</p></div>
       </section>
-      {sheet && <InstallSheet key={`${sheet.agent}:${sheet.start}`} {...sheet} status={status} onClose={() => setSheet(null)} />}
     </>
   );
 }

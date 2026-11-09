@@ -4,13 +4,23 @@ import type { SetupStatus } from "./bridge";
 
 const b = vi.hoisted(() => ({ setupStatus: vi.fn(), installTools: vi.fn() }));
 vi.mock("./bridge", () => b);
-vi.mock("./InstallSheet", () => ({
-  default: ({ agent, start, onClose }: { agent: string; start: string; onClose: () => void }) => (
-    <div><span>{`sheet ${agent} at ${start}`}</span><button type="button" onClick={onClose}>close sheet</button></div>
-  ),
-}));
 
-import NewUserChecklist from "./NewUserChecklist";
+import { useState } from "react";
+import NewUserChecklist, { useSetupStatus } from "./NewUserChecklist";
+
+type Props = Partial<React.ComponentProps<typeof NewUserChecklist>>;
+// FirstRun owns the status poll and the sheet; this stands in for it.
+function Harness(props: Props) {
+  const { status, error } = useSetupStatus(true);
+  const [sheet, setSheet] = useState("");
+  return (
+    <>
+      <NewUserChecklist status={status} statusError={error} herdr={false} onStart={() => {}} onOpenSettings={() => {}}
+        onSheet={(agent, start) => setSheet(`sheet ${agent} at ${start}`)} {...props} />
+      {sheet && <span>{sheet}</span>}
+    </>
+  );
+}
 
 const NONE = { installed: false, signed_in: false };
 const status = (over: Partial<{ git: boolean; claude: { installed: boolean; signed_in: boolean }; codex: { installed: boolean; signed_in: boolean } }> = {}): SetupStatus => ({
@@ -19,11 +29,11 @@ const status = (over: Partial<{ git: boolean; claude: { installed: boolean; sign
 const flush = () => act(async () => {});
 const button = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
 
-const show = async (st: SetupStatus | Error | "pending", props: Partial<React.ComponentProps<typeof NewUserChecklist>> = {}) => {
+const show = async (st: SetupStatus | Error | "pending", props: Props = {}) => {
   if (st === "pending") b.setupStatus.mockReturnValue(new Promise(() => {}));
   else if (st instanceof Error) b.setupStatus.mockRejectedValue(st);
   else b.setupStatus.mockResolvedValue(st);
-  const r = render(<NewUserChecklist herdr={false} onStart={vi.fn()} onOpenSettings={vi.fn()} {...props} />);
+  const r = render(<Harness onStart={vi.fn()} onOpenSettings={vi.fn()} {...props} />);
   await flush();
   return r;
 };
@@ -105,8 +115,6 @@ test("installed but not signed in: Sign in opens the sheet at sign-in", async ()
   screen.getByText("after you’ve signed in");
   fireEvent.click(button("Sign in"));
   screen.getByText("sheet claude at signin");
-  fireEvent.click(button("close sheet"));
-  expect(screen.queryByText(/^sheet /)).toBeNull();
 });
 
 test("Install Claude Code opens the sheet at its confirmation", async () => {
@@ -145,6 +153,14 @@ test("before the first status answer it claims nothing is missing", async () => 
   expect(button("Start your first team").disabled).toBe(true);
 });
 
+test("while the service isn't answering it claims nothing and offers to start it", async () => {
+  await show(status({ git: false }), { offline: true });
+  screen.getByText("Reconnecting…");
+  expect(screen.queryByText("Developer tools")).toBeNull();
+  expect(screen.queryByText(/Couldn’t check/)).toBeNull();
+  expect(button("Start your first team").disabled).toBe(true);
+});
+
 test("the herdr row shows only if herdr is installed", async () => {
   const { unmount } = await show(status());
   expect(screen.queryByText("herdr")).toBeNull();
@@ -159,6 +175,14 @@ test("Privacy in the footnote opens Settings at Privacy", async () => {
   screen.getByText(/Assieme runs on this Mac and has no server of its own\./);
   fireEvent.click(button("Settings, Privacy"));
   expect(onOpenSettings).toHaveBeenCalledWith("privacy");
+});
+
+test("status isn't polled while it is switched off", async () => {
+  b.setupStatus.mockResolvedValue(status());
+  function Off() { useSetupStatus(false); return null; }
+  render(<Off />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+  expect(b.setupStatus).not.toHaveBeenCalled();
 });
 
 test("status is polled every 3 seconds, one call at a time, and stops on unmount", async () => {

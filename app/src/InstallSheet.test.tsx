@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { SetupStatus } from "./bridge";
@@ -198,4 +199,67 @@ test("Done closes and stops the sign-in terminal", async () => {
   await flush();
   expect(b.installStop).toHaveBeenCalledWith("t8");
   expect(close).toHaveBeenCalled();
+});
+
+test("closing always works, even if the terminal can't be stopped", async () => {
+  b.installStop.mockRejectedValue(new Error("already gone"));
+  const close = await open();
+  fireEvent.click(button("Install Claude Code"));
+  await flush();
+  fireEvent.click(button("Cancel"));
+  await flush();
+  expect(close).toHaveBeenCalledTimes(1);
+});
+
+test("signing in starts one terminal even when React mounts twice", async () => {
+  render(<StrictMode><InstallSheet agent="claude" start="signin" status={status(true, false)} onClose={vi.fn()} pollMs={1000} /></StrictMode>);
+  await flush();
+  expect(b.signinAgent).toHaveBeenCalledTimes(1);
+});
+
+test("it is a modal dialog, with focus on the primary action at each step", async () => {
+  await open();
+  expect(screen.getByRole("dialog").getAttribute("aria-modal")).toBe("true");
+  expect(document.activeElement).toBe(button("Install Claude Code"));
+  fireEvent.click(button("Install Claude Code"));
+  await flush();
+  expect(document.activeElement).toBe(button("Cancel"));
+});
+
+test("Escape does what Cancel or Not now does, but not while typing in the terminal", async () => {
+  const close = await open();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(b.installAgent).not.toHaveBeenCalled();
+  cleanup();
+  const close2 = await open();
+  fireEvent.click(button("Install Claude Code"));
+  await flush();
+  fireEvent.keyDown(screen.getByTestId("terminal"), { key: "Escape" });
+  expect(close2).not.toHaveBeenCalled();
+  fireEvent.keyDown(button("Cancel"), { key: "Escape" });
+  await flush();
+  expect(b.installStop).toHaveBeenCalledWith("t7");
+  expect(close2).toHaveBeenCalled();
+});
+
+test("Tab stays inside the sheet", async () => {
+  await open();
+  const last = button("Install Claude Code");
+  last.focus();
+  fireEvent.keyDown(last, { key: "Tab" });
+  expect(document.activeElement).toBe(button("Anthropic’s install guide"));
+  fireEvent.keyDown(button("Anthropic’s install guide"), { key: "Tab", shiftKey: true });
+  expect(document.activeElement).toBe(last);
+});
+
+test("focus goes back to the opener when the sheet closes", async () => {
+  const opener = document.createElement("button");
+  document.body.append(opener);
+  opener.focus();
+  await open();
+  expect(document.activeElement).not.toBe(opener);
+  cleanup();
+  expect(document.activeElement).toBe(opener);
+  opener.remove();
 });

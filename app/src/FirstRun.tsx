@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { snapshot, type Agent, type Snapshot } from "./bridge";
+import { snapshot, type Agent, type AgentKind, type Snapshot } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
 import NewTeam from "./NewTeam";
-import NewUserChecklist from "./NewUserChecklist";
+import InstallSheet from "./InstallSheet";
+import NewUserChecklist, { useSetupStatus } from "./NewUserChecklist";
 import Offline from "./Offline";
 import Terminal from "./Terminal";
 import "./FirstRun.css";
@@ -45,6 +46,8 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   // "first": New team opened from the checklist, whose Start also moves on to Team.
   const [creating, setCreating] = useState<false | "new" | "first">(false);
   const [grouping, setGrouping] = useState(false);
+  // The install sheet lives here, not in the checklist: it must survive the checklist going away mid-install.
+  const [sheet, setSheet] = useState<{ agent: AgentKind; start: "install" | "signin" } | null>(null);
   const report = useRef(onSnapshot);
   report.current = onSnapshot;
 
@@ -96,6 +99,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
 
   // A person with no agents, no running team and nothing starting gets the checklist; everyone else keeps this screen.
   const newUser = shown && !!snap && !agents.length && !(snap.teams ?? []).some((t) => t.state === "live") && !starting.length;
+  const setup = useSetupStatus((newUser && !offline) || !!sheet);
   const privacy = onOpenSettings ? (
     <button type="button" className="link-btn" onClick={() => onOpenSettings("privacy")}>Settings, Privacy</button>
   ) : "Settings, Privacy";
@@ -107,7 +111,8 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
           onStarted={creating === "first" ? onOpenTeam : undefined} />
       )}
       {newUser ? (
-        <NewUserChecklist herdr={!!snap?.clis.herdr} onStart={() => setCreating("first")} onOpenSettings={onOpenSettings} />
+        <NewUserChecklist status={setup.status} statusError={setup.error} offline={offline} herdr={!!snap?.clis.herdr}
+          onSheet={(agent, start) => setSheet({ agent, start })} onStart={() => setCreating("first")} onOpenSettings={onOpenSettings} />
       ) : (<>
       <section className="intro">
         <div className="eyebrow">Welcome to Assieme</div>
@@ -218,6 +223,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
         )}
       </section>}
       </>)}
+      {sheet && <InstallSheet key={`${sheet.agent}:${sheet.start}`} {...sheet} status={setup.status} onClose={() => setSheet(null)} />}
       {grouping && <ChangeGroups onClose={() => setGrouping(false)} />}
     </div>
   );

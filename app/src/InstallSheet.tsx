@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   installAgent, installStop, openLink, setupCommands, setupStatus, signinAgent, terminalState,
   type AgentKind, type SetupCommands, type SetupStatus,
@@ -36,6 +36,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
   const [commands, setCommands] = useState<SetupCommands | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const dialog = useRef<HTMLDivElement>(null);
   const name = commands?.[agent].name ?? (agent === "claude" ? "Claude Code" : "Codex");
 
   useEffect(() => { void setupCommands().then(setCommands).catch((e) => setError(message(e))); }, []);
@@ -57,7 +58,23 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
       setBusy(false);
     }
   };
-  useEffect(() => { if (start === "signin") void begin("signin"); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const began = useRef(false); // React.StrictMode mounts effects twice in development
+  useEffect(() => {
+    if (start === "signin" && !began.current) {
+      began.current = true;
+      void begin("signin");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Focus the sheet on open and the primary action on each step; give focus back to whoever opened it on close.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    return () => opener?.focus?.();
+  }, []);
+  useEffect(() => {
+    const primary = dialog.current?.querySelector<HTMLElement>(".sheet-actions .btn-primary:not(:disabled)");
+    (primary ?? dialog.current)?.focus();
+  }, [step, !!commands]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // While the installer runs, ask about it every pollMs, one question at a time. A terminal that ends proves nothing
   // (the installer can fail after curl exits 0), so only a fresh status saying the agent is there moves on.
@@ -88,13 +105,33 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
     };
   }, [step, address, agent, pollMs]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Closing always works: if the terminal is already gone there is nothing left to stop.
   const stopAndClose = async () => {
-    setError("");
     try {
       if (address) await installStop(address);
-      onClose();
-    } catch (e) {
-      setError(message(e));
+    } catch {
+      /* already gone */
+    }
+    onClose();
+  };
+
+  // Escape does what Cancel or Skip for now does, except in the terminal, where it belongs to the program running there.
+  // Tab wraps inside the sheet.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && !(e.target as HTMLElement).closest(".sheet-terminal")) {
+      e.stopPropagation();
+      void (step === "installing" || step === "signin" ? stopAndClose() : onClose());
+    } else if (e.key === "Tab") {
+      const items = [...(dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled), textarea, [tabindex]:not([tabindex='-1'])") ?? [])];
+      const [first, last] = [items[0], items[items.length - 1]];
+      if (!first) return;
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   };
 
@@ -110,7 +147,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
     const c = CONFIRM[agent];
     return (
       <div className="modal-dim">
-        <div className="modal" role="dialog" aria-label={`Install ${name}`}>
+        <div className="modal" role="dialog" aria-modal="true" aria-label={`Install ${name}`} tabIndex={-1} ref={dialog} onKeyDown={onKeyDown}>
           <div className="modal-head">
             <h2>{`Install ${name}?`}</h2>
             <p className="big">{c.body}</p>
@@ -126,7 +163,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
           {error && <p className="modal-error">{error}</p>}
           <div className="sheet-actions">
             <button type="button" className="btn-quiet" onClick={onClose}>Not now</button>
-            <button type="button" className="btn-primary" autoFocus disabled={busy || !commands} onClick={() => begin("install")}>{`Install ${name}`}</button>
+            <button type="button" className="btn-primary" disabled={busy || !commands} onClick={() => begin("install")}>{`Install ${name}`}</button>
           </div>
         </div>
       </div>
@@ -141,7 +178,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
 
   return (
     <div className="modal-dim">
-      <div className="modal wide" role="dialog" aria-label={heading[0]}>
+      <div className="modal wide" role="dialog" aria-modal="true" aria-label={heading[0]} tabIndex={-1} ref={dialog} onKeyDown={onKeyDown}>
         <div className="modal-head">
           <h2>{heading[0]}</h2>
           <p className="big">{heading[1]}</p>

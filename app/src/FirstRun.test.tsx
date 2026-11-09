@@ -16,6 +16,9 @@ vi.mock("./NewTeam", () => ({
     </div>
   ),
 }));
+vi.mock("./InstallSheet", () => ({
+  default: ({ agent, start }: { agent: string; start: string }) => <div>{`sheet ${agent} at ${start}`}</div>,
+}));
 vi.mock("./Terminal", () => ({
   default: ({ session, address }: { session: string; address: string }) => (
     <div data-testid="terminal">{`${session}:${address}`}</div>
@@ -344,4 +347,32 @@ test("Privacy opens Settings at Privacy on both screens", async () => {
   await flush();
   fireEvent.click(screen.getByRole("button", { name: "Settings, Privacy" }));
   expect(onOpenSettings).toHaveBeenCalledTimes(2);
+});
+
+test("when the service drops after a snapshot, the checklist claims nothing and offers Start it", async () => {
+  snapshot.mockResolvedValueOnce(NEW_USER).mockRejectedValue(new Error("gone"));
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  screen.getByText("Developer tools");
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  screen.getByText("Reconnecting…");
+  expect(screen.queryByText("Developer tools")).toBeNull();
+  expect(screen.queryByText(/Couldn’t check/)).toBeNull();
+  await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+  screen.getByRole("button", { name: "Start it" });
+});
+
+test("an open install sheet survives the checklist going away, and keeps the status polled", async () => {
+  snapshot.mockResolvedValue(NEW_USER);
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Install Codex" }));
+  screen.getByText("sheet codex at install");
+  snapshot.mockResolvedValue(SNAP); // an agent turns up: the checklist is replaced
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(screen.queryByText("Let’s start your first team.")).toBeNull();
+  screen.getByText("sheet codex at install");
+  const calls = setupStatus.mock.calls.length;
+  await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+  expect(setupStatus.mock.calls.length).toBeGreaterThan(calls);
 });
