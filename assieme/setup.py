@@ -3,11 +3,14 @@
 Must not import `launch`: launch uses `agent_path` as its default lookup.
 """
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
+
+from . import runtime
 
 # Exit code 1 is what both status commands give when signed out (measured); anything else unclear counts as signed in.
 STATUS = {'claude': ['auth', 'status'], 'codex': ['login', 'status']}
@@ -231,6 +234,76 @@ def folder_create(path):
     return {'path': path}
 
 
+LABEL = 'assieme.setup'  # on every install and sign-in terminal; nothing else is ever stopped or read through setup.*
+# The commands shown to the person are these strings, and these strings are what run (spec section 3).
+AGENTS = {
+    'claude': {'name': 'Claude Code', 'install': 'curl -fsSL https://claude.ai/install.sh | bash',
+               'signin': 'claude auth login', 'status': 'claude auth status'},
+    'codex': {'name': 'Codex', 'install': 'curl -fsSL https://chatgpt.com/codex/install.sh | sh',
+              'signin': 'codex login', 'status': 'codex login status'},
+}
+
+
+def commands():
+    return AGENTS
+
+
+def _start(rt, agent, kind, command):
+    """One terminal per (agent, kind): pressing the button again reattaches to the one still running."""
+    value = f'{agent}-{kind}'
+    for x in rt.list({LABEL: value}):
+        if x.get('state') == 'live':
+            return {'address': x['address']}
+    return {'address': rt.start(['/bin/sh', '-c', command], os.path.expanduser('~'), {LABEL: value}, name=f'setup-{value}')}
+
+
+def _known(agent):
+    if agent not in AGENTS:
+        raise SetupError('Unknown agent.')
+
+
+def install_agent(rt, agent):
+    _known(agent)
+    return _start(rt, agent, 'install', AGENTS[agent]['install'])
+
+
+def signin_agent(rt, agent):
+    """The shown string with its program resolved to an absolute path: a running core keeps its old PATH."""
+    _known(agent)
+    path = agent_path(agent)
+    if not path:
+        raise SetupError(f"{AGENTS[agent]['name']} isn't installed yet.")
+    rest = AGENTS[agent]['signin'].split(' ', 1)[1:]
+    return _start(rt, agent, 'signin', ' '.join([shlex.quote(path), *rest]))
+
+
+def _setup_terminal(rt, address):
+    """The terminal, or None if it is gone. Anything not started for setup is refused: the address comes from the app."""
+    try:
+        info = rt.get(address)
+    except runtime.RuntimeError_:
+        return None
+    if LABEL not in (info.get('labels') or {}):
+        raise SetupError('That is not a setup terminal.')
+    return info
+
+
+def terminal_state(rt, address):
+    info = _setup_terminal(rt, address)
+    return 'running' if info and info.get('state') == 'live' else 'finished'
+
+
+def install_stop(rt, address):
+    info = _setup_terminal(rt, address)
+    if info and info.get('state') == 'live':
+        rt.kill(address)
+    return {'ok': True}
+
+
 def handlers(rt):
-    return {'setup.status': status, 'setup.install_tools': install_tools, 'setup.folder_preview': folder_preview,
+    return {'setup.commands': commands, 'setup.install_agent': lambda agent: install_agent(rt, agent),
+            'setup.signin_agent': lambda agent: signin_agent(rt, agent),
+            'setup.terminal_state': lambda address: terminal_state(rt, address),
+            'setup.install_stop': lambda address: install_stop(rt, address),
+            'setup.status': status, 'setup.install_tools': install_tools, 'setup.folder_preview': folder_preview,
             'setup.folder_save': folder_save, 'setup.folder_create': folder_create}

@@ -8,7 +8,7 @@ import unittest
 from types import SimpleNamespace as Done
 from unittest import mock
 
-from assieme import setup
+from assieme import runtime, setup, team
 
 
 def fail_if_called(*a, **k):
@@ -137,8 +137,10 @@ class InstallTools(unittest.TestCase):
         self.assertEqual(calls, [['xcode-select', '--install']])
 
     def test_handlers_carry_both_methods(self):
-        self.assertEqual(sorted(setup.handlers(None)), ['setup.folder_create', 'setup.folder_preview', 'setup.folder_save',
-                                                        'setup.install_tools', 'setup.status'])
+        self.assertEqual(sorted(setup.handlers(None)), ['setup.commands', 'setup.folder_create', 'setup.folder_preview',
+                                                        'setup.folder_save', 'setup.install_agent', 'setup.install_stop',
+                                                        'setup.install_tools', 'setup.signin_agent', 'setup.status',
+                                                        'setup.terminal_state'])
 
 
 def git(cwd, *args):
@@ -358,6 +360,110 @@ class FolderCreate(FolderTest):
     def test_new_folder_refuses_an_existing_path(self):
         with self.assertRaisesRegex(setup.SetupError, 'already'):
             setup.folder_create(self.p)
+
+
+class FakeRuntime:
+    def __init__(self):
+        self.started, self.terminals, self.killed = [], {}, []
+
+    def start(self, argv, cwd, labels, name=None, parent=None):
+        address = f'T{len(self.started) + 1}'
+        self.started.append(Done(argv=argv, cwd=cwd, labels=labels, name=name))
+        self.terminals[address] = {'address': address, 'state': 'live', 'labels': labels, 'cwd': cwd}
+        return address
+
+    def get(self, t):
+        if t not in self.terminals:
+            raise runtime.RuntimeError_('not_found', 'no such terminal')
+        return self.terminals[t]
+
+    def list(self, labels, all=False):
+        return [x for x in self.terminals.values() if (all or x['state'] == 'live')
+                and not any(x['labels'].get(k) != v for k, v in labels.items())]
+
+    def kill(self, t):
+        self.killed.append(t)
+        self.terminals[t]['state'] = 'exited'
+
+
+class SetupTerminals(unittest.TestCase):
+    def setUp(self):
+        self.rt = FakeRuntime()
+
+    def test_install_runs_exactly_the_command_shown(self):
+        setup.install_agent(self.rt, 'claude')
+        s = self.rt.started[0]
+        self.assertEqual(s.argv, ['/bin/sh', '-c', setup.AGENTS['claude']['install']])
+        self.assertEqual((s.cwd, s.name), (os.path.expanduser('~'), 'setup-claude-install'))
+        self.assertIn(setup.LABEL, s.labels)
+
+    def test_the_table_has_the_specs_commands(self):
+        self.assertEqual(setup.AGENTS['claude']['install'], 'curl -fsSL https://claude.ai/install.sh | bash')
+        self.assertEqual(setup.AGENTS['codex']['install'], 'curl -fsSL https://chatgpt.com/codex/install.sh | sh')
+        self.assertEqual((setup.AGENTS['claude']['signin'], setup.AGENTS['codex']['signin']), ('claude auth login', 'codex login'))
+        self.assertEqual(setup.commands()['codex']['install'], setup.AGENTS['codex']['install'])
+
+    def test_pressing_install_twice_reattaches(self):
+        a = setup.install_agent(self.rt, 'claude')
+        self.assertEqual(setup.install_agent(self.rt, 'claude'), a)
+        self.assertEqual(len(self.rt.started), 1)
+
+    def test_a_finished_terminal_doesnt_block_try_again(self):
+        a = setup.install_agent(self.rt, 'claude')['address']
+        self.rt.terminals[a]['state'] = 'exited'
+        self.assertNotEqual(setup.install_agent(self.rt, 'claude')['address'], a)
+        self.assertEqual(len(self.rt.started), 2)
+
+    def test_install_and_signin_are_separate_terminals(self):
+        with mock.patch.object(setup, 'agent_path', return_value='/x/claude'):
+            setup.install_agent(self.rt, 'claude')
+            setup.signin_agent(self.rt, 'claude')
+        self.assertEqual(len(self.rt.started), 2)
+
+    def test_only_known_agents_can_be_installed(self):
+        for call in (setup.install_agent, setup.signin_agent):
+            with self.assertRaises(setup.SetupError):
+                call(self.rt, 'rm')
+        self.assertEqual(self.rt.started, [])
+
+    def test_signin_runs_the_agent_by_its_absolute_path(self):
+        with mock.patch.object(setup, 'agent_path', return_value='/Users/a b/.local/bin/claude'):
+            setup.signin_agent(self.rt, 'claude')
+        self.assertEqual(self.rt.started[0].argv, ['/bin/sh', '-c', "'/Users/a b/.local/bin/claude' auth login"])
+
+    def test_signin_without_the_agent_starts_nothing(self):
+        with mock.patch.object(setup, 'agent_path', return_value=None), self.assertRaises(setup.SetupError):
+            setup.signin_agent(self.rt, 'codex')
+        self.assertEqual(self.rt.started, [])
+
+    def test_setup_terminals_are_not_counted_as_teams(self):
+        setup.install_agent(self.rt, 'claude')
+        self.assertEqual(team.status(self.rt), [])
+
+    def test_state_running_then_finished(self):
+        a = setup.install_agent(self.rt, 'claude')['address']
+        self.assertEqual(setup.terminal_state(self.rt, a), 'running')
+        self.rt.terminals[a]['state'] = 'exited'
+        self.assertEqual(setup.terminal_state(self.rt, a), 'finished')
+
+    def test_a_vanished_terminal_counts_as_finished(self):
+        self.assertEqual(setup.terminal_state(self.rt, 'gone'), 'finished')
+
+    def test_stop_kills_a_setup_terminal(self):
+        a = setup.install_agent(self.rt, 'claude')['address']
+        self.assertEqual(setup.install_stop(self.rt, a), {'ok': True})
+        self.assertEqual(self.rt.killed, [a])
+
+    def test_stop_of_a_vanished_terminal_is_fine(self):
+        self.assertEqual(setup.install_stop(self.rt, 'gone'), {'ok': True})
+
+    def test_a_team_terminal_is_left_alone(self):
+        self.rt.terminals['TEAM'] = {'address': 'TEAM', 'state': 'live', 'labels': {team.TEAM: 'mine'}, 'cwd': '/p'}
+        with self.assertRaises(setup.SetupError):
+            setup.install_stop(self.rt, 'TEAM')
+        with self.assertRaises(setup.SetupError):
+            setup.terminal_state(self.rt, 'TEAM')
+        self.assertEqual((self.rt.killed, self.rt.terminals['TEAM']['state']), ([], 'live'))
 
 
 if __name__ == '__main__':
