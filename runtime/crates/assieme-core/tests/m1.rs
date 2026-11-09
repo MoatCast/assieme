@@ -164,7 +164,7 @@ fn runs_a_program_and_keeps_its_result_after_exit() {
 }
 
 #[test]
-fn child_gets_core_env_caller_identity_cwd_and_its_own_address() {
+fn child_gets_core_env_terminal_identity_cwd_and_its_own_address() {
     let s = Session::new();
     s.json(&["server", "start"]);
     let out = s
@@ -177,7 +177,7 @@ fn child_gets_core_env_caller_identity_cwd_and_its_own_address() {
         .output()
         .unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-    wait_text(&s, "t1", "id=t1 foo= tp=WezTerm pwd=/var/tmp");
+    wait_text(&s, "t1", "id=t1 foo= tp=ghostty pwd=/var/tmp");
 
     // Never herdr: a program started from inside Assieme sees plain ghostty.
     let out = s
