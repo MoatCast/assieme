@@ -564,8 +564,9 @@ Restart the core (e.g. after an update); programs keep running
 Usage: asm server restart [OPTIONS]
 
 Options:
-      --json  JSON output even in a terminal
-  -h, --help  Print help
+      --fresh  Take this shell's environment for new terminals; run from a terminal outside Assieme
+      --json   JSON output even in a terminal
+  -h, --help   Print help
 ```
 
 ## asm server start
