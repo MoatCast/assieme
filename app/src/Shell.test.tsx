@@ -60,7 +60,11 @@ vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun }: { onClose:
 vi.mock("./AddAgent", () => ({ default: ({ team, roles }: { team: string; roles: string[] }) => <div>add agent to {team}: {roles.join(",")}</div> }));
 const setSetting = vi.hoisted(() => vi.fn());
 const takeDraft = vi.hoisted(() => vi.fn());
-vi.mock("./bridge", () => ({ setSetting, reviewUndo: undo, takeDraft }));
+let opened: (r: { team: string; role: string | null; view: string | null }) => void = () => {};
+vi.mock("./bridge", () => ({
+  setSetting, reviewUndo: undo, takeDraft,
+  onOpen: (run: typeof opened) => { opened = run; return Promise.resolve(() => {}); },
+}));
 
 import Shell, { liveTeams } from "./Shell";
 
@@ -250,4 +254,13 @@ test("an assistant's draft opens in New team, once", async () => {
   fireEvent.click(screen.getByRole("button", { name: "close new team" }));
   await act(async () => {});
   expect(screen.queryByText(/new team screen/)).toBeNull();
+});
+
+test("the menu bar can open an agent's terminal or its review", async () => {
+  render(<Shell />);
+  await act(async () => {});
+  await act(async () => opened({ team: "shop", role: "planner", view: "terminals" }));
+  expect(screen.queryByText("new team screen")).toBeNull();
+  await act(async () => opened({ team: "shop", role: "builder-1", view: "review" }));
+  expect(document.body.textContent).toContain("builder-1");
 });

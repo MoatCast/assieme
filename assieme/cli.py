@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, connect, detect, live, machine, mcptools, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
+from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
 
 
 def main(argv=None):
@@ -148,9 +148,11 @@ def _serve():
     reviews = review.Review(rt, newteam.teams_dir())
     activity.register_merge(reviews)
     tools = mcptools.Tools(brain, starter)
+    menu = menubar.Menubar(brain, reviews)
 
     def tick():
-        for step in (lambda: live.watch_once(claude, codex), brain.tick, lambda: machine.tick(status.now_utc())):
+        for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()), brain.tick,
+                     lambda: machine.tick(status.now_utc())):
             try:
                 step()
             except Exception:  # one failing step must not stop notifications, delivery or the others
@@ -165,7 +167,8 @@ def _serve():
                  **brain.handlers(),
                  **reviews.handlers(),
                  **tools.handlers(),
-                 **connect.handlers()},
+                 **connect.handlers(),
+                 **menu.handlers()},
                 tick=tick)
     return 0
 

@@ -38,7 +38,7 @@ title = "Know when to stop"
 summary = "Two fix attempts, clear stop rules."
 rules = [
   "Try at most 2 repairs for a failing check, writing down the cause before each rerun; then stop and report.",
-  "Stop and report when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict.",
+  "Stop and report when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict. Begin that report with the word \"Stopped:\" and the reason, so your owner is told.",
 ]
 
 [[group]]

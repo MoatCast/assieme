@@ -182,7 +182,7 @@ class Review:
             projects.setdefault(project, set()).add(name)
         for project, names in projects.items():  # the app asks every few seconds: as few git calls as possible
             prefix = 'refs/heads/assieme/'
-            refs = self._git(project, 'for-each-ref', '--format=%(objectname) %(refname)', prefix).stdout.splitlines()
+            refs = self._git(project, 'for-each-ref', '--format=%(objectname) %(committerdate:unix) %(refname) %(contents:subject)', prefix).stdout.splitlines()
             if not refs:
                 continue
             try:
@@ -191,14 +191,14 @@ class Review:
                 continue  # not a repository any more, or no commits yet
             base_tip = self._tip(project, base)
             for line in refs:
-                tip, ref = line.split(' ', 1)
+                tip, at, ref, *subject = line.split(' ', 3)
                 name, _, role = ref.removeprefix(prefix).partition('/')
                 if name in names and role:
                     branch = ref.removeprefix('refs/heads/')
                     ahead = self._ahead_of(project, base, base_tip, branch, tip)
                     if ahead:
                         out.append({'team': name, 'project': os.path.basename(project), 'role': role, 'branch': branch,
-                                    'ahead': ahead})
+                                    'ahead': ahead, 'tip': tip, 'at': int(at), 'subject': ' '.join(subject)})
         return sorted(out, key=lambda w: (w['team'], w['role']))
 
     def _ahead_of(self, project, base, base_tip, branch, tip):

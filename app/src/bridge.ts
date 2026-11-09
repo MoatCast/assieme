@@ -1,6 +1,7 @@
 // The only module that talks to Tauri. Screens import this; switching to another shell rewrites only this file
 // and the native bridge behind it.
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -152,6 +153,26 @@ export type TeamView = { team: string; panes: Pane[]; strip: { role: string; tex
 export const teamView = (team: string) => brain<TeamView>("team.view", { team });
 export const paneAct = (a: { team: string; role: string; fix: string; button: string }) =>
   brain<{ ok: boolean; detail: string }>("pane.act", a);
+
+export type MenuButton = { id: string; label: string; kind: PaneButton["kind"] };
+export type MenuItem = { role: string; state: Pane["state"]; since_s: number | null; text: string; says: string; fix: string | null; buttons: MenuButton[] };
+export type MenuTeam = { name: string; where: string; need: number; items: MenuItem[] };
+export type MenuState = { count: number; teams: MenuTeam[]; spend_tokens: number | null; auto_fixes: number; paused_until: string | null };
+
+export const menuState = () => brain<MenuState>("menu.state");
+export const notificationsPause = () => brain<MenuState>("notifications.pause");
+export const notificationsResume = () => brain<MenuState>("notifications.resume");
+export const menuFit = (height: number) => invoke<void>("menu_fit", { height });
+export const notificationsOff = () => invoke<boolean>("notifications_off");
+export const notificationSettingsOpen = () => invoke<void>("notification_settings_open");
+export const onMenuOpened = (run: () => void) => listen("menu-opened", run);
+export const onMenuState = (run: (m: MenuState | null) => void) => listen<MenuState | null>("menu-state", (e) => run(e.payload));
+
+export type OpenRequest = { team: string; role: string | null; view: "terminals" | "review" | null };
+/** Bring the main window forward, on this agent if one is given. Closes the menu bar panel. */
+export const windowOpen = (a: Partial<OpenRequest> = {}) => invoke<void>("window_open", a);
+/** The menu bar or a notification asks the main window to show an agent. */
+export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
 
 export type MapNode = { role: string; state: Pane["state"]; since_s: number | null; agent: AgentKind; parent: string | null; group: string | null };
 export type MapEdge = { from: string; to: string; wakes: number; empty: number; noisy: { per_hour: number } | null };

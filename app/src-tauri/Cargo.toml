@@ -18,9 +18,12 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
+# Not tauri-plugin-notification: on macOS it gives up on a send or a press if the main thread is busy at that instant,
+# and says nothing. This is the library underneath it, whose async calls don't have that check.
+mac-usernotifications = { version = "0.3.1", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

@@ -350,11 +350,14 @@ class Brain:
                 return ''
         return read
 
-    def map(self, team):
-        now = status.now_utc()
+    def _built(self, team, now):
         rows, agents, found, rt = self._resolve(team, now)
-        return build(team, rows, agents, now, self._read(rt), self.answers, self.today, settings.load(), found,
-                     newteam.roster(team))
+        built = build(team, rows, agents, now, self._read(rt), self.answers, self.today, settings.load(), found,
+                      newteam.roster(team))
+        return built, rows, agents
+
+    def map(self, team):
+        return self._built(team, status.now_utc())[0]
 
     def view(self, team):
         built = self.map(team)
