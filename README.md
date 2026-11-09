@@ -71,13 +71,22 @@ You don't need to write any of this into your briefs.
 | **Know when to stop** | Try at most 2 repairs for a failing check, writing down the cause each time. Stop and report when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict. |
 | **Easy on your Mac** | Leave 2 CPU cores free when running tests, and install from the lockfile without going online. Run only the relevant tests while iterating, then the full set once on the final version. |
 
-The brief rules are instructions to the agent, not hard limits. Stricter enforcement is planned alongside the new
-runtime.
+Most brief rules are instructions to the agent, not hard limits. The exception is pushing: while Safe by default is on,
+every agent Assieme starts also gets a git setting that makes `git push` fail, while fetch and pull keep working. It is
+a guard rail, not a security boundary. It doesn't stop deploy tools, GitHub API calls (such as `gh` calling the API),
+or an agent that deliberately clears the setting. Assieme's own Open pull request runs from the brain and isn't
+affected. This was proven with real Claude Code and Codex agents against a local bare repository. Stricter enforcement
+is planned alongside the new runtime.
 
 ## What you can do today
 
 - **Create a team:** pick a project and mix Claude Code and Codex agents, each with its own role, model and thinking
   effort. Presets and *Help me choose* cover the common shapes.
+- **Get set up in the app:** install Claude Code or Codex (the vendor's install command is shown first, then run in a
+  terminal) and sign in. Set up a folder for git, or create a new folder, without leaving the app. Folder setup
+  leaves common secrets and dependency folders out of the saved version by name only, so a file like `customers.csv`
+  is saved. Sign-in is checked by running each agent's status command with its output discarded; Assieme never reads
+  or stores tokens.
 - **Watch and type:** see a live grid of terminals that keep running when the window closes, and open any one full size
   to type into it.
 - **See the team:** a map of who wakes whom, what needs you, what's ready to review, and today's token use.
@@ -97,7 +106,8 @@ herdr-core, is in `runtime/` and tested side by side with the original, but the 
 ## Safe by default
 
 - It never kills an agent without asking, never widens permission rules and never answers a permission prompt for you.
-- Fixes ask first until you choose otherwise, and an agent's work stays on its own branch until you merge it.
+- Fixes ask first until you choose otherwise, and an agent's work stays on its own branch until you merge it. Agents
+  can't `git push` while Safe by default is on, though this is a guard rail and not a security boundary.
 - It runs on your Mac with no telemetry. It talks only to what you use: your agents, your git remote when you push or
   open a pull request, and any assistant you connect.
 - Reports and the terminal views hide message text unless you pass `--show-text`. Mac notifications can show an agent's
