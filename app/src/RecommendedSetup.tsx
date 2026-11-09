@@ -3,7 +3,7 @@ import type { Practices } from "./bridge";
 
 /** The footer's line on pushing, for both steps: it follows the Safe by default practice. */
 export const footerNote = (safe: boolean) =>
-  safe ? "Agents work on their own copy and can't git push. They're told not to deploy." : "Agents work on their own copy and can git push.";
+  safe ? "Agents work on their own copy and can’t git push. They’re told not to deploy." : "Agents work on their own copy and can git push.";
 const rules = (n: number) => (n === 1 ? "1 rule" : `${n} rules`);
 const agents = (n: number) => (n === 1 ? "Start 1 agent" : `Start ${n} agents`);
 

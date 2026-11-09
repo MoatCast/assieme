@@ -92,10 +92,10 @@ test("says what's missing until Next can be pressed, then what agents are told",
   await flush();
   expect(screen.getByText("Say what the team should work on to continue.")).toBeTruthy();
   fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Fix login" } });
-  screen.getByText("Agents work on their own copy and can't git push. They're told not to deploy.");
+  screen.getByText("Agents work on their own copy and can’t git push. They’re told not to deploy.");
 });
 
-test("the footer says can't git push with Safe by default on, and can git push with it off", async () => {
+test("the footer says can’t git push with Safe by default on, and can git push with it off", async () => {
   b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS, practice_defaults: { safety: false } });
   await open();
   await fillProjectAndTask();
@@ -103,7 +103,7 @@ test("the footer says can't git push with Safe by default on, and can git push w
   fireEvent.click(screen.getByText("Customise"));
   screen.getByText("Agents work on their own copy and can git push.");
   fireEvent.click(screen.getByRole("switch", { name: "Safe by default" }));
-  screen.getByText("Agents work on their own copy and can't git push. They're told not to deploy.");
+  screen.getByText("Agents work on their own copy and can’t git push. They’re told not to deploy.");
 });
 
 test("Start with recommended starts the team without step 2", async () => {
@@ -267,7 +267,7 @@ test("a folder with no saved version offers Set up this folder, in neutral text"
   b.folderPreview.mockResolvedValue(PREVIEW);
   await open();
   await fillProjectAndTask();
-  expect(screen.getByText(SETUP.reason).className).not.toMatch(/error/);
+  expect(screen.getByText(SETUP.reason).closest(".folder-note")).not.toBeNull(); // neutral note, not the red error line
   screen.getByText("Set up this folder to continue.");
   expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(true);
 });
@@ -472,7 +472,7 @@ test("basics count comes from the list", async () => {
 test("start button counts agents and shows the trust line", async () => {
   await toSetup();
   expect(screen.getByText("Start 2 agents")).toBeTruthy();
-  expect(screen.getByText("Agents work on their own copy and can't git push. They're told not to deploy.")).toBeTruthy();
+  expect(screen.getByText("Agents work on their own copy and can’t git push. They’re told not to deploy.")).toBeTruthy();
   expect(screen.getAllByText("2 rules").length).toBe(5);
 });
 
@@ -586,4 +586,88 @@ test("a draft from an assistant fills the form and keeps its practice choices", 
   await flush();
   const safety = screen.getByRole("switch", { name: /Safe by default/ }) as HTMLInputElement;
   expect(safety.checked).toBe(false);
+});
+
+const deferred = <T,>() => {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((res) => (resolve = res));
+  return { promise, resolve };
+};
+const go = () => screen.getByText("Start with recommended") as HTMLButtonElement;
+
+test("the buttons wait for the folder check, and say so", async () => {
+  const slow = deferred<{ ok: boolean }>();
+  b.checkProject.mockReturnValue(slow.promise);
+  await open();
+  await fillProjectAndTask();
+  screen.getByText("Checking this folder…");
+  expect(go().disabled).toBe(true);
+  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => slow.resolve({ ok: true }));
+  expect(go().disabled).toBe(false);
+});
+
+test("a folder check that fails shows why, keeps the buttons off, and Choose… tries again", async () => {
+  b.checkProject.mockRejectedValueOnce(new Error("service went away"));
+  await open();
+  await fillProjectAndTask();
+  screen.getByText("service went away");
+  screen.getByText("Couldn’t check this folder. Choose it again to continue.");
+  expect(go().disabled).toBe(true);
+  fireEvent.click(screen.getByText("Choose…"));
+  await flush();
+  expect(go().disabled).toBe(false);
+  expect(screen.queryByText("service went away")).toBeNull();
+});
+
+test("a slow check for an earlier folder can't enable the buttons for the current one", async () => {
+  const a = deferred<object>();
+  b.pickFolder.mockResolvedValueOnce("/Users/me/a").mockResolvedValueOnce("/Users/me/b");
+  b.checkProject.mockImplementation((p: string) => (p.endsWith("/a") ? a.promise : Promise.resolve(SETUP)));
+  await open();
+  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Fix login" } });
+  fireEvent.click(screen.getByText("Choose…"));
+  await flush();
+  fireEvent.click(screen.getByText("Choose…"));
+  await flush();
+  screen.getByText("Set up this folder");
+  await act(async () => a.resolve({ ok: true }));
+  screen.getByText("Set up this folder");
+  expect(go().disabled).toBe(true);
+});
+
+test("a picker that fails says so", async () => {
+  b.pickFolder.mockRejectedValue(new Error("dialog refused"));
+  await open();
+  fireEvent.click(screen.getByText("Choose…"));
+  await flush();
+  screen.getByText("dialog refused");
+});
+
+test("an assistant's draft folder goes through the same check and offers the same click", async () => {
+  checking(SETUP);
+  const draft = { id: "d1", project: "/Users/me/shop", task: "Add a footer", why: "x", practices: {}, roles: [r("builder")] };
+  render(<NewTeam clis={both} draft={draft} onClose={() => {}} />);
+  await flush();
+  expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
+  screen.getByText("Set up this folder");
+  expect(go().disabled).toBe(true);
+});
+
+test("the developer tools poll waits for the answer before asking again", async () => {
+  vi.useFakeTimers();
+  try {
+    const slow = deferred<object>();
+    b.checkProject.mockResolvedValueOnce({ ok: false, tools: true, reason: "This needs Apple’s developer tools first." });
+    render(<NewTeam clis={both} recheckMs={10} onClose={vi.fn()} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    fireEvent.click(screen.getByText("Choose…"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    b.checkProject.mockReturnValue(slow.promise);
+    b.checkProject.mockClear();
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(b.checkProject).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+  }
 });

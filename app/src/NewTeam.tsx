@@ -32,6 +32,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [projectError, setProjectError] = useState("");
   const [check, setCheck] = useState<ProjectCheck | null>(null);
   const [folderSheet, setFolderSheet] = useState(false);
+  const [checkError, setCheckError] = useState("");
+  const latest = useRef(0); // only the newest folder check may change what is shown
   const [noteError, setNoteError] = useState(""); // what went wrong with New folder or the installer
   const [task, setTask] = useState("");
   const [chosen, setChosen] = useState("");
@@ -65,6 +67,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, (draft?.practices ?? p.practice_defaults)?.[g.id] !== false])));
       if (draft) {
         setProject(draft.project);
+        void verify(draft.project); // a draft's folder needs the same setup click as a chosen one
         setTask(draft.task);
         setRoles(fit(draft.roles));
         setEdited(true); // a preset's click must ask before replacing it
@@ -124,16 +127,31 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setEdited(true);
   };
 
+  /** keep: leave the shown result in place until the new one arrives (after a save). */
+  const verify = async (p: string, keep = false) => {
+    const id = ++latest.current;
+    setCheckError("");
+    if (!keep) setCheck(null);
+    try {
+      const c = await checkProject(p);
+      if (id === latest.current) setCheck(c);
+    } catch (e) {
+      if (id === latest.current) setCheckError(message(e));
+    }
+  };
   const use = async (p: string) => {
     setProject(p);
     setProjectError("");
-    setCheck(null);
-    setCheck(await checkProject(p));
+    await verify(p);
   };
   const chooseFolder = async () => {
     setNoteError("");
-    const p = await pickFolder();
-    if (p) await use(p);
+    try {
+      const p = await pickFolder();
+      if (p) await use(p);
+    } catch (e) {
+      setNoteError(message(e));
+    }
   };
   const newFolder = async () => {
     setNoteError("");
@@ -150,20 +168,28 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setNoteError("");
     installTools().catch((e) => setNoteError(message(e)));
   };
-  const saved = async () => {
+  const saved = () => {
     setFolderSheet(false);
-    try {
-      setCheck(await checkProject(project));
-    } catch (e) {
-      setNoteError(message(e));
-    }
+    return verify(project, true);
   };
 
   // Developer tools install in Apple's own window: ask again until they are there.
   useEffect(() => {
     if (!check?.tools || !project) return;
     let stopped = false;
-    const timer = setInterval(() => checkProject(project).then((c) => !stopped && setCheck(c), () => {}), recheckMs);
+    let asking = false; // skip a tick while the last question is still out
+    const timer = setInterval(async () => {
+      if (asking) return;
+      asking = true;
+      const id = latest.current;
+      try {
+        const c = await checkProject(project);
+        if (!stopped && id === latest.current) setCheck(c);
+      } catch {
+        /* the next tick asks again */
+      }
+      asking = false;
+    }, recheckMs);
     return () => {
       stopped = true;
       clearInterval(timer);
@@ -212,9 +238,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   // The first thing still missing, or nothing once Next can be pressed.
   const missing = offline ? "Waiting for Assieme’s service."
     : !project ? "Choose a project folder to continue."
-    : check?.tools ? "Install developer tools to continue."
-    : check?.setup ? "Set up this folder to continue."
-    : projectError || (check && !check.ok) ? "Choose a different folder to continue."
+    : !check ? (checkError ? "Couldn’t check this folder. Choose it again to continue." : "Checking this folder…")
+    : check.tools ? "Install developer tools to continue."
+    : check.setup ? "Set up this folder to continue."
+    : projectError || !check.ok ? "Choose a different folder to continue."
     : !task.trim() ? "Say what the team should work on to continue."
     : clis && !installed.length ? "Install Claude Code or Codex to continue."
     : installed.length && !roles.length ? "Add an agent to continue."
@@ -255,6 +282,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
               <button type="button" className="pick" onClick={chooseFolder}>Choose…</button>
             </div>
             {plainError && <p className="error">{plainError}</p>}
+            {checkError && <p className="error">{checkError}</p>}
             {noteError && <p className="error">{noteError}</p>}
             {check && (button || check.too_large) && (
               <div className="folder-note">

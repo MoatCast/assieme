@@ -36,7 +36,7 @@ export default function FolderSheet({ project, onClose, onSaved }: { project: st
     }
   };
 
-  const { ref, onKeyDown } = useModal(onClose, [!!preview, !!error]);
+  const { ref, onKeyDown } = useModal(() => busy || onClose(), [!!preview, !!error]);
   const dialog = (title: string, children: React.ReactNode) => (
     <div className="modal-dim">
       <div className="modal folder" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref} onKeyDown={onKeyDown}>
@@ -54,7 +54,7 @@ export default function FolderSheet({ project, onClose, onSaved }: { project: st
         <p className="folder-small">{`Git said: ${error}`}</p>
       </div>
       <div className="sheet-actions">
-        <button type="button" className="btn-quiet" onClick={onClose}>Cancel</button>
+        <button type="button" className="btn-quiet" disabled={busy} onClick={onClose}>Cancel</button>
         <button type="button" className="btn-primary" disabled={busy} onClick={preview ? save : load}>Try again</button>
       </div>
     </>);
@@ -102,7 +102,7 @@ export default function FolderSheet({ project, onClose, onSaved }: { project: st
       </div>
     )}
     <div className="sheet-actions">
-      <button type="button" className="btn-quiet" onClick={onClose}>Not now</button>
+      <button type="button" className="btn-quiet" disabled={busy} onClick={onClose}>Not now</button>
       <button type="button" className="btn-primary" disabled={busy} onClick={save}>{empty ? "Start project" : "Save and continue"}</button>
     </div>
   </>);

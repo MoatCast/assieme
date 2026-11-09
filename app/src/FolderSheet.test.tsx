@@ -125,3 +125,16 @@ test("it is a modal: focus on the primary action, Escape is Not now, Tab stays i
   expect(document.activeElement).toBe(opener);
   opener.remove();
 });
+
+test("while a save is running, Not now and Escape don't close the sheet", async () => {
+  let done!: () => void;
+  b.folderSave.mockReturnValue(new Promise<void>((res) => (done = res)));
+  const { onClose, onSaved } = await open();
+  fireEvent.click(screen.getByText("Save and continue"));
+  await flush();
+  expect((screen.getByText("Not now") as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  expect(onClose).not.toHaveBeenCalled();
+  await act(async () => done());
+  expect(onSaved).toHaveBeenCalled();
+});
