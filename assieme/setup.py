@@ -97,10 +97,10 @@ def too_broad(project):
     return real in ('/', os.path.realpath(os.path.expanduser('~')))
 
 
-def _git(cwd, *args, timeout=LIST_TIMEOUT_S):
+def _git(cwd, *args, timeout=LIST_TIMEOUT_S, stdin=None):
     """Runs git; returns (stdout bytes, stderr text). Optional locks off, so a read never refreshes the index."""
     try:
-        r = subprocess.run(['git', *args], cwd=cwd, capture_output=True, timeout=timeout,
+        r = subprocess.run(['git', *args], cwd=cwd, capture_output=True, timeout=timeout, input=stdin,
                            env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'})
     except subprocess.TimeoutExpired:
         raise TooLarge('Listing this folder took too long.')
@@ -148,8 +148,9 @@ def changed_files(project, untracked='all'):
     return [p for p in paths if p != ASSIEME_DIR and not p.startswith(ASSIEME_DIR + '/')]
 
 
-def folder_preview(project):
-    """What a save would commit, without changing the project: not even a .git, index or exclude file."""
+def _plan(project):
+    """The one list of what a save commits, so the preview, the warning and the save cannot disagree.
+    Reads only: not even a .git, index or exclude file is written."""
     if too_broad(project):
         raise TooLarge('This folder is too large.')
     in_repo = _is_repo(project)
@@ -168,8 +169,19 @@ def folder_preview(project):
     files = sorted(set(tracked) | set(kept))
     if len(files) > MAX_FILES:
         raise TooLarge('This folder has too many files.')
-    return {'files': len(files), 'sample': files[:500], 'left_out': sorted(p.rstrip('/') for p in left),
-            'empty': not files, 'first': not in_repo or not _has_commits(project)}
+    return {'files': files, 'left_out': sorted(p.rstrip('/') for p in left),
+            'first': not in_repo or not _has_commits(project)}
+
+
+def folder_preview(project):
+    plan = _plan(project)
+    files = plan['files']
+    return {'files': len(files), 'sample': files[:500], 'left_out': plan['left_out'], 'empty': not files, 'first': plan['first']}
+
+
+def uncommitted(project):
+    """How many files Save them first would commit."""
+    return len(_plan(project)['files'])
 
 
 def _add_exclusions(project):
@@ -184,16 +196,20 @@ def _add_exclusions(project):
 
 
 def folder_save(project):
-    """git init if needed, the exclusions, git add -A, one commit. Safe to repeat after a failure."""
-    preview = folder_preview(project)  # refuses a too-broad folder even if the app already checked
+    """git init if needed, the exclusions, stage exactly the previewed files, one commit. Safe to repeat after a failure."""
+    plan = _plan(project)  # refuses a too-broad folder even if the app already checked
+    first = plan['first']
+    if not first and not plan['files']:
+        return {'ok': True}  # nothing a save would commit
     if not _is_repo(project):
         _git(project, 'init', '-q')
     _add_exclusions(project)
-    _git(project, 'add', '-A')
+    if plan['files']:  # -A with a pathspec also stages deletions of those paths
+        _git(project, '--literal-pathspecs', 'add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul',
+             stdin=b'\0'.join(f.encode() for f in plan['files']))
     who = []
     if not all(_config(project, k) for k in ('user.name', 'user.email')):
         who = ['-c', 'user.name=Assieme', '-c', 'user.email=assieme@localhost']  # this one commit only
-    first = preview['first']
     _git(project, *who, 'commit', '-q', *(['--allow-empty'] if first else []), '-m', FIRST_MESSAGE if first else BEFORE_TEAM_MESSAGE)
     return {'ok': True}
 

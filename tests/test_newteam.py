@@ -104,6 +104,7 @@ class CheckSaveTest(unittest.TestCase):
         with mock.patch.object(newteam.setup, 'git_ready', return_value=False):
             got = newteam.project_check(os.path.join(self.d, 'nope'))
         self.assertEqual((got['ok'], got['tools']), (False, True))
+        self.assertEqual(got['reason'], "This needs Apple's developer tools first.")
 
     def test_home_is_refused_however_it_is_written(self):
         link = os.path.join(self.d, 'homelink')
@@ -132,6 +133,18 @@ class CheckSaveTest(unittest.TestCase):
         os.makedirs(os.path.join(self.repo, 'sub'))
         open(os.path.join(self.repo, 'sub', 'c.txt'), 'w').close()
         self.assertEqual(newteam.project_check(self.repo), {'ok': True, 'uncommitted': 3})
+
+    def test_files_a_save_leaves_out_are_not_uncommitted(self):
+        os.makedirs(os.path.join(self.repo, 'node_modules', 'x'))
+        for n in ('.env', '.DS_Store', 'node_modules/x/y.js'):
+            open(os.path.join(self.repo, n), 'w').close()
+        self.assertEqual(newteam.project_check(self.repo), {'ok': True})
+        open(os.path.join(self.repo, 'sub.txt'), 'w').close()
+        self.assertEqual(newteam.project_check(self.repo), {'ok': True, 'uncommitted': 1})
+
+    def test_a_slow_listing_is_too_large_not_hidden(self):
+        with mock.patch.object(newteam.setup, 'uncommitted', side_effect=newteam.setup.TooLarge('slow')):
+            self.assertEqual(newteam.project_check(self.repo), {'ok': False, 'reason': newteam.TOO_LARGE, 'too_large': True})
 
     def assertField(self, roles, field, message):
         with self.assertRaises(newteam.NewTeamError) as e:

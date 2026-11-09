@@ -320,6 +320,27 @@ class FolderSave(FolderTest):
             setup.folder_save(self.p)
         self.assertIn('index.lock', str(cm.exception))
 
+    def test_nothing_to_save_in_a_repository_makes_no_commit(self):
+        self.repo()
+        self.write('.env')
+        self.assertEqual(setup.folder_save(self.p), {'ok': True})
+        self.assertEqual(git(self.p, 'rev-list', '--count', 'HEAD').strip(), '1')
+
+    def test_save_commits_exactly_what_the_preview_listed(self):
+        self.repo()
+        self.write('.gitignore', '!.env.example\n')
+        self.commit_all()
+        for n in ('.env.example', '.env', 'new.txt'):
+            self.write(n)
+        os.remove(os.path.join(self.p, 'base.txt'))
+        got = setup.folder_preview(self.p)
+        self.assertEqual(got['sample'], ['base.txt', 'new.txt'])
+        self.assertEqual(sorted(got['left_out']), ['.env', '.env.example'])
+        setup.folder_save(self.p)
+        changed = git(self.p, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD').splitlines()
+        self.assertEqual(sorted(changed), got['sample'])
+        self.assertNotIn('.env.example', self.listing())
+
     def test_save_refuses_home_and_root(self):
         with mock.patch.dict(os.environ, {'HOME': self.p}):
             with self.assertRaises(setup.TooLarge):

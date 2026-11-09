@@ -22,7 +22,7 @@ BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
 TOO_LARGE = "This folder is very large. Choose the folder for just this project."
-NO_TOOLS = "Git isn't installed yet. Install Apple's developer tools first."
+NO_TOOLS = "This needs Apple's developer tools first."
 
 
 class NewTeamError(ValueError):
@@ -121,7 +121,9 @@ def project_check(path):
             pass
         return {'ok': False, 'reason': NEEDS_SAVE, 'setup': True}
     try:
-        n = len(setup.changed_files(path))
+        n = setup.uncommitted(path)
+    except setup.TooLarge:
+        return too_large
     except setup.SetupError:
         n = 0
     return {'ok': True, 'uncommitted': n} if n else {'ok': True}
