@@ -95,7 +95,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
       )}
       <section className="intro">
         <div className="eyebrow">Welcome to Assieme</div>
-        <h1>{agents.length ? "We found your agents. There’s nothing to set up." : "No agents found yet."}</h1>
+        <h1>{!snap ? "Looking for your agents…" : agents.length ? "We found your agents. There’s nothing to set up." : "No agents found yet."}</h1>
         <p className="lede">
           Assieme reads what Claude Code and Codex already save on this Mac. It tells you when an agent needs you, and
           helps your team waste less.
@@ -105,7 +105,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
             <div className="cli" key={c.key} data-testid={`cli-${c.key}`}>
               <Check ok={c.found} />
               <span className="cli-name">{c.name}</span>
-              <span className="cli-note">{c.found ? c.note : "not found"}</span>
+              <span className="cli-note">{!snap ? "checking…" : c.found ? c.note : "not found"}</span>
             </div>
           ))}
         </div>

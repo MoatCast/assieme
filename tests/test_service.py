@@ -55,8 +55,25 @@ class LaunchctlTest(unittest.TestCase):
         self.assertEqual(run.calls[-1], ['launchctl', 'bootstrap', target, path])
 
     def test_install_fails_loudly(self):
+        waits = []
         with self.assertRaisesRegex(RuntimeError, 'bootstrap'):
-            service.install(run=FakeRun({'bootstrap': 5}))
+            service.install(run=FakeRun({'bootstrap': 5}), sleep=waits.append)
+        self.assertEqual(len(waits), service.BOOTSTRAP_TRIES - 1)
+
+    def test_install_waits_for_the_old_service_to_stop(self):
+        class Stopping(FakeRun):
+            left = 2
+
+            def __call__(self, cmd, **kw):
+                if cmd[1] == 'bootstrap' and Stopping.left:
+                    Stopping.left -= 1
+                    self.calls.append(cmd)
+                    return subprocess.CompletedProcess(cmd, 5, '', 'Input/output error')
+                return super().__call__(cmd, **kw)
+        run, waits = Stopping(), []
+        service.install(run=run, sleep=waits.append)
+        self.assertEqual(sum(c[1] == 'bootstrap' for c in run.calls), 3)
+        self.assertEqual(len(waits), 2)
 
     def test_uninstall_removes_plist(self):
         path = service.install(run=FakeRun())
@@ -90,3 +107,12 @@ class CliServiceTest(unittest.TestCase):
             code, out = self.run_cli(['service', 'install'])
         self.assertEqual(code, 0)
         self.assertIn('/L/dev.assieme.brain.plist', out)
+
+
+class CliTest(unittest.TestCase):
+    def test_a_failed_install_is_a_sentence_not_a_traceback(self):
+        from assieme import cli
+        with mock.patch.object(service, 'install', side_effect=RuntimeError('launchctl bootstrap failed (5)')), \
+                mock.patch('sys.stderr') as err:
+            self.assertEqual(cli.main(['service', 'install']), 1)
+        self.assertIn("Couldn't start the background service", ''.join(c.args[0] for c in err.write.call_args_list))

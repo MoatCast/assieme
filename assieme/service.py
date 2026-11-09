@@ -7,10 +7,12 @@ import os
 import plistlib
 import subprocess
 import sys
+import time
 
 from . import runtime
 
 LABEL = 'dev.assieme.brain'
+BOOTSTRAP_TRIES = 20  # half a second apart: bootout returns while the old service is still stopping
 _KEEP = ('PATH', 'HOME', 'USER', 'LANG', 'XDG_STATE_HOME')
 
 
@@ -31,7 +33,7 @@ def plist(python, env):
                            'StandardOutPath': log, 'StandardErrorPath': log})
 
 
-def install(run=subprocess.run, python=None):
+def install(run=subprocess.run, python=None, sleep=time.sleep):
     path = plist_path()
     data = plist(python or sys.executable, dict(os.environ))
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -39,7 +41,12 @@ def install(run=subprocess.run, python=None):
     with open(path, 'wb') as f:
         f.write(data)
     run(['launchctl', 'bootout', f'{_target()}/{LABEL}'], capture_output=True)  # not loaded yet is fine
-    r = run(['launchctl', 'bootstrap', _target(), path], capture_output=True, text=True)
+    for attempt in range(BOOTSTRAP_TRIES):
+        r = run(['launchctl', 'bootstrap', _target(), path], capture_output=True, text=True)
+        if r.returncode == 0:
+            break
+        if attempt < BOOTSTRAP_TRIES - 1:
+            sleep(0.5)
     if r.returncode != 0:
         raise RuntimeError(f'launchctl bootstrap failed ({r.returncode}): {(r.stderr or "").strip()}')
     return path
