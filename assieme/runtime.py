@@ -1,6 +1,6 @@
 """The runtime layer: talks to an isolated herdr-core (`hc`) core over its socket.
 
-This is the runtime interface FORK-PLAN.md refers to: a fork of hc later replaces what this module calls, not
+This is the runtime interface: a fork of hc later replaces what this module calls, not
 its callers. One JSON-RPC request and reply per line, one connection per call.
 """
 import json

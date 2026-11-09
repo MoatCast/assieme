@@ -1,7 +1,7 @@
 # assieme-core (`asm`)
 
 Assieme's own runtime: it runs Claude Code and Codex agents in terminals that stay alive after the window closes. A
-one-time fork of herdr-core; see [NOTICE](NOTICE) and [the fork plan](../FORK-PLAN.md).
+one-time fork of herdr-core; see [NOTICE](NOTICE).
 
 People never install this. The app ships the binary.
 

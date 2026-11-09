@@ -40,13 +40,39 @@ still go at once.
 **Agents report for themselves.** Agents inside a team use Assieme's MCP tools to message each other and to say when
 they are stuck or need a decision, so status comes from the agent as well as from its logs.
 
-**A new team starts the way a tuned one ends.** Teams get built-in practices learned from running real agent teams:
-one coordinator for outside-world work, reviewers that only read, at most two repair attempts, clear stop rules and a
-fixed handoff format. Optional groups can be switched off, while the basics stay on.
+**A new team starts the way a tuned one ends.** Assieme applies the fixes learned from running real agent teams to
+every agent it starts, so you don't have to rediscover them. See the [full list](#fixes-applied-to-every-agent).
 
 **Your assistant can help, but you stay in charge.** Connect Claude Code, Codex or the Claude app with one button.
 They can read team status and design a team with you. Anything that changes something asks you first, and a new team
 only ever starts when you click Start.
+
+## Fixes applied to every agent
+
+You don't need to write any of this into your briefs.
+
+**Always on, built into how Assieme starts agents:**
+
+- **Each builder has its own branch:** every builder gets its own git worktree, so no two agents edit the same files.
+- **Reviewers and planners only read:** they start without edit tools in Claude Code, or in the read-only sandbox in
+  Codex.
+- **No message before an agent is ready:** an agent gets its brief only after it reports its first status, so nothing
+  is lost while it starts.
+- **Trust is yours to give:** Assieme answers an agent's "trust this folder" prompt only after you agree.
+- **A clean start:** agents start without settings leaked from your shell or another agent session.
+
+**On by default, added to every agent's brief, with each group switchable per team:**
+
+| Group | What every agent is told |
+|---|---|
+| **Fewer, cheaper messages** | End every report with one line: done, blocked or needs a decision. Put anything long in a file and send a short note pointing to it. Treat each task as a fresh start, and write briefs that stand on their own. |
+| **Safe by default** | Run one action per shell command. Report a refused command rather than retrying it in another form. Never push, tag, change repository settings, add dependencies, download files, or open the keychain or secret folders. |
+| **Careful reviews** | Reviewers read and never edit, and a review's first line is the verdict. Never weaken a test or threshold to make it pass. Hand off with the commit, the commands and their results, test counts and open issues. |
+| **Know when to stop** | Try at most 2 repairs for a failing check, writing down the cause each time. Stop and report when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict. |
+| **Easy on your Mac** | Leave 2 CPU cores free when running tests, and install from the lockfile without going online. Run only the relevant tests while iterating, then the full set once on the final version. |
+
+The brief rules are instructions to the agent, not hard limits. Stricter enforcement is planned alongside the new
+runtime.
 
 ## What you can do today
 
@@ -132,7 +158,7 @@ picks Claude Code or Codex, a model, a parent, and `checkout = "branch"` or `"re
 | **Runtime** | herdr-core today, with Assieme's own fork in `runtime/` for later |
 
 To build the Rust runtime, first run `git submodule update --init` to fetch Ghostty's terminal library; you'll also
-need Zig 0.16. See [DESIGN.md](DESIGN.md) and [FORK-PLAN.md](FORK-PLAN.md) for more detail.
+need Zig 0.16.
 
 ## Tests
 

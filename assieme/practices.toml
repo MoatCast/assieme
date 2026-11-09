@@ -1,4 +1,4 @@
-# The built-in team practices (ROADMAP "Built-in team practices"). One list feeds New team's Recommended setup
+# The built-in team practices. One list feeds New team's Recommended setup
 # and the rules added to every agent's brief. A group is on unless a team sets it to false in [practices].
 version = 1
 
