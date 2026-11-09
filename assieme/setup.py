@@ -5,6 +5,7 @@ Must not import `launch`: launch uses `agent_path` as its default lookup.
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -72,5 +73,148 @@ def install_tools(run=subprocess.run):
     return {'ok': True}
 
 
+class SetupError(RuntimeError):
+    """A failed setup call; the serve loop sends str(e) to the app, so it holds git's own words."""
+
+
+class TooLarge(SetupError):
+    pass
+
+
+# What Set up this folder leaves out of the first version, by name.
+EXCLUDE = ('.env', '.env.*', '*.pem', '*.key', '*.p12', 'id_rsa*', 'id_ed25519*', 'credentials*', 'secrets*',
+           'node_modules', '.venv', 'venv', '__pycache__', '.DS_Store')
+MAX_FILES = 20000
+LIST_TIMEOUT_S = 15
+ASSIEME_DIR = '.assieme'
+FIRST_MESSAGE = 'First version, saved by Assieme'
+BEFORE_TEAM_MESSAGE = 'Saved by Assieme before starting a team'
+
+
+def too_broad(project):
+    """The home folder or `/`, by resolved path, so `~/`, a trailing slash and a symlink all count."""
+    real = os.path.realpath(os.path.expanduser(project))
+    return real in ('/', os.path.realpath(os.path.expanduser('~')))
+
+
+def _git(cwd, *args, timeout=LIST_TIMEOUT_S):
+    """Runs git; returns (stdout bytes, stderr text). Optional locks off, so a read never refreshes the index."""
+    try:
+        r = subprocess.run(['git', *args], cwd=cwd, capture_output=True, timeout=timeout,
+                           env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'})
+    except subprocess.TimeoutExpired:
+        raise TooLarge('Listing this folder took too long.')
+    except OSError as e:
+        raise SetupError(str(e))
+    if r.returncode != 0:
+        raise SetupError(r.stderr.decode('utf-8', 'replace').strip() or f'git {args[0]} failed.')
+    return r.stdout, r.stderr
+
+
+def _names(out):
+    return [p.decode('utf-8', 'replace') for p in out.split(b'\0') if p]
+
+
+def _is_repo(project):
+    try:
+        _git(project, 'rev-parse', '--show-toplevel')
+        return True
+    except TooLarge:
+        raise
+    except SetupError:
+        return False
+
+
+def _has_commits(project):
+    try:
+        _git(project, 'rev-parse', '--verify', '--quiet', 'HEAD')
+        return True
+    except TooLarge:
+        raise
+    except SetupError:
+        return False
+
+
+def changed_files(project, untracked='all'):
+    """Paths `git status --porcelain -z` reports, leaving out .assieme/."""
+    entries = _names(_git(project, 'status', '--porcelain', '-z', f'--untracked-files={untracked}')[0])
+    paths, skip = [], False
+    for e in entries:
+        if skip:  # the old name of a rename or copy
+            skip = False
+            continue
+        skip = e[0] in 'RC'
+        paths.append(e[3:])
+    return [p for p in paths if p != ASSIEME_DIR and not p.startswith(ASSIEME_DIR + '/')]
+
+
+def folder_preview(project):
+    """What a save would commit, without changing the project: not even a .git, index or exclude file."""
+    if too_broad(project):
+        raise TooLarge('This folder is too large.')
+    in_repo = _is_repo(project)
+    x = [a for p in EXCLUDE for a in ('-x', p)]
+    with tempfile.TemporaryDirectory() as tmp:
+        if in_repo:
+            where = []
+            # Tracked files stay tracked whatever the exclusions say, so their changes are files too.
+            tracked = changed_files(project, 'no')
+        else:
+            where = [f'--git-dir={tmp}/.git', f'--work-tree={os.path.abspath(project)}']  # a throwaway repository
+            _git(tmp, 'init', '-q', tmp)
+            tracked = []
+        kept = _names(_git(project, *where, 'ls-files', '-o', '--exclude-standard', *x, '-x', ASSIEME_DIR + '/', '-z')[0])
+        left = _names(_git(project, *where, 'ls-files', '-o', '-i', '--directory', *x, '-z')[0])
+    files = sorted(set(tracked) | set(kept))
+    if len(files) > MAX_FILES:
+        raise TooLarge('This folder has too many files.')
+    return {'files': len(files), 'sample': files[:500], 'left_out': sorted(p.rstrip('/') for p in left),
+            'empty': not files, 'first': not in_repo or not _has_commits(project)}
+
+
+def _add_exclusions(project):
+    path = _git(project, 'rev-parse', '--git-path', 'info/exclude')[0].decode().strip()
+    path = path if os.path.isabs(path) else os.path.join(project, path)
+    have = open(path).read().splitlines() if os.path.exists(path) else []
+    missing = [p for p in (*EXCLUDE, ASSIEME_DIR + '/') if p not in have]
+    if missing:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'a') as f:
+            f.write(('\n' if have and have[-1] else '') + '\n'.join(missing) + '\n')
+
+
+def folder_save(project):
+    """git init if needed, the exclusions, git add -A, one commit. Safe to repeat after a failure."""
+    preview = folder_preview(project)  # refuses a too-broad folder even if the app already checked
+    if not _is_repo(project):
+        _git(project, 'init', '-q')
+    _add_exclusions(project)
+    _git(project, 'add', '-A')
+    who = []
+    if not all(_config(project, k) for k in ('user.name', 'user.email')):
+        who = ['-c', 'user.name=Assieme', '-c', 'user.email=assieme@localhost']  # this one commit only
+    first = preview['first']
+    _git(project, *who, 'commit', '-q', *(['--allow-empty'] if first else []), '-m', FIRST_MESSAGE if first else BEFORE_TEAM_MESSAGE)
+    return {'ok': True}
+
+
+def _config(project, key):
+    try:
+        return _git(project, 'config', key)[0].strip()
+    except SetupError:
+        return b''
+
+
+def folder_create(path):
+    if os.path.lexists(path):
+        raise SetupError('That folder already exists.')
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        raise SetupError(e.strerror or str(e))
+    return {'path': path}
+
+
 def handlers(rt):
-    return {'setup.status': status, 'setup.install_tools': install_tools}
+    return {'setup.status': status, 'setup.install_tools': install_tools, 'setup.folder_preview': folder_preview,
+            'setup.folder_save': folder_save, 'setup.folder_create': folder_create}

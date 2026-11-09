@@ -20,8 +20,9 @@ KINDS = {'planner': ('planner.md', 'read-only'), 'builder': ('builder.md', 'bran
 NAME = re.compile(r'^[a-z0-9-]+$')
 BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
-NOT_GIT = "This folder isn't a git repository. Assieme gives each agent its own branch, so it needs one."
-NO_COMMITS = "This repository has no commits yet. Agents branch from the latest commit, so make a first commit, then choose it again."
+NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
+TOO_LARGE = "This folder is very large. Choose the folder for just this project."
+NO_TOOLS = "Git isn't installed yet. Install Apple's developer tools first."
 
 
 class NewTeamError(ValueError):
@@ -101,15 +102,29 @@ def model_options(codex_cache=None):
 
 
 def project_check(path):
+    if not setup.git_ready():
+        return {'ok': False, 'reason': NO_TOOLS, 'tools': True}
+    path = os.path.expanduser(path)
     if not os.path.isdir(path):
         return {'ok': False, 'reason': "This folder doesn't exist."}
+    too_large = {'ok': False, 'reason': TOO_LARGE, 'too_large': True}
+    if setup.too_broad(path):  # before anything walks the folder
+        return too_large
     try:
         worktree.check_repo(path)
-    except worktree.NoCommitsError:
-        return {'ok': False, 'reason': NO_COMMITS}
-    except worktree.WorktreeError:
-        return {'ok': False, 'reason': NOT_GIT}
-    return {'ok': True}
+    except worktree.WorktreeError:  # no repository, or no commits
+        try:
+            setup.folder_preview(path)  # counts the files a first version would hold
+        except setup.TooLarge:
+            return too_large
+        except setup.SetupError:
+            pass
+        return {'ok': False, 'reason': NEEDS_SAVE, 'setup': True}
+    try:
+        n = len(setup.changed_files(path))
+    except setup.SetupError:
+        n = 0
+    return {'ok': True, 'uncommitted': n} if n else {'ok': True}
 
 
 def validate(roles):

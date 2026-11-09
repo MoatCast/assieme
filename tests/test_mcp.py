@@ -271,6 +271,13 @@ class ToolsTest(State):
             t.draft_save(os.path.join(self.dir, 'repo'), [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}], practices={'made-up': False})
         self.assertIsNone(t.draft_next())
 
+    def test_a_folder_that_needs_setting_up_is_refused(self):
+        plain = os.path.join(self.dir, 'plain')
+        os.makedirs(plain)
+        with self.assertRaisesRegex(newteam.NewTeamError, 'no saved version'):
+            self.tools().draft_save(plain, [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}])
+        self.assertFalse(os.path.exists(os.path.join(plain, '.git')))
+
     def test_a_damaged_draft_doesnt_block_the_next(self):
         t = self.tools()
         good = t.draft_save(self.repo(), [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}])['id']

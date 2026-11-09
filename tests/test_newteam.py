@@ -88,14 +88,50 @@ class CheckSaveTest(unittest.TestCase):
         self.assertEqual(newteam.project_check(self.repo), {'ok': True})
         plain = os.path.join(self.d, 'plain')
         os.makedirs(plain)
-        self.assertEqual(newteam.project_check(plain), {'ok': False, 'reason':
-                         "This folder isn't a git repository. Assieme gives each agent its own branch, so it needs one."})
+        self.assertEqual(newteam.project_check(plain), {'ok': False, 'reason': newteam.NEEDS_SAVE, 'setup': True})
+        self.assertEqual(newteam.NEEDS_SAVE, "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one.")
 
     def test_project_check_needs_a_first_commit(self):
         empty = os.path.join(self.d, 'empty')
         os.makedirs(empty)
         subprocess.run(['git', '-C', empty, 'init', '-q'], check=True)
-        self.assertEqual(newteam.project_check(empty), {'ok': False, 'reason': newteam.NO_COMMITS})
+        self.assertEqual(newteam.project_check(empty), {'ok': False, 'reason': newteam.NEEDS_SAVE, 'setup': True})
+
+    def test_a_missing_folder(self):
+        self.assertEqual(newteam.project_check(os.path.join(self.d, 'nope')), {'ok': False, 'reason': "This folder doesn't exist."})
+
+    def test_missing_developer_tools_come_first(self):
+        with mock.patch.object(newteam.setup, 'git_ready', return_value=False):
+            got = newteam.project_check(os.path.join(self.d, 'nope'))
+        self.assertEqual((got['ok'], got['tools']), (False, True))
+
+    def test_home_is_refused_however_it_is_written(self):
+        link = os.path.join(self.d, 'homelink')
+        os.symlink(self.repo, link)
+        refused = {'ok': False, 'reason': newteam.TOO_LARGE, 'too_large': True}
+        with mock.patch.dict(os.environ, {'HOME': self.repo}), \
+                mock.patch.object(newteam.setup, 'folder_preview', side_effect=AssertionError('walked')), \
+                mock.patch.object(newteam.worktree, 'check_repo', side_effect=AssertionError('walked')):
+            for p in (self.repo, self.repo + '/', link, '~', '~/'):
+                self.assertEqual(newteam.project_check(p), refused, p)
+            self.assertEqual(newteam.project_check('/'), refused)
+        self.assertEqual(newteam.TOO_LARGE, "This folder is very large. Choose the folder for just this project.")
+
+    def test_a_huge_folder_without_a_repository_is_too_large(self):
+        plain = os.path.join(self.d, 'plain')
+        os.makedirs(plain)
+        with mock.patch.object(newteam.setup, 'folder_preview', side_effect=newteam.setup.TooLarge('big')):
+            self.assertEqual(newteam.project_check(plain), {'ok': False, 'reason': newteam.TOO_LARGE, 'too_large': True})
+
+    def test_uncommitted_files_are_counted_without_the_assieme_folder(self):
+        os.makedirs(os.path.join(self.repo, '.assieme', 'worktrees'))
+        open(os.path.join(self.repo, '.assieme', 'worktrees', 'x'), 'w').close()
+        self.assertEqual(newteam.project_check(self.repo), {'ok': True})
+        for n in ('a b.txt', 'caf\u00e9.md'):
+            open(os.path.join(self.repo, n), 'w').close()
+        os.makedirs(os.path.join(self.repo, 'sub'))
+        open(os.path.join(self.repo, 'sub', 'c.txt'), 'w').close()
+        self.assertEqual(newteam.project_check(self.repo), {'ok': True, 'uncommitted': 3})
 
     def assertField(self, roles, field, message):
         with self.assertRaises(newteam.NewTeamError) as e:
