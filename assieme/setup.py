@@ -84,11 +84,18 @@ class TooLarge(SetupError):
     pass
 
 
+class Unfinished(SetupError):
+    pass
+
+
 # What Set up this folder leaves out of the first version, by name.
 EXCLUDE = ('.env', '.env.*', '*.pem', '*.key', '*.p12', 'id_rsa*', 'id_ed25519*', 'credentials*', 'secrets*',
            'node_modules', '.venv', 'venv', '__pycache__', '.DS_Store')
 MAX_FILES = 20000
 LIST_TIMEOUT_S = 15
+SAVE_TIMEOUT_S = 110  # add and commit may run the person's hooks; just under the app's own 120 s
+# What git leaves in its folder while a merge or similar is unfinished.
+UNFINISHED = ('MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'BISECT_LOG', 'rebase-merge', 'rebase-apply')
 ASSIEME_DIR = '.assieme'
 FIRST_MESSAGE = 'First version, saved by Assieme'
 BEFORE_TEAM_MESSAGE = 'Saved by Assieme before starting a team'
@@ -138,16 +145,23 @@ def _has_commits(project):
         return False
 
 
+def _repo_state(project):
+    """(git folder, this folder's path inside the repository, ending in `/` or empty)."""
+    gitdir, prefix = _git(project, 'rev-parse', '--absolute-git-dir', '--show-prefix')[0].decode().split('\n')[:2]
+    return gitdir, prefix
+
+
 def changed_files(project, untracked='all'):
-    """Paths `git status --porcelain -z` reports, leaving out .assieme/."""
-    entries = _names(_git(project, 'status', '--porcelain', '-z', f'--untracked-files={untracked}')[0])
+    """Paths `git status --porcelain -z` reports inside this folder, relative to it, leaving out .assieme/."""
+    prefix = _repo_state(project)[1]
+    entries = _names(_git(project, 'status', '--porcelain', '-z', f'--untracked-files={untracked}', '--', '.')[0])
     paths, skip = [], False
     for e in entries:
         if skip:  # the old name of a rename or copy
             skip = False
             continue
         skip = e[0] in 'RC'
-        paths.append(e[3:])
+        paths.append(e[3:].removeprefix(prefix))  # status paths start at the repository's root
     return [p for p in paths if p != ASSIEME_DIR and not p.startswith(ASSIEME_DIR + '/')]
 
 
@@ -157,6 +171,10 @@ def _plan(project):
     if too_broad(project):
         raise TooLarge('This folder is too large.')
     in_repo = _is_repo(project)
+    if in_repo:
+        gitdir = _repo_state(project)[0]
+        if any(os.path.exists(os.path.join(gitdir, m)) for m in UNFINISHED) or _git(project, 'ls-files', '-u')[0]:
+            raise Unfinished('A git merge or similar is in progress in this folder. Finish it first, then come back.')
     x = [a for p in EXCLUDE for a in ('-x', p)]
     with tempfile.TemporaryDirectory() as tmp:
         if in_repo:
@@ -177,7 +195,7 @@ def _plan(project):
 
 
 def folder_preview(project):
-    plan = _plan(project)
+    plan = _plan(os.path.expanduser(project))
     files = plan['files']
     return {'files': len(files), 'sample': files[:500], 'left_out': plan['left_out'], 'empty': not files, 'first': plan['first']}
 
@@ -200,6 +218,7 @@ def _add_exclusions(project):
 
 def folder_save(project):
     """git init if needed, the exclusions, stage exactly the previewed files, one commit. Safe to repeat after a failure."""
+    project = os.path.expanduser(project)
     plan = _plan(project)  # refuses a too-broad folder even if the app already checked
     first = plan['first']
     if not first and not plan['files']:
@@ -207,14 +226,34 @@ def folder_save(project):
     if not _is_repo(project):
         _git(project, 'init', '-q')
     _add_exclusions(project)
+    lock = os.path.join(_repo_state(project)[0], 'index.lock')
+    names = b'\0'.join(f.encode() for f in plan['files'])
     if plan['files']:  # -A with a pathspec also stages deletions of those paths
-        _git(project, '--literal-pathspecs', 'add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul',
-             stdin=b'\0'.join(f.encode() for f in plan['files']))
+        _write(project, lock, '--literal-pathspecs', 'add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul', stdin=names)
     who = []
     if not all(_config(project, k) for k in ('user.name', 'user.email')):
         who = ['-c', 'user.name=Assieme', '-c', 'user.email=assieme@localhost']  # this one commit only
-    _git(project, *who, 'commit', '-q', *(['--allow-empty'] if first else []), '-m', FIRST_MESSAGE if first else BEFORE_TEAM_MESSAGE)
+    # Named paths: anything the person staged elsewhere in the repository stays out of this commit.
+    only = ['--literal-pathspecs'] if plan['files'] else []
+    tail = ['--pathspec-from-file=-', '--pathspec-file-nul'] if plan['files'] else []
+    _write(project, lock, *only, *who, 'commit', '-q', *(['--allow-empty'] if first else []),
+           '-m', FIRST_MESSAGE if first else BEFORE_TEAM_MESSAGE, *tail, stdin=names)
     return {'ok': True}
+
+
+def _write(project, lock, *args, stdin=None):
+    """A git call that changes the repository. Killed for taking too long, git leaves .git/index.lock, which would fail
+    every later git command, so one that was not there before the call is removed."""
+    had = os.path.exists(lock)
+    try:
+        return _git(project, *args, timeout=SAVE_TIMEOUT_S, stdin=stdin)
+    except TooLarge:  # the only way _git raises it is the timeout
+        if not had:
+            try:
+                os.remove(lock)
+            except OSError:
+                pass
+        raise SetupError('Saving took too long. Check for a slow git hook in this folder, then try again.')
 
 
 def _config(project, key):
@@ -225,6 +264,7 @@ def _config(project, key):
 
 
 def folder_create(path):
+    path = os.path.expanduser(path)
     if os.path.lexists(path):
         raise SetupError('That folder already exists.')
     try:

@@ -142,6 +142,29 @@ class CheckSaveTest(unittest.TestCase):
         open(os.path.join(self.repo, 'sub.txt'), 'w').close()
         self.assertEqual(newteam.project_check(self.repo), {'ok': True, 'uncommitted': 1})
 
+    def test_a_merge_in_progress_is_not_offered_a_save(self):
+        g = lambda *a: subprocess.run(['git', '-C', self.repo, '-c', 'user.name=t', '-c', 'user.email=t@t', *a], capture_output=True, check=True)
+        g('checkout', '-q', '-b', 'other')
+        open(os.path.join(self.repo, 'a.txt'), 'w').write('theirs')
+        g('add', '-A'), g('commit', '-q', '-m', 'o')
+        g('checkout', '-q', '-')
+        open(os.path.join(self.repo, 'a.txt'), 'w').write('ours')
+        g('add', '-A'), g('commit', '-q', '-m', 'm')
+        subprocess.run(['git', '-C', self.repo, 'merge', 'other'], capture_output=True)
+        got = newteam.project_check(self.repo)
+        self.assertEqual(got, {'ok': False, 'reason': 'A git merge or similar is in progress in this folder. Finish it first, then come back.'})
+
+    def test_a_tilde_path_is_the_homes_folder_everywhere(self):
+        with mock.patch.dict(os.environ, {'HOME': self.d}):
+            self.assertEqual(newteam.setup.folder_preview('~/shop')['files'], 0)
+            open(os.path.join(self.repo, 'a.txt'), 'w').close()
+            self.assertEqual(newteam.setup.folder_preview('~/shop')['files'], 1)
+            newteam.setup.folder_save('~/shop')
+            self.assertEqual(newteam.project_check('~/shop'), {'ok': True})
+            newteam.setup.folder_create('~/fresh')
+        self.assertTrue(os.path.isdir(os.path.join(self.d, 'fresh')))
+        self.assertFalse(os.path.exists('~'))
+
     def test_a_slow_listing_is_too_large_not_hidden(self):
         with mock.patch.object(newteam.setup, 'uncommitted', side_effect=newteam.setup.TooLarge('slow')):
             self.assertEqual(newteam.project_check(self.repo), {'ok': False, 'reason': newteam.TOO_LARGE, 'too_large': True})
@@ -256,6 +279,12 @@ class StarterTest(unittest.TestCase):
 
     def starter(self, rt=None, which=ALL):
         return newteam.Starter(rt or Rt(), self.teams, thread=self.manual, now=lambda: self.clock[0], which=which)
+
+    def test_start_expands_a_tilde_path(self):
+        s = self.starter()
+        with mock.patch.dict(os.environ, {'HOME': self.d}):
+            self.assertEqual(s.start('~/repo', 'Fix login', ROLES, {}), {'team': 'repo'})
+        self.assertEqual(s.records()[0]['project'], self.repo)
 
     def test_start_returns_before_agents_and_reports(self):
         s = self.starter()

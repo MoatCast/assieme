@@ -124,6 +124,8 @@ def project_check(path):
         n = setup.uncommitted(path)
     except setup.TooLarge:
         return too_large
+    except setup.Unfinished as e:
+        return {'ok': False, 'reason': str(e)}  # shown as the folder's problem; nothing is offered to save
     except setup.SetupError:
         n = 0
     return {'ok': True, 'uncommitted': n} if n else {'ok': True}
@@ -236,6 +238,7 @@ class Starter:
 
     def start(self, project, task, roles, practices):
         validate(roles)
+        project = os.path.expanduser(project)
         check = project_check(project)
         if not check['ok']:
             raise NewTeamError('project', check['reason'])

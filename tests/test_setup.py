@@ -351,6 +351,104 @@ class FolderSave(FolderTest):
             setup.folder_save('/')
 
 
+class FolderOfARepository(FolderTest):
+    def mono(self):
+        self.p = os.path.join(self.d, 'mono')
+        os.makedirs(self.p)
+        self.repo()
+        self.write('sub/in.txt')
+        self.write('other/out.txt')
+        self.commit_all()
+        self.sub = os.path.join(self.p, 'sub')
+
+    def test_only_changes_inside_the_chosen_folder_count_and_are_saved(self):
+        self.mono()
+        self.write('sub/in.txt', 'changed')
+        self.write('sub/new.txt')
+        self.write('other/out.txt', 'changed')
+        self.write('other/b.txt')
+        git(self.p, 'add', 'other/out.txt')  # staged by the person: still not ours
+        got = setup.folder_preview(self.sub)
+        self.assertEqual((got['files'], got['sample']), (2, ['in.txt', 'new.txt']))
+        self.assertEqual(setup.uncommitted(self.sub), 2)
+        setup.folder_save(self.sub)
+        changed = git(self.p, 'diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD').splitlines()
+        self.assertEqual(sorted(changed), ['sub/in.txt', 'sub/new.txt'])
+        self.assertEqual(sorted(git(self.p, 'status', '--porcelain').splitlines()), ['?? other/b.txt', 'M  other/out.txt'])
+
+    def test_a_deletion_inside_the_folder_is_saved(self):
+        self.mono()
+        os.remove(os.path.join(self.sub, 'in.txt'))
+        self.assertEqual(setup.folder_preview(self.sub)['sample'], ['in.txt'])
+        setup.folder_save(self.sub)
+        self.assertEqual(git(self.p, 'diff-tree', '--no-commit-id', '--name-status', '-r', 'HEAD').split(), ['D', 'sub/in.txt'])
+
+
+def conflicting_merge(test):
+    test.repo()
+    git(test.p, 'checkout', '-q', '-b', 'other')
+    test.write('base.txt', 'theirs')
+    test.commit_all()
+    git(test.p, 'checkout', '-q', '-')
+    test.write('base.txt', 'ours')
+    test.commit_all()
+    subprocess.run(['git', '-C', test.p, 'merge', 'other'], capture_output=True)  # conflicts, on purpose
+
+
+class UnfinishedGit(FolderTest):
+    def test_save_refuses_in_the_middle_of_a_merge(self):
+        conflicting_merge(self)
+        before = git(self.p, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(setup.SetupError, 'merge or similar is in progress'):
+            setup.folder_save(self.p)
+        self.assertEqual(git(self.p, 'rev-parse', 'HEAD'), before)
+        self.assertTrue(os.path.exists(os.path.join(self.p, '.git', 'MERGE_HEAD')))
+
+    def test_preview_and_count_say_why_instead_of_counting(self):
+        conflicting_merge(self)
+        with self.assertRaises(setup.Unfinished):
+            setup.uncommitted(self.p)
+
+    def test_a_rebase_or_cherry_pick_in_progress_counts_too(self):
+        self.repo()
+        self.write('a.txt')
+        for name in ('CHERRY_PICK_HEAD', 'REVERT_HEAD', 'BISECT_LOG', 'rebase-merge', 'rebase-apply'):
+            marker = os.path.join(self.p, '.git', name)
+            os.mkdir(marker) if name.startswith('rebase') else open(marker, 'w').close()
+            with self.assertRaises(setup.Unfinished, msg=name):
+                setup.folder_save(self.p)
+            shutil.rmtree(marker) if os.path.isdir(marker) else os.remove(marker)
+        setup.folder_save(self.p)
+
+
+class SlowSave(FolderTest):
+    def test_a_slow_commit_hook_is_a_saving_problem_and_leaves_no_lock(self):
+        self.repo()
+        self.write('a.txt')
+        hook = os.path.join(self.p, '.git', 'hooks', 'pre-commit')
+        with open(hook, 'w') as f:
+            f.write('#!/bin/sh\nsleep 2\n')
+        os.chmod(hook, 0o755)
+        with mock.patch.object(setup, 'SAVE_TIMEOUT_S', 0.3):
+            with self.assertRaises(setup.SetupError) as cm:
+                setup.folder_save(self.p)
+        self.assertNotIsInstance(cm.exception, setup.TooLarge)
+        self.assertIn('Saving', str(cm.exception))
+        self.assertFalse(os.path.exists(os.path.join(self.p, '.git', 'index.lock')))
+        os.remove(hook)
+        setup.folder_save(self.p)  # a retry works
+
+    def test_a_lock_that_was_there_before_is_not_ours_to_remove(self):
+        self.repo()
+        self.write('a.txt')
+        lock = os.path.join(self.p, '.git', 'index.lock')
+        open(lock, 'w').close()
+        with mock.patch.object(setup, 'SAVE_TIMEOUT_S', 0.3):
+            with self.assertRaises(setup.SetupError):
+                setup.folder_save(self.p)
+        self.assertTrue(os.path.exists(lock))
+
+
 class FolderCreate(FolderTest):
     def test_new_folder_is_made(self):
         path = os.path.join(self.d, 'fresh')
