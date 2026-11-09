@@ -177,6 +177,18 @@ test("Privacy in the footnote opens Settings at Privacy", async () => {
   expect(onOpenSettings).toHaveBeenCalledWith("privacy");
 });
 
+// Real-window find: Team.css has a bare `.done` card rule that turned the "Installed" row into a centred card.
+test("checklist rows use no class that another screen styles on its own", async () => {
+  // @ts-expect-error type error without @types/node package, as in vite.config.ts
+  const { readFileSync, readdirSync } = (await import("node:fs")) as { readFileSync: (f: string, e: string) => string; readdirSync: (d: string) => string[] };
+  const bare = new Set<string>();
+  for (const f of readdirSync("src").filter((n) => n.endsWith(".css")))
+    for (const m of readFileSync(`src/${f}`, "utf8").matchAll(/^\.([\w-]+)\s*\{/gm)) bare.add(m[1]);
+  await show(status());
+  const row = screen.getByText("Developer tools").closest(".check-row") as HTMLElement;
+  expect([...row.classList].filter((c) => bare.has(c))).toEqual([]);
+});
+
 test("status isn't polled while it is switched off", async () => {
   b.setupStatus.mockResolvedValue(status());
   function Off() { useSetupStatus(false); return null; }

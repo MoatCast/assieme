@@ -272,7 +272,7 @@
 .first-run .check-row svg { flex-shrink: 0; }
 .first-run .check-name { font-size: 14px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
 .first-run .check-note { font-size: 13px; line-height: 18px; color: var(--quiet-slate); }
-.first-run .check-row.done .check-name { flex: 1; }
+.first-run .check-row.ok .check-name { flex: 1; }
 .first-run .check-text { display: flex; flex-direction: column; gap: 3px; }
 .first-run .check-text.grow { flex: 1; }
 .first-run .check-body { flex: 1; display: flex; flex-direction: column; gap: 10px; }

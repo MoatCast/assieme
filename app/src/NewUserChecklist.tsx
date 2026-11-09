@@ -19,7 +19,7 @@ function Mark({ ok }: { ok: boolean }) {
 
 /** A row that is done: the name and a short note. */
 const Done = ({ name, note }: { name: string; note: string }) => (
-  <div className="check-row done">
+  <div className="check-row ok">
     <Mark ok />
     <span className="check-name">{name}</span>
     <span className="check-note">{note}</span>
