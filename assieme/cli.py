@@ -117,7 +117,11 @@ def _status(args):
 
 def _service(switch):
     if switch == 'install':
-        print(f'The brain runs in the background now and at every login ({service.install()}).')
+        try:
+            print(f'The brain runs in the background now and at every login ({service.install()}).')
+        except RuntimeError as e:  # the app shows this: a sentence, not a traceback
+            print(f"Couldn't start the background service: {e}", file=sys.stderr)
+            return 1
     elif switch == 'uninstall':
         service.uninstall()
         print('The background brain is stopped and removed.')
