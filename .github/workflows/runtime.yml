@@ -1,0 +1,25 @@
+# The runtime's own tests on macOS and Linux. Zig is pinned: Ghostty's build asks for 0.16.
+name: runtime
+on:
+  push:
+    paths: ['runtime/**', '.github/workflows/runtime.yml']
+  pull_request:
+    paths: ['runtime/**', '.github/workflows/runtime.yml']
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: runtime
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.16.0
+      - run: cargo test --locked

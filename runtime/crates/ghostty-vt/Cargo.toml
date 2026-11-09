@@ -1,0 +1,12 @@
+# Changed by Assieme: renamed and adapted from herdr-core v0.1.19; see NOTICE.
+[package]
+name = "ghostty-vt"
+version = "0.0.0"
+description = "Minimal binding to upstream libghostty-vt (vendor/ghostty)"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+links = "ghostty-vt"
+
+[lints]
+workspace = true
