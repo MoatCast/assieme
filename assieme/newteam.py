@@ -9,7 +9,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, live, launch, preset, runtime, settings, team, worktree
+from . import ask, live, launch, preset, runtime, settings, setup, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -200,7 +200,7 @@ class Starter:
     """Starts teams for the app: checks and saves at once, then runs 7a's `team.start` in a thread, keeping a
     progress record per team for the snapshot. Records live in memory; the teams themselves outlive the brain."""
 
-    def __init__(self, rt, teams, thread=threading.Thread, now=time.time, which=shutil.which):
+    def __init__(self, rt, teams, thread=threading.Thread, now=time.time, which=setup.agent_path):
         self.rt, self.teams, self.thread, self.now, self.which = rt, teams, thread, now, which
         self.lock, self.recs, self.busy = threading.Lock(), [], {}  # busy: project → name, while checks run
 
@@ -384,7 +384,7 @@ def _team_from(text, installed):
     return {'roles': roles, 'why': str(data.get('why', ''))}
 
 
-def suggest(project, size, review, budget, run=subprocess.run, which=shutil.which):
+def suggest(project, size, review, budget, run=subprocess.run, which=setup.agent_path):
     """Help me choose: the person's own Claude Code (else Codex), read-only in the project, suggests a team."""
     have = ask.installed(which)
     pre = "Couldn't get a suggestion: "

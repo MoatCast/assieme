@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
+from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, setup, status, team, teammap, worktree
 
 
 def main(argv=None):
@@ -172,7 +172,8 @@ def _serve():
                  **reviews.handlers(),
                  **tools.handlers(),
                  **connect.handlers(),
-                 **menu.handlers()},
+                 **menu.handlers(),
+                 **setup.handlers(rt)},
                 tick=tick)
     return 0
 

@@ -5,8 +5,9 @@ The brief is not on the command line: it is sent after the agent's first turn en
 import json
 import re
 import shlex
-import shutil
 import sys
+
+from . import setup
 
 CLIS = {'claude': 'claude', 'codex': 'codex'}
 NAMES = {'claude': 'Claude Code', 'codex': 'Codex'}
@@ -28,7 +29,7 @@ def check_model_effort(agent, model, effort):
 HOOKS = {'SessionStart': 'idle', 'UserPromptSubmit': 'working', 'Stop': 'idle', 'PermissionRequest': 'blocked'}
 
 
-def missing_clis(roles, which=shutil.which):
+def missing_clis(roles, which=setup.agent_path):
     return sorted({CLIS[r.agent] for r in roles if not which(CLIS[r.agent])})
 
 
@@ -77,7 +78,7 @@ def _codex(role):
 BLOCK_PUSH = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'url.assieme-push-blocked://.pushInsteadOf', 'GIT_CONFIG_VALUE_0': ''}
 
 
-def argv(role, block_push=True, which=shutil.which):
+def argv(role, block_push=True, which=setup.agent_path):
     """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on."""
     a = _claude(role) if role.agent == 'claude' else _codex(role)
     a[0] = which(a[0]) or a[0]

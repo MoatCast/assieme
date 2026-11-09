@@ -5,10 +5,9 @@ argument after it); the environment is cleaned of agent-session markers.
 """
 import json
 import os
-import shutil
 import subprocess
 
-from . import launch, preset, runtime
+from . import launch, preset, runtime, setup
 
 
 class AskError(Exception):
@@ -17,14 +16,14 @@ class AskError(Exception):
         self.missing = missing  # no agent CLI installed at all
 
 
-def installed(which=shutil.which):
+def installed(which=setup.agent_path):
     return [a for a in preset.AGENTS if which(launch.CLIS[a])]
 
 
 NO_TOOLS = ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Task']  # with Edit/Write/NotebookEdit/Bash: nothing left
 
 
-def ask_agent(prompt, cwd, timeout_s, run=subprocess.run, which=shutil.which, timeout_label=None, tools=True):
+def ask_agent(prompt, cwd, timeout_s, run=subprocess.run, which=setup.agent_path, timeout_label=None, tools=True):
     """The agent's answer text (Claude's --output-format json wrapper removed); AskError in words otherwise.
 
     tools=False: a pure text answer. Use it whenever the prompt quotes text an agent printed, which may carry

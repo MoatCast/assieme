@@ -5,13 +5,12 @@ Answers newline JSON-RPC on a Unix socket only this user can open, and runs one 
 """
 import json
 import os
-import shutil
 import socketserver
 import threading
 import time
 import traceback
 
-from . import runtime, settings, status, team, teammap
+from . import runtime, settings, setup, status, team, teammap
 
 CLIS = {'claude': 'claude', 'codex': 'codex', 'hc': 'hc', 'herdr': 'herdr'}
 
@@ -21,7 +20,7 @@ def brain_socket_path():
     return os.path.join(base, 'assieme', 'brain.sock')
 
 
-def snapshot(claude_dir, codex_dir, now, rt, which=shutil.which, hours=12, starting=()):
+def snapshot(claude_dir, codex_dir, now, rt, which=setup.agent_path, hours=12, starting=()):
     agents = status.collect(claude_dir, codex_dir, now, hours, herdr=status.herdr_terminals(),
                             running=status.running_cwds())
     agents = [a for a in agents if not teammap.is_own_session(a)]
