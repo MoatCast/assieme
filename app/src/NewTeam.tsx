@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { checkProject, fieldOf, pickFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type RoleDraft } from "./bridge";
+import { checkProject, fieldOf, pickFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type RoleDraft, type TeamDraft } from "./bridge";
 import HelpMeChoose from "./HelpMeChoose";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
 import RecommendedSetup from "./RecommendedSetup";
@@ -17,7 +17,7 @@ export function badName(roles: RoleDraft[]): number {
 }
 
 /** New team, step 1: project, task, starting team and agents. Step 2 is Recommended setup. */
-export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => void }) {
+export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: TeamDraft | null; onClose: () => void }) {
   const installed = AGENTS.filter(([id]) => clis[id]);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [practices, setPractices] = useState<Practices | null>(null);
@@ -48,8 +48,14 @@ export default function NewTeam({ clis, onClose }: { clis: Clis; onClose: () => 
       setPresets(all);
       setPractices(p.practices);
       setModels(p.models);
-      setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, p.practice_defaults?.[g.id] !== false])));
-      if (all.length) {
+      setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, (draft?.practices ?? p.practice_defaults)?.[g.id] !== false])));
+      if (draft) {
+        setProject(draft.project);
+        setTask(draft.task);
+        setRoles(fit(draft.roles));
+        setEdited(true); // a preset's click must ask before replacing it
+        setWhy(draft.why);
+      } else if (all.length) {
         setChosen(all[0].id);
         setRoles(fit(all[0].roles));
       }

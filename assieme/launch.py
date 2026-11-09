@@ -36,9 +36,15 @@ def hook_command(state):
     return f'{shlex.quote(sys.executable)} -P -m assieme.hook {state}'  # -P: never import from the worktree
 
 
+def _mcp():
+    return {'command': sys.executable, 'args': ['-P', '-m', 'assieme', 'mcp']}  # -P: never import from the worktree
+
+
 def _claude(role):
-    settings = {'hooks': {e: [{'hooks': [{'type': 'command', 'command': hook_command(s)}]}] for e, s in HOOKS.items()}}
-    a = ['claude', '--settings', json.dumps(settings)]
+    # Its own team's message and report tools: asking the person about each one would defeat them.
+    settings = {'hooks': {e: [{'hooks': [{'type': 'command', 'command': hook_command(s)}]}] for e, s in HOOKS.items()},
+                'permissions': {'allow': ['mcp__assieme']}}
+    a = ['claude', '--settings', json.dumps(settings), '--mcp-config', json.dumps({'mcpServers': {'assieme': _mcp()}})]
     if role.model:
         a += ['--model', role.model]
     if role.effort:
@@ -53,6 +59,11 @@ def _codex(role):
     for e, s in HOOKS.items():
         # A JSON string is a valid TOML basic string.
         a += ['-c', f'hooks.{e}=[{{hooks=[{{type="command",command={json.dumps(hook_command(s))}}}]}}]']
+    # Codex hands MCP servers a short list of variables: these say which agent this is.
+    a += ['-c', f'mcp_servers.assieme.command={json.dumps(_mcp()["command"])}',
+          '-c', f'mcp_servers.assieme.args={json.dumps(_mcp()["args"])}',
+          '-c', 'mcp_servers.assieme.env_vars=["HC_SESSION","HC_TERMINAL_ID","XDG_STATE_HOME"]',
+          '-c', 'mcp_servers.assieme.default_tools_approval_mode="approve"']
     if role.model:
         a += ['-m', role.model]
     if role.effort:

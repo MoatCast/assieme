@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  getSettings, listTeams, quietPairs, quietSet, serviceInstall, serviceRunning, setSetting, stopTeam, teamPresets,
-  type Practices, type QuietPair, type Settings as Values, type TeamListing,
+  assistantsConnect, assistantsDisconnect, assistantsStatus, getSettings, listTeams, quietPairs, quietSet, serviceInstall, serviceRunning, setSetting, stopTeam, teamPresets,
+  type Assistants, type Practices, type QuietPair, type Settings as Values, type TeamListing,
 } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
 import "./Settings.css";
@@ -37,6 +37,45 @@ function Head({ title, children }: { title: string; children: React.ReactNode })
   return <div className="set-head"><h1>{title}</h1><p>{children}</p></div>;
 }
 
+function YourAssistants() {
+  const [got, setGot] = useState<Assistants | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = async (call: () => Promise<Assistants>) => {
+    setBusy(true);
+    try {
+      const a = await call();
+      setGot(a);
+      setError(a.problems.join(" "));
+    } catch (e) {
+      setError(String(e));
+    }
+    setBusy(false);
+  };
+  useEffect(() => { void run(assistantsStatus); }, []);
+  const clients = (got?.clients ?? []).filter((c) => !c.blocked); // the Claude app can't be connected while it's open
+  const blocked = got?.clients.some((c) => c.blocked) ?? false;
+  const labels = clients.map((c) => c.label);
+  const names = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}` : labels[0] ?? "";
+  const connected = clients.length > 0 && clients.every((c) => c.connected);
+  const quit = blocked ? " To add the Claude app, quit it, then come back here." : "";
+  const sub = !got ? "Let your assistants see your teams and help design new ones."
+    : !clients.length && !blocked ? "Install Claude Code or Codex, and they can see your teams and help design new ones."
+    : !clients.length ? "To let the Claude app see your teams and help design new ones, quit it, then come back here."
+    : connected ? `${names} can see your teams and help design new ones.${quit}`
+    : `Let ${names} see your teams and help design new ones. They ask you before changing anything.${quit}`;
+  return (
+    <>
+      <Row title="Your assistants" sub={sub}>
+        {connected && <span className="state good"><i />Connected</span>}
+        {connected && <button type="button" className="btn-small" disabled={busy} onClick={() => run(assistantsDisconnect)}>Disconnect</button>}
+        {got && clients.length > 0 && !connected && <button type="button" className="btn-small primary" disabled={busy} onClick={() => run(assistantsConnect)}>Connect</button>}
+      </Row>
+      {error && <p className="set-error assistants-error">{error}</p>}
+    </>
+  );
+}
+
 function General({ onShowFirstRun }: { onShowFirstRun: () => void }) {
   const [running, setRunning] = useState<boolean | null>(null);
   const [error, setError] = useState("");
@@ -62,6 +101,7 @@ function General({ onShowFirstRun }: { onShowFirstRun: () => void }) {
         <Row title="First run" sub="See the agents and projects Assieme found on this Mac.">
           <button type="button" className="btn-small" onClick={onShowFirstRun}>Show First run</button>
         </Row>
+        <YourAssistants />
       </div>
       {error && <p className="set-error">{error}</p>}
     </>
@@ -260,6 +300,8 @@ function Privacy({ values, set }: { values: Values; set: (k: string, v: unknown)
           <Row title="Activity" sub="Which agent, what was done and why. Not what your agents said or asked." />
           <Row title="Notes that can wait" sub="Held as written until they’re delivered, then removed." />
           <Row title="Suggested answers" sub="Assieme holds them in memory for a day. Your Claude Code or Codex logs the question as it logs any session." />
+          <Row title="Agent reports and drafts" sub="What an agent said is blocking it, until its next turn. A team an assistant drafted, until it opens in New team." />
+          <Row title="Your assistants" sub="Once connected, an assistant can read your agents’ terminals when asked. What it reads goes wherever it normally sends your work." />
         </div>
       </div>
     </>

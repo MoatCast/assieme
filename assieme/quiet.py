@@ -181,9 +181,9 @@ def batch_text(notes):
     return '\n'.join(lines)
 
 
-def hold_note(to, to_cwd, text, session, socket, now=None):
-    """A note from Assieme itself, delivered the same way: with the agent's next turn."""
-    _hold({'at': now or time.time(), 'from_cwd': '', 'from': 'assieme', 'to': to, 'to_cwd': _real(to_cwd), 'text': text,
+def hold_note(to, to_cwd, text, session, socket, now=None, sender='assieme', from_cwd=''):
+    """A note from Assieme itself or an agent's message tool, delivered the same way: with the agent's next turn."""
+    _hold({'at': now or time.time(), 'from_cwd': from_cwd, 'from': sender, 'to': to, 'to_cwd': _real(to_cwd), 'text': text,
            'session': session, 'socket': socket})
 
 

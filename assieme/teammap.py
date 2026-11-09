@@ -361,9 +361,9 @@ class Brain:
         return {'team': team, 'strip': built['strip'],
                 'panes': [p for p in built['panes'] if p['reachable']]}
 
-    def act(self, team, role, fix, button):
+    def act(self, team, role, fix, button, by='you'):
         _, _, _, rt = self._resolve(team, status.now_utc())
-        return panes.act(team, role, fix, button, lambda: self.map(team), rt)
+        return panes.act(team, role, fix, button, lambda: self.map(team), rt, by=by)
 
     def detail(self, team, role):
         now = status.now_utc()

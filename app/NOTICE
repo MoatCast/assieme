@@ -10,3 +10,6 @@ This app bundles, unmodified:
 - Python 3.13 from python-build-standalone, https://github.com/astral-sh/python-build-standalone
   Python is licensed under the Python Software Foundation License; the build's own licence files
   are inside the bundled python folder (python/lib/python3.13/LICENSE.txt and the build's licences).
+
+- The official MCP Python SDK (mcp), https://github.com/modelcontextprotocol/python-sdk, MIT License, with the packages
+  it installs. Their licence files are inside the bundled python folder (python/lib/python3.13/site-packages).

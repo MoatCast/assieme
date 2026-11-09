@@ -16,7 +16,7 @@ repo=$(cd "$here/../.." && pwd)
 res="$repo/app/src-tauri/resources"
 
 check() {
-  "$res/python/bin/python3" -P -c 'import assieme, tomllib' || { echo "bundle broken: Python or assieme"; exit 1; }
+  "$res/python/bin/python3" -P -c 'import assieme, tomllib, assieme.mcpserver' || { echo "bundle broken: Python or assieme"; exit 1; }
   "$res/hc-bin/hc" --version | grep -q "$HC_VERSION" || { echo "bundle broken: hc is not $HC_VERSION"; exit 1; }
   echo "bundle ok"
 }
@@ -49,5 +49,5 @@ printf '#!/bin/sh\nexec "$(dirname "$0")/../hc/%s" "$@"\n' "${bin#"$res/hc/"}" >
 chmod +x "$res/hc-bin/hc"
 
 echo "Assieme"
-PIP_DISABLE_PIP_VERSION_CHECK=1 "$res/python/bin/python3" -m pip install --quiet --no-deps --no-warn-script-location "$repo"
+PIP_DISABLE_PIP_VERSION_CHECK=1 "$res/python/bin/python3" -m pip install --quiet --no-warn-script-location "$repo"
 check

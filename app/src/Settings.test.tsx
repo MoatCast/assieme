@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 const b = vi.hoisted(() => ({
   getSettings: vi.fn(), setSetting: vi.fn(), quietPairs: vi.fn(), quietSet: vi.fn(), listTeams: vi.fn(), stopTeam: vi.fn(),
   serviceInstall: vi.fn(), serviceRunning: vi.fn(), teamPresets: vi.fn(), setGroups: vi.fn(),
+  assistantsStatus: vi.fn(), assistantsConnect: vi.fn(), assistantsDisconnect: vi.fn(),
 }));
 vi.mock("./bridge", () => b);
 
@@ -34,6 +35,7 @@ beforeEach(() => {
   b.quietSet.mockResolvedValue({ ok: true });
   b.listTeams.mockResolvedValue({ teams: [], found_agents: [] });
   b.serviceRunning.mockResolvedValue(true);
+  b.assistantsStatus.mockResolvedValue({ clients: [], problems: [] });
   b.teamPresets.mockResolvedValue({ practices: {
     groups: [{ id: "messages", title: "Fewer, cheaper messages", summary: "Short notes.", rules: ["1", "2", "3"] }],
     basics: [{ title: "One coordinator", detail: "does outside work" }],
@@ -210,4 +212,76 @@ test("Change the groups: Cancel changes nothing, and an empty list says so", asy
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(close).toHaveBeenCalled();
   expect(b.setGroups).not.toHaveBeenCalled();
+});
+
+const CLIENTS = (connected: boolean) => ({
+  problems: [],
+  clients: [
+    { id: "claude", label: "Claude Code", connected }, { id: "codex", label: "Codex", connected },
+    { id: "desktop", label: "the Claude app", connected },
+  ],
+});
+
+test("Connect connects every assistant, and Disconnect takes it back", async () => {
+  b.assistantsStatus.mockResolvedValue(CLIENTS(false));
+  b.assistantsConnect.mockResolvedValue(CLIENTS(true));
+  b.assistantsDisconnect.mockResolvedValue(CLIENTS(false));
+  await open();
+  screen.getByText("Let Claude Code, Codex and the Claude app see your teams and help design new ones. They ask you before changing anything.");
+  expect(screen.queryByText("Connected")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+  await flush();
+  expect(b.assistantsConnect).toHaveBeenCalledOnce();
+  screen.getByText("Connected");
+  screen.getByText("Claude Code, Codex and the Claude app can see your teams and help design new ones.");
+  fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
+  await flush();
+  expect(b.assistantsDisconnect).toHaveBeenCalledOnce();
+  screen.getByRole("button", { name: "Connect" });
+});
+
+test("Connecting partly says what went wrong and offers Connect again", async () => {
+  b.assistantsStatus.mockResolvedValue(CLIENTS(false));
+  b.assistantsConnect.mockResolvedValue({ problems: ["Codex: no such command"], clients: [
+    { id: "claude", label: "Claude Code", connected: true }, { id: "codex", label: "Codex", connected: false },
+  ] });
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+  await flush();
+  screen.getByText("Codex: no such command");
+  screen.getByRole("button", { name: "Connect" });
+});
+
+test("With no assistant installed there's nothing to press", async () => {
+  b.assistantsStatus.mockResolvedValue({ clients: [], problems: [] });
+  await open();
+  screen.getByText(/Install Claude Code or Codex/);
+  expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
+});
+
+test("While the Claude app is open the others still connect, and it says how to add it", async () => {
+  const clients = (connected: boolean) => ({ problems: [], clients: [
+    { id: "claude", label: "Claude Code", connected }, { id: "desktop", label: "the Claude app", connected: false, blocked: true },
+  ] });
+  b.assistantsStatus.mockResolvedValue(clients(false));
+  b.assistantsConnect.mockResolvedValue(clients(true));
+  await open();
+  screen.getByText("Let Claude Code see your teams and help design new ones. They ask you before changing anything. To add the Claude app, quit it, then come back here.");
+  fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+  await flush();
+  screen.getByText("Connected");
+  screen.getByText("Claude Code can see your teams and help design new ones. To add the Claude app, quit it, then come back here.");
+});
+
+test("With only the Claude app, and it open, there's nothing to press yet", async () => {
+  b.assistantsStatus.mockResolvedValue({ problems: [], clients: [{ id: "desktop", label: "the Claude app", connected: false, blocked: true }] });
+  await open();
+  screen.getByText(/quit it, then come back here/);
+  expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
+});
+
+test("Privacy says what assistants can read and how long reports and drafts stay", async () => {
+  await open("Privacy");
+  screen.getByText("What an agent said is blocking it, until its next turn. A team an assistant drafted, until it opens in New team.");
+  screen.getByText("Once connected, an assistant can read your agents’ terminals when asked. What it reads goes wherever it normally sends your work.");
 });

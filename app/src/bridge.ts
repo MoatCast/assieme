@@ -37,6 +37,8 @@ export type Snapshot = {
   starting: Starting[];
   found_teams?: string[];
   first_run_done?: boolean;
+  /** An assistant's draft waiting to open in New team. */
+  draft?: string | null;
 };
 
 export type AgentKind = "claude" | "codex";
@@ -70,6 +72,7 @@ export type Starting = {
 };
 export type TeamForm = { project: string; task: string; roles: RoleDraft[]; practices: Record<string, boolean> };
 export type Suggestion = { roles: RoleDraft[]; why: string };
+export type TeamDraft = TeamForm & { id: string; why: string };
 
 export type TerminalHandle = {
   input(text: string): Promise<unknown>;
@@ -80,6 +83,8 @@ export type TerminalHandle = {
 const brain = <T>(method: string, params: object = {}) => invoke<T>("brain_call", { method, params });
 
 export const snapshot = () => brain<Snapshot>("brain.snapshot");
+/** Hands over the draft and removes it from the brain: it opens once. */
+export const takeDraft = (id: string) => brain<TeamDraft | null>("draft.take", { id });
 export const checkProject = (path: string) => brain<{ ok: boolean; reason?: string }>("project.check", { path });
 export const teamPresets = () =>
   brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions; practice_defaults?: Record<string, boolean> }>("team.presets");
@@ -274,5 +279,10 @@ export const reviewEditor = (team: string, role: string, file: string, line?: nu
   brain<{ ok: boolean }>("review.open_editor", { team, role, file, line });
 export const openLink = (url: string) => openUrl(url);
 
+export type Assistants = { clients: { id: string; label: string; connected: boolean; blocked?: boolean }[]; problems: string[] };
+/** These run each client's own command, which can take several seconds apiece. */
+export const assistantsStatus = () => invoke<Assistants>("brain_call", { method: "assistants.status", params: {}, timeoutS: 60 });
+export const assistantsConnect = () => invoke<Assistants>("brain_call", { method: "assistants.connect", params: {}, timeoutS: 120 });
+export const assistantsDisconnect = () => invoke<Assistants>("brain_call", { method: "assistants.disconnect", params: {}, timeoutS: 120 });
 export const serviceRunning = () => invoke<boolean>("service_running");
 export const serviceInstall = () => invoke<void>("service_install");

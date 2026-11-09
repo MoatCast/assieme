@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, detect, live, machine, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
+from . import activity, adapters, answers, connect, detect, live, machine, mcptools, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, status, team, teammap, worktree
 
 
 def main(argv=None):
@@ -60,6 +60,7 @@ def main(argv=None):
     tk.add_argument('name')
     sv = sub.add_parser('service', help='run the brain in the background at login (launchd)')
     sv.add_argument('switch', choices=['install', 'uninstall', 'status'])
+    sub.add_parser('mcp', help='the MCP server for assistants and for agents in a team (stdio)')
     sub.add_parser('serve', help='the brain as a background service (the app talks to it); runs `watch` too')
     w = sub.add_parser('watch', help='no screen: a desktop notification when something needs you or a team stalls')
     w.add_argument('--hours', type=float, default=12)
@@ -68,6 +69,9 @@ def main(argv=None):
         return _service(args.switch)
     if args.cmd == 'serve':
         return _serve()
+    if args.cmd == 'mcp':
+        from . import mcpserver  # only this process loads the MCP SDK: the brain stays standard library
+        return mcpserver.main()
     if args.cmd == 'quiet':
         return _quiet(args.switch)
     if args.cmd == 'team':
@@ -143,6 +147,7 @@ def _serve():
     brain = teammap.Brain(claude, codex, rt, starter, suggested)
     reviews = review.Review(rt, newteam.teams_dir())
     activity.register_merge(reviews)
+    tools = mcptools.Tools(brain, starter)
 
     def tick():
         for step in (lambda: live.watch_once(claude, codex), brain.tick, lambda: machine.tick(status.now_utc())):
@@ -152,13 +157,15 @@ def _serve():
                 traceback.print_exc()
     serve.serve(serve.brain_socket_path(),
                 {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
-                                                          starting=starter.records()),
+                                                          starting=starter.records()) | {'draft': tools.draft_next()},
                  'project.check': newteam.project_check,
                  'team.presets': lambda: newteam.presets(),
                  'team.start': starter.start,
                  'team.suggest': newteam.suggest,
                  **brain.handlers(),
-                 **reviews.handlers()},
+                 **reviews.handlers(),
+                 **tools.handlers(),
+                 **connect.handlers()},
                 tick=tick)
     return 0
 

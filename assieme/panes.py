@@ -7,7 +7,7 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import adapters, live, prompts, status, team
+from . import adapters, live, prompts, reports, status, team
 
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
@@ -113,20 +113,30 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         role = (r.get('labels') or {}).get(team.ROLE) or r['address']
         a = matched.get(r['address'])
         state = _state(r, a, roots)
+        # The agent's own word beats guessing from logs; a real prompt on screen beats both.
+        report = None
+        if state == 'exited':
+            reports.clear(team_name, role)
+        elif state != 'asking':
+            report = reports.current(team_name, role, r)
+        if report:
+            state = 'asking' if report['state'] == 'need_decision' else 'stuck'
         argv0 = os.path.basename((r.get('argv') or [''])[0])
         p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
              'command': None, 'memory_full': _memory_full(a)}
+        if report:
+            p['since_s'] = max(0, int(now.timestamp() - report['ms'] / 1000))
         if state == 'exited':
             lines = [x.strip() for x in (read(r['address']) or '').splitlines() if x.strip()]
             p['detail'] = lines[-1] if lines else ''
         elif state == 'asking':
             screen = read(r['address']) or ''
-            menu, q = prompts.menu(screen), None
+            menu, q = [] if report else prompts.menu(screen), report['note'] if report else None
             about = prompts.menu_context(screen) if menu else ''
             buttons = [_button(role, 'menu', label, str(n), about) for n, label in menu]
             if not menu:
-                q = prompts.question(screen)
+                q = q or prompts.question(screen)
                 got = answers.get(f'{team_name}/{role}/{_id(q)}', q) if q else None
                 buttons = [_button(role, 'answer', x, x) for x in got or []]
             buttons.append(_button(role, 'reply', 'Reply', None))
@@ -140,7 +150,12 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
             said = s.text.replace(a.name, role) if s else ''  # the log's name for it is a long folder path
             if state == 'stuck' and a and a.cmds:
                 p['command'] = a.cmds[-1] if show_commands else adapters.program(a.cmds[-1])
-            if state in ('stuck', 'waiting'):
+            if report:
+                p['detail'] = report['note']
+                strip.append({'role': role, 'state': state, 'text': f"{role} is stuck: {report['note']}"})
+                if not s:
+                    p['fix'] = _fix(role, [_button(role, 'reply', 'Reply', None)], report['note'])
+            elif state in ('stuck', 'waiting'):
                 p['detail'] = _cap(a.detail if a and a.detail else said)
                 verb = 'seems stuck' if state == 'stuck' else 'has work waiting'
                 strip.append({'role': role, 'state': state,
@@ -155,7 +170,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
     return {'team': team_name, 'panes': out, 'strip': strip}
 
 
-def act(team_name, role, fix, button, view_now, rt, log=None, now=None):
+def act(team_name, role, fix, button, view_now, rt, log=None, now=None, by='you'):
     """Carry out one button, only if it is still on the pane right now (the person may have answered in the
     terminal meanwhile). Menus press the digit; answers and actions are sent as a message. Every press is logged."""
     p = next((x for x in view_now()['panes'] if x['role'] == role), None)
@@ -175,6 +190,6 @@ def act(team_name, role, fix, button, view_now, rt, log=None, now=None):
             ok, detail = True, 'sent'
     except Exception as e:  # a failed press is a message on the pane, never a dead brain call
         ok, detail = False, str(e)[:120]
-    live.record(action, role, f['text'] if b.get('action') else ANSWERED, ok, detail, team=team_name,
+    live.record(action, role, f['text'] if b.get('action') else ANSWERED, ok, detail, team=team_name, by=by,
                 address=p['address'], log=log, now=now)
     return {'ok': ok, 'detail': detail}

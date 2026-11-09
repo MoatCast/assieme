@@ -296,3 +296,18 @@ test("codex efforts follow the chosen model; switching agent resets the choice",
   expect(efforts()).not.toContain("Ultra");
   expect(menu.textContent).toBe("gpt-6-luna");
 });
+
+test("a draft from an assistant fills the form and keeps its practice choices", async () => {
+  const draft = { id: "d1", project: "/Users/me/shop", task: "Add a footer", why: "A small change.", practices: { safety: false },
+    roles: [r("builder"), r("reviewer", { agent: "codex", checkout: "read-only", parent: "builder" })] };
+  render(<NewTeam clis={both} draft={draft} onClose={() => {}} />);
+  await flush();
+  screen.getByText("~/shop");
+  expect((screen.getByPlaceholderText(/rate limiting/) as HTMLInputElement).value).toBe("Add a footer");
+  screen.getByText("A small change.");
+  expect(screen.getByDisplayValue("reviewer")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+  await flush();
+  const safety = screen.getByRole("switch", { name: /Safe by default/ }) as HTMLInputElement;
+  expect(safety.checked).toBe(false);
+});

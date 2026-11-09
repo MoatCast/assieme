@@ -16,7 +16,8 @@ TITLES = {'quiet': 'Started holding notes from {agent}',
           'compact': 'Freed up memory for {agent}', 'nudge': 'Asked {agent} to try another way',
           'tell': 'Told {agent} why a command is blocked', 'add_agent': 'Added {agent}',
           'menu': 'Answered {agent}', 'answer': 'Answered {agent}', 'deliver': 'Delivered held notes to {agent}',
-          'dropped': "Couldn't deliver held notes to {agent}"}
+          'dropped': "Couldn't deliver held notes to {agent}",
+          'send': 'Sent a message to {agent}', 'stop_agent': 'Stopped {agent}'}
 
 
 FIX_NAMES = {'nudge': 'Ask stuck agents to try another way', 'compact': 'Free up memory between tasks', 'tell': 'Explain blocked commands'}
