@@ -180,7 +180,7 @@ export default function Shell() {
       )}
       {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
       {creating && (
-        <NewTeam key={draft?.id ?? "new"} clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} draft={draft}
+        <NewTeam key={draft?.id ?? "new"} clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null} draft={draft}
           onClose={() => { setCreating(false); setDraft(null); }} />
       )}
       {adding && team && (

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { snapshot, type Agent, type Snapshot } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
 import NewTeam from "./NewTeam";
+import Offline from "./Offline";
 import Terminal from "./Terminal";
 import "./FirstRun.css";
 
@@ -91,11 +92,11 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
   return (
     <div className="first-run">
       {creating && (
-        <NewTeam clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setCreating(false)} />
+        <NewTeam clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null} onClose={() => setCreating(false)} />
       )}
       <section className="intro">
         <div className="eyebrow">Welcome to Assieme</div>
-        <h1>{!snap ? "Looking for your agents…" : agents.length ? "We found your agents. There’s nothing to set up." : "No agents found yet."}</h1>
+        <h1>{!snap ? (offline ? "Can’t reach Assieme’s service." : "Looking for your agents…") : agents.length ? "We found your agents. There’s nothing to set up." : "No agents found yet."}</h1>
         <p className="lede">
           Assieme reads what Claude Code and Codex already save on this Mac. It tells you when an agent needs you, and
           helps your team waste less.
@@ -105,12 +106,12 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam }: {
             <div className="cli" key={c.key} data-testid={`cli-${c.key}`}>
               <Check ok={c.found} />
               <span className="cli-name">{c.name}</span>
-              <span className="cli-note">{!snap ? "checking…" : c.found ? c.note : "not found"}</span>
+              <span className="cli-note">{!snap ? (offline ? "" : "checking…") : c.found ? c.note : "not found"}</span>
             </div>
           ))}
         </div>
-        {offline && <div className="offline">Reconnecting…</div>}
-        {onOpenTeam && (
+        {offline && <Offline />}
+        {onOpenTeam && (snap || !offline) && (
           <div className="open-team">
             <button type="button" onClick={onOpenTeam}>Open my team</button>
             <span>and notify me when an agent needs me</span>

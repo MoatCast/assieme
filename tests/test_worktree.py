@@ -66,6 +66,15 @@ class WorktreeTest(unittest.TestCase):
         finally:
             shutil.rmtree(d)
 
+    def test_a_repo_with_no_commits_says_so(self):
+        d = tempfile.mkdtemp()
+        try:
+            git(d, 'init', '-q')
+            with self.assertRaisesRegex(worktree.NoCommitsError, 'first commit'):
+                worktree.check_repo(d)
+        finally:
+            shutil.rmtree(d)
+
     def test_branch_taken_elsewhere(self):
         git(self.repo, 'branch', 'assieme/demo/builder-1')
         with self.assertRaisesRegex(worktree.WorktreeError, 'assieme/demo/builder-1'):

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { paneAct, reviewWaiting, teamView, type Pane, type PaneButton, type ReviewWaiting, type TeamView } from "./bridge";
+import Offline from "./Offline";
 import Terminal from "./Terminal";
 import "./Terminals.css";
 
@@ -109,7 +110,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
         {waitingList}
       </div>
     );
-  if (!view) return <div className="terminals">{offline && <div className="offline">Reconnecting…</div>}</div>;
+  if (!view) return <div className="terminals">{offline && <Offline />}</div>;
   if (!view.panes.length)
     return (
       <div className="terminals empty">
@@ -174,7 +175,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
   const focused = view.panes.find((p) => p.role === focus);
   return (
     <div className="terminals">
-      {offline && <div className="offline">Reconnecting…</div>}
+      {offline && <Offline />}
       {view.strip.length > 0 && (
         <div className="strip">
           <span className="strip-count"><span className="dot" />{view.strip.length} need you</span>

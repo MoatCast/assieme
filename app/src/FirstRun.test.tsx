@@ -92,6 +92,15 @@ test("assieme team agent opens live", async () => {
   expect(screen.getByTestId("terminal").textContent).toBe("assieme:t3");
 });
 
+test("with no answer at all it doesn't claim to be looking", async () => {
+  snapshot.mockRejectedValue(new Error("no brain"));
+  render(<FirstRun pollMs={5000} onOpenTeam={() => {}} />);
+  await flush();
+  expect(screen.getByText("Can’t reach Assieme’s service.")).toBeTruthy();
+  expect(screen.queryByText("Looking for your agents…")).toBeNull();
+  expect(screen.queryByText("Open my team")).toBeNull();
+});
+
 test("reconnecting then recovers", async () => {
   snapshot.mockRejectedValueOnce(new Error("no brain")).mockResolvedValue(SNAP);
   render(<FirstRun pollMs={5000} />);

@@ -80,6 +80,35 @@ test("only installed CLIs are offered", async () => {
   expect(screen.getByText("Install Claude Code or Codex, then reopen New team.")).toBeTruthy();
 });
 
+test("says what's missing until Next can be pressed, then what agents are told", async () => {
+  await open();
+  expect(screen.getByText("Choose a project folder to continue.")).toBeTruthy();
+  fireEvent.click(screen.getByText("Choose…"));
+  await flush();
+  expect(screen.getByText("Say what the team should work on to continue.")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Fix login" } });
+  expect(screen.getByText(/told not to push or deploy/)).toBeTruthy();
+  expect(screen.queryByText(/can’t push/)).toBeNull();
+});
+
+test("a stopped service isn't reported as missing agents, and New team recovers", async () => {
+  b.teamPresets.mockRejectedValue(new Error("no brain"));
+  render(<NewTeam clis={null} retryMs={1} onClose={vi.fn()} />);
+  await flush();
+  expect(screen.getByText(/service isn’t answering/)).toBeTruthy();
+  expect(screen.queryByText(/Install Claude Code or Codex/)).toBeNull();
+  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS });
+  expect(await screen.findByText("One agent")).toBeTruthy();
+  expect(screen.queryByText(/service isn’t answering/)).toBeNull();
+});
+
+test("while the agent check hasn't answered, it doesn't say to install one", async () => {
+  render(<NewTeam clis={null} onClose={vi.fn()} />);
+  await flush();
+  expect(screen.queryByText(/Install Claude Code or Codex/)).toBeNull();
+  expect(screen.getByText("Checking which agents are installed…")).toBeTruthy();
+});
+
 test("add, rename, remove and edit a brief", async () => {
   await open();
   await fillProjectAndTask();

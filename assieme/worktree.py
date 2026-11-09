@@ -7,6 +7,10 @@ class WorktreeError(RuntimeError):
     pass
 
 
+class NoCommitsError(WorktreeError):
+    pass
+
+
 def _git(cwd, *args):
     return subprocess.run(['git', '-C', cwd, *args], capture_output=True, text=True)
 
@@ -16,6 +20,8 @@ def check_repo(project):
     if r.returncode != 0:
         raise WorktreeError(f'{project} is not a git repository. Make it one with: git init {project} '
                             '(and make a first commit)')
+    if _git(project, 'rev-parse', '--verify', '--quiet', 'HEAD').returncode != 0:
+        raise NoCommitsError(f'{project} has no commits yet. Make a first commit, then start again.')
 
 
 def _exclude(project):

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { checkProject, fieldOf, pickFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type RoleDraft, type TeamDraft } from "./bridge";
 import HelpMeChoose from "./HelpMeChoose";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
+import Offline from "./Offline";
 import RecommendedSetup from "./RecommendedSetup";
 import "./NewTeam.css";
 
@@ -17,8 +18,10 @@ export function badName(roles: RoleDraft[]): number {
 }
 
 /** New team, step 1: project, task, starting team and agents. Step 2 is Recommended setup. */
-export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: TeamDraft | null; onClose: () => void }) {
-  const installed = AGENTS.filter(([id]) => clis[id]);
+/** clis: null until the service has said which are installed. */
+export default function NewTeam({ clis, draft, retryMs = 3000, onClose }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; onClose: () => void }) {
+  const installed = AGENTS.filter(([id]) => clis?.[id]);
+  const [offline, setOffline] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [practices, setPractices] = useState<Practices | null>(null);
   const [project, setProject] = useState("");
@@ -40,10 +43,14 @@ export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: 
   const starting = useRef(false); // a second click before React re-renders must not start a second team
 
   const fit = (rs: RoleDraft[]) =>
-    rs.map((r) => (clis[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }));
+    rs.map((r) => (clis?.[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }));
 
   useEffect(() => {
-    void teamPresets().then((p) => {
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const loaded = (p: Awaited<ReturnType<typeof teamPresets>>) => {
+      if (stopped) return;
+      setOffline(false);
       const all = p.last ? [...p.presets, p.last] : p.presets;
       setPresets(all);
       setPractices(p.practices);
@@ -59,7 +66,17 @@ export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: 
         setChosen(all[0].id);
         setRoles(fit(all[0].roles));
       }
+    };
+    const load = () => teamPresets().then(loaded, () => {
+      if (stopped) return;
+      setOffline(true);
+      timer = setTimeout(load, retryMs);
     });
+    void load();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
   }, []);
 
   const choose = (p: Preset) => {
@@ -137,7 +154,15 @@ export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: 
     }
   };
 
-  const ready = !!project && !projectError && !!task.trim() && roles.length > 0 && installed.length > 0;
+  // The first thing still missing, or nothing once Next can be pressed.
+  const missing = offline ? "Waiting for Assieme’s service."
+    : !project ? "Choose a project folder to continue."
+    : projectError ? "Choose a different folder to continue."
+    : !task.trim() ? "Say what the team should work on to continue."
+    : clis && !installed.length ? "Install Claude Code or Codex to continue."
+    : installed.length && !roles.length ? "Add an agent to continue."
+    : "";
+  const ready = !missing && installed.length > 0;
 
   if (step === 2 && practices)
     return (
@@ -153,6 +178,7 @@ export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: 
           <p>Step 1 of 2. Pick a project and who works on it. You can change any of this later.</p>
         </header>
         <div className="body">
+          {offline && <Offline afterMs={0} />}
           <div className="field">
             <div className="label">Project</div>
             <button type="button" className="box folder" onClick={chooseFolder}>
@@ -222,7 +248,9 @@ export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: 
             </div>
             {why && <p className="muted">{why}</p>}
             {installed.length === 0 ? (
-              <p className="error">Install Claude Code or Codex, then reopen New team.</p>
+              offline ? null : clis ? (
+                <p className="error">Install Claude Code or Codex, then reopen New team.</p>
+              ) : <p className="muted">Checking which agents are installed…</p>
             ) : (
               <div className="agents">
                 {roles.map((r, i) => (
@@ -270,12 +298,14 @@ export default function NewTeam({ clis, draft, onClose }: { clis: Clis; draft?: 
           </div>
         </div>
         <footer role="contentinfo">
-          <span className="safe">
-            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M8 1.5l5.5 2v4c0 3.5-2.4 6-5.5 7-3.1-1-5.5-3.5-5.5-7v-4z" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" />
-            </svg>
-            Safe permissions: can edit this project, can’t push or deploy.
-          </span>
+          {missing ? <span className="safe" role="status">{missing}</span> : (
+            <span className="safe">
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 1.5l5.5 2v4c0 3.5-2.4 6-5.5 7-3.1-1-5.5-3.5-5.5-7v-4z" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" />
+              </svg>
+              Agents can edit this project and are told not to push or deploy.
+            </span>
+          )}
           <button type="button" className="quiet" onClick={onClose}>Cancel</button>
           <button type="button" className="primary" disabled={!ready} onClick={next}>Next</button>
         </footer>

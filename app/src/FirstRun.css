@@ -63,6 +63,29 @@
   color: var(--quiet-waste-text);
   font-size: 13px;
 }
+.offline-long {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  line-height: 19px;
+}
+.offline-long p {
+  flex: 1 1 240px;
+  margin: 0;
+}
+.offline-long button {
+  background: var(--quiet-ink);
+  color: var(--quiet-on-ink);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.offline-long .offline-error {
+  flex-basis: 100%;
+  color: var(--quiet-needs-you-text);
+}
 .footnote {
   margin: 8px 0 0;
   color: var(--quiet-mute);

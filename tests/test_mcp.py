@@ -246,6 +246,7 @@ class ToolsTest(State):
         p = os.path.join(self.dir, 'repo')
         os.makedirs(p)
         subprocess.run(['git', 'init', '-q', p], check=True)
+        subprocess.run(['git', '-C', p, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'first'], check=True)
         return p
 
     def test_a_draft_fills_in_its_kind_and_keeps_the_practices_on(self):

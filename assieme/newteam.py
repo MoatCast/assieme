@@ -21,6 +21,7 @@ NAME = re.compile(r'^[a-z0-9-]+$')
 BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NOT_GIT = "This folder isn't a git repository. Assieme gives each agent its own branch, so it needs one."
+NO_COMMITS = "This repository has no commits yet. Agents branch from the latest commit, so make a first commit, then choose it again."
 
 
 class NewTeamError(ValueError):
@@ -104,6 +105,8 @@ def project_check(path):
         return {'ok': False, 'reason': "This folder doesn't exist."}
     try:
         worktree.check_repo(path)
+    except worktree.NoCommitsError:
+        return {'ok': False, 'reason': NO_COMMITS}
     except worktree.WorktreeError:
         return {'ok': False, 'reason': NOT_GIT}
     return {'ok': True}

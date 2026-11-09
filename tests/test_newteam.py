@@ -91,6 +91,12 @@ class CheckSaveTest(unittest.TestCase):
         self.assertEqual(newteam.project_check(plain), {'ok': False, 'reason':
                          "This folder isn't a git repository. Assieme gives each agent its own branch, so it needs one."})
 
+    def test_project_check_needs_a_first_commit(self):
+        empty = os.path.join(self.d, 'empty')
+        os.makedirs(empty)
+        subprocess.run(['git', '-C', empty, 'init', '-q'], check=True)
+        self.assertEqual(newteam.project_check(empty), {'ok': False, 'reason': newteam.NO_COMMITS})
+
     def assertField(self, roles, field, message):
         with self.assertRaises(newteam.NewTeamError) as e:
             newteam.validate(roles)
