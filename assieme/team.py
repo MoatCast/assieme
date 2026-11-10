@@ -55,7 +55,10 @@ def stop(rt, name):
 
 WAIT_FOR_PARENT = '{parent} will send you your work. Until then, wait and do nothing.'
 TOOLS = ('Your assieme tools: message_agent reaches a teammate by name, list_teammates shows who is here. If you are '
-         "stuck, or only the person can decide, call report and end your turn. Don't use `hc send`.")
+         "stuck, or only the person can decide, call report and end your turn. Don't use `hc send`.\n"
+         'The person follows the work on a board of cards. add_task makes a card for a piece of work; set_task moves '
+         'one: doing when you start it, review when it is committed, done when there is nothing to review. '
+         'list_tasks shows the cards.')
 REPORT_TO_YOU = ('These agents report to you and wait for you to send them work (with message_agent):\n{agents}\n'
                  'They do nothing until you do this. As soon as there is work for one of them, such as a commit to review, '
                  'send it. You are not finished until you have.')

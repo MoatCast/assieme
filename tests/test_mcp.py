@@ -347,7 +347,21 @@ class ServerTest(State):
         self.assertIsNone(mcpserver.agent_address({}))
 
     def test_an_agent_gets_no_control_tools(self):
-        self.assertEqual(self.tool_names(mcpserver.agent_server('t1')), {'list_teammates', 'message_agent', 'report'})
+        self.assertEqual(self.tool_names(mcpserver.agent_server('t1')),
+                         {'list_teammates', 'message_agent', 'report', 'list_tasks', 'add_task', 'set_task'})
+
+    def test_an_agents_board_tools_carry_its_own_address(self):
+        async def body(c):
+            await c.call_tool('list_tasks', {})
+            await c.call_tool('add_task', {'title': 'Backoff', 'assignee': 'builder-1'})
+            await c.call_tool('set_task', {'task': '1', 'status': 'review', 'note': '3 tests pass'})
+            return await c.call_tool('set_task', {'task': '1', 'status': 'finished'})
+        bad = self.run_with(mcpserver.agent_server('t1'), body)
+        self.assertTrue(bad.is_error)  # not one of the four columns: never reaches the brain
+        self.assertEqual(self.calls, [
+            ('mcp.tasks', {'address': 't1'}),
+            ('mcp.task_add', {'address': 't1', 'title': 'Backoff', 'assignee': 'builder-1'}),
+            ('mcp.task_set', {'address': 't1', 'task': '1', 'status': 'review', 'note': '3 tests pass', 'waiting_for_person': False})])
 
     def test_the_control_face_has_every_roadmap_tool(self):
         self.assertEqual(self.tool_names(mcpserver.control_server()), {

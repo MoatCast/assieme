@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, setup, status, team, teammap, worktree
+from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, process, quiet, report, review, rules, runtime, serve, service, setup, status, tasks, team, teammap, worktree
 
 
 def main(argv=None):
@@ -153,6 +153,12 @@ def _serve():
     activity.register_merge(reviews)
     tools = mcptools.Tools(brain, starter)
     menu = menubar.Menubar(brain, reviews)
+    board = tasks.Board(brain, reviews, tools._me)
+
+    def start_team(project, task, roles, practices):
+        got = starter.start(project, task, roles, practices)
+        tasks.fresh(got['team'], task)  # a new team, a new board; restarting a saved team keeps its cards
+        return got
 
     def tick():
         for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()), brain.tick,
@@ -166,11 +172,12 @@ def _serve():
                                                           starting=starter.records()) | {'draft': tools.draft_next()},
                  'project.check': newteam.project_check,
                  'team.presets': lambda: newteam.presets(),
-                 'team.start': starter.start,
+                 'team.start': start_team,
                  'team.suggest': newteam.suggest,
                  **brain.handlers(),
                  **reviews.handlers(),
                  **tools.handlers(),
+                 **board.handlers(),
                  **connect.handlers(),
                  **menu.handlers(),
                  **setup.handlers(rt)},

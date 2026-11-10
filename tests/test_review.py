@@ -8,8 +8,9 @@ import subprocess
 import tempfile
 import types
 import unittest
+from unittest import mock
 
-from assieme import review, serve, team as team_mod
+from assieme import review, serve, tasks, team as team_mod
 from assieme.review import Review, ReviewError, test_command as command_for, test_result as result_of
 
 
@@ -53,6 +54,9 @@ class Base(unittest.TestCase):
         self.root = os.path.realpath(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
         self.repo = os.path.join(self.root, 'shop')
+        state = mock.patch.dict(os.environ, {'XDG_STATE_HOME': os.path.join(self.root, 'state')})  # the board's file
+        state.start()
+        self.addCleanup(state.stop)
         os.makedirs(self.repo)
         git(self.repo, 'init', '-q', '-b', 'main')
         git(self.repo, 'config', 'user.name', 't')
@@ -426,6 +430,23 @@ class Merging(Base):
         self.assertEqual(git(self.repo, 'branch', '--list', 'assieme/demo/builder-1'), '')
         self.assertIn(tip, git(self.repo, 'for-each-ref', '--format=%(objectname)', 'refs/assieme/archive/demo/builder-1/'))
         self.assertEqual(self.r.waiting(), [])
+
+    def test_the_board_follows_merge_undo_and_discard(self):
+        tip = self.branch('builder-1', {'a.py': 'one\nTWO\nthree\n'})
+        doing, review, other = (tasks.add('demo', t, r)['id'] for t, r in (('a', 'builder-1'), ('b', 'builder-1'), ('c', 'builder-2')))
+        tasks.move('demo', doing, 'doing')
+        tasks.move('demo', review, 'review', note='ready')
+        tasks.move('demo', other, 'doing')
+        card = self.r.card('demo', 'builder-1')
+        self.assertEqual((card['ahead'], card['files'], card['add'], card['del'], card['notes']), (1, 1, 1, 1, []))
+        self.assertIsNone(self.r.card('demo', 'nobody'))
+        got = self.r.merge('demo', 'builder-1', tip, force=True)
+        by_id = lambda: {c['id']: (c['status'], c['note']) for c in tasks.board('demo')['cards']}
+        self.assertEqual(by_id(), {doing: ('done', 'merged into main'), review: ('done', 'merged into main'), other: ('doing', '')})
+        self.r.undo(got['undo'])
+        self.assertEqual(by_id(), {doing: ('doing', ''), review: ('review', 'ready'), other: ('doing', '')})
+        self.r.discard('demo', 'builder-1', tip)
+        self.assertEqual(by_id()[review], ('todo', 'Its work was discarded.'))
 
     def test_the_log_has_what_activity_reads(self):
         tip = self.branch('builder-1', {'a.py': 'A\n'})
