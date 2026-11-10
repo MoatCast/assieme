@@ -12,7 +12,7 @@ from unittest import mock
 from mcp import Client
 from mcp.types import ElicitResult
 
-from assieme import connect, mcpserver, mcptools, newteam, panes, quiet, reports, settings, team
+from assieme import brief, connect, mcpserver, mcptools, newteam, panes, quiet, reports, settings, team
 
 NOW_MS = 1_000_000_000_000
 
@@ -216,6 +216,22 @@ class ToolsTest(State):
         built['panes'][0]['state'] = 'working'
         self.assertFalse(t.answer('shop', 'b', 'x')['ok'])
 
+    def test_an_answer_in_words_to_a_real_question_lands_in_the_team_brief(self):
+        built = {'panes': [pane(buttons=[button('r', 'reply', 'Reply')])]}
+        t = self.tools([row('b', 't1')], built)
+        t.answer('shop', 'b', 'Use Postgres')
+        self.assertEqual(brief.load('shop')['decisions'], [])  # no question known: nothing to record
+        built['panes'][0]['fix']['question'] = 'Which database?'
+        t.answer('shop', 'b', 'Use Postgres')
+        self.assertEqual([(d['q'], d['a'], d['role']) for d in brief.load('shop')['decisions']], [('Which database?', 'Use Postgres', 'b')])
+
+    def test_an_agent_reads_the_brief_and_records_a_decision(self):
+        t = self.tools([row('a', 't1'), row('b', 't2')])
+        self.assertIn('Nothing', t.team_brief('t1')['brief'])
+        t.record_decision('t1', 'Which port?', '8080')
+        self.assertIn('Which port? -> 8080', t.team_brief('t2')['brief'])
+        self.assertEqual(t.handlers()['brief.get']('shop')['decisions'][0]['by'], 'agent')
+
     def test_fixes_follow_the_setting(self):
         nudge = button('n', 'action', 'Nudge', 'try', 'nudge')
         built = {'found': False, 'panes': [pane(state='stuck', buttons=[nudge])]}
@@ -347,7 +363,7 @@ class ServerTest(State):
         self.assertIsNone(mcpserver.agent_address({}))
 
     def test_an_agent_gets_no_control_tools(self):
-        self.assertEqual(self.tool_names(mcpserver.agent_server('t1')), {'list_teammates', 'message_agent', 'report'})
+        self.assertEqual(self.tool_names(mcpserver.agent_server('t1')), {'list_teammates', 'message_agent', 'report', 'team_brief', 'record_decision'})
 
     def test_the_control_face_has_every_roadmap_tool(self):
         self.assertEqual(self.tool_names(mcpserver.control_server()), {

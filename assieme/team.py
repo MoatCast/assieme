@@ -7,7 +7,7 @@ import re
 import time
 from dataclasses import dataclass
 
-from . import launch, prompts, runtime, worktree
+from . import brief, launch, prompts, runtime, worktree
 
 TEAM, ROLE, BRIEFED = 'assieme.team', 'assieme.role', 'assieme.briefed'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
@@ -55,7 +55,8 @@ def stop(rt, name):
 
 WAIT_FOR_PARENT = '{parent} will send you your work. Until then, wait and do nothing.'
 TOOLS = ('Your assieme tools: message_agent reaches a teammate by name, list_teammates shows who is here. If you are '
-         "stuck, or only the person can decide, call report and end your turn. Don't use `hc send`.")
+         "stuck, or only the person can decide, call report and end your turn. Don't use `hc send`.\n"
+         f'{brief.READ_FIRST} When the person answers a question of yours, call record_decision so no teammate asks again.')
 REPORT_TO_YOU = ('These agents report to you and wait for you to send them work (with message_agent):\n{agents}\n'
                  'They do nothing until you do this. As soon as there is work for one of them, such as a commit to review, '
                  'send it. You are not finished until you have.')
@@ -69,6 +70,11 @@ def _brief(rt, t, role, task, tm, clock=time):
     """An agent with a parent gets its work from that parent: the whole task would have it do the same work again.
     A parent is told who reports to it here, in its first message: a note sent mid-turn can go missing."""
     parts = [role.brief.strip(), TOOLS]
+    # Without the goal: the top agent has it as its task, and one with a parent would start on the whole of it
+    # instead of waiting for its share. It is in `team_brief` for any agent that looks.
+    shared = brief.text(tm.name, goal=False)
+    if shared:
+        parts.append(shared)
     kids = [r for r in tm.roles if r.parent == role.name]
     if kids:
         parts.append(REPORT_TO_YOU.format(agents='\n'.join(
@@ -142,6 +148,8 @@ def start(tm, task, rt, ask, only=None, clock=time):
     if missing:
         raise TeamError(f'not installed: {", ".join(missing)}. Install it, then start the team again.')
     worktree.check_repo(tm.project)
+    if task and not only:
+        brief.save(tm.name, goal=task)  # what the whole team is for; rules and decisions stay
     live = {r['role']: r for r in status(rt, tm.name) if r['state'] == 'live'}
     # Every worktree before the first agent, so a branch or worktree problem refuses before anything runs.
     cwds = {r.name: worktree.ensure(tm, r) for r in roles if r.name not in live}
