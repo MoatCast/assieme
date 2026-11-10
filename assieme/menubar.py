@@ -42,7 +42,8 @@ def _labels(buttons):
 
 def _asks(built):
     """Pauses at a daily limit that can be answered now: at least one of their agents has stopped."""
-    return [a for a in (built.get('budget') or {}).get('asks', []) if a.get('fix')]
+    listed = {p['role'] for p in built['panes'] if p['state'] in teammap.NEEDS_YOU}  # those already count, with the same button
+    return [a for a in (built.get('budget') or {}).get('asks', []) if a.get('fix') and a['role'] not in listed]
 
 
 def pause_until():

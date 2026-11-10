@@ -151,7 +151,7 @@ def check(team, built, rt, now, announce=None, log=None):
                 p = here[role]
                 if x.get('stopped') or p['state'] == 'asking':
                     continue  # a real question from its CLI is the person's to answer first
-                if p['state'] == 'working':
+                if p.get('busy') or p['state'] == 'working':  # an agent that seems stuck is often still mid-turn
                     try:
                         rt.interrupt(p['address'])
                     except Exception:  # tried again at the next tick

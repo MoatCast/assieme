@@ -132,7 +132,8 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         argv0 = _program(r.get('argv'))
         p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
-             'command': None, 'memory_full': _memory_full(a)}
+             'command': None, 'memory_full': _memory_full(a),
+             'busy': (r.get('status') or {}).get('state') == 'working'}  # mid-turn by its own hook, whatever the logs suggest
         if report:
             p['since_s'] = max(0, int(now.timestamp() - report['ms'] / 1000))
         if state == 'exited':

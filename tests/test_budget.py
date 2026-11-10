@@ -63,6 +63,13 @@ class PauseTest(BudgetCase):
         self.assertEqual(m['panes'][0]['fix']['buttons'][0]['label'], 'Add 250 and carry on')
         self.assertTrue(all(n['paused'] for n in m['nodes']))
 
+    def test_an_agent_that_seems_stuck_but_is_mid_turn_is_stopped_too(self):
+        built = self.built()
+        built['panes'][0]['state'] = 'stuck'  # the logs' guess; its own hook still says working
+        self.limit({'*': 1000})
+        budget.check('shop', built | {'budget': self.built()['budget']}, self.rt, NOW)
+        self.assertEqual(self.rt.interrupted, ['t-a'])
+
     def test_it_pauses_once(self):
         self.limit({'*': 1000})
         self.check()
