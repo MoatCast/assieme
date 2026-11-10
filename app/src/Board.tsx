@@ -31,7 +31,7 @@ function CardMenu({ team, card, onChanged, onError }: { team: string; card: Boar
     onChanged();
   };
   return (
-    <div onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
+    <div className="task-menu-wrap" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
       <button type="button" className={`task-more ${open ? "on" : ""}`} aria-label={`More for ${card.title}`} aria-haspopup="menu" aria-expanded={open}
         onClick={() => setOpen(!open)}>
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor"><circle cx="2.5" cy="7" r="1.3" /><circle cx="7" cy="7" r="1.3" /><circle cx="11.5" cy="7" r="1.3" /></svg>

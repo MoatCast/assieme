@@ -3,7 +3,8 @@
 .board-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px 24px 20px; box-sizing: border-box;
   background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: 16px; box-shadow: 0 1px 3px #1b24330f; }
 .board-head { display: flex; align-items: baseline; gap: 14px; font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
-.board-head h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 28px; }
+.board-head h1 { margin: 0; min-width: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-head > span { flex-shrink: 0; }
 .board-head .grow { flex: 1; }
 .board-head b { font-weight: 600; }
 .board .mono { font-family: var(--quiet-font-mono); }
@@ -40,6 +41,7 @@
 
 /* Paper "v2 — Board: card menu", "v2 — Board: no tasks yet" and "v2 — Board: new task". */
 .task-title { padding-right: 28px; }
+.task-menu-wrap { display: contents; } /* its button and menu are placed on the card: it must not take a row of its own */
 .task-more { position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; padding: 0;
   border: 0; border-radius: 999px; background: none; color: var(--quiet-mute); cursor: pointer; }
 .task-more:hover, .task-more.on { background: var(--quiet-fog); color: var(--quiet-ink); }

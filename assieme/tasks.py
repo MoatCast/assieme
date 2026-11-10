@@ -7,6 +7,7 @@ Kept in one small file, like reports, so it survives a brain restart.
 import contextlib
 import json
 import os
+import re
 import threading
 import time
 
@@ -62,10 +63,11 @@ def _card(b, id):
 
 
 def fresh(team, task=''):
-    """A new team's board: empty, titled with the first line of its task."""
+    """A new team's board: empty, titled with the first sentence of its task."""
     lines = (task or '').strip().splitlines()
+    title = re.split(r'(?<=[.!?])\s', lines[0].strip(), maxsplit=1)[0].rstrip('.') if lines else ''
     with _edit(team) as b:
-        b.update(title=lines[0].strip()[:80] if lines else '', next=1, cards=[])
+        b.update(title=title[:MAX_TITLE], next=1, cards=[])
 
 
 def add(team, title, role=None, by='you', now=None):

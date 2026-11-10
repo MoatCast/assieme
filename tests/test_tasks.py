@@ -88,8 +88,10 @@ class Store(Base):
         tasks.add('shop', 'b')
         tasks.remove('shop', '1')
         self.assertEqual([c['id'] for c in tasks.board('shop')['cards']], ['2'])
-        tasks.fresh('shop', '\nRetry with backoff\nand more words\n')
+        tasks.fresh('shop', '\nRetry with backoff. Planner: split it.\nand more words\n')
         self.assertEqual(tasks.board('shop'), {'title': 'Retry with backoff', 'next': 1, 'cards': []})
+        tasks.fresh('shop', "Fix greet.py: 'helo' should be 'hello'")
+        self.assertEqual(tasks.board('shop')['title'], "Fix greet.py: 'helo' should be 'hello'")
 
     def test_a_damaged_file_reads_as_an_empty_board(self):
         os.makedirs(os.path.dirname(tasks._file()))
