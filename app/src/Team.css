@@ -137,7 +137,19 @@
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > span, .field > div.label { font-weight: 500; }
-.field input, .field select { padding: 8px 12px; border: 1px solid var(--quiet-control); border-radius: 10px; background: var(--quiet-surface); color: var(--quiet-ink); font: inherit; line-height: 18px; }
+.field input, .field select, .field textarea { padding: 8px 12px; border: 1px solid var(--quiet-control); border-radius: 10px; background: var(--quiet-surface); color: var(--quiet-ink); font: inherit; line-height: 18px; }
+.field textarea { resize: vertical; line-height: 19px; }
+/* Team brief, from Paper "v2 — Team: team brief". */
+.decisions-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.decisions-head span { font-size: 12px; color: var(--quiet-slate); }
+.decision { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid var(--quiet-line); }
+.decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
+.decision p { margin: 0; line-height: 18px; color: var(--quiet-slate); }
+.decision b { font-size: 14px; font-weight: 500; line-height: 19px; }
+.decision small { font-size: 12px; color: var(--quiet-mute); }
+.decision code { font-family: var(--quiet-font-mono); }
+.decision .link { flex-shrink: 0; padding: 0; background: none; border: 0; color: var(--quiet-slate); line-height: 18px; }
+.decisions .none { margin: 0; padding: 10px 0; border-top: 1px solid var(--quiet-line); color: var(--quiet-slate); }
 .field input.mono, .field select.mono { font-family: var(--quiet-font-mono); }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .pills button { padding: 6px 12px; background: none; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control); color: var(--quiet-ink); line-height: 16px; }

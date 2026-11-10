@@ -7,6 +7,7 @@ import NewTeam from "./NewTeam";
 import Review, { Notice } from "./Review";
 import Settings from "./Settings";
 import Team from "./Team";
+import TeamBrief from "./TeamBrief";
 import Terminals from "./Terminals";
 import "./Shell.css";
 
@@ -35,6 +36,7 @@ export default function Shell() {
   const [picked, setPicked] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [briefing, setBriefing] = useState(false);
   const [settings, setSettings] = useState(false);
   const [settingsAt, setSettingsAt] = useState<string | undefined>();
   const [focus, setFocus] = useState<string | null>(null);
@@ -117,6 +119,7 @@ export default function Shell() {
             ))}
           </div>
           <div className="shell-right" data-tauri-drag-region>
+            {started && <button type="button" className="add-agent" onClick={() => setBriefing(true)}>Team brief</button>}
             {started && (
               <button type="button" className="add-agent" onClick={() => setAdding(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -189,6 +192,7 @@ export default function Shell() {
         <AddAgent team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}
           clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setAdding(false)} />
       )}
+      {briefing && team && <TeamBrief team={team} onClose={() => setBriefing(false)} />}
       {settings && (
         <Settings team={team} section={settingsAt} onClose={() => setSettings(false)}
           onShowFirstRun={() => { setSettings(false); setTab("first-run"); }} />
