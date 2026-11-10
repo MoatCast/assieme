@@ -922,7 +922,7 @@ async fn forward_waiting(core: &Core, m: &Machine, method: &str, mut params: Val
         params["labels"]["asm.run"] = mark.clone().into();
     }
     let first = match forward_once(core, m, method, params.clone()).await {
-        Err(e) if line_lost(&e) => e,
+        Err(e) if line_lost(&e) && method != "terminal.send" => e,
         done => return done,
     };
     let caller = params["caller"].clone();
