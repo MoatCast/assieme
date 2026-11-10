@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { paneAct, reviewWaiting, teamMap, tipApply, type ActivityRow, type Pane, type PaneButton, type ReviewWaiting, type Starting, type TeamMap } from "./bridge";
 import { UndoButton } from "./Activity";
 import AgentDetail from "./AgentDetail";
+import DailyLimits from "./DailyLimits";
 import Offline from "./Offline";
 import { AgentsMap, GroupsMap } from "./TeamMap";
 import { ago } from "./Terminals";
@@ -14,17 +15,19 @@ const SAYS: Partial<Record<Pane["state"], string>> = {
 const UNSETTLED = ["needs-you", "not-reporting", "exited"];
 
 export function tokens(n: number) {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`; // 10M, as Paper writes it
   if (n >= 1e3) return `${Math.round(n / 1e3)}K`;
   return String(n);
 }
 
 /** One fix's buttons, used on the card and in agent detail. A button works once. */
-export function FixButtons({ team, pane, onChanged, onOpenTerminal }: {
+export function FixButtons({ team, pane, onChanged, onOpenTerminal, more }: {
   team: string;
   pane: Pick<Pane, "role" | "fix" | "reachable">;
   onChanged: () => void;
   onOpenTerminal: (role: string) => void;
+  /** Shown in place of "Open terminal". */
+  more?: ReactNode;
 }) {
   const [pending, setPending] = useState<string | null>(null);
   const [pressed, setPressed] = useState<string | null>(null);
@@ -55,20 +58,39 @@ export function FixButtons({ team, pane, onChanged, onOpenTerminal }: {
             className={b.kind === "reply" ? "btn-quiet" : i === 0 ? "btn-primary" : "btn-secondary"}
             onClick={() => press(b)}>{b.kind === "reply" ? "Write a reply" : b.label}</button>
         ))}
-        {pane.reachable !== false && !buttons.some((b) => b.kind === "reply") && (
+        {more ?? (pane.reachable !== false && !buttons.some((b) => b.kind === "reply") && (
           <button type="button" className="btn-quiet" onClick={() => onOpenTerminal(pane.role)}>Open terminal</button>
-        )}
+        ))}
       </div>
     </>
   );
 }
 
-function Card({ team, pane, onChanged, onOpenTerminal }: {
+function Card({ team, pane, onChanged, onOpenTerminal, onChangeLimit }: {
   team: string;
   pane: Pane;
   onChanged: () => void;
   onOpenTerminal: (role: string) => void;
+  onChangeLimit: () => void;
 }) {
+  if (pane.fix?.budget) {
+    // One card for a pause at a daily limit, whoever it holds: Paper "v2 — Team: paused at the limit".
+    return (
+      <div className="card needs" data-testid={`card-paused-${pane.fix.budget}`}>
+        <div className="card-head">
+          <span className="dot" />
+          <span className="card-name">{pane.fix.who}</span>
+          <span className="card-says">{["is paused", ago(pane.since_s)].filter(Boolean).join(" · ")}</span>
+        </div>
+        <div className="card-body">
+          <div className="card-title">{pane.fix.text}</div>
+          <p className="card-sub">{pane.fix.detail}</p>
+          <FixButtons team={team} pane={pane} onChanged={onChanged} onOpenTerminal={onOpenTerminal}
+            more={<button type="button" className="btn-secondary" onClick={onChangeLimit}>Change limit</button>} />
+        </div>
+      </div>
+    );
+  }
   const asking = pane.state === "asking";
   const said = SAYS[pane.state];
   const title = asking ? `“${pane.fix!.text}”` : pane.detail || pane.fix!.text;
@@ -117,6 +139,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
   const [agent, setAgent] = useState<string | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
   const [tipNote, setTipNote] = useState("");
+  const [limits, setLimits] = useState(false);
   const refresh = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -160,7 +183,10 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
   if (map.stopped) return nothing(`${map.team} has stopped. Start a new team when you’re ready.`);
 
   const group = map.groups?.find((g) => g.name === opened) ?? null;
-  const cards = map.panes.filter((p) => p.fix);
+  // A pause at a daily limit is one question, however many agents it holds.
+  const cards = map.panes.filter((p, i) => p.fix && (!p.fix.budget || map.panes.findIndex((q) => q.fix?.budget === p.fix!.budget) === i));
+  const budget = map.budget ?? null;
+  const cap = budget?.allowed ?? null;
   const turnOn = async (id: string) => {
     const r = await tipApply(team, id).catch((e) => ({ ok: false, detail: String(e) }));
     setTipNote(r.ok ? "" : r.detail);
@@ -195,9 +221,15 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
           <div className="spend">
             <span className="grow">
               {map.spend ? (
-                <>Today: <b>{tokens(map.spend.tokens)} tokens</b>. <b>{Math.round(map.spend.waste_share * 100)}%</b> went on wake-ups that did nothing.</>
+                <>Today: <b>{tokens(map.spend.tokens)}{cap ? ` of ${tokens(cap)}` : ""} tokens</b>. <b>{Math.round(map.spend.waste_share * 100)}%</b> went on wake-ups that did nothing.</>
               ) : map.spend_ready === false ? "" : "No tokens used yet today."}
             </span>
+            {budget && (
+              <span className="limit">
+                {cap && <i className={`meter ${budget.used >= cap ? "full" : ""}`} role="img" aria-label={`${Math.min(100, Math.round((100 * budget.used) / cap))}% of today’s limit used`}><i style={{ width: `${Math.min(100, (100 * budget.used) / cap)}%` }} /></i>}
+                <button type="button" className="link" onClick={() => setLimits(true)}>{budget.limit || budget.agents.some((a) => a.limit) ? "Change limit" : "Set a daily limit"}</button>
+              </span>
+            )}
             <span className="legend"><i className="solid" />woke</span>
             {map.waits.length > 0 && <span className="legend"><i className="dashed" />waiting on</span>}
           </div>
@@ -214,7 +246,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
           </div>
         )}
         {cards.map((p) => (
-          <Card key={p.role} team={team} pane={p} onChanged={() => refresh.current()} onOpenTerminal={onOpenTerminal} />
+          <Card key={p.role} team={team} pane={p} onChanged={() => refresh.current()} onOpenTerminal={onOpenTerminal} onChangeLimit={() => setLimits(true)} />
         ))}
         {map.tips.slice(0, 1).map((t) => (
           <div className="tip" key={t.id}>
@@ -244,6 +276,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
           </div>
         )}
       </div>
+      {limits && budget && <DailyLimits team={team} budget={budget} onClose={() => { setLimits(false); refresh.current(); }} />}
       {agent && (
         <AgentDetail team={team} role={agent} onClose={() => setAgent(null)}
           onOpenTerminal={(r) => { setAgent(null); onOpenTerminal(r); }} onChanged={() => refresh.current()} />

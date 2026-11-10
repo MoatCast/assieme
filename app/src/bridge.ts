@@ -141,7 +141,7 @@ export async function openTerminal(
 export const readTerminal = (session: string, address: string) =>
   invoke<string>("terminal_read", { session, address });
 
-export type PaneButton = { id: string; label: string; kind: "menu" | "answer" | "action" | "reply" };
+export type PaneButton = { id: string; label: string; kind: "menu" | "answer" | "action" | "reply" | "budget" };
 export type Pane = {
   role: string;
   agent: AgentKind;
@@ -153,7 +153,8 @@ export type Pane = {
   since_s: number | null;
   detail: string;
   live: boolean;
-  fix: { id: string; text: string; buttons: PaneButton[] } | null;
+  /** `budget` is set on a pause at a daily limit: its scope ("*" is the whole team), who is paused, and the line under the question. */
+  fix: { id: string; text: string; buttons: PaneButton[]; budget?: string; who?: string; detail?: string } | null;
 };
 export type TeamView = { team: string; panes: Pane[]; strip: { role: string; text: string }[] };
 
@@ -181,7 +182,7 @@ export const windowOpen = (a: Partial<OpenRequest> = {}) => invoke<void>("window
 /** The menu bar or a notification asks the main window to show an agent. */
 export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
 
-export type MapNode = { role: string; state: Pane["state"]; since_s: number | null; agent: AgentKind; parent: string | null; group: string | null };
+export type MapNode = { role: string; state: Pane["state"]; since_s: number | null; agent: AgentKind; parent: string | null; group: string | null; paused?: boolean };
 export type MapEdge = { from: string; to: string; wakes: number; empty: number; noisy: { per_hour: number } | null };
 export type MapGroup = {
   name: string;
@@ -218,7 +219,19 @@ export type TeamMap = {
   done: ActivityRow[];
   spend: { tokens: number; waste_share: number } | null;
   spend_ready?: boolean;
+  /** Daily limits, in tokens. Null for agents found on this Mac: they get none. */
+  budget?: Budget | null;
 };
+export type Budget = {
+  limit: number | null;
+  allowed: number | null;
+  used: number;
+  at_limit: "pause" | "tell";
+  agents: { role: string; used: number; limit: number | null }[];
+};
+/** `limits` maps "*" (the whole team) or an agent's name to tokens a day; leave one out for no limit. */
+export const budgetSet = (team: string, limits: Record<string, number>, at_limit: Budget["at_limit"]) =>
+  brain<TeamMap>("budget.set", { team, limits, at_limit });
 export type AgentDetail = {
   role: string;
   cli: AgentKind;
