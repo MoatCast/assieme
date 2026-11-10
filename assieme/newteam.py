@@ -73,7 +73,8 @@ def presets(teams=None):
             'practice_defaults': settings.load()['practices']}
 
 
-CLAUDE_MODELS = (('fable', 'Fable'), ('opus', 'Opus'), ('sonnet', 'Sonnet'))  # Claude Code's own aliases
+# Claude Code's own aliases, strongest first (Help me choose is told that order)
+CLAUDE_MODELS = (('fable', 'Fable'), ('opus', 'Opus'), ('sonnet', 'Sonnet'), ('haiku', 'Haiku'))
 
 
 def _codex_cache():
@@ -91,7 +92,7 @@ def model_options(codex_cache=None):
                 slug = m.get('slug') or ''
                 levels = [x.get('effort') for x in m.get('supported_reasoning_levels') or [] if isinstance(x, dict)]
                 if launch.MODEL.match(slug):
-                    codex.append({'id': slug, 'label': slug,
+                    codex.append({'id': slug, 'label': slug, 'about': str(m.get('description') or ''),
                                   'efforts': [e for e in launch.EFFORTS['codex'] if e in levels]})
     except (OSError, ValueError, AttributeError, TypeError):
         codex = []
@@ -369,7 +370,22 @@ _KIND_JOBS = {'planner': 'reads the project, splits the task and hands out piece
               'tester': 'writes tests and runs the full suite, on its own branch'}
 
 
-def _prompt(size, review, budget, agents):
+def _models_text(agents, models):
+    out = []
+    for a in agents:
+        ms = models[a]['models']
+        if a == 'claude':
+            out.append(f'- claude models, strongest and most expensive first: {", ".join(m["id"] for m in ms)}. '
+                       f'Efforts: {", ".join(models[a]["efforts"])}')
+        elif not ms:
+            out.append(f'- {a}: its own default only; leave model and effort out')
+        else:
+            out += [f'- {a} model {m["id"]} ({m.get("about") or "no description"}). Efforts: {", ".join(m["efforts"])}'
+                    for m in ms]
+    return '\n'.join(out)
+
+
+def _prompt(size, review, budget, agents, models):
     kinds = '\n'.join(f'- {k}: {v}' for k, v in _KIND_JOBS.items())
     return (f'Suggest an agent team for the code in this folder. Read enough of the project to judge it.\n\n'
             f'The change is {_WORDS["size"].get(size, size)}. The person wants to review '
@@ -377,11 +393,23 @@ def _prompt(size, review, budget, agents):
             f'Role kinds you can use:\n{kinds}\n\n'
             f'Use 1 to {MAX_ROLES} agents. Each agent is "claude" or "codex"; only these are installed: '
             f'{", ".join(agents)}. Names use lower-case letters, digits and dashes, and differ.\n\n'
+            'Also choose each agent\'s model and thinking effort. Think harder where mistakes cost most (a reviewer '
+            'usually thinks harder than a builder); on a lean budget prefer cheaper models and lower effort. Leave '
+            'either out to keep that agent\'s own default. Only these exist on this machine:\n'
+            f'{_models_text(agents, models)}\n\n'
             'Reply with only one JSON object: {"roles": [{"name": "...", "kind": "...", "agent": "...", '
-            '"job": "one short line"}], "why": "one sentence"}')
+            '"job": "one short line", "model": "...", "effort": "..."}], "why": "one sentence"}')
 
 
-def _team_from(text, installed):
+def _model_effort(r, cli):
+    """The suggested model and effort if this machine can run them; anything else is Default, which always runs."""
+    chosen = next((m for m in cli['models'] if m['id'] == r.get('model')), None)
+    effort = r.get('effort')
+    return (chosen and chosen['id'],
+            effort if isinstance(effort, str) and effort in (chosen or cli)['efforts'] else None)
+
+
+def _team_from(text, installed, models):
     data = ask.first_json(text)
     if not isinstance(data, dict) or not isinstance(data.get('roles'), list):
         raise ValueError("the answer wasn't a team.")
@@ -398,22 +426,25 @@ def _team_from(text, installed):
             raise ValueError(f'unknown role kind {kind!r}.')
         if r.get('agent') not in installed:
             raise ValueError(f"it chose {r.get('agent')}, which is not installed.")
+        model, effort = _model_effort(r, models[r['agent']])
         roles.append({'name': str(r.get('name', '')), 'agent': r['agent'], 'job': str(r.get('job', '')),
                       'checkout': KINDS[kind][1], 'parent': planner if kind != 'planner' else None,
-                      'brief': kind_brief(kind)})
+                      'brief': kind_brief(kind), 'model': model, 'effort': effort})
     return {'roles': roles, 'why': str(data.get('why', ''))}
 
 
-def suggest(project, size, review, budget, run=subprocess.run, which=setup.agent_path):
-    """Help me choose: the person's own Claude Code (else Codex), read-only in the project, suggests a team."""
+def suggest(project, size, review, budget, run=subprocess.run, which=setup.agent_path, models=None):
+    """Help me choose: the person's own Claude Code (else Codex), read-only in the project, suggests a team
+    with each agent's model and thinking effort, among what New team offers on this machine."""
     have = ask.installed(which)
+    models = models or model_options()
     pre = "Couldn't get a suggestion: "
     try:
-        text = ask.ask_agent(_prompt(size, review, budget, have), project, SUGGEST_TIMEOUT_S, run=run, which=which,
+        text = ask.ask_agent(_prompt(size, review, budget, have, models), project, SUGGEST_TIMEOUT_S, run=run, which=which,
                              timeout_label='3 minutes')
     except ask.AskError as e:
         raise NewTeamError('suggest', str(e) if e.missing else pre + str(e)) from None
     try:
-        return _team_from(text, have)
+        return _team_from(text, have, models)
     except ValueError as e:
         raise NewTeamError('suggest', pre + str(e)) from None

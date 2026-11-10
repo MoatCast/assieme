@@ -421,6 +421,22 @@ test("help me choose fills the agents", async () => {
   expect(names()).toEqual(["builder", "reviewer"]);
 });
 
+test("a suggested model and effort show on the row and reach Start", async () => {
+  b.suggestTeam.mockResolvedValue({ roles: [r("builder"), r("reviewer", { model: "opus", effort: "high" })], why: "w" });
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await open();
+  await fillProjectAndTask();
+  fireEvent.click(screen.getByText("Help me choose"));
+  fireEvent.click(screen.getByText("Suggest a team"));
+  await flush();
+  expect(screen.getByRole("button", { name: "Model and effort for builder" }).textContent).toBe("Default");
+  expect(screen.getByRole("button", { name: "Model and effort for reviewer" }).textContent).toBe("Opus · High");
+  fireEvent.click(screen.getByText("Customise"));
+  fireEvent.click(screen.getByText("Start 2 agents"));
+  await flush();
+  expect(b.startTeam.mock.calls[0][0].roles[1]).toMatchObject({ model: "opus", effort: "high" });
+});
+
 test("replacing an edited list asks first", async () => {
   await open();
   fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });

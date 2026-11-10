@@ -359,16 +359,21 @@ GOOD = {'roles': [{'name': 'builder', 'kind': 'builder', 'agent': 'claude', 'job
                   {'name': 'reviewer', 'kind': 'reviewer', 'agent': 'claude', 'job': 'Check it'}],
         'why': 'Small change.'}
 ASK = dict(project='/p', size='feature', review='every', budget='lean')
+_FIVE = ['low', 'medium', 'high', 'xhigh', 'max']
+MODELS = {'claude': {'models': [{'id': m, 'label': m, 'efforts': _FIVE} for m in ('opus', 'haiku')], 'efforts': _FIVE},
+          'codex': {'models': [{'id': 'gpt-big', 'label': 'gpt-big', 'about': 'Frontier.', 'efforts': _FIVE + ['ultra']},
+                               {'id': 'gpt-small', 'label': 'gpt-small', 'about': 'Fast.', 'efforts': ['low', 'medium']}],
+                    'efforts': ['low', 'medium']}}
 
 
 class SuggestTest(unittest.TestCase):
-    def run_with(self, stdout='', code=0, stderr='', which=ALL):
+    def run_with(self, stdout='', code=0, stderr='', which=ALL, models=None):
         self.calls = []
 
         def run(argv, **kw):
             self.calls.append((argv, kw))
             return subprocess.CompletedProcess(argv, code, stdout, stderr)
-        return newteam.suggest(**ASK, run=run, which=which)
+        return newteam.suggest(**ASK, run=run, which=which, models=models or MODELS)
 
     def fails(self, message, **kw):
         with self.assertRaises(newteam.NewTeamError) as e:
@@ -384,6 +389,35 @@ class SuggestTest(unittest.TestCase):
         self.assertEqual(r['checkout'], 'read-only')
         self.assertEqual(b['brief'], newteam.kind_brief('builder'))
         newteam.validate(out['roles'])
+
+    def picks(self, agent, **choice):
+        g = {'roles': [dict(GOOD['roles'][0], agent=agent, **choice)], 'why': ''}
+        out = self.run_with(json.dumps(g))
+        newteam.validate(out['roles'])
+        return out['roles'][0]['model'], out['roles'][0]['effort']
+
+    def test_model_and_effort_kept_only_if_this_machine_runs_them(self):
+        self.assertEqual(self.picks('claude'), (None, None))
+        self.assertEqual(self.picks('claude', model='haiku', effort='low'), ('haiku', 'low'))
+        self.assertEqual(self.picks('claude', effort='high'), (None, 'high'))
+        self.assertEqual(self.picks('codex', model='gpt-big', effort='ultra'), ('gpt-big', 'ultra'))
+        self.assertEqual(self.picks('claude', model='gpt-big', effort='ultra'), (None, None))  # another agent's model
+        self.assertEqual(self.picks('claude', model='haiku-9', effort='max'), (None, 'max'))
+        self.assertEqual(self.picks('codex', model='gpt-small', effort='high'), ('gpt-small', None))
+        self.assertEqual(self.picks('codex', effort='high'), (None, None))  # not every Codex model has it
+        self.assertEqual(self.picks('claude', model=['x'], effort={'a': 1}), (None, None))
+
+    def test_prompt_lists_only_installed_agents_models(self):
+        self.run_with(json.dumps(GOOD))
+        prompt = self.calls[0][1]['input']
+        self.assertIn('claude models, strongest and most expensive first: opus, haiku. Efforts: low, medium, high, xhigh, max', prompt)
+        self.assertIn('codex model gpt-small (Fast.). Efforts: low, medium', prompt)
+        self.assertIn('"model": "...", "effort": "..."', prompt)
+        self.run_with(json.dumps(GOOD), which=lambda c: '/bin/claude' if c == 'claude' else None)
+        self.assertNotIn('gpt-', self.calls[0][1]['input'])
+        empty = dict(MODELS, codex={'models': [], 'efforts': []})
+        self.run_with(json.dumps(GOOD), models=empty)
+        self.assertIn('codex: its own default only', self.calls[0][1]['input'])
 
     def test_planner_is_parent(self):
         g = {'roles': [{'name': 'planner', 'kind': 'planner', 'agent': 'claude', 'job': 'Plans'}] + GOOD['roles'], 'why': ''}
@@ -482,7 +516,7 @@ class ModelOptionsTest(unittest.TestCase):
                 {'slug': 'bad name!', 'supported_reasoning_levels': []},
             ]}, f)
         o = newteam.model_options(codex_cache=cache)
-        self.assertEqual([m['id'] for m in o['claude']['models']], ['fable', 'opus', 'sonnet'])
+        self.assertEqual([m['id'] for m in o['claude']['models']], ['fable', 'opus', 'sonnet', 'haiku'])
         self.assertEqual(o['claude']['efforts'], ['low', 'medium', 'high', 'xhigh', 'max'])
         self.assertEqual([m['id'] for m in o['codex']['models']], ['gpt-6.1-sol', 'gpt-6-luna'])
         self.assertEqual(o['codex']['models'][1]['efforts'], ['low', 'medium', 'high', 'xhigh', 'max'])
