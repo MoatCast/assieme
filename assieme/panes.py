@@ -7,7 +7,7 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import adapters, live, prompts, reports, status, team
+from . import adapters, budget, live, prompts, reports, status, team
 
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
@@ -188,6 +188,8 @@ def act(team_name, role, fix, button, view_now, rt, log=None, now=None, by='you'
         return {'ok': False, 'detail': CHANGED}
     if b['kind'] == 'reply':
         return {'ok': True, 'detail': ''}  # the app opens the pane for typing
+    if b['kind'] == 'budget':  # carry on after a pause at a daily limit; it logs its own row
+        return budget.resume(team_name, b['send'], b.get('add', 0), rt, now=now, by=by, log=log)
     action = b.get('action') or b['kind']  # nudge, compact or tell; menu; answer
     try:
         if b['kind'] == 'menu':

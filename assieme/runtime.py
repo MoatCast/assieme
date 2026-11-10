@@ -105,6 +105,10 @@ class Runtime:
     def keys(self, t, keys):
         self.call('terminal.keys', terminal=t, keys=keys)
 
+    def interrupt(self, t, timeout_s=3):
+        """Press the program's own stop key (Esc for an agent). It ends the turn, never the program."""
+        return self.call('terminal.interrupt', terminal=t, timeout=timeout_s)
+
     def label(self, t, labels):
         self.call('terminal.label', terminal=t, labels=labels)
 

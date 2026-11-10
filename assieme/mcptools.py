@@ -5,7 +5,7 @@ import os
 import subprocess
 import uuid
 
-from . import live, newteam, panes, preset, quiet, reports, settings, status, team as team_, teammap
+from . import budget, live, newteam, panes, preset, quiet, reports, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -61,6 +61,8 @@ class Tools:
         if target['labels'].get(team_.BRIEFED) != '1':  # a message to a booting agent is dropped
             raise ValueError(f'{to} is still starting. Send this when it has started.')
         rt = self.brain.rt
+        if budget.hold(name, to, me, text):
+            return {'sent': 'held', 'detail': f'{to} is paused at a daily spend limit. It gets this when the person lets it carry on.'}
         if (info.get('cwd') and target.get('cwd') and quiet.is_quiet(info['cwd'], target['cwd'])
                 and not quiet.urgent(text) and quiet.deliverer_alive()):
             quiet.hold_note(target['address'], target['cwd'], text, rt.session, rt.sock, sender=me, from_cwd=quiet._real(info['cwd']))
@@ -101,7 +103,8 @@ class Tools:
     def needs_you(self):
         out = []
         for t in self.brain.teams()['teams']:
-            out += [{'team': t['name']} | _pane(p) for p in self.brain.map(t['name'])['panes'] if p['state'] in teammap.NEEDS_YOU]
+            out += [{'team': t['name']} | _pane(p) for p in self.brain.map(t['name'])['panes']
+                    if p['state'] in teammap.NEEDS_YOU or (p['fix'] or {}).get('budget')]
         return {'needs_you': out}
 
     def _pane_of(self, team, role):
