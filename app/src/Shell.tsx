@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { onOpen, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
+import Board from "./Board";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
 import Review, { Notice } from "./Review";
@@ -10,9 +11,9 @@ import Team from "./Team";
 import Terminals from "./Terminals";
 import "./Shell.css";
 
-type Tab = "first-run" | "team" | "terminals" | "activity";
+type Tab = "first-run" | "team" | "board" | "terminals" | "activity";
 
-const TABS = [["team", "Team"], ["terminals", "Terminals"], ["activity", "Activity"]] as const;
+const TABS = [["team", "Team"], ["board", "Board"], ["terminals", "Terminals"], ["activity", "Activity"]] as const;
 
 /** The live team names, and the one to open on: most agents at a prompt, else the last listed, else a found team. */
 export function liveTeams(snap: Snapshot | null): { names: string[]; neediest: string | null } {
@@ -117,7 +118,7 @@ export default function Shell() {
             ))}
           </div>
           <div className="shell-right" data-tauri-drag-region>
-            {started && (
+            {started && shown !== "board" && (
               <button type="button" className="add-agent" onClick={() => setAdding(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                   <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
@@ -146,6 +147,13 @@ export default function Shell() {
             onNewTeam={() => setCreating(true)}
             onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
             onSeeAll={() => setTab("activity")}
+            onReview={(t, role) => setReview({ team: t, role })} />
+        </div>
+      )}
+      {shown === "board" && !review && (
+        <div className="shell-page">
+          <Board key={team ?? ""} team={team} pollMs={5000} onNewTeam={() => setCreating(true)}
+            onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
             onReview={(t, role) => setReview({ team: t, role })} />
         </div>
       )}
