@@ -6,7 +6,7 @@ const b = vi.hoisted(() => ({ boardGet: vi.fn(), boardMove: vi.fn(), boardRemove
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
 
-import Board from "./Board";
+import Board, { NewTask } from "./Board";
 
 const card = (id: string, over: Partial<BoardCard> = {}): BoardCard => ({
   id, title: `task ${id}`, role: "builder-1", status: "todo", by: "planner", note: "", needs_you: false, moved_s: 0, ...over,
@@ -16,8 +16,8 @@ const BOARD = (cards: BoardCard[], over: Partial<BoardData> = {}): BoardData => 
 const flush = () => act(async () => {});
 const open = async (data: BoardData, props: Partial<Parameters<typeof Board>[0]> = {}) => {
   b.boardGet.mockResolvedValue(data);
-  const calls = { term: vi.fn(), review: vi.fn(), neu: vi.fn() };
-  const view = render(<Board team="shop" pollMs={100000} onNewTeam={calls.neu} onOpenTerminal={calls.term} onReview={calls.review} {...props} />);
+  const calls = { term: vi.fn(), review: vi.fn(), neu: vi.fn(), task: vi.fn() };
+  const view = render(<Board team="shop" pollMs={100000} onNewTeam={calls.neu} onNewTask={calls.task} onOpenTerminal={calls.term} onReview={calls.review} {...props} />);
   await flush();
   return { ...calls, ...view };
 };
@@ -91,14 +91,82 @@ test("a card waiting for the person says so, and a fresh merge stands out", asyn
 });
 
 test("no team offers New team, and a new refresh key reads again", async () => {
-  const { neu, rerender, term, review } = await open(BOARD([]), { team: null });
+  const { neu, rerender, term, review, task } = await open(BOARD([]), { team: null });
   fireEvent.click(screen.getByRole("button", { name: "New team" }));
   expect(neu).toHaveBeenCalled();
   expect(b.boardGet).not.toHaveBeenCalled();
-  rerender(<Board team="shop" pollMs={100000} onNewTeam={neu} onOpenTerminal={term} onReview={review} />);
+  rerender(<Board team="shop" pollMs={100000} onNewTeam={neu} onNewTask={task} onOpenTerminal={term} onReview={review} />);
   await flush();
-  rerender(<Board team="shop" pollMs={100000} refreshKey={1} onNewTeam={neu} onOpenTerminal={term} onReview={review} />);
+  rerender(<Board team="shop" pollMs={100000} refreshKey={1} onNewTeam={neu} onNewTask={task} onOpenTerminal={term} onReview={review} />);
   await flush();
   expect(b.boardGet).toHaveBeenCalledTimes(2);
   expect(screen.getByText("No tasks yet")).toBeTruthy();
+  fireEvent.click(column("To do").getByRole("button", { name: "New task" }));
+  expect(task).toHaveBeenCalled();
+});
+
+test("a card's menu moves it to another column, or removes it", async () => {
+  b.boardMove.mockResolvedValue({});
+  b.boardRemove.mockResolvedValue({ ok: true });
+  await open(BOARD([card("1", { status: "doing" })]));
+  expect(screen.queryByRole("menu")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "More for task 1" }));
+  const menu = within(screen.getByRole("menu"));
+  expect(menu.getAllByRole("menuitemradio").map((i) => i.textContent)).toEqual(["To do", "Doing", "Review", "Done"]);
+  expect((menu.getByRole("menuitemradio", { name: "Doing" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(menu.getByRole("menuitemradio", { name: "Review" }));
+  await flush();
+  expect(b.boardMove).toHaveBeenCalledWith("shop", "1", "review");
+  expect(screen.queryByRole("menu")).toBeNull();
+  expect(b.boardGet).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByRole("button", { name: "More for task 1" }));
+  fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+  expect(screen.queryByRole("menu")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "More for task 1" }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Remove" }));
+  await flush();
+  expect(b.boardRemove).toHaveBeenCalledWith("shop", "1");
+});
+
+test("a move the brain refuses says why on the card", async () => {
+  b.boardMove.mockRejectedValue(new Error("No task 1 on this board."));
+  await open(BOARD([card("1")]));
+  fireEvent.click(screen.getByRole("button", { name: "More for task 1" }));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: "Done" }));
+  await flush();
+  expect(screen.getByTestId("task-1").textContent).toContain("No task 1 on this board.");
+});
+
+test("New task adds a card, for nobody or for an agent", async () => {
+  b.boardAdd.mockResolvedValue({ card: card("9"), told: true });
+  const close = vi.fn();
+  render(<NewTask team="shop" roles={["planner", "builder-1"]} onClose={close} />);
+  const add = screen.getByRole("button", { name: "Add task" }) as HTMLButtonElement;
+  expect(add.disabled).toBe(true); // nothing to add yet
+  fireEvent.change(screen.getByLabelText("What needs doing"), { target: { value: "Add retry metrics" } });
+  expect(screen.getByText(/Nobody is told/)).toBeTruthy();
+  fireEvent.click(add);
+  await flush();
+  expect(b.boardAdd).toHaveBeenCalledWith("shop", "Add retry metrics", null);
+  expect(close).toHaveBeenCalledWith(true, undefined);
+  fireEvent.change(screen.getByLabelText(/Give it to/), { target: { value: "builder-1" } });
+  expect(screen.getByText(/is told about it now/).textContent).toContain("builder-1");
+  b.boardAdd.mockResolvedValue({ card: card("10"), told: false });
+  fireEvent.click(add);
+  await flush();
+  expect(b.boardAdd).toHaveBeenLastCalledWith("shop", "Add retry metrics", "builder-1");
+  expect(close).toHaveBeenLastCalledWith(true, "builder-1 isn’t running, so it wasn’t told about the new task.");
+});
+
+test("New task keeps the sheet open with the reason when adding fails, and Escape closes it", async () => {
+  b.boardAdd.mockRejectedValue(new Error("This board is full. Remove some finished cards first."));
+  const close = vi.fn();
+  render(<NewTask team="shop" roles={[]} onClose={close} />);
+  fireEvent.change(screen.getByLabelText("What needs doing"), { target: { value: "x" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add task" }));
+  await flush();
+  expect(screen.getByText(/This board is full/)).toBeTruthy();
+  expect(close).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(close).toHaveBeenCalledWith(false);
 });

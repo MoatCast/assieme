@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { onOpen, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
-import Board from "./Board";
+import Board, { NewTask } from "./Board";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
 import Review, { Notice } from "./Review";
@@ -36,6 +36,8 @@ export default function Shell() {
   const [picked, setPicked] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [tasking, setTasking] = useState(false);
+  const [boardKey, setBoardKey] = useState(0);
   const [settings, setSettings] = useState(false);
   const [settingsAt, setSettingsAt] = useState<string | undefined>();
   const [focus, setFocus] = useState<string | null>(null);
@@ -118,6 +120,14 @@ export default function Shell() {
             ))}
           </div>
           <div className="shell-right" data-tauri-drag-region>
+            {team && shown === "board" && (
+              <button type="button" className="add-agent" onClick={() => setTasking(true)}>
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                New task
+              </button>
+            )}
             {started && shown !== "board" && (
               <button type="button" className="add-agent" onClick={() => setAdding(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -152,7 +162,7 @@ export default function Shell() {
       )}
       {shown === "board" && !review && (
         <div className="shell-page">
-          <Board key={team ?? ""} team={team} pollMs={5000} onNewTeam={() => setCreating(true)}
+          <Board key={team ?? ""} team={team} pollMs={5000} refreshKey={boardKey} onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
             onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
             onReview={(t, role) => setReview({ team: t, role })} />
         </div>
@@ -196,6 +206,14 @@ export default function Shell() {
       {adding && team && (
         <AddAgent team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}
           clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setAdding(false)} />
+      )}
+      {tasking && team && (
+        <NewTask team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}
+          onClose={(added, note) => {
+            setTasking(false);
+            if (added) setBoardKey((k) => k + 1);
+            if (note) setNotice(note);
+          }} />
       )}
       {settings && (
         <Settings team={team} section={settingsAt} onClose={() => setSettings(false)}

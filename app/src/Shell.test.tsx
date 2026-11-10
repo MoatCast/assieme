@@ -58,9 +58,12 @@ vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun, section }: {
   <div><span>settings screen{section ? ` at ${section}` : ""}</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button></div>
 ) }));
 vi.mock("./Board", () => ({
-  default: ({ team, onReview, onOpenTerminal }: { team: string | null; onReview: (t: string, r: string) => void; onOpenTerminal: (r: string) => void }) => (
+  NewTask: ({ team, roles, onClose }: { team: string; roles: string[]; onClose: (added: boolean, note?: string) => void }) => (
+    <div><span>new task for {team}: {roles.join(",")}</span><button type="button" onClick={() => onClose(true, "b wasn't told.")}>task added</button></div>
+  ),
+  default: ({ team, refreshKey, onReview, onOpenTerminal }: { team: string | null; refreshKey: number; onReview: (t: string, r: string) => void; onOpenTerminal: (r: string) => void }) => (
     <div>
-      <span>board for {team ?? "none"}</span>
+      <span>board for {team ?? "none"}</span><span>read {refreshKey}</span>
       <button type="button" onClick={() => onReview("beta", "b")}>card review</button>
       <button type="button" onClick={() => onOpenTerminal("b")}>card terminal</button>
     </div>
@@ -128,6 +131,12 @@ test("the Board tab sits after Team; its cards open Review and Terminals", async
   fireEvent.click(screen.getByRole("tab", { name: "Board" }));
   expect(screen.getByText("board for beta")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Add agent" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "New task" }));
+  expect(screen.getByText("new task for beta: b")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "task added" }));
+  expect(screen.queryByText("new task for beta: b")).toBeNull();
+  expect(screen.getByText("read 1")).toBeTruthy(); // the board reads again at once
+  expect(screen.getByTestId("notice").textContent).toBe("b wasn't told.");
   fireEvent.click(screen.getByRole("button", { name: "card review" }));
   expect(screen.getByText("review of beta/b")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "back" }));
