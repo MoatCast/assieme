@@ -8,6 +8,7 @@ import {
   openLink, reviewAsk, reviewDiscard, reviewEditor, reviewGet, reviewMerge, reviewNote, reviewPullRequest,
   type MergeResult, type ReviewCheck, type ReviewData, type ReviewNote,
 } from "./bridge";
+import { PreviewGroup, usePreviews } from "./Preview";
 import "./Review.css";
 
 const words = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -163,6 +164,7 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
   const [busy, setBusy] = useState(false);
   const refresh = useRef<() => void>(() => {});
   const loaded = useRef(false);
+  const pv = usePreviews(pollMs);
 
   useEffect(() => {
     let stopped = false;
@@ -265,6 +267,7 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
             <h2>Checks</h2>
             {data.checks.map((c) => <CheckRow key={c.id} check={c} />)}
           </div>
+          <PreviewGroup team={team} role={role} pv={pv} />
           <div className="side-group files">
             <h2>Files</h2>
             {data.files.map((f) => (
@@ -343,6 +346,7 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
         </div>
       )}
       {sent && <Notice key={sent} ms={6000} onDone={() => setSent("")}>{sent}</Notice>}
+      {pv.sheet}
     </div>
   );
 }

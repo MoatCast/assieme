@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { paneAct, reviewWaiting, teamView, type Pane, type PaneButton, type ReviewWaiting, type TeamView } from "./bridge";
+import { openLink, paneAct, reviewWaiting, teamView, type Pane, type PaneButton, type ReviewWaiting, type TeamView } from "./bridge";
+import { host, usePreviews } from "./Preview";
 import Offline from "./Offline";
 import Terminal from "./Terminal";
 import "./Terminals.css";
@@ -35,6 +36,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
   const [pressed, setPressed] = useState<Set<string>>(new Set()); // fix ids already acted on: no second send
   const [offline, setOffline] = useState(false);
   const refresh = useRef<() => void>(() => {});
+  const pv = usePreviews(pollMs);
 
   useEffect(() => {
     if (!team) return;
@@ -141,6 +143,22 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
     !p.fix && !notes[p.role] && p.state !== "working" && !needsYou(p)
       ? waiting.find((w) => w.team === team && w.role === p.role) : undefined;
 
+  /** Paper "v2 — Preview: states": finished work, and its preview, at the foot of a pane. */
+  const finished = (p: Pane, w: ReviewWaiting | undefined, pr: ReturnType<typeof pv.of>) => (
+    <div className="fix">
+      <span className={`fix-reason${pr?.state === "failed" ? " bad" : ""}`}>
+        {!pr ? `${commits(w!.ahead)} ready to review`
+          : pr.state === "running" ? <span className="mono">{host(pr)}</span>
+          : pr.state === "failed" ? "The preview didn't start" : "Starting the preview…"}
+      </span>
+      {!pr && <button type="button" className="secondary" disabled={pv.busy} onClick={() => pv.start(team, p.role)}>Preview</button>}
+      {pr && pr.state !== "failed" && <button type="button" className="quiet" disabled={pv.busy} onClick={() => pv.stop(team, p.role)}>Stop</button>}
+      {pr?.state === "running" && <button type="button" className="secondary" onClick={() => pr.url && openLink(pr.url)}>Open preview</button>}
+      {pr?.state === "failed" && <button type="button" className="secondary" onClick={() => onReview(team, p.role)}>See why</button>}
+      {w && <button type="button" className="primary" onClick={() => onReview(team, p.role)}>Review changes</button>}
+    </div>
+  );
+
   const card = (p: Pane, full: boolean) => (
     <div key={p.role} data-testid={`pane-${p.role}`}
       className={`pane state-${p.state}${needsYou(p) ? " needs" : ""}${full ? " full" : ""}`}>
@@ -163,12 +181,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
           ))}
         </div>
       )}
-      {ready(p) && (
-        <div className="fix">
-          <span className="fix-reason">{commits(ready(p)!.ahead)} ready to review</span>
-          <button type="button" className="primary" onClick={() => onReview(team, p.role)}>Review changes</button>
-        </div>
-      )}
+      {(ready(p) || pv.of(team, p.role)) && finished(p, ready(p), pv.of(team, p.role))}
     </div>
   );
 
@@ -191,6 +204,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
       ) : (
         <div className="grid">{view.panes.map((p) => card(p, false))}</div>
       )}
+      {pv.sheet}
     </div>
   );
 }

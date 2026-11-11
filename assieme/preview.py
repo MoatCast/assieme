@@ -260,7 +260,8 @@ class Previews:
     def _view(self, i):
         return {'team': i['team'], 'role': i['role'], 'project': os.path.basename(i['project']), 'state': i['state'],
                 'command': i['command'], 'url': i['url'], 'port': i.get('shown_port'), 'reason': i['reason'],
-                'output': i['output'], 'fix': i['fix']}
+                'output': i['output'], 'fix': i['fix'],
+                'install': install_command(i['path']) if i['fix'] == 'install' else None}  # named on the button: it downloads
 
     def handlers(self):
         return {'preview.list': self.list, 'preview.start': self.start, 'preview.stop': self.stop}

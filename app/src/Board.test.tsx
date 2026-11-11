@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { BoardCard, BoardData } from "./bridge";
 
-const b = vi.hoisted(() => ({ boardGet: vi.fn(), boardMove: vi.fn(), boardRemove: vi.fn(), boardAdd: vi.fn(), paneAct: vi.fn() }));
+const b = vi.hoisted(() => ({ boardGet: vi.fn(), boardMove: vi.fn(), boardRemove: vi.fn(), boardAdd: vi.fn(), paneAct: vi.fn(), openLink: vi.fn(), previewList: vi.fn((): Promise<unknown[]> => Promise.resolve([])), previewStart: vi.fn(), previewStop: vi.fn(), }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
 
@@ -26,6 +26,7 @@ const column = (name: string) => within(screen.getByRole("region", { name }));
 beforeEach(() => {
   vi.resetAllMocks();
   b.paneAct.mockResolvedValue({ ok: true, detail: "" });
+  b.previewList.mockResolvedValue([]);
 });
 afterEach(cleanup);
 
@@ -169,4 +170,30 @@ test("New task keeps the sheet open with the reason when adding fails, and Escap
   expect(close).not.toHaveBeenCalled();
   fireEvent.keyDown(window, { key: "Escape" });
   expect(close).toHaveBeenCalledWith(false);
+});
+
+const PREVIEW = (role: string, more: object = {}) => ({ team: "shop", role, project: "checkout", state: "running", command: "npm run dev",
+  url: "http://localhost:5175", port: 5175, reason: "", output: "", fix: null, ...more });
+
+test("a review card previews its branch: start, then open and stop, or see why it didn't start", async () => {
+  const branch = { ahead: 2, files: 1, add: 4, del: 2, tests: null, notes: [] };
+  b.previewStart.mockResolvedValue(PREVIEW("builder-1", { state: "starting", url: null }));
+  const { review } = await open(BOARD([card("1", { status: "review", branch }), card("2", { status: "review", role: "builder-2", branch }),
+    card("3", { status: "review", role: "builder-3", branch })]));
+  b.previewList.mockResolvedValue([PREVIEW("builder-2"), PREVIEW("builder-3", { state: "failed", url: null, reason: "npm run dev stopped." })]);
+  fireEvent.click(within(screen.getByTestId("task-1")).getByRole("button", { name: "Preview" }));
+  await flush();
+  expect(b.previewStart).toHaveBeenCalledWith("shop", "builder-1", null, false);
+  await flush();
+  const two = screen.getByTestId("task-2");
+  expect(two.textContent).toContain("Preview at localhost:5175");
+  fireEvent.click(within(two).getByRole("button", { name: "Open preview" }));
+  expect(b.openLink).toHaveBeenCalledWith("http://localhost:5175");
+  fireEvent.click(within(two).getByRole("button", { name: "Stop" }));
+  await flush();
+  expect(b.previewStop).toHaveBeenCalledWith("shop", "builder-2");
+  const three = screen.getByTestId("task-3");
+  expect(three.textContent).toContain("The preview didn't start");
+  fireEvent.click(within(three).getByRole("button", { name: "See why" }));
+  expect(review).toHaveBeenCalledWith("shop", "builder-3");
 });

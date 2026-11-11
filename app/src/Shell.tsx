@@ -198,7 +198,7 @@ export default function Shell() {
       {merged && (
         <Notice key={merged.undo} ms={120_000} onDone={() => setMerged(null)}
           action={<button type="button" onClick={() => undo(merged)}>Undo</button>}>
-          Merged <strong>{merged.role}</strong> into {merged.base}. {merged.problem ?? "Its worktree is archived."}
+          Merged <strong>{merged.role}</strong> into {merged.base}. {merged.problem ?? `Its worktree is archived${merged.preview_stopped ? " and its preview stopped" : ""}.`}
         </Notice>
       )}
       {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}

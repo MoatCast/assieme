@@ -111,6 +111,17 @@ class Running(Base):
         self.assertIn("nosuchtool isn't installed", got['reason'])
         self.assertIn('starting up', got['output'])
         self.assertEqual(got['fix'], 'command')  # nothing to install for this project
+        self.assertIsNone(got['install'])
+
+    def test_install_and_try_again_names_and_runs_the_install_first(self):
+        self.branch('builder-1', {'package.json': '{"scripts": {"dev": "nosuchtool"}}'})
+        self.p.start('demo', 'builder-1')
+        got = wait_for(lambda: self.one('builder-1'), 'failed')
+        self.assertEqual((got['fix'], got['install']), ('install', 'npm install'))
+        self.p.popen = lambda args, **kw: subprocess.Popen(['/bin/sh', '-c', 'echo "$0"; exit 3', args[2]], **kw)
+        self.p.start('demo', 'builder-1', install=True)
+        got = wait_for(lambda: self.one('builder-1'), 'failed')
+        self.assertIn('npm install && npm run dev', got['output'])  # what would have run, shown by the stand-in
 
     def test_a_server_that_never_opens_a_port_is_stopped(self):
         self.branch('builder-1', {'c.py': 'x'})
@@ -128,6 +139,11 @@ class Running(Base):
         pgid = self.p.items[('demo', 'builder-1')]['pgid']
         self.r.discard('demo', 'builder-1', tip)
         self.assertFalse(alive(pgid))
+        self.assertEqual(self.p.list(), [])
+        tip = self.branch('builder-2', {'index.html': 'two'})
+        self.p.start('demo', 'builder-2')
+        wait_for(lambda: self.one('builder-2'), 'running')
+        self.assertTrue(self.r.merge('demo', 'builder-2', tip)['preview_stopped'])
         self.assertEqual(self.p.list(), [])
 
     def test_a_running_team_that_stops_takes_its_previews_with_it(self):

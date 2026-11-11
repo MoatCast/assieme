@@ -6,6 +6,7 @@ import type { ReviewData } from "./bridge";
 const b = vi.hoisted(() => ({
   reviewGet: vi.fn(), reviewMerge: vi.fn(), reviewDiscard: vi.fn(), reviewAsk: vi.fn(), reviewNote: vi.fn(),
   reviewEditor: vi.fn(), reviewPullRequest: vi.fn(), openLink: vi.fn(),
+  previewList: vi.fn((): Promise<unknown[]> => Promise.resolve([])), previewStart: vi.fn(), previewStop: vi.fn(), 
 }));
 vi.mock("./bridge", () => b);
 
