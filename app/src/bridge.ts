@@ -311,6 +311,30 @@ export const reviewEditor = (team: string, role: string, file: string, line?: nu
   brain<{ ok: boolean }>("review.open_editor", { team, role, file, line });
 export const openLink = (url: string) => openUrl(url);
 
+export type BoardStatus = "todo" | "doing" | "review" | "done";
+export type BoardCard = {
+  id: string;
+  title: string;
+  role: string | null;
+  status: BoardStatus;
+  /** "you", or the agent that made the card. */
+  by: string;
+  note: string;
+  needs_you: boolean;
+  moved_s: number;
+  /** Doing: what its agent is up to right now. */
+  agent?: Pick<Pane, "role" | "state" | "since_s" | "detail" | "fix" | "reachable"> | null;
+  /** Review: what the brain knows about its agent's branch; null when there is none. */
+  branch?: { ahead: number; files: number; add: number; del: number; tests: Pick<ReviewCheck, "state" | "text"> | null; notes: string[] } | null;
+};
+export type BoardData = { team: string; title: string; cards: BoardCard[]; spend: TeamMap["spend"]; spend_ready?: boolean };
+/** A Review card reads its branch from git, which can be slow on a large repository. */
+export const boardGet = (team: string) => slow<BoardData>("board.get", { team }, 60);
+export const boardAdd = (team: string, title: string, role: string | null) =>
+  brain<{ card: BoardCard; told: boolean }>("board.add", { team, title, role });
+export const boardMove = (team: string, id: string, status: BoardStatus) => brain<BoardCard>("board.move", { team, id, status });
+export const boardRemove = (team: string, id: string) => brain<{ ok: boolean }>("board.remove", { team, id });
+
 export type Assistants = { clients: { id: string; label: string; connected: boolean; blocked?: boolean }[]; problems: string[] };
 /** These run each client's own command, which can take several seconds apiece. */
 export const assistantsStatus = () => invoke<Assistants>("brain_call", { method: "assistants.status", params: {}, timeoutS: 60 });

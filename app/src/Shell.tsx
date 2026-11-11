@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { onOpen, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
+import Board, { NewTask } from "./Board";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
 import Review, { Notice } from "./Review";
@@ -11,9 +12,9 @@ import TeamBrief from "./TeamBrief";
 import Terminals from "./Terminals";
 import "./Shell.css";
 
-type Tab = "first-run" | "team" | "terminals" | "activity";
+type Tab = "first-run" | "team" | "board" | "terminals" | "activity";
 
-const TABS = [["team", "Team"], ["terminals", "Terminals"], ["activity", "Activity"]] as const;
+const TABS = [["team", "Team"], ["board", "Board"], ["terminals", "Terminals"], ["activity", "Activity"]] as const;
 
 /** The live team names, and the one to open on: most agents at a prompt, else the last listed, else a found team. */
 export function liveTeams(snap: Snapshot | null): { names: string[]; neediest: string | null } {
@@ -37,6 +38,8 @@ export default function Shell() {
   const [creating, setCreating] = useState(false);
   const [adding, setAdding] = useState(false);
   const [briefing, setBriefing] = useState(false);
+  const [tasking, setTasking] = useState(false);
+  const [boardKey, setBoardKey] = useState(0);
   const [settings, setSettings] = useState(false);
   const [settingsAt, setSettingsAt] = useState<string | undefined>();
   const [focus, setFocus] = useState<string | null>(null);
@@ -120,7 +123,15 @@ export default function Shell() {
           </div>
           <div className="shell-right" data-tauri-drag-region>
             {started && <button type="button" className="add-agent" onClick={() => setBriefing(true)}>Team brief</button>}
-            {started && (
+            {team && shown === "board" && (
+              <button type="button" className="add-agent" onClick={() => setTasking(true)}>
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                New task
+              </button>
+            )}
+            {started && shown !== "board" && (
               <button type="button" className="add-agent" onClick={() => setAdding(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                   <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
@@ -149,6 +160,13 @@ export default function Shell() {
             onNewTeam={() => setCreating(true)}
             onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
             onSeeAll={() => setTab("activity")}
+            onReview={(t, role) => setReview({ team: t, role })} />
+        </div>
+      )}
+      {shown === "board" && !review && (
+        <div className="shell-page">
+          <Board key={team ?? ""} team={team} pollMs={5000} refreshKey={boardKey} onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
+            onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
             onReview={(t, role) => setReview({ team: t, role })} />
         </div>
       )}
@@ -193,6 +211,14 @@ export default function Shell() {
           clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setAdding(false)} />
       )}
       {briefing && team && <TeamBrief team={team} onClose={() => setBriefing(false)} />}
+      {tasking && team && (
+        <NewTask team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}
+          onClose={(added, note) => {
+            setTasking(false);
+            if (added) setBoardKey((k) => k + 1);
+            if (note) setNotice(note);
+          }} />
+      )}
       {settings && (
         <Settings team={team} section={settingsAt} onClose={() => setSettings(false)}
           onShowFirstRun={() => { setSettings(false); setTab("first-run"); }} />

@@ -15,7 +15,7 @@ import time
 import tomllib
 import uuid
 
-from . import adapters, live, preset, runtime, status, team as team_mod, worktree
+from . import adapters, live, preset, runtime, status, tasks, team as team_mod, worktree
 
 MAX_DIFF = 2_000_000
 TESTS_TIMEOUT_S = 900
@@ -372,6 +372,19 @@ class Review:
                 'checks': self._checks(team, role, project, base, branch, path, tip, files, retest),
                 'notes': self._notes(project, role, branch), 'agent': self._agent(team, role)}
 
+    def card(self, team, role):
+        """What a board card shows about this agent's branch, or None when it has none. The tests run, as on opening
+        Review, only when there is something to review."""
+        try:
+            project, base, branch, path = self._ctx(team, role)
+        except ReviewError:
+            return None
+        tip, files, ahead = self._tip(project, branch), self._files(project, base, branch), self._ahead(project, base, branch)
+        tests = self._tests_check(project, path, tip) if ahead else None
+        return {'ahead': ahead, 'files': len(files), 'add': sum(f['add'] for f in files), 'del': sum(f['del'] for f in files),
+                'tests': tests and {'state': tests['state'], 'text': tests['text']},
+                'notes': [n['author'] for n in self._notes(project, role, branch)]}
+
     def _write_log(self, entry):
         live._log(self.log or live.log_path(), {'at': status.now_utc().strftime('%Y-%m-%dT%H:%M:%SZ'), 'by': 'you',
                                                 'ok': True, **entry})
@@ -463,6 +476,7 @@ class Review:
             self._write_log({'id': uid, 'team': team, 'agent': role, 'action': 'merge', 'undo': True,
                              'title': f"Merged {role} into {base}", 'reason': problem or 'Its worktree is archived.',
                              'restore': self.undos[uid]})
+            tasks.merged(team, role, base, uid)
             return {'role': role, 'base': base, 'problem': problem, 'undo': uid}
 
     def undo(self, id):
@@ -493,6 +507,7 @@ class Review:
                     raise ReviewError(f"The merge is undone, but its worktree didn't come back: {r.stderr.strip()}")
             self._set_ignored(project, self._ignored(project) - set(rec['notes']))
             del self.undos[id]
+            tasks.unmerged(rec['team'], id)
             self._write_log({'id': uuid.uuid4().hex, 'team': rec['team'], 'agent': rec['role'], 'action': 'undo-merge', 'of': id,
                              'undo': False, 'title': f"Undid the merge of {rec['role']}",
                              'reason': 'Its work is back, ready to review.'})
@@ -507,6 +522,7 @@ class Review:
             problem = self._archive(project, team, role, branch, path, tip, force=True)
             self._write_log({'id': uuid.uuid4().hex, 'team': team, 'agent': role, 'action': 'discard', 'undo': False,
                              'title': f"Discarded {role}'s work", 'reason': problem or 'Its worktree is removed.'})
+            tasks.discarded(team, role)
             return {'role': role, 'problem': problem}
 
     def pull_request(self, team, role):

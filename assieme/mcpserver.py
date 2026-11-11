@@ -98,7 +98,8 @@ def _read_guide(name):
 def agent_server(address):
     m = MCPServer('assieme', instructions=(
         'You are an agent in an Assieme team. Use these tools instead of `hc send`: message_agent to reach a teammate, '
-        'report when you are stuck or need the person to decide, then end your turn.'))
+        'report when you are stuck or need the person to decide, then end your turn. The person follows the work on a '
+        'board of cards: keep yours current with set_task, and make one with add_task for each piece of work you plan.'))
 
     @m.tool(annotations=READ)
     def list_teammates() -> dict:
@@ -128,6 +129,28 @@ def agent_server(address):
     def record_decision(question: str, answer: str) -> dict:
         """Save an answer the person gave you in the team brief, one line each, so no teammate asks the same thing."""
         return call('mcp.record_decision', address=address, question=question, answer=answer)
+
+    @m.tool(annotations=READ)
+    def list_tasks() -> dict:
+        """Your team's board: each card's id, title, who it is for and its status."""
+        return call('mcp.tasks', address=address)
+
+    @m.tool(annotations=ACT)
+    def add_task(title: str, assignee: str = '') -> dict:
+        """Put a card on your team's board, in To do: one per piece of work, titled in a few plain words. `assignee` is
+        a teammate's name, or yours; leave it empty if nobody has it yet. This only makes the card: send the work itself
+        with message_agent."""
+        return call('mcp.task_add', address=address, title=title, assignee=assignee)
+
+    @m.tool(annotations=ACT)
+    def set_task(task: str, status: Literal['todo', 'doing', 'review', 'done'], note: str = '',
+                 waiting_for_person: bool = False) -> dict:
+        """Move a card on your team's board, by its id from list_tasks. `doing` when you start it, `review` when it is
+        committed and ready for the person to look at, `done` when nothing is left to review. `note` is one line the
+        person sees on the card, such as "212 tests pass". `waiting_for_person` marks a card that can't move until the
+        person answers: say what you need in `note`, and call report as well."""
+        return call('mcp.task_set', address=address, task=task, status=status, note=note,
+                    waiting_for_person=waiting_for_person)
 
     return m
 

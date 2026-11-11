@@ -7,7 +7,7 @@ import { AgentsMap, GroupsMap } from "./TeamMap";
 import { ago } from "./Terminals";
 import "./Team.css";
 
-const SAYS: Partial<Record<Pane["state"], string>> = {
+export const SAYS: Partial<Record<Pane["state"], string>> = {
   asking: "is asking you", stuck: "seems stuck", waiting: "has work waiting",
 };
 

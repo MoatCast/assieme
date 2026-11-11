@@ -57,6 +57,18 @@ vi.mock("./Activity", () => ({ default: ({ team }: { team: string | null }) => <
 vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun, section }: { onClose: () => void; onShowFirstRun: () => void; section?: string }) => (
   <div><span>settings screen{section ? ` at ${section}` : ""}</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button></div>
 ) }));
+vi.mock("./Board", () => ({
+  NewTask: ({ team, roles, onClose }: { team: string; roles: string[]; onClose: (added: boolean, note?: string) => void }) => (
+    <div><span>new task for {team}: {roles.join(",")}</span><button type="button" onClick={() => onClose(true, "b wasn't told.")}>task added</button></div>
+  ),
+  default: ({ team, refreshKey, onReview, onOpenTerminal }: { team: string | null; refreshKey: number; onReview: (t: string, r: string) => void; onOpenTerminal: (r: string) => void }) => (
+    <div>
+      <span>board for {team ?? "none"}</span><span>read {refreshKey}</span>
+      <button type="button" onClick={() => onReview("beta", "b")}>card review</button>
+      <button type="button" onClick={() => onOpenTerminal("b")}>card terminal</button>
+    </div>
+  ),
+}));
 vi.mock("./AddAgent", () => ({ default: ({ team, roles }: { team: string; roles: string[] }) => <div>add agent to {team}: {roles.join(",")}</div> }));
 const setSetting = vi.hoisted(() => vi.fn());
 const takeDraft = vi.hoisted(() => vi.fn());
@@ -110,7 +122,27 @@ test("tabs switch between Team, Terminals and Activity", async () => {
   expect(screen.getByText("activity for beta")).toBeTruthy();
   fireEvent.click(screen.getByRole("tab", { name: "Team" }));
   expect(screen.getByText("team tab for beta")).toBeTruthy();
-  expect(screen.queryByRole("tab", { name: "Board" })).toBeNull();
+});
+
+test("the Board tab sits after Team; its cards open Review and Terminals", async () => {
+  render(<Shell />);
+  await flush();
+  expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Team", "Board", "Terminals", "Activity"]);
+  fireEvent.click(screen.getByRole("tab", { name: "Board" }));
+  expect(screen.getByText("board for beta")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Add agent" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "New task" }));
+  expect(screen.getByText("new task for beta: b")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "task added" }));
+  expect(screen.queryByText("new task for beta: b")).toBeNull();
+  expect(screen.getByText("read 1")).toBeTruthy(); // the board reads again at once
+  expect(screen.getByTestId("notice").textContent).toBe("b wasn't told.");
+  fireEvent.click(screen.getByRole("button", { name: "card review" }));
+  expect(screen.getByText("review of beta/b")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "back" }));
+  expect(screen.getByText("board for beta")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "card terminal" }));
+  expect(screen.getByText("terminals for beta")).toBeTruthy();
 });
 
 test("Team's Open terminal goes to Terminals", async () => {
