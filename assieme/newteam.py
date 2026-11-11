@@ -237,7 +237,8 @@ class Starter:
         except (OSError, tomllib.TOMLDecodeError):
             return None  # started from the command line, or the folder is gone
 
-    def start(self, project, task, roles, practices):
+    def start(self, project, task, roles, practices, name=None):
+        """`name` is a scheduled run's own team name; New team leaves it to the project's folder name."""
         validate(roles)
         project = os.path.expanduser(project)
         check = project_check(project)
@@ -252,7 +253,9 @@ class Starter:
             if running:  # a second team here would share the first team's worktrees
                 raise NewTeamError('project', f'This project already has a running team: {running[0]}. Stop it first.')
             taken = live | set(self.busy.values()) | {r['team'] for r in self.recs if not r['done']}
-            name = self.busy[project] = team_name(project, taken)
+            if name in taken:
+                raise NewTeamError('start', f'{name} is still running.')
+            name = self.busy[project] = name or team_name(project, taken)
         try:
             folder = save(project, roles, practices, name, self.teams)
             try:

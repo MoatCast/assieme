@@ -487,6 +487,14 @@ class StarterSharingTest(StarterTest):
         self.assertEqual(s.start(self.repo, 't', ROLES, {}), {'team': 'repo'})
         self.assertEqual(s.start(other, 't', ROLES, {}), {'team': 'repo-2'})
 
+    def test_a_scheduled_run_names_its_team(self):
+        s = self.starter()
+        roles = [role('nightly-builder')]
+        self.assertEqual(s.start(self.repo, 't', roles, {}, name='nightly'), {'team': 'nightly'})
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.starter(Rt(live=['nightly'])).start(git_repo(os.path.join(self.d, 'c')), 't', roles, {}, name='nightly')
+        self.assertEqual(e.exception.message, 'nightly is still running.')
+
     def test_records_not_blocked_by_git_work(self):
         s = self.starter()
         seen = []
