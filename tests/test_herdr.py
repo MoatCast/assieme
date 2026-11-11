@@ -15,7 +15,13 @@ def by_name(draft):
 
 
 def notes_for(draft, name):
-    return [n for n in draft['notes'] if n.startswith(f'{name}:')]
+    """Each grouped note that lists this agent, as its sentence and the agent's own label."""
+    return [f"{n['text']} | {a}" for n in draft['notes'] for a in n['agents'] if a == name or a.startswith(f'{name} (')]
+
+
+def said(notes):
+    """agent_role's (kind, agent, detail) records as one text."""
+    return ' '.join(f'{k} {d}' for k, _, d in notes)
 
 
 class CommandLineTest(unittest.TestCase):
@@ -29,20 +35,19 @@ class CommandLineTest(unittest.TestCase):
     def test_wide_permissions_are_not_carried_over_and_said(self):
         role, notes = herdr.agent_role('builder', 'claude', ['--permission-mode', 'bypassPermissions', 'Build it.'])
         self.assertEqual(role['checkout'], 'branch')
-        self.assertIn('permission mode "bypassPermissions"', notes[0])
-        self.assertIn('safe permissions', notes[0])
+        self.assertEqual(notes, [('wide', 'builder', 'permission mode "bypassPermissions"')])
 
     def test_codex_flags_map(self):
         role, notes = herdr.agent_role('checker', 'codex', ['-m', 'gpt-5', '-c', 'model_reasoning_effort="xhigh"',
                                                              '-s', 'read-only', 'exec', 'Review the diff.'])
         self.assertEqual((role['model'], role['effort'], role['checkout']), ('gpt-5', 'xhigh', 'read-only'))
         self.assertEqual(role['brief'], 'Review the diff.')
-        self.assertTrue(any('codex exec' in n for n in notes))
+        self.assertEqual(notes, [('exec', 'checker', '')])
 
     def test_codex_wide_sandbox_and_other_settings(self):
         role, notes = herdr.agent_role('builder', 'codex', ['-s', 'danger-full-access', '-a', 'never', '-c',
                                                              'hooks.x=1', '--no-alt-screen'])
-        text = ' '.join(notes)
+        text = said(notes)
         self.assertIn('full access outside its sandbox', text)
         self.assertIn('no approval asked', text)
         self.assertIn('hooks.x', text)
@@ -56,12 +61,15 @@ class CommandLineTest(unittest.TestCase):
             f.write('Keep tests green.\n')
         role, notes = herdr.agent_role('builder', 'claude', ['--append-system-prompt-file', brief, 'Start on step 2.'])
         self.assertEqual(role['brief'], 'Keep tests green.\n\nStart on step 2.')
+        role, notes = herdr.agent_role('lead', 'claude', ['--append-system-prompt-file', brief, 'Add a cart.'],
+                                       holds_task=True)
+        self.assertEqual((role['brief'], role['_task']), ('Keep tests green.', 'Add a cart.'))
         role, notes = herdr.agent_role('reviewer', 'claude', [])
         self.assertEqual(role['brief'], newteam.kind_brief('reviewer'))
         self.assertEqual(role['job'], 'Reads every diff before it merges')
-        self.assertIn('standard reviewer brief', notes[0])
+        self.assertEqual(notes, [('standard-brief', 'reviewer', 'reviewer brief')])
         role, notes = herdr.agent_role('builder', 'claude', ['--append-system-prompt-file', os.path.join(d, 'gone.md')])
-        self.assertTrue(any("couldn't be read" in n for n in notes))
+        self.assertIn("gone.md couldn't be read", said(notes))
 
     def test_bad_model_and_effort_fall_back_with_a_note(self):
         role, notes = herdr.agent_role('builder', 'claude', ['--model', 'o p u s', '--effort', 'ultra'])
@@ -70,8 +78,7 @@ class CommandLineTest(unittest.TestCase):
 
     def test_environment_names_only(self):
         role, notes = herdr.agent_role('builder', 'claude', ['Go.'], ['PATH', 'SECRET_TOKEN'])
-        self.assertIn('SECRET_TOKEN', notes[0])
-        self.assertNotIn('PATH', notes[0])
+        self.assertEqual(notes, [('extras', 'builder', 'SECRET_TOKEN')])
 
     def test_shell_wrapper_is_read_through(self):
         prog, args, env = herdr._split(['env', 'MODEL=gpt-5', 'sh', '-c', 'codex exec -m "$MODEL" "Look."'])
@@ -100,7 +107,7 @@ class RunningTest(unittest.TestCase):
     def test_find_groups_by_space_and_skips_shells(self):
         teams = herdr.find(terminals=self.terminals, cfg=self.d)['teams']
         self.assertEqual(teams, [{'id': 'running:shopteam', 'label': 'shopteam', 'where': 'Running in herdr',
-                                  'agents': 3}])
+                                  'agents': 3, 'running': True}])
 
     def test_draft_maps_roles_parent_project_and_branch(self):
         d = herdr.draft('running:shopteam', terminals=self.terminals)
@@ -113,6 +120,8 @@ class RunningTest(unittest.TestCase):
         self.assertEqual((roles['builder']['agent'], roles['builder']['model']), ('codex', 'gpt-5'))
         self.assertIn('gemini', notes_for(d, 'helper')[0])
         self.assertIn('feature/cart', ' '.join(notes_for(d, 'builder')))
+        self.assertEqual(d['running'], 'shopteam')
+        self.assertEqual(d['task'], 'Split the cart work.')
         newteam.validate(d['roles'])
 
     def test_gone_team(self):
@@ -147,8 +156,9 @@ class SavedTest(unittest.TestCase):
     def test_draft_says_what_herdr_does_not_save(self):
         d = herdr.draft('saved:night:w1', terminals=[], cfg=self.cfg)
         self.assertEqual(sorted(by_name(d)), ['checker', 'writer'])
-        self.assertIn("doesn't save models", d['notes'][0])
-        self.assertTrue(any('opencode' in n for n in d['notes']))
+        self.assertIn("doesn't save models", d['notes'][0]['text'])
+        self.assertIn('opencode', notes_for(d, 'opencode')[0])
+        self.assertEqual(d['task'], '')
         self.assertEqual(d['project'], '/tmp/made-up-docs')
         newteam.validate(d['roles'])
 
@@ -223,20 +233,24 @@ class ScriptTest(unittest.TestCase):
         self.assertEqual(sorted(roles), ['builder', 'checker', 'lead', 'reviewer'])
         checker = roles['checker']
         self.assertEqual((checker['agent'], checker['checkout'], checker['brief']), ('codex', 'read-only', 'Check the cart diff.'))
-        self.assertTrue(any('reports to' in n for n in notes_for(d, 'lead')))  # --parent may hide in "${parent[@]}"
+        self.assertTrue(any('report to no one' in n for n in notes_for(d, 'lead')))  # --parent may hide in "${parent[@]}"
         lead, builder, reviewer = roles['lead'], roles['builder'], roles['reviewer']
         self.assertEqual((lead['agent'], lead['model']), ('claude', 'claude-opus-5-5'))
-        self.assertEqual(lead['brief'], 'House rules.\n\nPlan the cart.')
+        self.assertEqual(lead['brief'], 'House rules.')
         self.assertTrue(any('permission mode "auto"' in n for n in notes_for(d, 'lead')))
+        self.assertEqual(d['task'], 'Plan the cart.')  # the first agent's first message
+        self.assertNotIn('Plan the cart.', lead['brief'])
         self.assertEqual((builder['agent'], builder['model'], builder['effort']), ('codex', 'gpt-5', 'high'))
         self.assertEqual(builder['brief'], 'Build the cart.')
         self.assertTrue(any('TOKEN_X' in n for n in notes_for(d, 'builder')))
-        self.assertTrue(any('reports to' in n for n in notes_for(d, 'builder')))  # its parent is only known at run time
+        self.assertTrue(any('report to no one' in n for n in notes_for(d, 'builder')))  # its parent is only known at run time
         self.assertEqual((reviewer['model'], reviewer['checkout']), ('sonnet', 'read-only'))
-        self.assertTrue(any('gemini' in n for n in d['notes']))
-        self.assertFalse(any('npm' in n for n in d['notes']))  # a dev server isn't an agent
+        self.assertTrue(any('gemini' in n['text'] for n in d['notes']))
+        self.assertFalse(any('npm' in str(n) for n in d['notes']))  # a dev server isn't an agent
         self.assertEqual(d['project'], self.repo)
-        self.assertTrue(any('2 folders' in n for n in d['notes']))  # the builder's folder is a sibling
+        self.assertTrue(any('2 folders' in n['text'] for n in d['notes']))
+        texts = [n['text'] for n in d['notes']]
+        self.assertEqual(len(texts), len(set(texts)), 'one sentence per kind')  # the builder's folder is a sibling
         newteam.validate(d['roles'])
 
     def test_unknown_names_become_numbered(self):
@@ -256,13 +270,13 @@ class ScriptTest(unittest.TestCase):
         state = os.path.join(self.d, 'state')
         with mock.patch.dict(os.environ, {'XDG_STATE_HOME': state}):
             t = mcptools.Tools(None, None, opener=lambda: self.fail('an import never opens or starts anything'))
-            got = t.herdr_import(f'script:{self.script}')
-            self.assertEqual(t.draft_next(), got['id'])
-            draft = t.draft_take(got['id'])
+            draft = t.herdr_import(f'script:{self.script}')
+            self.assertIsNone(t.draft_next(), 'the app opens it directly: no draft file is left behind')
+        self.assertEqual(draft['from'], 'herdr')
         self.assertEqual(draft['project'], self.repo)
         self.assertEqual(sorted(r['name'] for r in draft['roles']), ['builder', 'checker', 'lead', 'reviewer'])
         self.assertTrue(draft['notes'])
-        self.assertEqual(draft['task'], '')
+        self.assertEqual(draft['task'], 'Plan the cart.')
         with open(self.script, 'w') as f:
             f.write('hc run -- npm run dev\n')
         with mock.patch.dict(os.environ, {'XDG_STATE_HOME': state}), self.assertRaisesRegex(ValueError, 'No Claude'):

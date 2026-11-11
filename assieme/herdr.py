@@ -1,7 +1,7 @@
 """Import from herdr: a running herdr team, a saved herdr workspace or a launch script, as a New team draft.
 
 Read-only: herdr's files and terminals are only read, and nothing is started. What doesn't map is said in the
-draft's `notes`, one plain sentence each, instead of being dropped.
+draft's `notes`, one plain sentence per kind with the agents it is about, instead of being dropped.
 """
 import collections
 import json
@@ -55,7 +55,7 @@ def _slug(s):
 
 def _kind_of(name):
     """The standard role a name suggests, for its brief and job."""
-    for word, kind in (('plan', 'planner'), ('coord', 'planner'), ('review', 'reviewer'), ('test', 'tester')):
+    for word, kind in (('plan', 'planner'), ('coord', 'planner'), ('lead', 'planner'), ('review', 'reviewer'), ('test', 'tester')):
         if word in name:
             return kind
     return 'builder'
@@ -117,7 +117,7 @@ def _unquote(v):
 
 def _read_brief(path, say):
     if path is None:
-        say("its brief file is chosen when the script runs, so it couldn't be read.")
+        say('brief-part', 'its brief file is chosen when the script runs')
         return ''
     try:
         if os.path.getsize(path) > MAX_BRIEF:
@@ -125,16 +125,17 @@ def _read_brief(path, say):
         with open(path, encoding='utf-8') as f:
             return f.read().strip()
     except (OSError, UnicodeDecodeError):
-        say(f"its brief file {_short(path)} couldn't be read.")
+        say('brief-part', f"{_short(path)} couldn't be read")
         return ''
 
 
-def agent_role(name, kind, args, env_names=()):
-    """A New team role from one Claude Code or Codex command line, and what didn't carry over."""
+def agent_role(name, kind, args, env_names=(), holds_task=False):
+    """A New team role from one Claude Code or Codex command line, and what didn't carry over (kind, agent, detail).
+    holds_task: its first message is the team's task (in `_task`), so it is left out of the brief."""
     notes = []
-    say = lambda text: notes.append(f'{name}: {text}')
+    say = lambda kind, detail='': notes.append((kind, name, detail))
     if ARRAY in args:
-        say("some of its options are chosen when the script runs, so they couldn't be read.")
+        say('extras', 'options chosen when the script runs')
         args = [a for a in args if a != ARRAY]
     opts, words = _options(kind, args)
     first = lambda *flags: next((v for f in flags for v in opts.get(f, [])), False)
@@ -147,21 +148,21 @@ def agent_role(name, kind, args, env_names=()):
             key, _, value = c.partition('=')
             config[key.strip()] = _unquote(value.strip())
         elif c is None:
-            say("one of its settings is chosen when the script runs, so it couldn't be read.")
+            say('extras', 'a setting chosen when the script runs')
     model = first('--model', '-m') or config.pop('model', False)
     effort = first('--effort') or config.pop('model_reasoning_effort', False)
     if model is None:
-        say('its model is chosen when the script runs, so it gets the default model.')
+        say('model', 'model chosen when the script runs')
     elif model and launch.MODEL.match(model):
         role['model'] = model
     elif model:
-        say(f"its model {model!r} isn't one Assieme can pass on, so it gets the default model.")
+        say('model', f'model {model!r}')
     if effort is None:
-        say('its thinking effort is chosen when the script runs, so it gets the default.')
+        say('model', 'effort chosen when the script runs')
     elif effort and not launch.check_model_effort(kind, None, effort):
         role['effort'] = effort
     elif effort:
-        say(f'{launch.NAMES[kind]} has no thinking effort {effort!r}, so it gets the default.')
+        say('model', f'effort {effort!r}')
 
     wide = []
     if kind == 'claude':
@@ -193,11 +194,10 @@ def agent_role(name, kind, args, env_names=()):
             wide.append('its own sandbox settings')
         if words and words[0] in ('exec', 'e'):
             words = words[1:]
-            say('it ran once ("codex exec") and stopped; here it stays running and waits for work.')
+            say('exec')
         config = {k: v for k, v in config.items() if not k.startswith('sandbox_')}
     if wide:
-        say(f'it ran with {", ".join(wide)}. Assieme starts it with safe permissions instead '
-            "(it edits its own copy and can't push).")
+        say('wide', ', '.join(wide))
 
     parts = []
     for f in ('--system-prompt-file', '--append-system-prompt-file'):
@@ -205,28 +205,32 @@ def agent_role(name, kind, args, env_names=()):
     for f in ('--system-prompt', '--append-system-prompt'):
         for text in opts.get(f, []):
             if text is None:
-                say('part of its brief is written when the script runs, so it is missing here.')
+                say('brief-part', 'part chosen when the script runs')
             parts.append(text or '')
     if any(w is None for w in words):
-        say('its first message is written when the script runs, so it is missing here.')
-    parts.append(' '.join(w for w in words if w))
+        say('brief-part', 'first message chosen when the script runs')
+    first = ' '.join(w for w in words if w)
+    if holds_task:
+        role['_task'] = first
+    else:
+        parts.append(first)
     role['brief'] = '\n\n'.join(p for p in parts if p.strip())
     std = _kind_of(name)
     role['job'] = _jobs()[std]
     if not role['brief']:
         role['brief'] = newteam.kind_brief(std)
-        say(f'no brief was found, so the standard {std} brief is filled in. Check it before you start.')
+        say('standard-brief', f'{std} brief')
 
     if opts.get('--settings') or opts.get('--mcp-config'):
-        say("its own settings file and MCP servers aren't carried over; Assieme adds its own.")
+        say('extras', 'its settings file and MCP servers')
     if config:
-        say(f"its settings {', '.join(sorted(config))} aren't carried over.")
+        say('extras', ', '.join(sorted(config)))
     other = sorted(f for f in opts if f not in READ)
     if other:
-        say(f"these options aren't carried over: {', '.join(other)}.")
+        say('extras', ', '.join(other))
     names = sorted({n for n in env_names if n != 'PATH'})
     if names:
-        say(f"the environment variables it set ({', '.join(names)}) aren't carried over.")
+        say('extras', ', '.join(names))
     return role, notes
 
 
@@ -337,26 +341,30 @@ def _split(argv):
 
 # --- the three sources ----------------------------------------------------------------------------------------
 
-def _team(members, project=None):
-    """The draft from [(herdr name, program, args, env names, cwd, parent name)], one per terminal or pane."""
-    roles, notes, taken, cwds = [], [], set(), {}
+def _team(members, project=None, notes=None):
+    """The draft from [(herdr name, program, args, env names, cwd, parent name)], one per terminal or pane. The first
+    agent that reports to no one has the team's task: its first message."""
+    roles, notes, taken, cwds, task = [], list(notes or []), set(), {}, None
     for n, (name, prog, args, env_names, cwd, parent) in enumerate(members, 1):
         if prog is None:
-            notes.append(f"{name or f'agent-{n}'}: the program it runs is chosen when the script runs, so it is left out.")
+            notes.append(('unknown-program', name or f'agent-{n}', ''))
             continue
         if prog not in KINDS:
             if prog in HERDR_KINDS:  # anything else (a shell, a dev server) isn't an agent
-                notes.append(f"{name or prog}: it runs {prog}, which Assieme doesn't start yet, so it is left out.")
+                notes.append(('other-cli', name or prog, prog))
             continue
         slug = _slug(name)
         if not slug:
             slug = f'agent-{n}'
-            notes.append(f"{slug}: its name is chosen when the script runs, so it is called {slug} here.")
+            notes.append(('numbered', slug, ''))
         base, k = slug, 2
         while slug in taken:
             slug, k = f'{base}-{k}', k + 1
         taken.add(slug)
-        role, said = agent_role(slug, prog, list(args), env_names)
+        role, said = agent_role(slug, prog, list(args), env_names, holds_task=task is None and not parent)
+        if task is None and not parent:
+            task = role.pop('_task', '')
+        role.pop('_task', None)
         role['_herdr'], role['_parent'] = name, parent
         roles.append(role)
         notes += said
@@ -366,25 +374,69 @@ def _team(members, project=None):
         parent = r.pop('_parent')
         r.pop('_herdr')
         if parent is None:
-            notes.append(f'{r["name"]}: who it reported to is decided when the script runs, so here it reports to no one.')
+            notes.append(('parent', r['name'], 'decided when the script runs'))
         elif parent and parent in by_herdr and by_herdr[parent] != r['name']:
             r['parent'] = by_herdr[parent]
         elif parent:
-            notes.append(f"{r['name']}: it reported to {parent}, which isn't in this team, so it reports to no one.")
+            notes.append(('parent', r['name'], f"{parent} isn't in this team"))
     places = {name: _checkout(cwd) for name, cwd in cwds.items() if cwd}
     mains = collections.Counter(main for main, _ in places.values() if main)
     if not project:
         project = mains.most_common(1)[0][0] if mains else ''
     if len(mains) > 1:
         others = ', '.join(_short(m) for m in mains if m != project)
-        notes.append(f'The agents worked in {len(mains)} folders. This team uses {_short(project)}; '
-                     f'the others ({others}) are left as they are.')
+        notes.append(('folders', None, f'The agents worked in {len(mains)} folders. This team uses {_short(project)}; '
+                                        f'the others ({others}) are left as they are.'))
     for r in roles:
         main, branch = places.get(r['name'], (None, None))
         if r['checkout'] == 'branch' and branch and os.path.realpath(cwds[r['name']]) != main:
-            notes.append(f'{r["name"]}: it worked on branch {branch}. Here it gets a fresh branch of the project; '
-                         f'{branch} stays as it is.')
-    return {'project': project, 'task': '', 'roles': roles, 'notes': notes}
+            notes.append(('branch', r['name'], branch))
+    return {'project': project, 'task': task, 'roles': roles, 'notes': _grouped(notes)}
+
+
+def _count(n):
+    return '1 agent' if n == 1 else f'{n} agents'
+
+
+# What each kind of note says about the agents it lists, in the order they are shown.
+SENTENCES = {
+    'unknown-program': lambda n, d: f'The program {_count(n)} ran is chosen when the script runs, so they are left out.',
+    'other-cli': lambda n, d: f"{_count(n)} ran a CLI Assieme doesn't start yet ({', '.join(d)}), so they are left out.",
+    'wide': lambda n, d: f'{_count(n)} ran with wider permissions ({", ".join(d)}). They start with safe permissions '
+                         "instead: each edits its own copy and can't push.",
+    'exec': lambda n, d: f'{_count(n)} ran once (codex exec) and stopped. Here they stay running and wait for work.',
+    'branch': lambda n, d: f'{_count(n)} worked on their own branch. Here each gets a fresh branch of the project; '
+                           'the old branches stay as they are.',
+    'model': lambda n, d: f"The model or thinking effort of {_count(n)} couldn't be carried over, so they get the default.",
+    'standard-brief': lambda n, d: f'No brief was found for {_count(n)}, so they get the standard brief for their role. '
+                                   'Check it before you start.',
+    'brief-part': lambda n, d: f"Part of the brief of {_count(n)} couldn't be read, so it is missing here.",
+    'parent': lambda n, d: f'Who {_count(n)} reported to is unknown here, so they report to no one.',
+    'numbered': lambda n, d: f'The names of {_count(n)} are chosen when the script runs, so they are numbered here.',
+    'extras': lambda n, d: f"{_count(n)} set environment variables, settings or options that aren't carried over.",
+}
+IN_SENTENCE = {'wide', 'other-cli'}  # their details go in the sentence, not after each name
+
+
+def _grouped(records):
+    """[{text, agents}] from (kind, agent, detail) records: one sentence per kind, then the team-wide ones."""
+    by_kind = collections.defaultdict(dict)
+    out = []
+    for kind, agent, detail in records:
+        if agent is None:
+            out.append({'text': detail, 'agents': []})
+        else:
+            by_kind[kind].setdefault(agent, [])
+            if detail and detail not in by_kind[kind][agent]:
+                by_kind[kind][agent].append(detail)
+    for kind, say in SENTENCES.items():
+        agents = by_kind.get(kind)
+        if not agents:
+            continue
+        details = list(dict.fromkeys(d for ds in agents.values() for part in ds for d in part.split(', ')))
+        labels = [a if kind in IN_SENTENCE or not ds else f'{a} ({"; ".join(ds)})' for a, ds in agents.items()]
+        out.append({'text': say(len(agents), details), 'agents': labels})
+    return out
 
 
 def _hc_terminals():
@@ -446,11 +498,9 @@ def _agent_panes(ws):
 def _from_workspace(ws):
     kinds = [p.get('managed_agent_kind') or p['agent_session']['agent'] for p in _agent_panes(ws)]
     members = [(p.get('agent_name') or k, k, [], {}, p.get('cwd'), '') for p, k in zip(_agent_panes(ws), kinds)]
-    draft = _team(members)
-    if draft['roles']:
-        draft['notes'].insert(0, "herdr doesn't save models, briefs or permissions, so each agent gets the default "
-                                 'model, the standard brief for its role and its own branch. Check them before you start.')
-    return draft
+    return _team(members, notes=[('saved', None, "herdr doesn't save models, briefs or permissions, so each agent gets "
+                                                  'the default model, the standard brief for its role and its own branch. '
+                                                  'Check them before you start.')])
 
 
 def _from_script(path):
@@ -564,7 +614,8 @@ def find(terminals=None, cfg=None):
     teams = []
     for key, ts in _running(terminals).items():
         label = key if not os.path.isabs(key) else os.path.basename(key)
-        teams.append({'id': f'running:{key}', 'label': label, 'where': 'Running in herdr', 'agents': len(ts)})
+        teams.append({'id': f'running:{key}', 'label': label, 'where': 'Running in herdr', 'agents': len(ts),
+                      'running': True})
     for session, workspaces in _sessions(cfg):
         for ws in workspaces:
             panes = _agent_panes(ws)
@@ -573,7 +624,7 @@ def find(terminals=None, cfg=None):
                 teams.append({'id': f'saved:{session}:{ws.get("id")}',
                               'label': ws.get('custom_name') or os.path.basename(folder.rstrip('/')) or 'workspace',
                               'where': 'Saved in herdr' + ('' if session == 'default' else f', session {session}'),
-                              'agents': len(panes)})
+                              'agents': len(panes), 'running': False})
     return {'teams': teams}
 
 
@@ -584,7 +635,8 @@ def draft(source, terminals=None, cfg=None):
         ts = _running(terminals).get(rest)
         if not ts:
             raise ValueError("That herdr team isn't running any more.")
-        return _from_terminals(ts)
+        # Started here while still running there, two teams would work on the same project.
+        return _from_terminals(ts) | {'running': rest if not os.path.isabs(rest) else os.path.basename(rest)}
     if kind == 'saved':
         session, _, ws_id = rest.rpartition(':')
         for name, workspaces in _sessions(cfg):
