@@ -221,7 +221,14 @@ export default function Shell() {
       )}
       {settings && (
         <Settings team={team} section={settingsAt} onClose={() => setSettings(false)}
-          onShowFirstRun={() => { setSettings(false); setTab("first-run"); }} />
+          onShowFirstRun={() => { setSettings(false); setTab("first-run"); }}
+          onOpenTeam={(t, role) => {
+            setSettings(false);
+            setPicked(t);
+            if (role) return setReview({ team: t, role });
+            setFocus(null);
+            setTab("terminals");
+          }} />
       )}
     </div>
   );

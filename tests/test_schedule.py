@@ -141,6 +141,7 @@ class RunTest(SchedulerCase):
         row = self.s.rows(tz=UTC)[0]
         self.assertEqual(row['state'], 'waiting')
         self.assertIn('finished; its work waits in Review', row['line'])
+        self.assertEqual(row['review_role'], 'nightly-tests-builder')  # the reviewer is read-only
         self.tick(at(days=2))  # the next night runs again
         self.assertEqual(len(self.started), 2)
 

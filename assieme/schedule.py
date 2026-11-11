@@ -326,7 +326,7 @@ class Scheduler:
             fields = {'name': name[:60], 'project': project, 'preset': preset, 'task': task.strip(), 'every': every}
             if old:
                 if old['every'] != every:  # counted afresh, so a new time doesn't fire at once for a past one
-                    fields['handled'] = _iso(self.now())
+                    fields['created'] = fields['handled'] = _iso(self.now())
                 old.update(fields)
             else:
                 items.append({'id': uuid.uuid4().hex[:12], 'team': team, 'created': _iso(self.now()), 'handled': None,
@@ -375,6 +375,14 @@ class Scheduler:
                         title=f"Removed the schedule {s['name']}")
         return self.rows()
 
+    def _review_role(self, team):
+        """The role whose branch Review opens: the first that edits. None before the first run."""
+        try:
+            roles = preset.load(os.path.join(self.teams, team), practices=False).roles
+        except (preset.PresetError, OSError):
+            return None
+        return next((r.name for r in roles if r.checkout == 'branch'), None)
+
     def rows(self, tz=None):
         now, out = self.now(), []
         labels = {o['id']: o for o in options(self.teams)}
@@ -407,7 +415,8 @@ class Scheduler:
                         'preset_label': team['label'], 'who': team['who'], 'task': s['task'], 'every': s['every'],
                         'when': when_words(s['every']), 'paused': bool(s.get('paused')),
                         'state': 'running' if s.get('running') else 'paused' if s.get('paused') else 'waiting',
-                        'result': result, 'line': line, 'note': note, 'next': _iso(nxt)})
+                        'result': result, 'line': line, 'note': note, 'next': _iso(nxt),
+                        'review_role': self._review_role(s['team'])})
         return out
 
     def handlers(self):

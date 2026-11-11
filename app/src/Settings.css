@@ -71,3 +71,27 @@
 .group-row > span { flex: 1; min-width: 0; font-family: var(--quiet-font-mono); font-size: 13px; line-height: 16px; color: var(--quiet-ink); overflow-wrap: anywhere; }
 .group-row select, .group-row input { width: 190px; flex-shrink: 0; box-sizing: border-box; padding: 5px 10px; border: 1px solid var(--quiet-control); border-radius: 10px; background: var(--quiet-surface); color: var(--quiet-ink); font: inherit; font-size: 13px; line-height: 18px; }
 .modal .sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* Scheduled runs, from Paper "v2 — Settings: scheduled runs" and its sheets. */
+.sched-buttons { display: flex; gap: 8px; flex-shrink: 0; }
+.sched-line { display: flex; align-items: baseline; gap: 6px; }
+.sched-line i { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; background: var(--quiet-working); }
+.sched-line.running { color: var(--quiet-working-text); }
+.sched-line.bad { color: var(--quiet-needs-you-text); }
+.sched-line.warn { color: var(--quiet-waste-text); }
+.sched-empty { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; padding: 28px 24px; border: 1px dashed var(--quiet-line-strong); border-radius: var(--quiet-radius-card);
+  font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.sched-empty b { font-size: 15px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
+.settings .dim { inset: 0; z-index: 24; }
+.settings .schedule-sheet { top: 0; z-index: 25; }
+.schedule-sheet .grow { flex: 1; }
+.schedule-sheet .folder-pick { display: flex; align-items: center; gap: 10px; }
+.schedule-sheet .folder-pick .mono { min-width: 0; padding: 8px 12px; border: 1px solid var(--quiet-line-strong); border-radius: 10px; font-family: var(--quiet-font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-sheet .folder-note { display: flex; align-items: center; gap: 12px; color: var(--quiet-slate); }
+.schedule-sheet .folder-note span { flex: 1; }
+.schedule-sheet .hint { margin: 0; line-height: 18px; color: var(--quiet-slate); }
+.schedule-sheet .error { margin: 0; color: var(--quiet-needs-you-text); }
+.schedule-sheet .when-row { display: flex; align-items: center; gap: 10px; color: var(--quiet-slate); }
+.schedule-sheet .when-row input.hours { width: 56px; }
+.schedule-sheet .when-row input.time { width: 96px; }
+.schedule-sheet .sheet-actions .remove { margin-right: auto; color: var(--quiet-needs-you-text); }
