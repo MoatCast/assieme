@@ -1,0 +1,24 @@
+/* Import from herdr, from Paper "v2 — Import from herdr". Colours only from tokens.css. */
+.modal.herdr { width: 480px; }
+.modal.herdr p { margin: 0; }
+.modal.herdr .herdr-quiet { font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.modal.herdr .herdr-found { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.modal.herdr ul { margin: 0; padding: 0; list-style: none; border: 1px solid var(--quiet-line);
+  border-radius: var(--quiet-radius-inner); overflow-y: auto; }
+.modal.herdr li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.modal.herdr li + li { border-top: 1px solid var(--quiet-line); }
+.modal.herdr .herdr-team { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.modal.herdr .herdr-team strong { font-size: 14px; font-weight: 600; line-height: 18px; color: var(--quiet-ink); }
+.modal.herdr .herdr-team span { font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.modal.herdr .herdr-team .herdr-running { padding-top: 2px; color: var(--quiet-waste-text); }
+.modal.herdr li .btn-secondary { flex-shrink: 0; width: 76px; padding: 6px 0; font-size: 13px; line-height: 16px; }
+.modal.herdr .herdr-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px;
+  background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); }
+.modal.herdr .herdr-empty strong { font-size: 14px; font-weight: 600; line-height: 18px; color: var(--quiet-ink); }
+.modal.herdr .herdr-empty p { margin-top: -8px; font-size: 13px; line-height: 18px; color: var(--quiet-slate); }
+.modal.herdr .herdr-empty .btn-secondary { padding: 7px 14px; font-size: 13px; line-height: 16px; }
+.modal.herdr .herdr-error { font-size: 13px; line-height: 18px; color: var(--quiet-needs-you-text); }
+.modal.herdr .sheet-actions { justify-content: space-between; }
+.modal.herdr .sheet-actions .btn-quiet { margin-left: auto; }
+.modal.herdr .herdr-script { font-size: 13px; line-height: 18px; color: var(--quiet-slate); }
+.modal.herdr .herdr-script .link-btn { color: var(--quiet-ink); }

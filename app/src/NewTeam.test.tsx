@@ -13,6 +13,8 @@ const b = vi.hoisted(() => ({
   folderCreate: vi.fn(),
   pickNewFolder: vi.fn(),
   installTools: vi.fn(),
+  herdrFind: vi.fn(),
+  herdrImport: vi.fn(),
 }));
 vi.mock("./bridge", async (orig) => ({ ...(await orig<typeof import("./bridge")>()), ...b }));
 
@@ -686,4 +688,33 @@ test("the developer tools poll waits for the answer before asking again", async 
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("an import from herdr fills the form, says what didn't carry over, and a preset takes it back out", async () => {
+  b.herdrFind.mockResolvedValue({ teams: [{ id: "running:shop", label: "shop", where: "Running in herdr", agents: 2, running: true }] });
+  b.herdrImport.mockResolvedValue({
+    id: "d1", from: "herdr", project: "/Users/me/shop", task: "Add a cart", why: "", practices: {}, running: "shop",
+    roles: [r("lead", { model: "opus", effort: "high" }), r("builder", { agent: "codex", parent: "lead" })],
+    notes: [{ text: "2 agents ran with wider permissions (auto mode).", agents: ["lead", "builder"] }],
+  });
+  await open();
+  expect(screen.getByText("Start with recommended")).toBeTruthy();
+  fireEvent.click(screen.getByText("From herdr…"));
+  await flush();
+  fireEvent.click(screen.getByText("Import"));
+  await flush();
+  expect(names()).toEqual(["lead", "builder"]);
+  expect((screen.getByLabelText("What should the team work on?") as HTMLInputElement).value).toBe("Add a cart");
+  expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
+  expect(screen.getByText("shop is still running in herdr")).toBeTruthy();
+  expect(screen.getByText("2 agents ran with wider permissions (auto mode).")).toBeTruthy();
+  expect(screen.getByText("lead, builder")).toBeTruthy();
+  expect(screen.getByText("Opus · High")).toBeTruthy(); // each agent's model and effort, as New team shows them
+  expect(screen.getByText("Start team")).toBeTruthy();
+  expect(screen.getByText("From herdr…").getAttribute("aria-pressed")).toBe("true");
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  fireEvent.click(screen.getByText("Builder + reviewer"));
+  expect(screen.queryByText("shop is still running in herdr")).toBeNull();
+  expect(screen.queryByText("lead, builder")).toBeNull();
+  expect(screen.getByText("Start with recommended")).toBeTruthy();
 });

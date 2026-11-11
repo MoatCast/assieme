@@ -73,7 +73,11 @@ export type Starting = {
 };
 export type TeamForm = { project: string; task: string; roles: RoleDraft[]; practices: Record<string, boolean> };
 export type Suggestion = { roles: RoleDraft[]; why: string };
-export type TeamDraft = TeamForm & { id: string; why: string };
+/** One kind of thing an import from herdr couldn't carry over, and the agents it is about. */
+export type ImportNote = { text: string; agents: string[] };
+/** from "herdr": an import, with what didn't carry over and, for a team still running in herdr, its name. */
+export type TeamDraft = TeamForm & { id: string; why: string; from?: "herdr"; notes?: ImportNote[]; running?: string };
+export type HerdrTeam = { id: string; label: string; where: string; agents: number; running: boolean };
 
 export type TerminalHandle = {
   input(text: string): Promise<unknown>;
@@ -97,6 +101,15 @@ export const startTeam = (form: TeamForm) =>
 /** Help me choose runs the person's own agent, so it may take minutes. */
 export const suggestTeam = (a: { project: string; size: string; review: string; budget: string }) =>
   invoke<Suggestion>("brain_call", { method: "team.suggest", params: a, timeoutS: 180 });
+
+/** herdr teams on this Mac that can be imported, and one of them (or `script:<path>`) as a New team draft. */
+export const herdrFind = () => brain<{ teams: HerdrTeam[] }>("herdr.find");
+export const herdrImport = (source: string) => brain<TeamDraft>("herdr.import", { source });
+
+export async function pickScript(): Promise<string | null> {
+  const p = await open({ directory: false, multiple: false, title: "Choose a launch script" });
+  return typeof p === "string" ? p : null;
+}
 
 export async function pickFolder(): Promise<string | null> {
   const p = await open({ directory: true, multiple: false });

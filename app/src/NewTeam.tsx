@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { checkProject, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
 import FolderSheet from "./FolderSheet";
 import HelpMeChoose from "./HelpMeChoose";
+import HerdrImport from "./HerdrImport";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
 import Offline from "./Offline";
 import RecommendedSetup, { footerNote } from "./RecommendedSetup";
@@ -45,6 +46,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [roleErrors, setRoleErrors] = useState<Record<number, string>>({});
   const [helping, setHelping] = useState(false);
   const [why, setWhy] = useState("");
+  // An import from herdr: what didn't carry over, and the herdr team still running (if it is). A preset replaces it.
+  const [imported, setImported] = useState<Pick<TeamDraft, "notes" | "running"> | null>(null);
+  const [importing, setImporting] = useState(false);
   const [step, setStep] = useState(1);
   const [practiceOn, setPracticeOn] = useState<Record<string, boolean>>({});
   const [startError, setStartError] = useState("");
@@ -65,14 +69,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       setPractices(p.practices);
       setModels(p.models);
       setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, (draft?.practices ?? p.practice_defaults)?.[g.id] !== false])));
-      if (draft) {
-        setProject(draft.project);
-        void verify(draft.project); // a draft's folder needs the same setup click as a chosen one
-        setTask(draft.task);
-        setRoles(fit(draft.roles));
-        setEdited(true); // a preset's click must ask before replacing it
-        setWhy(draft.why);
-      } else if (all.length) {
+      if (draft) apply(draft);
+      else if (all.length) {
         setChosen(all[0].id);
         setRoles(fit(all[0].roles));
       }
@@ -89,8 +87,24 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     };
   }, []);
 
+  /** An assistant's draft, or an import from herdr: the whole form, which the person checks before Start. */
+  function apply(d: TeamDraft) {
+    setProject(d.project);
+    setProjectError("");
+    if (d.project) void verify(d.project); // a draft's folder needs the same setup click as a chosen one
+    else setCheck(null);
+    setTask(d.task);
+    setRoles(fit(d.roles));
+    setChosen("");
+    setEdited(true); // a preset's click must ask before replacing it
+    setWhy(d.why);
+    setRoleErrors({});
+    setImported(d.from === "herdr" ? { notes: d.notes ?? [], running: d.running } : null);
+  }
+
   const choose = (p: Preset) => {
     if (edited && !window.confirm("Replace the agents you've edited?")) return;
+    setImported(null);
     setChosen(p.id);
     setRoles(fit(p.roles));
     setEdited(false);
@@ -270,6 +284,12 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
         </header>
         <div className="body">
           {offline && <Offline afterMs={0} />}
+          {imported?.running && (
+            <div className="still-running" role="status">
+              <strong>{imported.running} is still running in herdr</strong>
+              <span>Stop it there before you start this team, or two teams will work on the same project.</span>
+            </div>
+          )}
           <div className="field">
             <div className="label">Project</div>
             <div className="box folder">
@@ -314,6 +334,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                 <button key={p.id} type="button" className={chosen === p.id ? "chip on" : "chip"}
                   aria-pressed={chosen === p.id} onClick={() => choose(p)}>{p.label}</button>
               ))}
+              <button type="button" className={imported ? "chip on" : "chip herdr"} aria-pressed={!!imported}
+                onClick={() => setImporting(true)}>From herdr…</button>
             </div>
             {helping && (
               <HelpMeChoose project={project} agent={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
@@ -321,6 +343,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                 onDone={(s) => {
                   setRoles(fit(s.roles));
                   setWhy(s.why);
+                  setImported(null);
                   setChosen("");
                   setEdited(false);
                   setHelping(false);
@@ -382,6 +405,17 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                 </button>
               </div>
             )}
+            {!!imported?.notes?.length && (
+              <div className="carried">
+                <div className="carried-title">Imported from herdr. What didn’t carry over</div>
+                {imported.notes.map((n) => (
+                  <div className="carried-note" key={n.text}>
+                    <p>{n.text}</p>
+                    {n.agents.length > 0 && <p className="carried-agents">{n.agents.join(", ")}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <footer role="contentinfo">
@@ -396,11 +430,18 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
           {startError && <span className="error">{startError}</span>}
           <button type="button" className="quiet" onClick={onClose}>Cancel</button>
           <button type="button" className="outline" disabled={!ready || pending} onClick={next}>Customise</button>
-          <button type="button" className="primary" disabled={!ready || pending} onClick={quick}>Start with recommended</button>
+          <button type="button" className="primary" disabled={!ready || pending} onClick={quick}>{imported ? "Start team" : "Start with recommended"}</button>
         </footer>
       </div>
     </div>
     {folderSheet && <FolderSheet project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
+    {importing && (
+      <HerdrImport onClose={() => setImporting(false)} onImported={(d) => {
+        if (edited && !window.confirm("Replace the agents you've edited?")) return;
+        setImporting(false);
+        apply(d);
+      }} />
+    )}
     </>
   );
 }
