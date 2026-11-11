@@ -13,6 +13,7 @@ const BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 30000];
 
 /** One agent's terminal. `assieme` agents stream live (watch first, "Type here" to type); others are read-only. */
 // The dark terminal colours from Paper "v2 — Terminals"; every colour clears 4.5:1 on the background.
+// The terminal's own palette, the same in light and dark (its ground is --quiet-term). xterm takes colours, not CSS.
 const THEME = {
   background: "#141b28", foreground: "#dce2eb", cursor: "#dce2eb", cursorAccent: "#141b28",
   selectionBackground: "#3a4a66", black: "#141b28", red: "#f39a87", green: "#7fd0a0", yellow: "#e5b865",

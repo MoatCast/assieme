@@ -2,7 +2,7 @@
 .newteam { position: fixed; inset: 0; background: var(--quiet-fog); display: flex; justify-content: center;
   overflow: auto; padding: 28px 16px 24px; box-sizing: border-box; z-index: 10; }
 .newteam .panel { width: 760px; max-width: 100%; max-height: none; overflow: visible; padding: 0; gap: 0; align-self: flex-start; background: var(--quiet-surface);
-  border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-panel); box-shadow: 0 8px 30px #1b24330f;
+  border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-panel); box-shadow: 0 8px 30px color-mix(in srgb, var(--quiet-shade) 6%, transparent);
   display: flex; flex-direction: column; }
 .newteam header { padding: 24px 32px 14px; display: flex; flex-direction: column; gap: 6px; }
 .newteam h1 { margin: 0; font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--quiet-ink); }
@@ -40,7 +40,7 @@
   background: none; outline-color: var(--quiet-line-strong); }
 .newteam .switch { display: flex; flex-shrink: 0; padding: 2px; background: var(--quiet-fog); border-radius: 999px; }
 .newteam .switch button { padding: 3px 9px; border-radius: 999px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
-.newteam .switch button.on { background: var(--quiet-surface); box-shadow: 0 1px 2px #1b24331a; color: var(--quiet-ink); font-weight: 500; }
+.newteam .switch button.on { background: var(--quiet-raised); box-shadow: 0 1px 2px color-mix(in srgb, var(--quiet-shade) 10%, transparent); color: var(--quiet-ink); font-weight: 500; }
 .newteam .job { flex: 1; min-width: 0; color: var(--quiet-slate); font-size: 13px; line-height: 16px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .newteam .remove { width: 20px; flex-shrink: 0; color: var(--quiet-mute); font-size: 16px; }

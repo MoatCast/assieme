@@ -1,31 +1,55 @@
-/* The Paper "C · Quiet v2" look (file "Assieme"). Light only for now; dark mode is step 29. */
+/* The Paper "C · Quiet v2" look (file "Assieme"), light and dark ("C · Quiet dark").
+   Each colour is light-dark(light, dark): the root's color-scheme picks one. theme.ts sets data-theme from the
+   switch in the top bar; with no data-theme the Mac's own setting decides. Terminals look the same in both. */
 :root {
-  --quiet-bg: #ebeff5;
-  --quiet-surface: #ffffff;
-  --quiet-fog: #ebeff5;
-  --quiet-line: #d5dbe4;
-  --quiet-line-strong: #bec6d2; /* secondary buttons, map nodes, switches when off */
-  --quiet-control: #808a99; /* form fields only */
-  --quiet-edge: #808a99;
-  --quiet-ink: #17253f;
-  --quiet-on-ink: #ffffff;
-  --quiet-slate: #4f5b6d;
-  --quiet-mute: #5f6b7e;
-  --quiet-accent: #2747d9; /* selected tab and brand mark only */
-  --quiet-working: #3e8e5e; /* dots */
-  --quiet-working-text: #2a7348;
-  --quiet-waste: #a36e0e;
-  --quiet-waste-text: #7a5410;
-  --quiet-needs-you: #c8432b; /* dots and borders */
-  --quiet-needs-you-text: #9c3a25;
-  --quiet-needs-you-tint: #fae9e4;
-  --quiet-needs-you-line: #ebc8be;
-  --quiet-tip-tint: #f9f0da;
-  --quiet-tip-line: #e3c887;
-  --quiet-tip-text: #5e4a1e;
+  color-scheme: light;
+  --quiet-bg: light-dark(#ebeff5, #131519);
+  --quiet-surface: light-dark(#ffffff, #1c2027);
+  --quiet-fog: light-dark(#ebeff5, #131519);
+  --quiet-raised: light-dark(#ffffff, #2b313a); /* the selected segment of tabs and two-way switches */
+  --quiet-line: light-dark(#d5dbe4, #2a2f37);
+  --quiet-line-soft: light-dark(#e3e6ea, #343a44);
+  --quiet-line-strong: light-dark(#bec6d2, #3a404a); /* secondary buttons, map nodes, switches when off */
+  --quiet-control: light-dark(#808a99, #6b7480); /* form fields only */
+  --quiet-edge: light-dark(#808a99, #7d8692);
+  --quiet-edge-waste: #d9a441;
+  --quiet-idle: light-dark(#c2c8d0, #7d8692); /* the dot of an agent that is done */
+  --quiet-track: light-dark(#eceef1, #2a2f37);
+  --quiet-ink: light-dark(#17253f, #e8ebef);
+  --quiet-on-ink: light-dark(#ffffff, #14171c);
+  --quiet-on-ink-accent: light-dark(#c9d3ff, #2747d9); /* a button on an ink notice */
+  --quiet-on-ink-ok: light-dark(#7fd19d, #2a7348); /* the tick on an ink notice */
+  --quiet-slate: light-dark(#4f5b6d, #a3abb6);
+  --quiet-mute: light-dark(#5f6b7e, #8b939e);
+  --quiet-accent: light-dark(#2747d9, #8ea2ff); /* selected tab and brand mark only */
+  --quiet-working: light-dark(#3e8e5e, #5db27e); /* dots */
+  --quiet-working-text: light-dark(#2a7348, #7cc79a);
+  --quiet-working-line: light-dark(#a9cdb6, #2f5a40);
+  --quiet-waste: light-dark(#a36e0e, #d9a441);
+  --quiet-waste-text: light-dark(#7a5410, #e0b45e);
+  --quiet-needs-you: light-dark(#c8432b, #e0634b); /* dots and borders */
+  --quiet-needs-you-text: light-dark(#9c3a25, #f08c76);
+  --quiet-needs-you-tint: light-dark(#fae9e4, #3a221d);
+  --quiet-needs-you-line: light-dark(#ebc8be, #6b3529);
+  --quiet-tip-tint: light-dark(#f9f0da, #2a2518);
+  --quiet-tip-line: light-dark(#e3c887, #5a4a26);
+  --quiet-tip-text: light-dark(#5e4a1e, #e3cfa0);
+  --quiet-diff-add-bg: light-dark(#eef7f1, #1a2b21);
+  --quiet-diff-add-text: light-dark(#225a39, #8fd3a8);
+  --quiet-diff-add-number: light-dark(#7faf90, #4f7d60);
+  --quiet-diff-del-bg: light-dark(#fbefec, #33201c);
+  --quiet-diff-del-text: light-dark(#842e1b, #f2a593);
+  --quiet-diff-del-number: light-dark(#c99486, #a86c5e);
+  --quiet-glass: light-dark(#fffffff5, #1f232af5); /* the menu bar panel */
+  --quiet-glass-fill: light-dark(#f4f5f7, #2a2f37);
+  --quiet-glass-control: light-dark(#d5dae0, #4a515c);
+  --quiet-glass-ink: light-dark(#1b2433, #e8ebef);
+  --quiet-knob: #ffffff;
+  --quiet-shade: light-dark(#1b2433, #000000); /* shadows mix this with transparent */
+  --quiet-scrim: light-dark(#17253f33, #00000080);
   --quiet-term: #141b28;
   --quiet-term-text: #dce2eb;
-  --quiet-sheet-shadow: 0 1px 3px #1b24330f;
+  --quiet-sheet-shadow: 0 1px 3px color-mix(in srgb, var(--quiet-shade) 6%, transparent);
   --quiet-radius-control: 999px;
   --quiet-radius-card: 18px;
   --quiet-radius-sheet: 16px;
@@ -34,6 +58,8 @@
   --quiet-font-ui: system-ui, -apple-system, sans-serif;
   --quiet-font-mono: "Geist Mono", ui-monospace, monospace;
 }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 html,
 body {

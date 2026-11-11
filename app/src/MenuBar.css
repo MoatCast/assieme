@@ -1,28 +1,28 @@
 /* The panel's window is see-through, so the panel's own rounded corners show. */
 html.menu-window, html.menu-window body { background: transparent; overflow: hidden; }
 .mb-panel { box-sizing: border-box; width: 360px; max-height: 640px; overflow-y: auto; padding: 6px; display: flex; flex-direction: column;
-  background: #fffffff5; border-radius: var(--quiet-radius-card); font-size: 13px; line-height: 16px; color: var(--quiet-ink); cursor: default; user-select: none; -webkit-user-select: none; }
+  background: var(--quiet-glass); border-radius: var(--quiet-radius-card); font-size: 13px; line-height: 16px; color: var(--quiet-ink); cursor: default; user-select: none; -webkit-user-select: none; }
 .mb-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 6px; }
 .mb-title { font-weight: 600; }
 .mb-grow { flex: 1 1 0; min-width: 0; }
 .mb-mute { color: var(--quiet-mute); }
 .mb-need { color: var(--quiet-needs-you); font-weight: 500; white-space: nowrap; }
-.mb-ask { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #f4f5f7; border-radius: var(--quiet-radius-inner); overflow-wrap: anywhere; }
+.mb-ask { display: flex; flex-direction: column; gap: 8px; padding: 10px; background: var(--quiet-glass-fill); border-radius: var(--quiet-radius-inner); overflow-wrap: anywhere; }
 .mb-ask-text { line-height: 18px; }
 .mb-role { font-family: var(--quiet-font-mono); font-weight: 550; }
 .mb-says { color: var(--quiet-slate); }
 .mb-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
 .mb-pill { font: inherit; font-size: 12px; font-weight: 500; padding: 3px 10px; color: var(--quiet-ink); background: var(--quiet-surface);
-  border: 1px solid #d5dae0; border-radius: var(--quiet-radius-control); cursor: pointer; text-align: left; }
-.mb-pill.on { color: var(--quiet-on-ink); background: #1b2433; border-color: #1b2433; }
+  border: 1px solid var(--quiet-glass-control); border-radius: var(--quiet-radius-control); cursor: pointer; text-align: left; }
+.mb-pill.on { color: var(--quiet-on-ink); background: var(--quiet-glass-ink); border-color: var(--quiet-glass-ink); }
 .mb-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; }
 .mb-row.quiet { padding-block: 7px; }
 .mb-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 4px; background: var(--quiet-working); }
 .mb-dot.need { background: var(--quiet-needs-you); }
-.mb-name { color: #1b2433; }
+.mb-name { color: var(--quiet-glass-ink); }
 .mb-text { font: inherit; font-size: 12px; font-weight: 500; color: var(--quiet-ink); background: none; border: 0; padding: 0; white-space: nowrap; cursor: pointer; }
 .mb-text:hover, .mb-item:hover:not(:disabled) { text-decoration: underline; }
 .mb-note { color: var(--quiet-needs-you-text); }
-.mb-line { height: 1px; flex-shrink: 0; margin: 2px 8px; background: #e3e6ea; }
+.mb-line { height: 1px; flex-shrink: 0; margin: 2px 8px; background: var(--quiet-line-soft); }
 .mb-item { font: inherit; text-align: left; color: var(--quiet-ink); background: none; border: 0; padding: 7px 10px; cursor: pointer; }
 .mb-foot { padding: 7px 10px; color: var(--quiet-mute); }

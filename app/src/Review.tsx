@@ -28,7 +28,7 @@ export function Notice({ children, ms, onDone, action }: {
   }, [ms]); // a new message gets a new `key`; a re-render must not restart the wait
   return (
     <div className="notice" role="status">
-      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#7fd19d" strokeWidth="2" strokeLinecap="round" /></svg>
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="var(--quiet-on-ink-ok)" strokeWidth="2" strokeLinecap="round" /></svg>
       <div className="notice-text">{children}</div>
       {action}
     </div>
@@ -39,8 +39,8 @@ function CheckRow({ check }: { check: ReviewCheck }) {
   return (
     <>
       <div className={`check check-${check.state}`}>
-        {check.state === "ok" && <svg width="13" height="13" viewBox="0 0 16 16" aria-label="Passed"><path d="M3 8.5l3 3 7-7" fill="none" stroke="#3e8e5e" strokeWidth="2" strokeLinecap="round" /></svg>}
-        {check.state === "bad" && <svg width="13" height="13" viewBox="0 0 16 16" aria-label="Problem"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="#c8432b" strokeWidth="2" strokeLinecap="round" /></svg>}
+        {check.state === "ok" && <svg width="13" height="13" viewBox="0 0 16 16" aria-label="Passed"><path d="M3 8.5l3 3 7-7" fill="none" stroke="var(--quiet-working)" strokeWidth="2" strokeLinecap="round" /></svg>}
+        {check.state === "bad" && <svg width="13" height="13" viewBox="0 0 16 16" aria-label="Problem"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="var(--quiet-needs-you)" strokeWidth="2" strokeLinecap="round" /></svg>}
         {check.state !== "ok" && check.state !== "bad" && <span className="check-dot" />}
         <span>{check.text}</span>
       </div>

@@ -98,8 +98,8 @@ export default function Shell() {
         <div className="shell-bar" hidden={!!review} data-tauri-drag-region>
           <div className="shell-left" data-tauri-drag-region>
             <svg className="brand" aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
-              <path d="M9 5 4.5 13M9 5l4.5 8" fill="none" stroke="#2747d9" strokeWidth="1.6" strokeLinecap="round" />
-              <circle cx="9" cy="4.5" r="2.5" fill="#2747d9" /><circle cx="4.5" cy="13.5" r="2.5" fill="#2747d9" /><circle cx="13.5" cy="13.5" r="2.5" fill="#2747d9" />
+              <path d="M9 5 4.5 13M9 5l4.5 8" fill="none" stroke="var(--quiet-accent)" strokeWidth="1.6" strokeLinecap="round" />
+              <circle cx="9" cy="4.5" r="2.5" fill="var(--quiet-accent)" /><circle cx="4.5" cy="13.5" r="2.5" fill="var(--quiet-accent)" /><circle cx="13.5" cy="13.5" r="2.5" fill="var(--quiet-accent)" />
             </svg>
             {names.length > 0 && (
               <select className="team-pick" aria-label="Team" value={team ?? ""}
