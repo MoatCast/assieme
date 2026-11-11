@@ -17,7 +17,7 @@ pub const PLAIN_QUEUE: usize = 1024;
 #[derive(Default)]
 pub struct Events {
     pub seq: u64,
-    subs: Vec<Sub>,
+    pub(crate) subs: Vec<Sub>,
 }
 
 #[derive(Clone, Default)]
@@ -58,7 +58,7 @@ pub enum Sink {
     Waiter(mpsc::UnboundedSender<Value>),
 }
 
-struct Sub {
+pub(crate) struct Sub {
     filter: Filter,
     sink: Sink,
 }
@@ -89,6 +89,12 @@ impl Core {
             Sink::Framed { conn: c, channel: ch } => !(Arc::ptr_eq(c, conn) && channel.is_none_or(|x| x == *ch)),
             _ => true,
         });
+    }
+
+    /// A wait that is over, however it ended: nothing else would clear it from
+    /// a terminal that is done or quiet.
+    pub fn unsubscribe_waiter(&self, st: &mut State, tx: &mpsc::UnboundedSender<Value>) {
+        st.events.subs.retain(|s| !matches!(&s.sink, Sink::Waiter(w) if w.same_channel(tx)));
     }
 
     pub fn subscribed(&self, st: &State, conn: &Arc<Conn>, channel: u32) -> bool {
