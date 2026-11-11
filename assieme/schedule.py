@@ -11,7 +11,7 @@ import re
 import threading
 import uuid
 
-from . import live, newteam, preset, quiet, runtime, settings, status, tasks, team as team_
+from . import launch, live, newteam, preset, quiet, runtime, settings, status, tasks, team as team_
 
 KINDS = ('day', 'week', 'hours', 'minutes')
 DAYS = ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
@@ -152,16 +152,33 @@ def _roles(pid, team, teams):
     return roles, practices
 
 
+def who(roles):
+    """The agents and models a team runs unattended, as the app shows them: "Claude Code, Sonnet and Opus"."""
+    names = {i: n for i, n in newteam.CLAUDE_MODELS}
+    agents = list(dict.fromkeys(launch.NAMES.get(r.agent, r.agent) for r in roles))
+    models = list(dict.fromkeys(names.get(r.model, r.model) if r.model else 'its default model' for r in roles))
+    join = lambda xs: ', '.join(xs[:-1]) + ' and ' + xs[-1] if len(xs) > 1 else xs[0]
+    return f'{join(agents)}, {join(models)}'
+
+
 def options(teams=None):
     """The teams a schedule can start: the built-in ones, then every saved team that isn't a schedule's own."""
     teams = teams or newteam.teams_dir()
-    out = [{'id': p['id'], 'label': p['label']} for p in newteam.presets(teams)['presets']]
     own = {s['team'] for s in _load()}
     try:
         saved = sorted(d for d in os.listdir(teams) if os.path.isfile(os.path.join(teams, d, 'team.toml')))
     except OSError:
         saved = []
-    return out + [{'id': f'saved:{d}', 'label': d} for d in saved if d not in own]
+    out = []
+    for pid, label in [(i, None) for i in newteam.BUILTIN] + [(f'saved:{d}', f'{d} (saved)') for d in saved if d not in own]:
+        try:
+            folder = _preset_folder(pid, teams)
+            tm = preset.load(folder, practices=False)
+        except (ScheduleError, preset.PresetError, OSError):
+            continue  # a half-written or hand-edited folder: not offered
+        label = label or newteam._as_preset(folder, pid)['label']
+        out.append({'id': pid, 'label': label, 'who': who(tm.roles)})
+    return out
 
 
 # --- the scheduler -------------------------------------------------------------------------------------------------
@@ -203,9 +220,12 @@ class Scheduler:
             if s.get('running') and s.get('done'):
                 self._finish(s)
                 going = False
-            elif s.get('running') and not going:  # its agents ended some other way, or the person stopped them
-                self._update(s['id'], lambda x: x.update(running=False, done=False,
+            elif s.get('running') and not going:  # its agents ended some other way
+                self._update(s['id'], lambda x: x.update(running=False, done=False, skipped=None,
                                                          last={'at': (x.get('last') or {}).get('at'), 'result': 'ended'}))
+                self._log(s, 'schedule_ended', f"{s['name']} stopped early",
+                          'Its agents ended before its top agent said the work was done. What it committed waits in '
+                          'Review.', ok=False, alert=self._notify_finished())
             if s.get('removed'):
                 if not going:
                     with _lock:
@@ -219,6 +239,7 @@ class Scheduler:
             self._update(s['id'], lambda x: x.update(handled=_iso(slot)))
             at = slot.astimezone(tz).strftime('%H:%M')
             if going:
+                self._update(s['id'], lambda x: x.update(skipped=at))
                 self._log(s, 'schedule_skip', f"Skipped {s['name']} at {at}",
                           'The last run is still going. Open its team to see what it is waiting for.')
             else:
@@ -235,20 +256,29 @@ class Scheduler:
                       'fix this in Settings, Scheduled runs.', ok=False, alert=True)
             return
         tasks.fresh(s['team'], s['task'])
-        self._update(s['id'], lambda x: x.update(running=True, done=False, last={'at': _iso(now), 'result': 'started'}))
+        self._update(s['id'], lambda x: x.update(running=True, done=False, skipped=None,
+                                                 last={'at': _iso(now), 'result': 'started'}))
         self._log(s, 'schedule_start', f"Started {s['name']}",
                   f"{when_words(s['every'])}. Its agents stop when they say they are done; their work waits in Review.")
 
-    def _finish(self, s):
+    def _notify_finished(self):
+        return settings.load()['notify']['finished']
+
+    def _finish(self, s, result='finished'):
         try:
             n = team_.stop(self.rt, s['team'])
         except runtime.RuntimeError_:
-            return  # tried again at the next tick
-        self._update(s['id'], lambda x: x.update(running=False, done=False,
-                                                 last={'at': (x.get('last') or {}).get('at'), 'result': 'finished'}))
-        self._log(s, 'schedule_done', f"{s['name']} finished",
-                  f"Its top agent said the work is done, so its {n} agent(s) were stopped. Its branches wait in Review; "
-                  'nothing was merged.')
+            return False  # tried again at the next tick
+        self._update(s['id'], lambda x: x.update(running=False, done=False, skipped=None,
+                                                 last={'at': (x.get('last') or {}).get('at'), 'result': result}))
+        if result == 'finished':
+            self._log(s, 'schedule_done', f"{s['name']} finished",
+                      f"Its top agent said the work is done, so its {n} agent(s) were stopped. Its work waits in Review; "
+                      'nothing was merged.', alert=self._notify_finished())
+        else:
+            live.record('schedule_stop', s['name'], f'You stopped its {n} agent(s). What it committed waits in Review.',
+                        team=s['team'], title=f"Stopped the run of {s['name']}", now=self.now())
+        return True
 
     def done(self, team, role):
         """An agent reported done. True when that ends a scheduled run: only the team's top agent can."""
@@ -318,6 +348,25 @@ class Scheduler:
                         title=f"{'Paused' if paused else 'Resumed'} the schedule {s['name']}")
         return self.rows()
 
+    def stop(self, id):
+        """Stop button: ends the run going now. The schedule carries on at its next time."""
+        s = next((x for x in _load() if x['id'] == id), None)
+        if not s or not s.get('running'):
+            raise ScheduleError('run', 'This run has already ended.')
+        if not self._finish(s, 'stopped'):
+            raise ScheduleError('run', "Couldn't reach its agents. Try again in a moment.")
+        return self.rows()
+
+    def run_now(self, id):
+        """Try again now, after a run that couldn't start."""
+        s = next((x for x in _load() if x['id'] == id and not x.get('removed')), None)
+        if not s:
+            raise ScheduleError('run', 'This schedule was removed.')
+        if self._going(s['team']):
+            raise ScheduleError('run', 'It is running now.')
+        self._run(s, self.now())
+        return self.rows()
+
     def remove(self, id):
         """Its saved team and branches stay, so its work stays in Review. A run going now carries on to its end."""
         s = self._update(id, lambda x: x.update(removed=True))
@@ -328,7 +377,7 @@ class Scheduler:
 
     def rows(self, tz=None):
         now, out = self.now(), []
-        labels = {o['id']: o['label'] for o in options(self.teams)}
+        labels = {o['id']: o for o in options(self.teams)}
         for s in _load():
             if s.get('removed'):
                 continue
@@ -336,22 +385,29 @@ class Scheduler:
             last = s.get('last') or {}
             at = status.parse_ts(last.get('at'))
             nxt = next_time(s['every'], created, max(now, status.parse_ts(s.get('handled') or s['created'])), tz)
-            if s.get('paused'):
-                line, state = 'Paused. It won’t start until you resume it.', 'paused'
-            elif s.get('running'):
-                line, state = (f"Running now, started {at.astimezone(tz).strftime('%H:%M') if at else 'just now'}. "
-                               'Its agents stop when they say they are done.'), 'running'
+            result = last.get('result') if not s.get('running') else 'running'
+            note = None
+            if s.get('running'):
+                line = (f"Running now, started {at.astimezone(tz).strftime('%H:%M') if at else 'just now'}. "
+                        'Its agents stop when they say they are done.')
+                if s.get('skipped'):
+                    note = f"Skipped {s['skipped']}: the last run was still going."
+            elif s.get('paused'):
+                line = 'Paused. It won’t start until you resume it.'
             else:
-                state = 'waiting'
-                said = {'finished': 'finished; its work waits in Review', 'ended': 'ended without saying it was done',
-                        'failed': f"couldn't start: {(last.get('detail') or '').rstrip('.')}"}.get(last.get('result'))
-                line = (f'Last run {_day_words(at, now, tz)} {said}. ' if at and said else '') + \
+                said = {'finished': 'Last run {} finished; its work waits in Review.',
+                        'ended': 'Last run {} stopped before it said it was done. What it committed waits in Review.',
+                        'stopped': 'Last run {} was stopped by you. What it committed waits in Review.',
+                        'failed': f"Couldn’t start {{}}: {(last.get('detail') or '').rstrip('.')}."}.get(result)
+                line = (said.format(_day_words(at, now, tz)) + ' ' if at and said else '') + \
                        f'Next: {_day_words(nxt, now, tz)}.'
+            team = labels.get(s['preset'], {'label': s['preset'].removeprefix('saved:'), 'who': ''})
             out.append({'id': s['id'], 'name': s['name'], 'team': s['team'], 'project': s['project'],
                         'project_name': os.path.basename(s['project']), 'preset': s['preset'],
-                        'preset_label': labels.get(s['preset'], s['preset'].removeprefix('saved:')), 'task': s['task'], 'every': s['every'],
-                        'when': when_words(s['every']), 'paused': bool(s.get('paused')), 'state': state, 'line': line,
-                        'next': _iso(nxt), 'failed': last.get('result') == 'failed'})
+                        'preset_label': team['label'], 'who': team['who'], 'task': s['task'], 'every': s['every'],
+                        'when': when_words(s['every']), 'paused': bool(s.get('paused')),
+                        'state': 'running' if s.get('running') else 'paused' if s.get('paused') else 'waiting',
+                        'result': result, 'line': line, 'note': note, 'next': _iso(nxt)})
         return out
 
     def handlers(self):
@@ -359,4 +415,6 @@ class Scheduler:
                 'schedule.save': lambda name, project, preset, task, every, id=None:
                     self.save(name, project, preset, task, every, id),
                 'schedule.pause': lambda id, paused=True: self.pause(id, paused),
-                'schedule.remove': lambda id: self.remove(id)}
+                'schedule.remove': lambda id: self.remove(id),
+                'schedule.stop': lambda id: self.stop(id),
+                'schedule.run_now': lambda id: self.run_now(id)}

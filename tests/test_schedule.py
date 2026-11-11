@@ -68,13 +68,13 @@ class SchedulerCase(unittest.TestCase):
         self.repo = git_repo(os.path.join(self.d, 'shop'))
         self.teams = os.path.join(self.d, 'teams')
         self.rt, self.started, self.said, self.clock = Rt(), [], [], [T0]
-        self.fail = None
+        self.refuse = None
         self.s = schedule.Scheduler(self.rt, self.start, teams=self.teams, now=lambda: self.clock[0],
                                     announce=lambda title, body: self.said.append(title))
 
     def start(self, project, task, roles, practices, name):
-        if self.fail:
-            raise newteam.NewTeamError('project', self.fail)
+        if self.refuse:
+            raise newteam.NewTeamError('project', self.refuse)
         self.started.append((project, task, roles, name))
         newteam.save(project, roles, practices, name, self.teams)  # what Starter.start writes
         self.rt.live.add(name)
@@ -120,6 +120,7 @@ class RunTest(SchedulerCase):
         self.tick(at(days=2))
         self.assertEqual(len(self.started), 1)
         self.assertIn('Skipped Nightly tests at 02:00', self.titles())
+        self.assertEqual(self.s.rows(tz=UTC)[0]['note'], 'Skipped 02:00: the last run was still going.')
 
     def test_asleep_for_days_runs_once(self):
         self.add()
@@ -136,10 +137,22 @@ class RunTest(SchedulerCase):
         self.tick(at(days=1, minutes=1))
         self.assertEqual(self.rt.killed, ['t-nightly-tests'])
         self.assertIn('Nightly tests finished', self.titles())
+        self.assertEqual(self.said, ['Nightly tests finished'])  # a Mac notification: nobody watches at 2 a.m.
         row = self.s.rows(tz=UTC)[0]
         self.assertEqual(row['state'], 'waiting')
         self.assertIn('finished; its work waits in Review', row['line'])
         self.tick(at(days=2))  # the next night runs again
+        self.assertEqual(len(self.started), 2)
+
+    def test_stop_run_ends_it_and_the_schedule_carries_on(self):
+        s = self.add()
+        self.tick(at(days=1))
+        self.s.stop(s['id'])
+        self.assertEqual(self.rt.killed, ['t-nightly-tests'])
+        self.assertIn('was stopped by you', self.s.rows(tz=UTC)[0]['line'])
+        with self.assertRaises(schedule.ScheduleError):
+            self.s.stop(s['id'])
+        self.tick(at(days=2))
         self.assertEqual(len(self.started), 2)
 
     def test_done_from_another_team_ends_nothing(self):
@@ -149,12 +162,17 @@ class RunTest(SchedulerCase):
 
     def test_failed_start_is_said_and_alerts(self):
         self.add()
-        self.fail = 'This project already has a running team: shop. Stop it first.'
+        self.refuse = 'This project already has a running team: shop. Stop it first.'
         self.tick(at(days=1))
         self.assertEqual(self.said, ["Couldn't start Nightly tests"])
         row = self.s.rows(tz=UTC)[0]
-        self.assertTrue(row['failed'])
-        self.assertIn("couldn't start: This project already has a running team", row['line'])
+        self.assertEqual(row['result'], 'failed')
+        self.assertIn("Couldn’t start today at 12:00: This project already has a running team", row['line'])
+        self.refuse = None
+        self.s.run_now(row['id'])  # Try again now
+        self.assertEqual(len(self.started), 1)
+        with self.assertRaises(schedule.ScheduleError):
+            self.s.run_now(row['id'])  # it is running now
 
     def test_paused_does_not_run_and_resuming_skips_the_past(self):
         s = self.add()
@@ -172,7 +190,8 @@ class RunTest(SchedulerCase):
         self.tick(at(days=1))
         self.rt.live.clear()
         self.tick(at(days=1, minutes=1))
-        self.assertIn('ended without saying it was done', self.s.rows(tz=UTC)[0]['line'])
+        self.assertIn('stopped before it said it was done', self.s.rows(tz=UTC)[0]['line'])
+        self.assertEqual(self.said, ['Nightly tests stopped early'])
 
     def test_removing_a_running_schedule_lets_the_run_end(self):
         s = self.add()
@@ -216,11 +235,19 @@ class SaveTest(SchedulerCase):
 
     def test_a_saved_team_keeps_its_models(self):
         newteam.save(self.repo, [role('builder', model='haiku')], {}, 'cheap', self.teams)
-        self.assertIn({'id': 'saved:cheap', 'label': 'cheap'}, schedule.options(self.teams))
+        self.assertIn({'id': 'saved:cheap', 'label': 'cheap (saved)', 'who': 'Claude Code, Haiku'}, schedule.options(self.teams))
+        self.assertEqual(schedule.options(self.teams)[0], {'id': 'one-agent', 'label': 'One agent', 'who': 'Claude Code, its default model'})
         self.add(preset='saved:cheap')
         self.tick(at(days=1))
         self.assertEqual(self.started[0][2][0]['model'], 'haiku')
         self.assertNotIn('saved:nightly-tests', [o['id'] for o in schedule.options(self.teams)])  # its own folder
+
+
+class WhoTest(unittest.TestCase):
+    def test_agents_and_models_in_words(self):
+        r = lambda agent, model=None: schedule.preset.Role('x', agent, '', '', model)
+        self.assertEqual(schedule.who([r('claude', 'sonnet'), r('claude', 'opus')]), 'Claude Code, Sonnet and Opus')
+        self.assertEqual(schedule.who([r('claude'), r('codex', 'gpt-5')]), 'Claude Code and Codex, its default model and gpt-5')
 
 
 class ReportTest(SchedulerCase):
