@@ -5,7 +5,7 @@ import os
 import subprocess
 import uuid
 
-from . import brief, budget, live, newteam, panes, preset, quiet, reports, settings, status, team as team_, teammap
+from . import brief, budget, herdr, live, newteam, panes, preset, quiet, reports, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -228,15 +228,28 @@ class Tools:
         unknown = set(chosen) - {g['id'] for g in preset.practices()['groups']}
         if unknown:
             raise ValueError(f'Unknown practice: {", ".join(sorted(unknown))}.')
-        id_ = uuid.uuid4().hex[:12]
-        quiet._write_json(os.path.join(self._drafts(), f'{id_}.json'),
-                          {'id': id_, 'project': os.path.abspath(project), 'task': task, 'roles': filled,
-                           'practices': chosen, 'why': why})
+        id_ = self._write_draft({'project': os.path.abspath(project), 'task': task, 'roles': filled,
+                                 'practices': chosen, 'why': why})
         try:
             opened = self.opener()
         except (OSError, subprocess.SubprocessError):
             opened = False
         return {'id': id_, 'opened': opened}
+
+    def _write_draft(self, draft):
+        id_ = uuid.uuid4().hex[:12]
+        quiet._write_json(os.path.join(self._drafts(), f'{id_}.json'), {'id': id_, **draft})
+        return id_
+
+    def herdr_import(self, source):
+        """A herdr team or launch script as a New team draft, which the app opens. It starts nothing, and changes
+        nothing of herdr's."""
+        draft = herdr.draft(source)
+        if not draft['roles']:
+            raise ValueError('No Claude Code or Codex agents were found in it. ' + ' '.join(draft['notes']))
+        newteam.validate(draft['roles'])
+        return {'id': self._write_draft(draft | {'practices': settings.load()['practices'],
+                                                 'why': 'Imported from herdr.'})}
 
     def draft_next(self):
         """The oldest draft waiting to open, or None. The app asks often, so this only lists a folder."""
@@ -273,5 +286,6 @@ class Tools:
                 'mcp.read': self.read, 'mcp.send': self.send, 'mcp.answer': self.answer,
                 'mcp.fix_check': self.fix_check, 'mcp.fix': self.fix, 'mcp.stop_agent': self.stop_agent,
                 'mcp.start_saved': self.start_saved, 'mcp.draft_save': self.draft_save, 'draft.take': self.draft_take,
+                'herdr.find': herdr.find, 'herdr.import': self.herdr_import,
                 'mcp.brief': self.team_brief, 'mcp.record_decision': self.record_decision,
                 'brief.get': brief.load, 'brief.save': brief.save, 'brief.remove': brief.remove}
