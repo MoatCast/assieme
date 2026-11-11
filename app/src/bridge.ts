@@ -252,6 +252,10 @@ export const tipApply = (team: string, tip: string) => brain<{ ok: boolean; deta
 /** Creating a worktree can take a while on a large repository. */
 export const addAgent = (team: string, role: Partial<RoleDraft> & { kind: string }) =>
   invoke<{ team: string }>("brain_call", { method: "team.add_agent", params: { team, role }, timeoutS: 120 });
+export type TeamBriefData = { goal: string; rules: string; decisions: { id: string; q: string; a: string; role: string; by: "you" | "agent"; ms: number }[] };
+export const briefGet = (team: string) => brain<TeamBriefData>("brief.get", { team });
+export const briefSave = (team: string, goal: string, rules: string) => brain<TeamBriefData>("brief.save", { team, goal, rules });
+export const briefRemove = (team: string, id: string) => brain<TeamBriefData>("brief.remove", { team, id });
 export const stopTeam = (team: string) => brain<{ stopped: number }>("team.stop", { team });
 export const listTeams = () => brain<{ teams: TeamListing[]; found_agents: FoundAgent[] }>("teams.list");
 export const activityList = (team: string | null, filter: "all" | "you" | "auto") =>

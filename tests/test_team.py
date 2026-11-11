@@ -1,8 +1,10 @@
 """Start, status and stop a team, against a scripted fake runtime and a fake clock."""
+import os
+import tempfile
 import unittest
 from unittest import mock
 
-from assieme import runtime, team
+from assieme import brief, runtime, team
 from assieme.preset import Role, Team
 
 TRUST_CLAUDE = 'Quick safety check\n ❯ No, exit\n   Yes, I trust this folder'
@@ -82,7 +84,8 @@ class StartTest(unittest.TestCase):
     def setUp(self):
         p = [mock.patch('assieme.team.worktree.ensure', side_effect=lambda tm, r: f'/p/.assieme/worktrees/{r.name}'),
              mock.patch('assieme.team.worktree.check_repo'),
-             mock.patch('assieme.team.launch.missing_clis', return_value=[])]
+             mock.patch('assieme.team.launch.missing_clis', return_value=[]),
+             mock.patch.dict(os.environ, {'XDG_STATE_HOME': tempfile.mkdtemp()})]
         for x in p:
             x.start()
             self.addCleanup(x.stop)
@@ -116,6 +119,25 @@ class StartTest(unittest.TestCase):
         self.assertEqual(rt.sent, [('t1', f'You coordinate.\n\n{team.TOOLS}\n\nfix bug')])
         self.assertEqual(rt.gets[(id(rt.statuses), 't1')], 4)
         self.assertEqual(out[0].state, 'running')
+
+    def test_the_task_becomes_the_goal_and_everyone_gets_the_rules_and_decisions(self):
+        brief.save('demo', rules='No API changes')
+        brief.add('demo', 'coordinator', 'Flag or main?', 'Behind a flag')
+        rt = FakeRuntime()
+        self.start(rt, demo(COORD, BUILDER), task='fix bug')
+        self.assertEqual(brief.load('demo')['goal'], 'fix bug')
+        top, kid = rt.sent[0][1], rt.sent[1][1]
+        for text in (top, kid):
+            self.assertNotIn('Goal:', text)  # the top agent has it as its task; the other waits for its share
+            self.assertIn('No API changes', text)
+            self.assertIn('- Flag or main? -> Behind a flag', text)
+        self.assertTrue(kid.endswith('wait and do nothing.'))
+
+    def test_a_task_for_one_agent_leaves_the_goal(self):
+        rt = FakeRuntime()
+        self.start(rt, demo(COORD, BUILDER), task='team goal')
+        self.start(FakeRuntime(), demo(COORD, BUILDER), task='just you', only='builder-1')
+        self.assertEqual(brief.load('demo')['goal'], 'team goal')
 
     def test_brief_waits_while_the_screen_is_still_settling(self):
         # Codex's start-up logo animates past the 5 s hc waits: "t1 is still starting: its output has not settled".

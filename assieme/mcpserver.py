@@ -114,8 +114,20 @@ def agent_server(address):
     @m.tool(annotations=ACT)
     def report(state: Literal['stuck', 'need_decision', 'done', 'working'], note: str = '') -> dict:
         """Tell the person how you stand. `stuck`: you can't go on. `need_decision`: only the person can decide; put the
-        question in `note`. `done` or `working`: clears an earlier report. After stuck or need_decision, end your turn."""
+        question in `note`, after checking team_brief for an answer they already gave. `done` or `working`: clears an
+        earlier report. After stuck or need_decision, end your turn."""
         return call('mcp.report', address=address, state=state, note=note)
+
+    @m.tool(annotations=READ)
+    def team_brief() -> dict:
+        """The brief every agent in your team shares: the goal, the person's rules and the decisions they already made.
+        Read it before you ask the person anything."""
+        return call('mcp.brief', address=address)
+
+    @m.tool(annotations=ACT)
+    def record_decision(question: str, answer: str) -> dict:
+        """Save an answer the person gave you in the team brief, one line each, so no teammate asks the same thing."""
+        return call('mcp.record_decision', address=address, question=question, answer=answer)
 
     return m
 

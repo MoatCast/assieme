@@ -3,7 +3,7 @@ import datetime as dt
 import os
 import unittest
 
-from assieme import launch, panes, team
+from assieme import brief, launch, panes, team
 from assieme.preset import Role
 from assieme.status import Agent
 
@@ -194,6 +194,7 @@ class ActTest(unittest.TestCase):
         rt = FakeRt()
         self.assertTrue(self.act(rt, f['id'], f['buttons'][1]['id'])['ok'])
         self.assertEqual(rt.sent, [('t-a', 'To main')])
+        self.assertEqual([(d['q'], d['a']) for d in brief.load('shop')['decisions']], [(f['question'], 'To main')])
         self.rows = [row('a')]
         stuck = log_agent('A', 'a', 'stuck', detail='loops')
         self.now_view = lambda: view(self.rows, [stuck])

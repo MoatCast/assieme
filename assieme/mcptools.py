@@ -5,7 +5,7 @@ import os
 import subprocess
 import uuid
 
-from . import live, newteam, panes, preset, quiet, reports, settings, status, team as team_, teammap
+from . import brief, live, newteam, panes, preset, quiet, reports, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -77,6 +77,15 @@ class Tools:
             self.notify(f'{me} needs a decision', note[:200])
         return {'ok': True, 'detail': 'Reported. End your turn now if you cannot go on.' if state in reports.SHOWN else 'Reported.'}
 
+    def team_brief(self, address):
+        name, _, _ = self._me(address)
+        return {'team': name, 'brief': brief.text(name) or 'Nothing in the team brief yet.'}
+
+    def record_decision(self, address, question, answer):
+        name, me, _ = self._me(address)
+        brief.add(name, me, question, answer, by='agent')
+        return {'ok': True, 'detail': 'Saved in the team brief.'}
+
     # --- reading -----------------------------------------------------------------------------------------
 
     def _saved(self):
@@ -144,6 +153,8 @@ class Tools:
             return {'ok': False, 'detail': 'Choose one of: ' + ', '.join(x['label'] for x in choices)}
         rt.send(p['address'], answer)
         live.record('answer', role, panes.ANSWERED, team=team, address=p['address'])
+        if fix.get('question'):
+            brief.add(team, role, fix['question'], answer)
         return {'ok': True, 'detail': 'sent'}
 
     def _fix_button(self, p, action):
@@ -258,4 +269,6 @@ class Tools:
                 'mcp.list_teams': self.list_teams, 'mcp.status': self.status, 'mcp.needs_you': self.needs_you,
                 'mcp.read': self.read, 'mcp.send': self.send, 'mcp.answer': self.answer,
                 'mcp.fix_check': self.fix_check, 'mcp.fix': self.fix, 'mcp.stop_agent': self.stop_agent,
-                'mcp.start_saved': self.start_saved, 'mcp.draft_save': self.draft_save, 'draft.take': self.draft_take}
+                'mcp.start_saved': self.start_saved, 'mcp.draft_save': self.draft_save, 'draft.take': self.draft_take,
+                'mcp.brief': self.team_brief, 'mcp.record_decision': self.record_decision,
+                'brief.get': brief.load, 'brief.save': brief.save, 'brief.remove': brief.remove}

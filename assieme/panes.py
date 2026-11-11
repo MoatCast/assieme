@@ -7,7 +7,7 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import adapters, live, prompts, reports, status, team
+from . import adapters, brief, live, prompts, reports, status, team
 
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
@@ -95,8 +95,9 @@ def _memory_full(a):
     return bool(limit and a.context > limit * MEMORY_FULL)
 
 
-def _fix(role, buttons, text):
-    return {'id': _id(role, text, tuple(b['id'] for b in buttons)), 'text': text, 'buttons': buttons}
+def _fix(role, buttons, text, question=None):
+    """`question`: the agent's plain-word question, when that is what it waits on (an answer goes in the team brief)."""
+    return {'id': _id(role, text, tuple(b['id'] for b in buttons)), 'text': text, 'buttons': buttons, 'question': question}
 
 
 def _program(argv):
@@ -151,7 +152,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
             blocks = holds.get(a.name, []) if a else []
             p['detail'] = f'Holding up {len(blocks)} agent{"s" * (len(blocks) != 1)}' if blocks else 'Waiting for you'
             text = q or (about.splitlines()[-1] if about else '') or (a.ask_kind if a and a.ask_kind else 'Waiting for you')
-            p['fix'] = _fix(role, buttons, text)
+            p['fix'] = _fix(role, buttons, text, None if menu else q)
             strip.append({'role': role, 'state': state, 'text': f'{role} is asking: {text}'})
         else:
             s = next((s for s in suggestions if a and s.agent == a.name), None)
@@ -200,4 +201,6 @@ def act(team_name, role, fix, button, view_now, rt, log=None, now=None, by='you'
         ok, detail = False, str(e)[:120]
     live.record(action, role, f['text'] if b.get('action') else ANSWERED, ok, detail, team=team_name, by=by,
                 address=p['address'], log=log, now=now)
+    if ok and b['kind'] == 'answer' and f.get('question'):
+        brief.add(team_name, role, f['question'], b['label'])
     return {'ok': ok, 'detail': detail}
