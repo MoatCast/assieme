@@ -187,6 +187,9 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
   const cards = map.panes.filter((p, i) => p.fix && (!p.fix.budget || map.panes.findIndex((q) => q.fix?.budget === p.fix!.budget) === i));
   const budget = map.budget ?? null;
   const cap = budget?.allowed ?? null;
+  // After carrying on, the allowance sits just above today's use: two digits keep "1.57M of 1.58M" from reading "1.6M of 1.6M".
+  const close = !!(cap && map.spend && cap >= 1e6 && tokens(cap) === tokens(map.spend.tokens));
+  const amount = (n: number) => (close ? `${(n / 1e6).toFixed(2)}M` : tokens(n));
   const turnOn = async (id: string) => {
     const r = await tipApply(team, id).catch((e) => ({ ok: false, detail: String(e) }));
     setTipNote(r.ok ? "" : r.detail);
@@ -221,7 +224,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
           <div className="spend">
             <span className="grow">
               {map.spend ? (
-                <>Today: <b>{tokens(map.spend.tokens)}{cap ? ` of ${tokens(cap)}` : ""} tokens</b>. <b>{Math.round(map.spend.waste_share * 100)}%</b> went on wake-ups that did nothing.</>
+                <>Today: <b>{amount(map.spend.tokens)}{cap ? ` of ${amount(cap)}` : ""} tokens</b>. <b>{Math.round(map.spend.waste_share * 100)}%</b> went on wake-ups that did nothing.</>
               ) : map.spend_ready === false ? "" : "No tokens used yet today."}
             </span>
             {budget && (

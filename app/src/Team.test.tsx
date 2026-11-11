@@ -317,3 +317,8 @@ test("a team paused at its limit is one card, and its button carries on", async 
   fireEvent.click(screen.getAllByRole("button", { name: "Change limit" })[0]);
   expect(screen.getByRole("dialog", { name: "Daily limits" })).toBeTruthy();
 });
+
+test("just after carrying on, the spend line shows two digits so used and allowed differ", async () => {
+  await open(MAP({ spend: { tokens: 1566216, waste_share: 0 }, budget: { ...BUDGET, limit: 30000, allowed: 1574216, used: 1566216 } }));
+  expect(screen.getByText("1.57M of 1.57M tokens")).toBeTruthy();
+});

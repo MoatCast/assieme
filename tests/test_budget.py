@@ -84,6 +84,12 @@ class PauseTest(BudgetCase):
         self.assertEqual([bool(p['fix']) for p in m['panes']], [True, False])
         self.assertIn('The others carry on', m['subtitle'])
 
+    def test_a_one_agent_team_has_no_others_to_mention(self):
+        self.rows, self.sessions = [row('a', 'working')], [session('a', tokens=700)]
+        self.limit({'a': 500})
+        self.check()
+        self.assertEqual(self.built()['subtitle'], 'a stopped where it was.')
+
     def test_a_real_question_is_left_alone_until_answered(self):
         self.rows = [row('a', 'blocked')]
         self.limit({'*': 500})

@@ -216,7 +216,8 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             whole = any(a['scope'] == budget.TEAM for a in bud['asks'])
             title = 'Paused at today’s limit'
             subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
-                        f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}. The others carry on.")
+                        f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
+                        + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
     done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
     return {'team': team_name, 'found': found,
             'stopped': not any(r.get('state') == 'live' for r in rows),

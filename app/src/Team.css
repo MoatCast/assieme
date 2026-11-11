@@ -163,7 +163,7 @@
 .limit-team input { width: 96px; box-sizing: border-box; }
 .limit-agents { display: flex; flex-direction: column; gap: 8px; }
 .limit-agents p { margin: 0; color: var(--quiet-slate); line-height: 18px; }
-.limit-row { display: flex; align-items: center; gap: 10px; color: var(--quiet-slate); }
+.limit-row { display: flex; flex-direction: row; align-items: center; gap: 10px; color: var(--quiet-slate); }
 .limit-row .mono { flex: 1; min-width: 0; font-family: var(--quiet-font-mono); color: var(--quiet-ink); overflow: hidden; text-overflow: ellipsis; }
 .limit-row small { width: 80px; flex-shrink: 0; text-align: right; font-size: 12px; }
 .limit-row input { width: 96px; flex-shrink: 0; box-sizing: border-box; padding: 6px 10px; border-color: var(--quiet-line-strong); }
