@@ -127,8 +127,14 @@ class SocketTest(unittest.TestCase):
             time.sleep(0.02)
 
     def ask(self, line):
-        s = socket.socket(socket.AF_UNIX)
-        s.connect(self.sock)
+        for _ in range(100):  # the file appears at bind, a moment before listen
+            s = socket.socket(socket.AF_UNIX)
+            try:
+                s.connect(self.sock)
+                break
+            except ConnectionRefusedError:
+                s.close()
+                time.sleep(0.02)
         with s, s.makefile('rwb') as f:
             f.write(line + b'\n')
             f.flush()
