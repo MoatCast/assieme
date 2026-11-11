@@ -163,3 +163,20 @@
 .sheet-foot p { margin: 0; line-height: 19px; color: var(--quiet-slate); }
 .sheet-foot .error { color: var(--quiet-needs-you-text); }
 .sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* Daily limits: Paper "v2 — Team: daily limit set", "daily limits sheet", "paused at the limit". */
+.spend .limit { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.spend .link { color: var(--quiet-accent); font-weight: 500; }
+.meter { display: flex; width: 72px; height: 4px; border-radius: 2px; background: var(--quiet-line); overflow: hidden; }
+.meter > i { background: var(--quiet-control); border-radius: 2px; }
+.meter.full > i { background: var(--quiet-waste); }
+.node.paused .dot { background: var(--quiet-waste); }
+.limit-team { display: flex; align-items: center; gap: 10px; color: var(--quiet-slate); }
+.limit-team input { width: 96px; box-sizing: border-box; }
+.limit-agents { display: flex; flex-direction: column; gap: 8px; }
+.limit-agents p { margin: 0; color: var(--quiet-slate); line-height: 18px; }
+.limit-row { display: flex; flex-direction: row; align-items: center; gap: 10px; color: var(--quiet-slate); }
+.limit-row .mono { flex: 1; min-width: 0; font-family: var(--quiet-font-mono); color: var(--quiet-ink); overflow: hidden; text-overflow: ellipsis; }
+.limit-row small { width: 80px; flex-shrink: 0; text-align: right; font-size: 12px; }
+.limit-row input { width: 96px; flex-shrink: 0; box-sizing: border-box; padding: 6px 10px; border-color: var(--quiet-line-strong); }
+.limit-row input:not(:placeholder-shown) { border-color: var(--quiet-control); }

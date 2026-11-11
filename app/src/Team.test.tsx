@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Pane, TeamMap } from "./bridge";
 
 const b = vi.hoisted(() => ({
-  teamMap: vi.fn(), reviewWaiting: vi.fn(), paneAct: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn(), agentDetail: vi.fn(),
+  teamMap: vi.fn(), reviewWaiting: vi.fn(), budgetSet: vi.fn(), paneAct: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn(), agentDetail: vi.fn(),
 }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
@@ -273,4 +273,52 @@ test("groups with no wake-ups between them stack in two columns", () => {
   const placed = layout(["a", "b", "c", "d"].map(box), [], [{ from: "a", to: "c" }, { from: "b", to: "d" }], "TB", 56);
   expect(placed.boxes.c.y).toBeGreaterThan(placed.boxes.a.y);
   expect(placed.width).toBeLessThan(4 * 270);
+});
+
+const BUDGET = { limit: 10e6, allowed: 10e6, used: 4.2e6, at_limit: "pause" as const, agents: [{ role: "a", used: 3e6, limit: null }, { role: "b", used: 1.2e6, limit: null }] };
+
+test("the spend line shows the daily limit, and found teams get none", async () => {
+  await open(MAP({ spend: { tokens: 4.2e6, waste_share: 0.3 }, budget: BUDGET }));
+  expect(screen.getByText("4.2M of 10M tokens")).toBeTruthy();
+  expect(screen.getByRole("img", { name: "42% of today’s limit used" })).toBeTruthy();
+  cleanup();
+  await open(MAP({ found: true, budget: null }));
+  expect(screen.queryByRole("button", { name: /limit/ })).toBeNull();
+});
+
+test("Daily limits saves millions as tokens, and empty as no limit", async () => {
+  b.budgetSet.mockResolvedValue(MAP());
+  await open(MAP({ budget: { ...BUDGET, limit: null, allowed: null } }));
+  fireEvent.click(screen.getByRole("button", { name: "Set a daily limit" }));
+  fireEvent.change(screen.getByLabelText("The whole team, in millions of tokens a day"), { target: { value: "2.5" } });
+  fireEvent.change(screen.getByLabelText("a, in millions of tokens a day"), { target: { value: "nope" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(screen.getByText(/A limit is a number above zero/)).toBeTruthy();
+  expect(b.budgetSet).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText("a, in millions of tokens a day"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Just tell me" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await flush();
+  expect(b.budgetSet).toHaveBeenCalledWith("shop", { "*": 2500000 }, "tell");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+test("a team paused at its limit is one card, and its button carries on", async () => {
+  const fix = (role: string) => ({ id: `f-${role}`, text: "Carry on past today’s limit?", budget: "*", who: "shop", detail: "shop used 10.1M of the team’s 10M tokens.",
+    buttons: [{ id: "go", label: "Add 2.5M and carry on", kind: "budget" as const }] });
+  await open(MAP({ title: "Paused at today’s limit", budget: BUDGET, panes: [pane("a", { state: "idle", fix: fix("a") }), pane("b", { state: "idle", fix: fix("b") })],
+    nodes: [{ ...node("a", "idle"), paused: true }, node("b", "idle")] }));
+  expect(screen.getAllByText("Carry on past today’s limit?")).toHaveLength(1);
+  expect(screen.getByTestId("node-a").textContent).toContain("paused");
+  expect(screen.queryByRole("button", { name: "Open terminal" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Add 2.5M and carry on" }));
+  await flush();
+  expect(b.paneAct).toHaveBeenCalledWith({ team: "shop", role: "a", fix: "f-a", button: "go" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Change limit" })[0]);
+  expect(screen.getByRole("dialog", { name: "Daily limits" })).toBeTruthy();
+});
+
+test("just after carrying on, the spend line shows two digits so used and allowed differ", async () => {
+  await open(MAP({ spend: { tokens: 1566216, waste_share: 0 }, budget: { ...BUDGET, limit: 30000, allowed: 1574216, used: 1566216 } }));
+  expect(screen.getByText("1.57M of 1.57M tokens")).toBeTruthy();
 });

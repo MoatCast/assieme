@@ -161,7 +161,8 @@ def _serve():
         return got
 
     def tick():
-        for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()), brain.tick,
+        for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()),
+                     lambda: brain.tick(announce=None if menu.app_watching() else live.notify),
                      lambda: machine.tick(status.now_utc())):
             try:
                 step()

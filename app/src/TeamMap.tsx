@@ -129,12 +129,12 @@ export function AgentsMap({ nodes, edges, waits, onPick }: {
       {nodes.map((n) => {
         const b = placed.boxes[n.role];
         return (
-          <button key={n.role} type="button" className={`node ${needs(n.state) ? "needs" : ""} state-${n.state}`} data-testid={`node-${n.role}`}
+          <button key={n.role} type="button" className={`node ${needs(n.state) ? "needs" : ""} ${n.paused ? "paused" : `state-${n.state}`}`} data-testid={`node-${n.role}`}
             style={{ left: b.x, top: b.y, width: b.width, height: b.height }} onClick={() => onPick(n.role)}>
             <span className="dot" />
             <span className="node-text">
               <span className="node-name">{n.role}</span>
-              <span className="node-state">{[WORDS[n.state], n.state === "exited" ? "" : ago(n.since_s)].filter(Boolean).join(" · ")}</span>
+              <span className="node-state">{[n.paused ? "paused" : WORDS[n.state], n.state === "exited" ? "" : ago(n.since_s)].filter(Boolean).join(" · ")}</span>
             </span>
           </button>
         );

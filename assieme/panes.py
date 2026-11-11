@@ -7,7 +7,7 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import adapters, brief, live, prompts, reports, status, team
+from . import adapters, brief, budget, live, prompts, reports, status, team
 
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
@@ -133,7 +133,8 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         argv0 = _program(r.get('argv'))
         p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
-             'command': None, 'memory_full': _memory_full(a)}
+             'command': None, 'memory_full': _memory_full(a),
+             'busy': (r.get('status') or {}).get('state') == 'working'}  # mid-turn by its own hook, whatever the logs suggest
         if report:
             p['since_s'] = max(0, int(now.timestamp() - report['ms'] / 1000))
         if state == 'exited':
@@ -189,6 +190,8 @@ def act(team_name, role, fix, button, view_now, rt, log=None, now=None, by='you'
         return {'ok': False, 'detail': CHANGED}
     if b['kind'] == 'reply':
         return {'ok': True, 'detail': ''}  # the app opens the pane for typing
+    if b['kind'] == 'budget':  # carry on after a pause at a daily limit; it logs its own row
+        return budget.resume(team_name, b['send'], b.get('add', 0), rt, now=now, by=by, log=log)
     action = b.get('action') or b['kind']  # nudge, compact or tell; menu; answer
     try:
         if b['kind'] == 'menu':

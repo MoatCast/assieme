@@ -12,7 +12,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, answers, live, newteam, panes, quiet, report, runtime, settings, status, team
+from . import activity, adapters, answers, budget, live, newteam, panes, quiet, report, runtime, settings, status, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -198,11 +198,30 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
                 tips.append({'id': f'{a}>{b}', 'from': a, 'to': b, 'share': x['share'],
                              'from_cwd': cwd[a], 'to_cwd': cwd[b]})
     need = sum(p['state'] in NEEDS_YOU for p in v['panes'])
+    title = 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you"
+    subtitle = _subtitle(v['panes'], gs, need)
+    bud = None
+    if not found:  # agents found on this Mac get no limit: their messages can't be held
+        bud = budget.view(team_name, {n['role']: (rep['agents'].get(n['role']) or {}).get('tokens', 0) for n in nodes}, total, now)
+        for ask in bud['asks']:
+            for p, n in zip(v['panes'], nodes):
+                if p['role'] in ask['roles'] and p['state'] not in ('asking', 'exited'):
+                    b = dict(panes._button(p['role'], 'budget', ask['label'], ask['scope']), add=ask['add'])
+                    p['fix'] = dict(panes._fix(p['role'], [b], ask['text']), budget=ask['scope'], who=ask['who'], detail=ask['detail'])
+                    p['detail'], n['paused'] = 'Paused at today’s limit', True
+                    ask.setdefault('fix', p['fix']['id'])
+                    ask.setdefault('role', p['role'])
+                    ask.setdefault('buttons', p['fix']['buttons'])
+        if bud['asks'] and not need:
+            whole = any(a['scope'] == budget.TEAM for a in bud['asks'])
+            title = 'Paused at today’s limit'
+            subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
+                        f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
+                        + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
     done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
     return {'team': team_name, 'found': found,
             'stopped': not any(r.get('state') == 'live' for r in rows),
-            'title': 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you",
-            'subtitle': _subtitle(v['panes'], gs, need),
+            'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
             'tips': tips, 'done': done,
             'spend': {'tokens': total, 'waste_share': round(rep['empty_tokens'] / total, 4)} if total else None,
@@ -463,14 +482,25 @@ class Brain:
             live.record('quiet', label, 'You added this in Settings.', team=owner, pair=[_real(from_cwd), _real(to_cwd), label])
         return {'ok': True}
 
-    def tick(self, now=None):
+    def set_budget(self, team, limits, at_limit='pause'):
+        bud = self.map(team)['budget']
+        if bud is None:
+            raise ValueError('Limits are for teams started in Assieme.')
+        budget.set_limits(team, limits, at_limit, self.rt, {a['role']: a['used'] for a in bud['agents']}, bud['used'])
+        return self.map(team)
+
+    def tick(self, now=None, announce=None):
         now = now or status.now_utc()
         self.today.refresh(now)
         st = settings.load()
-        if 'auto' not in st['fixes'].values():
+        limited, auto = budget.teams(), 'auto' in st['fixes'].values()
+        if not limited and not auto:
             return []
         names = {r['labels'][team.TEAM] for r in self._assieme_rows() if r.get('state') == 'live'}
-        return run_automatic({n: self.map(n) for n in names}, st, self.rt, now=now)
+        views = {n: self.map(n) for n in names if auto or n in limited}
+        for n in names & limited:
+            budget.check(n, views[n], self.rt, now, announce)
+        return run_automatic(views, st, self.rt, now=now) if auto else []
 
     def handlers(self):
         return {'team.view': lambda team: self.view(team),
@@ -480,6 +510,7 @@ class Brain:
                 'tip.apply': lambda team, tip: self.tip(team, tip),
                 'team.add_agent': lambda team, role: self.starter.add_agent(team, role),
                 'team.stop': lambda team: self.stop(team),
+                'budget.set': self.set_budget,
                 'teams.list': self.teams,
                 'activity.list': lambda team=None, filter='all': activity.list_rows(team, filter),
                 'activity.undo': lambda id: activity.undo(id, self.rt),

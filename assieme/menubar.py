@@ -40,6 +40,12 @@ def _labels(buttons):
     return out
 
 
+def _asks(built):
+    """Pauses at a daily limit that can be answered now: at least one of their agents has stopped."""
+    listed = {p['role'] for p in built['panes'] if p['state'] in teammap.NEEDS_YOU}  # those already count, with the same button
+    return [a for a in (built.get('budget') or {}).get('asks', []) if a.get('fix') and a['role'] not in listed]
+
+
 def pause_until():
     """When a pause ends, or None. A damaged or finished pause is no pause."""
     at = status.parse_ts(settings.load().get('notify_paused_until'))
@@ -87,6 +93,9 @@ class Menubar:
                       'says': SAYS.get(p['state'], ''), 'fix': (p['fix'] or {}).get('id'),
                       'buttons': [{k: b[k] for k in ('id', 'label', 'kind')} for b in (p['fix'] or {}).get('buttons', [])]}
                      for p in built['panes'] if p['state'] in teammap.NEEDS_YOU]
+            items += [{'role': a['role'], 'state': 'asking', 'since_s': a['since_s'], 'text': _short(a['title']), 'says': '',
+                       'fix': a['fix'], 'buttons': [{k: b[k] for k in ('id', 'label', 'kind')} for b in a['buttons']]}
+                      for a in _asks(built)]
             shown.append({'name': name, 'where': 'This Mac', 'need': len(items), 'items': items})
         shown.sort(key=lambda t: -t['need'])  # stable: what needs you first, otherwise as the Team tab lists them
         tokens = sum((b['spend'] or {}).get('tokens', 0) for _, b, _ in teams)
@@ -117,6 +126,17 @@ class Menubar:
                 yield f"need|{name}|{p['role']}|{p['state']}|{text if p['state'] == 'asking' else ''}", {
                     'kind': 'needs_you', 'team': name, 'role': p['role'], 'view': 'terminals', 'fix': f.get('id'),
                     'title': title, 'body': _short(text), 'buttons': _labels(buttons)}
+
+    def _budgets(self, teams):
+        for name, built, _ in teams:
+            for a in _asks(built):
+                yield f"budget|{name}|{a['scope']}|{a['fix']}", {
+                    'kind': 'needs_you', 'team': name, 'role': a['role'], 'view': 'terminals', 'fix': a['fix'],
+                    'title': a['title'], 'body': _short(a['detail']), 'buttons': _labels(a['buttons'])}
+            for t in (built.get('budget') or {}).get('told', []):
+                yield f"budget-told|{name}|{t['scope']}|{t['day']}", {
+                    'kind': 'needs_you', 'team': name, 'role': None, 'view': None, 'fix': None,
+                    'title': t['title'], 'body': _short(t['body']), 'buttons': []}
 
     def _stops(self, teams, ready_roles):
         ended_by_you = {(e.get('team'), e.get('agent')) for e in live.recent_actions(None, 200) if e.get('action') in YOURS}
@@ -173,7 +193,7 @@ class Menubar:
         then, and what was resolved meanwhile never does."""
         ready_roles = {(w['team'], w['role']) for w in waiting}
         showing = not pause_until() and st['notify'].get('finished', True)
-        found = [*self._needs(teams), *self._stops(teams, ready_roles), *self._ready(waiting, teams, now, self._load(), showing),
+        found = [*self._needs(teams), *self._budgets(teams), *self._stops(teams, ready_roles), *self._ready(waiting, teams, now, self._load(), showing),
                  *self._stalls(stalls)]
         with self.lock:
             seen = self._load()
