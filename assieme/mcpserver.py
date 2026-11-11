@@ -138,7 +138,7 @@ def agent_server(address):
     @m.tool(annotations=ACT)
     def add_task(title: str, assignee: str = '') -> dict:
         """Put a card on your team's board, in To do: one per piece of work, titled in a few plain words. `assignee` is
-        a teammate's name, or yours; leave it empty if nobody has it yet. This only makes the card: send the work itself
+        a teammate's name, or "me" for yourself; leave it empty if nobody has it yet. This only makes the card: send the work itself
         with message_agent."""
         return call('mcp.task_add', address=address, title=title, assignee=assignee)
 

@@ -193,14 +193,19 @@ class Board:
     def task_add(self, address, title, assignee=''):
         name, me, _ = self.me(address)
         roles = [r['labels'].get(team_.ROLE) for r in self.brain._assieme_rows(name) if r.get('state') == 'live']
+        if assignee.strip().lower() in ('me', 'myself', 'self'):
+            assignee = me
         if assignee and assignee not in roles:
-            raise ValueError(f'No running agent named {assignee}. Your team: {", ".join(roles)}.')
+            raise ValueError(f'No running agent named {assignee}. You are {me}. Your team: {", ".join(roles)}.')
         return {'task': _shown(add(name, title, assignee or None, by=me))}
 
     def task_set(self, address, task, status, note='', waiting_for_person=False):
-        name, _, _ = self.me(address)
+        name, me, _ = self.me(address)
         detail = 'Done.'
         role = _card(board(name), task)['role']
+        if not role and status in ('doing', 'review'):  # the agent working on it: its branch is the card's
+            with _edit(name) as b:
+                _card(b, task)['role'] = role = me
         if status == 'done' and role and (self.reviews.card(name, role) or {}).get('ahead'):
             status = 'review'  # a fact about the branch beats the agent's word
             detail = f"{role}'s branch isn't merged yet, so the card is in Review. The person merges it there."

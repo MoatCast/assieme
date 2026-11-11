@@ -155,8 +155,20 @@ class Agents(Base):
         self.assertEqual(self.brain.rt.sent, [])  # the card alone wakes nobody
 
     def test_an_unknown_assignee_is_refused(self):
-        with self.assertRaisesRegex(ValueError, 'No running agent named ghost. Your team: planner, builder-1'):
+        with self.assertRaisesRegex(ValueError, 'No running agent named ghost. You are planner. Your team: planner, builder-1'):
             self.board.task_add('t1', 'x', 'ghost')
+
+    def test_an_agent_can_give_a_card_to_itself_without_knowing_its_name(self):
+        # A real Codex agent asked for "yourself as assignee" passed "myself" and was refused.
+        for word in ('myself', 'Me', ' self '):
+            self.assertEqual(self.board.task_add('t2', 'x', word)['task']['role'], 'builder-1')
+
+    def test_a_card_nobody_has_becomes_the_agents_that_starts_it(self):
+        # A real Claude agent made its own card without an assignee: in Review it had no branch and said "Not assigned yet".
+        a = self.board.task_add('t2', 'a')['task']['id']
+        self.assertEqual(self.board.task_set('t2', a, 'review')['task']['role'], 'builder-1')
+        b = self.board.task_add('t1', 'b', 'planner')['task']['id']
+        self.assertEqual(self.board.task_set('t2', b, 'doing')['task']['role'], 'planner')  # someone else's stays theirs
 
     def test_done_with_an_unmerged_branch_goes_to_review(self):
         self.reviews.cards['builder-1'] = {'ahead': 1}
