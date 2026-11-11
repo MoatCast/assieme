@@ -91,7 +91,7 @@
   font-size: 12px; font-weight: 500; line-height: 16px; }
 .review .note-ignore { padding: 5px 6px; font-size: 12px; font-weight: 500; line-height: 16px; }
 
-.review-scrim { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--quiet-shade) 18%, transparent); z-index: 2; }
+.review-scrim { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--quiet-scrim); z-index: 2; }
 .review .sheet { width: 430px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 18px; background: var(--quiet-surface);
   border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-shade) 18%, transparent); }
 .review .sheet-title { font-size: 14px; font-weight: 600; line-height: 18px; }

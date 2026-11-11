@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { onOpen, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
+import Appearance from "./Appearance";
 import Board, { NewTask } from "./Board";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
@@ -139,6 +140,7 @@ export default function Shell() {
                 Add agent
               </button>
             )}
+            <Appearance />
             <button type="button" className="gear" aria-label="Settings" onClick={() => { setSettingsAt(undefined); setSettings(true); }}>
               <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" strokeLinecap="round">
                 <circle cx="9" cy="9" r="2.4" />

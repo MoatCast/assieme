@@ -1,8 +1,8 @@
 /* The Paper "C · Quiet v2" look (file "Assieme"), light and dark ("C · Quiet dark").
-   Each colour is light-dark(light, dark): the root's color-scheme picks one. theme.ts sets data-theme from the
+   Each colour is light-dark(light, dark): the root's color-scheme picks one. Appearance.tsx sets data-theme from the
    switch in the top bar; with no data-theme the Mac's own setting decides. Terminals look the same in both. */
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   --quiet-bg: light-dark(#ebeff5, #131519);
   --quiet-surface: light-dark(#ffffff, #1c2027);
   --quiet-fog: light-dark(#ebeff5, #131519);

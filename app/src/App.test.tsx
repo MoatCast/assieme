@@ -3,10 +3,12 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const serviceRunning = vi.fn<() => Promise<boolean>>();
 const serviceInstall = vi.fn<() => Promise<void>>();
+const windowShow = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock("./bridge", () => ({
   serviceRunning: () => serviceRunning(),
   serviceInstall: () => serviceInstall(),
   snapshot: () => new Promise(() => {}),
+  windowShow,
 }));
 vi.mock("./Shell", () => ({ default: () => <div>first run</div> }));
 
@@ -57,4 +59,11 @@ test("a failed start shows the error and the log path", async () => {
   await flush();
   expect(screen.getByText(/launchctl bootstrap failed \(5\)/)).toBeTruthy();
   expect(screen.getByText(/~\/\.local\/state\/assieme\/brain\.log/)).toBeTruthy();
+});
+
+test("shows the window, which starts hidden so it never flashes the wrong theme", async () => {
+  serviceRunning.mockResolvedValue(true);
+  render(<App />);
+  await flush();
+  expect(windowShow).toHaveBeenCalled();
 });
