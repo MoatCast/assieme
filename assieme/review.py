@@ -116,6 +116,7 @@ class Review:
         self.codex_dir = codex_dir or os.path.expanduser('~/.codex/sessions')
         self.lock = threading.RLock()  # one merge, undo or discard at a time
         self.tests, self.test_locks, self.undos, self.transcripts, self.aheads = {}, {}, {}, {}, {}
+        self.on_archive = lambda team, role: None  # the brain stops the agent's preview here
 
     def _git(self, cwd, *args, **kw):
         return self.run(['git', '-C', cwd, *args], capture_output=True, encoding='utf-8', errors='replace', **kw)
@@ -405,6 +406,7 @@ class Review:
                 self.rt.kill(address)
             except runtime.RuntimeError_ as e:
                 return f"Couldn't stop {role}: {e}"
+        self.on_archive(name, role)  # nothing may still run in the folder about to go
         if os.path.isdir(path):
             r = self._git(project, 'worktree', 'remove', *(['--force'] if force else []), path)
             if r.returncode != 0:
