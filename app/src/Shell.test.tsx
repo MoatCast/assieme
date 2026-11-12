@@ -174,6 +174,8 @@ test("the team picker lists found teams too", async () => {
 test("found teams alone still open, and started teams come first", () => {
   expect(liveTeams(SNAP([], { found_teams: ["docs"] }))).toEqual({ names: ["docs"], neediest: "docs" });
   expect(liveTeams(SNAP([row("a", "x")], { found_teams: ["a", "docs"] })).names).toEqual(["a", "docs"]);
+  // A scheduled run's team stays in the picker after its agents stop, so its Activity can still be read.
+  expect(liveTeams(SNAP([row("a", "x")], { found_teams: ["docs"], scheduled_teams: ["nightly", "a"] })).names).toEqual(["a", "docs", "nightly"]);
 });
 
 test("Add agent is there for a team started in Assieme, not a found one", async () => {

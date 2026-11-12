@@ -277,8 +277,9 @@ class StarterTest(unittest.TestCase):
         self.calls.append((tm.name, task, ask('Trust?')))
         return self.result(tm)
 
-    def starter(self, rt=None, which=ALL):
-        return newteam.Starter(rt or Rt(), self.teams, thread=self.manual, now=lambda: self.clock[0], which=which)
+    def starter(self, rt=None, which=ALL, scheduled=frozenset()):
+        return newteam.Starter(rt or Rt(), self.teams, thread=self.manual, now=lambda: self.clock[0], which=which,
+                               scheduled=lambda: set(scheduled))
 
     def test_start_expands_a_tilde_path(self):
         s = self.starter()
@@ -494,6 +495,23 @@ class StarterSharingTest(StarterTest):
         with self.assertRaises(newteam.NewTeamError) as e:
             self.starter(Rt(live=['nightly'])).start(git_repo(os.path.join(self.d, 'c')), 't', roles, {}, name='nightly')
         self.assertEqual(e.exception.message, 'nightly is still running.')
+
+    def test_a_scheduled_run_shares_a_project_when_its_roles_differ(self):
+        self.starter().start(self.repo, 't', ROLES, {})
+        self.manual.run_all()
+        got = self.starter(Rt(live=['repo']), scheduled={'nightly'}).start(self.repo, 't', [role('nightly-builder')], {}, name='nightly')
+        self.assertEqual(got, {'team': 'nightly'})
+
+    def test_new_team_may_start_beside_a_scheduled_run(self):
+        newteam.save(self.repo, [role('nightly-builder')], {}, 'nightly', self.teams)
+        got = self.starter(Rt(live=['nightly']), scheduled={'nightly'}).start(self.repo, 't', ROLES, {})
+        self.assertEqual(got, {'team': 'repo'})
+
+    def test_roles_that_share_a_worktree_still_refuse(self):
+        newteam.save(self.repo, [role('builder')], {}, 'nightly', self.teams)
+        with self.assertRaises(newteam.NewTeamError) as e:
+            self.starter(Rt(live=['nightly']), scheduled={'nightly'}).start(self.repo, 't', ROLES, {})
+        self.assertEqual(e.exception.message, 'This project already has a running team: nightly. Stop it first.')
 
     def test_records_not_blocked_by_git_work(self):
         s = self.starter()

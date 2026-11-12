@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from assieme import activity, mcptools, newteam, schedule, team
+from assieme import activity, mcptools, newteam, runtime, schedule, team
 from tests.test_newteam import git_repo, role
 
 UTC = dt.timezone.utc
@@ -53,7 +53,11 @@ class Rt:
         return [{'address': f't-{n}', 'state': 'live', 'labels': {team.TEAM: n, team.ROLE: f'{n}-builder'}}
                 for n in sorted(self.live)]
 
+    fail = False
+
     def kill(self, t):
+        if self.fail:
+            raise runtime.RuntimeError_('unavailable', 'the core is not answering')
         self.killed.append(t)
         self.live.discard(t.removeprefix('t-'))
 
@@ -68,8 +72,8 @@ class SchedulerCase(unittest.TestCase):
         self.repo = git_repo(os.path.join(self.d, 'shop'))
         self.teams = os.path.join(self.d, 'teams')
         self.rt, self.started, self.said, self.clock = Rt(), [], [], [T0]
-        self.refuse = None
-        self.s = schedule.Scheduler(self.rt, self.start, teams=self.teams, now=lambda: self.clock[0],
+        self.refuse, self.records, self.agents = None, [], True
+        self.s = schedule.Scheduler(self.rt, self.start, lambda: self.records, teams=self.teams, now=lambda: self.clock[0],
                                     announce=lambda title, body: self.said.append(title))
 
     def start(self, project, task, roles, practices, name):
@@ -77,7 +81,8 @@ class SchedulerCase(unittest.TestCase):
             raise newteam.NewTeamError('project', self.refuse)
         self.started.append((project, task, roles, name))
         newteam.save(project, roles, practices, name, self.teams)  # what Starter.start writes
-        self.rt.live.add(name)
+        if self.agents:
+            self.rt.live.add(name)
         return {'team': name}
 
     def add(self, every=DAY, preset='one-agent', name='Nightly tests'):
@@ -166,8 +171,9 @@ class RunTest(SchedulerCase):
         self.refuse = 'This project already has a running team: shop. Stop it first.'
         self.tick(at(days=1))
         self.assertEqual(self.said, ["Couldn't start Nightly tests"])
-        [failed] = [r for r in activity.list_rows(team='other', now=self.clock[0])['rows'] if r['action'] == 'schedule_failed']
-        self.assertIn('already has a running team', failed['reason'])  # shown under any team, with its why
+        [failed] = [r for r in activity.list_rows(team='nightly-tests', now=self.clock[0])['rows'] if r['action'] == 'schedule_failed']
+        self.assertIn('already has a running team', failed['reason'])  # with its why
+        self.assertEqual(self.s.run_teams(), [])  # it never ran, so there is no team to show
         row = self.s.rows(tz=UTC)[0]
         self.assertEqual(row['result'], 'failed')
         self.assertIn("Couldn’t start today at 12:00: This project already has a running team", row['line'])
@@ -206,6 +212,95 @@ class RunTest(SchedulerCase):
         self.assertEqual(self.rt.killed, ['t-nightly-tests'])
         self.tick(at(days=1, minutes=2))
         self.assertEqual(schedule._load(), [])
+
+
+class ReviewFixesTest(SchedulerCase):
+    def test_a_start_that_fails_in_the_background_is_a_failed_run(self):
+        self.add()
+        self.agents = False
+        self.tick(at(days=1))
+        self.records = [{'team': 'nightly-tests', 'done': True, 'error': 'git worktree add failed', 'roles': []}]
+        self.tick(at(days=1, minutes=1))
+        row = self.s.rows(tz=UTC)[0]
+        self.assertEqual(row['result'], 'failed')
+        self.assertIn('git worktree add failed', row['line'])
+        self.assertIn("Couldn't start Nightly tests", self.said)
+        self.assertNotIn('Nightly tests stopped early', self.titles())
+
+    def test_agents_that_never_started_are_a_failed_run(self):
+        self.add()
+        self.agents = False
+        self.tick(at(days=1))
+        self.records = [{'team': 'nightly-tests', 'done': True, 'error': None,
+                         'roles': [{'role': 'nightly-tests-builder', 'state': 'exited', 'detail': 'claude: command not found'}]}]
+        self.tick(at(days=1, minutes=1))
+        self.assertEqual(self.s.rows(tz=UTC)[0]['result'], 'failed')
+
+    def test_an_unknown_role_never_ends_the_run(self):
+        self.add()
+        self.tick(at(days=1))
+        self.assertFalse(self.s.done('nightly-tests', 'someone-else'))
+
+    def test_a_stop_that_cannot_reach_the_core_keeps_the_run_going(self):
+        self.add()
+        self.tick(at(days=1))
+        self.s.done('nightly-tests', 'nightly-tests-builder')
+        self.rt.fail = True
+        self.tick(at(days=2))
+        self.assertEqual(len(self.started), 1)
+        self.assertEqual(self.said, [])  # no false "Couldn't start"
+        self.assertIn('Skipped Nightly tests at 02:00', self.titles())
+
+    def test_polling_the_rows_reads_no_team_folders(self):
+        self.add(preset='builder-reviewer')
+        self.tick(at(days=1))
+        with mock.patch('assieme.schedule.preset.load', side_effect=AssertionError('read a team folder')):
+            [row] = self.s.rows(tz=UTC)
+            self.assertNotIn('teams', self.s.handlers()['schedule.list']())
+        self.assertEqual((row['review_role'], row['preset_label'], row['who']),
+                         ('nightly-tests-builder', 'Builder + reviewer', 'Claude Code, its default model'))
+        self.assertIn('teams', self.s.handlers()['schedule.list'](teams=True))
+
+    def test_a_team_that_ran_stays_listed(self):
+        self.add()
+        self.tick(at(days=1))
+        self.s.done('nightly-tests', 'nightly-tests-builder')
+        self.tick(at(days=1, minutes=1))
+        self.assertEqual(self.s.run_teams(), ['nightly-tests'])
+        self.assertEqual(activity.list_rows(team='other', now=self.clock[0])['rows'], [])  # not under every team
+
+
+class DaylightSavingTest(unittest.TestCase):
+    def setUp(self):
+        import time
+        old = os.environ.get('TZ')
+        os.environ['TZ'] = 'Europe/Paris'
+        time.tzset()
+
+        def back():
+            if old is None:
+                os.environ.pop('TZ', None)
+            else:
+                os.environ['TZ'] = old
+            time.tzset()
+        self.addCleanup(back)
+
+    def test_the_night_clocks_go_back_runs_once(self):
+        every = {'kind': 'day', 'at': '12:00'}
+        created = dt.datetime(2026, 10, 20, tzinfo=UTC)
+        yesterday = dt.datetime(2026, 10, 24, 10, 0, tzinfo=UTC)  # 12:00 summer time
+        self.assertEqual(schedule.latest(every, created, dt.datetime(2026, 10, 24, 10, 30, tzinfo=UTC)), yesterday)
+        # 11:00 winter time the next day: today's 12:00 hasn't come, so the latest is still yesterday's
+        self.assertEqual(schedule.latest(every, created, dt.datetime(2026, 10, 25, 10, 0, tzinfo=UTC)), yesterday)
+        self.assertEqual(schedule.next_time(every, created, yesterday), dt.datetime(2026, 10, 25, 11, 0, tzinfo=UTC))
+
+    def test_the_night_clocks_go_forward_is_not_skipped(self):
+        every = {'kind': 'day', 'at': '12:00'}
+        created = dt.datetime(2026, 3, 20, tzinfo=UTC)
+        before = dt.datetime(2026, 3, 28, 11, 0, tzinfo=UTC)  # 12:00 winter time
+        self.assertEqual(schedule.latest(every, created, dt.datetime(2026, 3, 29, 9, 30, tzinfo=UTC)), before)
+        self.assertEqual(schedule.latest(every, created, dt.datetime(2026, 3, 29, 10, 0, tzinfo=UTC)),
+                         dt.datetime(2026, 3, 29, 10, 0, tzinfo=UTC))  # 12:00 summer time
 
 
 class SaveTest(SchedulerCase):

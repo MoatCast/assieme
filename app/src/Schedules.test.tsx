@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const b = vi.hoisted(() => ({
@@ -113,14 +113,42 @@ test("a folder that needs setting up says so, and a refusal shows by its field",
   expect(screen.getByText("This folder has no saved version yet. Set it up first.")).toBeTruthy();
 });
 
-test("editing can remove the schedule", async () => {
+test("Remove asks first, and Keep it or Escape keeps the schedule", async () => {
   await open([row({})]);
   await click("Edit");
   expect(screen.getByRole("dialog", { name: "Edit schedule" })).toBeTruthy();
   b.scheduleRemove.mockResolvedValue([]);
   await click("Remove schedule");
+  expect(b.scheduleRemove).not.toHaveBeenCalled();
+  await click("Keep it");
+  expect(screen.queryByRole("dialog", { name: "Remove Nightly tests?" })).toBeNull();
+  await click("Remove schedule");
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  expect(screen.queryByRole("dialog", { name: "Remove Nightly tests?" })).toBeNull();
+  expect(screen.getByRole("dialog", { name: "Edit schedule" })).toBeTruthy(); // Escape closed only the question
+  await click("Remove schedule");
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Remove Nightly tests?" })).getByRole("button", { name: "Remove schedule" }));
+  await flush();
   expect(b.scheduleRemove).toHaveBeenCalledWith("s1");
   expect(screen.getByText("No schedules yet")).toBeTruthy();
+});
+
+test("the team choices load when the page or a sheet opens, not on every poll", async () => {
+  vi.useFakeTimers();
+  try {
+    b.scheduleList.mockResolvedValue({ schedules: [], teams: TEAMS });
+    render(<Schedules onOpen={vi.fn()} />);
+    await act(async () => {});
+    expect(b.scheduleList).toHaveBeenLastCalledWith(true);
+    await act(async () => { vi.advanceTimersByTime(5000); });
+    expect(b.scheduleList).toHaveBeenLastCalledWith();
+    fireEvent.click(screen.getByRole("button", { name: "New schedule" }));
+    await act(async () => {});
+    expect(b.scheduleList).toHaveBeenLastCalledWith(true);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("next run in words", () => {

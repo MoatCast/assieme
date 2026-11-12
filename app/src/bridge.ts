@@ -37,6 +37,8 @@ export type Snapshot = {
   teams: TeamRow[];
   starting: Starting[];
   found_teams?: string[];
+  /** Teams of scheduled runs: kept in the team picker after their agents stop. */
+  scheduled_teams?: string[];
   first_run_done?: boolean;
   /** An assistant's draft waiting to open in New team. */
   draft?: string | null;
@@ -382,7 +384,8 @@ export type Schedule = {
 };
 export type ScheduleTeam = { id: string; label: string; who: string };
 export type ScheduleForm = { id?: string; name: string; project: string; preset: string; task: string; every: Every };
-export const scheduleList = () => brain<{ schedules: Schedule[]; teams: ScheduleTeam[] }>("schedule.list");
+/** `teams` also lists the team choices, which reads every preset: ask for it when a sheet opens, not on every poll. */
+export const scheduleList = (teams = false) => brain<{ schedules: Schedule[]; teams?: ScheduleTeam[] }>("schedule.list", { teams });
 /** Saving checks the folder and the team, so it can take a moment on a large project. */
 export const scheduleSave = (form: ScheduleForm) =>
   invoke<Schedule[]>("brain_call", { method: "schedule.save", params: form, timeoutS: 60 });

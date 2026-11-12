@@ -57,21 +57,24 @@ def _step(every):
 
 
 def _slot(every, created, t, tz=None):
-    """The planned time at or before `t` (it may be before the schedule was made), and the time between two."""
+    """The planned time at or before `t` (it may be before the schedule was made), and the one after it."""
     if every['kind'] in ('hours', 'minutes'):
         step = _step(every)
-        return created + ((t - created) // step) * step, step
-    local = t.astimezone(tz)
+        slot = created + ((t - created) // step) * step
+        return slot, slot + step
     h, m = map(int, every['at'].split(':'))
-    # shortcut: a local wall time a day back keeps today's UTC offset, so a run near a DST change is an hour off
-    slot = local.replace(hour=h, minute=m, second=0, microsecond=0)
-    period = dt.timedelta(days=1)
+    days = 7 if every['kind'] == 'week' else 1
+
+    def at(d):  # the wall-clock time on that day, with that day's own UTC offset (the system's DST rules)
+        naive = dt.datetime.combine(d, dt.time(h, m))
+        return naive.replace(tzinfo=tz) if tz else naive.astimezone()
+
+    day = t.astimezone(tz).date()
     if every['kind'] == 'week':
-        slot -= dt.timedelta(days=(local.weekday() - every['day']) % 7)
-        period = dt.timedelta(days=7)
-    if slot > local:
-        slot -= period
-    return slot, period
+        day -= dt.timedelta(days=(day.weekday() - every['day']) % 7)
+    if at(day) > t:
+        day -= dt.timedelta(days=days)
+    return at(day), at(day + dt.timedelta(days=days))
 
 
 def latest(every, created, now, tz=None):
@@ -81,8 +84,7 @@ def latest(every, created, now, tz=None):
 
 
 def next_time(every, created, after, tz=None):
-    slot, period = _slot(every, created, after, tz)
-    return slot + period
+    return _slot(every, created, after, tz)[1]
 
 
 def when_words(every):
@@ -181,6 +183,17 @@ def options(teams=None):
     return out
 
 
+def _described(pid, teams):
+    """What the row says about its team, kept on the schedule so polling the rows reads no team folders."""
+    try:
+        folder = _preset_folder(pid, teams)
+        tm = preset.load(folder, practices=False)
+    except (ScheduleError, preset.PresetError, OSError):
+        return {'preset_label': pid.removeprefix('saved:'), 'who': ''}
+    label = newteam._as_preset(folder, pid)['label'] if pid in newteam.BUILTIN else f"{pid.removeprefix('saved:')} (saved)"
+    return {'preset_label': label, 'who': who(tm.roles)}
+
+
 def _agents(n):
     return 'its agent was' if n == 1 else f'its {n} agents were'
 
@@ -219,19 +232,36 @@ class Scheduler:
         if alert and self.announce:
             self.announce(title, reason)
 
+    def _start_failure(self, name):
+        """Why the background start of this team failed, or None: New team's start records an error, or agents that
+        never got going."""
+        rec = next((r for r in reversed(self.starting()) if r['team'] == name and r['done']), None)
+        if not rec:
+            return None
+        if rec.get('error'):
+            return rec['error']
+        bad = [r for r in rec.get('roles') or [] if r.get('state') in ('exited', 'not-reporting', 'needs-you')]
+        if bad and len(bad) == len(rec['roles']):
+            return '; '.join(f"{r['role']} {r['state']}" + (f": {r['detail'].strip()}" if r.get('detail') else '')
+                             for r in bad)[:300]
+        return None
+
     def tick(self, tz=None):
         now = self.now()
         for s in _load():
             going = self._going(s['team'])
             if s.get('running') and s.get('done'):
-                self._finish(s)
-                going = False
-            elif s.get('running') and not going:  # its agents ended some other way
-                self._update(s['id'], lambda x: x.update(running=False, done=False, skipped=None,
-                                                         last={'at': (x.get('last') or {}).get('at'), 'result': 'ended'}))
-                self._log(s, 'schedule_ended', f"{s['name']} stopped early",
-                          'Its agents ended before its top agent said the work was done. What it committed waits in '
-                          'Review.', alert=self._notify_finished())
+                going = not self._finish(s)  # a core that doesn't answer leaves the run going: tried again next tick
+            elif s.get('running') and not going:
+                why = self._start_failure(s['team'])
+                if why:
+                    self._failed(s, (s.get('last') or {}).get('at'), why)
+                else:  # its agents ended some other way
+                    self._update(s['id'], lambda x: x.update(running=False, done=False, skipped=None,
+                                                             last={'at': (x.get('last') or {}).get('at'), 'result': 'ended'}))
+                    self._log(s, 'schedule_ended', f"{s['name']} stopped early",
+                              'Its agents ended before its top agent said the work was done. What it committed waits in '
+                              'Review.', alert=self._notify_finished())
             if s.get('removed'):
                 if not going:
                     with _lock:
@@ -251,19 +281,24 @@ class Scheduler:
             else:
                 self._run(s, now)
 
+    def _failed(self, s, at, why):
+        self._update(s['id'], lambda x: x.update(running=False, done=False, skipped=None,
+                                                 last={'at': at, 'result': 'failed', 'detail': why}))
+        self._log(s, 'schedule_failed', f"Couldn't start {s['name']}", f"{why.rstrip('.')}. It tries again at its "
+                  'next time; fix this in Settings, Scheduled runs.', ok=False, alert=True)
+
     def _run(self, s, now):
         try:
             roles, practices = _roles(s['preset'], s['team'], self.teams)
             self.start(s['project'], f"{s['task'].strip()}\n\n{DONE_NOTE}", roles, practices, s['team'])
         except Exception as e:
-            why = getattr(e, 'message', None) or str(e)
-            self._update(s['id'], lambda x: x.update(last={'at': _iso(now), 'result': 'failed', 'detail': why}))
-            self._log(s, 'schedule_failed', f"Couldn't start {s['name']}", f'{why} It tries again at its next time; '
-                      'fix this in Settings, Scheduled runs.', ok=False, alert=True)
+            self._failed(s, _iso(now), getattr(e, 'message', None) or str(e))
             return
         tasks.fresh(s['team'], s['task'])
-        self._update(s['id'], lambda x: x.update(running=True, done=False, skipped=None,
-                                                 last={'at': _iso(now), 'result': 'started'}))
+        review = next((r['name'] for r in roles if r.get('checkout', 'branch') == 'branch'), None)
+        self._update(s['id'], lambda x: x.update(running=True, done=False, skipped=None, review_role=review,
+                                                 last={'at': _iso(now), 'result': 'started'},
+                                                 **_described(s['preset'], self.teams)))
         self._log(s, 'schedule_start', f"Started {s['name']}",
                   f"{when_words(s['every'])}. Its agents stop when they say they are done; their work waits in Review.")
 
@@ -288,7 +323,8 @@ class Scheduler:
 
     def done(self, team, role):
         """An agent reported done. True when that ends a scheduled run: only the team's top agent can."""
-        if newteam.roster(team, self.teams).get(role, {}).get('parent'):
+        found = newteam.roster(team, self.teams).get(role)
+        if found is None or found.get('parent'):
             return False
         hit = []
         with _lock:
@@ -329,7 +365,8 @@ class Scheduler:
                     saved = set()
                 team = newteam.team_name(name, saved | {x['team'] for x in items})
             _roles(preset, team, self.teams)  # refuses a saved team that no longer loads
-            fields = {'name': name[:60], 'project': project, 'preset': preset, 'task': task.strip(), 'every': every}
+            fields = {'name': name[:60], 'project': project, 'preset': preset, 'task': task.strip(), 'every': every,
+                      **_described(preset, self.teams)}
             if old:
                 if old['every'] != every:  # counted afresh, so a new time doesn't fire at once for a past one
                     fields['created'] = fields['handled'] = _iso(self.now())
@@ -381,17 +418,13 @@ class Scheduler:
                         title=f"Removed the schedule {s['name']}")
         return self.rows()
 
-    def _review_role(self, team):
-        """The role whose branch Review opens: the first that edits. None before the first run."""
-        try:
-            roles = preset.load(os.path.join(self.teams, team), practices=False).roles
-        except (preset.PresetError, OSError):
-            return None
-        return next((r.name for r in roles if r.checkout == 'branch'), None)
+    def run_teams(self):
+        """Teams of schedules that have run: the app keeps them in its team picker, so a run's Activity and board
+        stay reachable after its agents stop."""
+        return [s['team'] for s in _load() if not s.get('removed') and os.path.isdir(os.path.join(self.teams, s['team']))]
 
     def rows(self, tz=None):
         now, out = self.now(), []
-        labels = {o['id']: o for o in options(self.teams)}
         for s in _load():
             if s.get('removed'):
                 continue
@@ -415,18 +448,18 @@ class Scheduler:
                         'failed': f"Couldn’t start {{}}: {(last.get('detail') or '').rstrip('.')}."}.get(result)
                 line = (said.format(_day_words(at, now, tz)) + ' ' if at and said else '') + \
                        f'Next: {_day_words(nxt, now, tz)}.'
-            team = labels.get(s['preset'], {'label': s['preset'].removeprefix('saved:'), 'who': ''})
             out.append({'id': s['id'], 'name': s['name'], 'team': s['team'], 'project': s['project'],
                         'project_name': os.path.basename(s['project']), 'preset': s['preset'],
-                        'preset_label': team['label'], 'who': team['who'], 'task': s['task'], 'every': s['every'],
+                        'preset_label': s.get('preset_label') or s['preset'].removeprefix('saved:'), 'who': s.get('who') or '',
+                        'task': s['task'], 'every': s['every'],
                         'when': when_words(s['every']), 'paused': bool(s.get('paused')),
                         'state': 'running' if s.get('running') else 'paused' if s.get('paused') else 'waiting',
                         'result': result, 'line': line, 'note': note, 'next': _iso(nxt),
-                        'review_role': self._review_role(s['team'])})
+                        'review_role': s.get('review_role')})
         return out
 
     def handlers(self):
-        return {'schedule.list': lambda: {'schedules': self.rows(), 'teams': options(self.teams)},
+        return {'schedule.list': lambda teams=False: {'schedules': self.rows()} | ({'teams': options(self.teams)} if teams else {}),
                 'schedule.save': lambda name, project, preset, task, every, id=None:
                     self.save(name, project, preset, task, every, id),
                 'schedule.pause': lambda id, paused=True: self.pause(id, paused),

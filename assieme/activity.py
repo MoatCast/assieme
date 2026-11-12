@@ -125,9 +125,7 @@ def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the 
     rows = []
     for e in reversed(entries):
         by = e.get('by', 'you')
-        # A scheduled run's rows show under every team: once the run has ended its team is no longer listed.
-        theirs = (e.get('team') == team or (e.get('team') is None and e.get('action') in EVERY_TEAM)
-                  or str(e.get('action')).startswith('schedule_'))
+        theirs = e.get('team') == team or (e.get('team') is None and e.get('action') in EVERY_TEAM)
         if (filter != 'all' and by != filter) or (team and not theirs):
             continue
         at = status.parse_ts(e.get('at'))

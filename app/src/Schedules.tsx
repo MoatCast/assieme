@@ -53,6 +53,7 @@ function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams
   const [setup, setSetup] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const latest = useRef(0);
 
   useEffect(() => {
@@ -60,11 +61,12 @@ function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || setup) return;
       e.stopPropagation();
-      onClose();
+      if (confirming) setConfirming(false);
+      else onClose();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [onClose, setup]);
+  }, [onClose, setup, confirming]);
 
   const verify = async (p: string) => {
     const id = ++latest.current;
@@ -104,6 +106,7 @@ function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams
     }
   };
   const remove = async () => {
+    setConfirming(false);
     try {
       onSaved(await scheduleRemove(edit!.id));
     } catch (e) {
@@ -200,12 +203,26 @@ function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams
           {error("run")}
           <p>Runs start even when this app is closed: the background service starts them.</p>
           <div className="sheet-actions">
-            {edit && <button type="button" className="btn-quiet remove" onClick={remove}>Remove schedule</button>}
+            {edit && <button type="button" className="btn-quiet remove" onClick={() => setConfirming(true)}>Remove schedule</button>}
             <button type="button" className="btn-quiet" onClick={onClose}>Cancel</button>
             <button type="button" className="btn-primary" disabled={pending || !name.trim() || !project || !task.trim()} onClick={save}>{pending ? "Saving…" : "Save"}</button>
           </div>
         </div>
       </div>
+      {confirming && edit && (
+        <div className="modal-dim">
+          <div className="modal small" role="dialog" aria-label={`Remove ${edit.name}?`}>
+            <div className="modal-head">
+              <h2>Remove {edit.name}?</h2>
+              <p className="big">It won’t run again. A run going now carries on, and what its runs committed stays in Review.</p>
+            </div>
+            <div className="sheet-actions">
+              <button type="button" className="btn-quiet" onClick={() => setConfirming(false)}>Keep it</button>
+              <button type="button" className="btn-primary" onClick={remove}>Remove schedule</button>
+            </div>
+          </div>
+        </div>
+      )}
       {setup && <FolderSheet project={project} onClose={() => setSetup(false)} onSaved={() => { setSetup(false); void verify(project); }} />}
     </>
   );
@@ -217,9 +234,15 @@ export default function Schedules({ onOpen }: { onOpen: (team: string, role: str
   const [teams, setTeams] = useState<ScheduleTeam[]>([]);
   const [editing, setEditing] = useState<Schedule | "new" | null>(null);
   const [error, setError] = useState("");
-  const load = () => scheduleList().then((r) => { setRows(r.schedules); setTeams(r.teams); }).catch((e) => setError(message(e)));
+  // The team choices read every preset, so they load when the page or a sheet opens; the poll reads only the rows.
+  const loadTeams = () => scheduleList(true).then((r) => { setRows(r.schedules); setTeams(r.teams ?? []); }).catch((e) => setError(message(e)));
+  const load = () => scheduleList().then((r) => setRows(r.schedules)).catch((e) => setError(message(e)));
+  const openSheet = (s: Schedule | "new") => {
+    setEditing(s);
+    void loadTeams();
+  };
   useEffect(() => {
-    void load();
+    void loadTeams();
     const t = setInterval(load, 5000); // a run starts, ends or is skipped on its own
     return () => clearInterval(t);
   }, []);
@@ -243,7 +266,7 @@ export default function Schedules({ onOpen }: { onOpen: (team: string, role: str
       out.push(<button key="review" type="button" className="btn-small" onClick={() => onOpen(s.team, s.review_role)}>Review</button>);
     }
     out.push(<button key="pause" type="button" className="btn-small" onClick={() => act(() => schedulePause(s.id, !s.paused))}>{s.paused ? "Resume" : "Pause"}</button>);
-    out.push(<button key="edit" type="button" className="btn-small" onClick={() => setEditing(s)}>Edit</button>);
+    out.push(<button key="edit" type="button" className="btn-small" onClick={() => openSheet(s)}>Edit</button>);
     return out;
   };
   const tone = (s: Schedule) => (s.state === "running" ? "running" : s.paused ? "" : s.result === "failed" ? "bad" : s.result === "ended" ? "warn" : "");
@@ -276,7 +299,7 @@ export default function Schedules({ onOpen }: { onOpen: (team: string, role: str
       ))}
       <div className="set-list note-row">
         <span className="grow">Runs start even when this app is closed. A run missed while the Mac slept starts once when it wakes.</span>
-        <button type="button" className={rows && !rows.length ? "btn-small primary" : "btn-small"} onClick={() => setEditing("new")}>New schedule</button>
+        <button type="button" className={rows && !rows.length ? "btn-small primary" : "btn-small"} onClick={() => openSheet("new")}>New schedule</button>
       </div>
       {error && <p className="set-error">{error}</p>}
       {editing && (

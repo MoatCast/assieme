@@ -145,7 +145,7 @@ def _service(switch):
 def _serve():
     claude, codex = os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions')
     rt = runtime.Runtime()
-    starter = newteam.Starter(rt, newteam.teams_dir())
+    starter = newteam.Starter(rt, newteam.teams_dir(), scheduled=lambda: {x['team'] for x in schedule._load()})
     suggested = answers.Answers()
 
     brain = teammap.Brain(claude, codex, rt, starter, suggested)
@@ -173,7 +173,8 @@ def _serve():
                 traceback.print_exc()
     serve.serve(serve.brain_socket_path(),
                 {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
-                                                          starting=starter.records()) | {'draft': tools.draft_next()},
+                                                          starting=starter.records()) | {'draft': tools.draft_next(),
+                                                                                       'scheduled_teams': sched.run_teams()},
                  'project.check': newteam.project_check,
                  'team.presets': lambda: newteam.presets(),
                  'team.start': start_team,
