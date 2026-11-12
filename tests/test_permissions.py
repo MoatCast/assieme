@@ -54,6 +54,8 @@ class RuleCheckTest(unittest.TestCase):
                          [['build/run.sh', 'x'], ['./build/run.sh', 'x'], ['bash', 'build/run.sh', 'x'],
                           ['bash', './build/run.sh', 'x'], ['sh', 'build/run.sh', 'x'], ['sh', './build/run.sh', 'x']])
         self.assertEqual(permissions.variants(['npm', 'publish']), [['npm', 'publish']])
+        self.assertIn(['/w/build/run.sh'], permissions.variants(['build/run.sh'], '/w'))
+        self.assertIn(['sh', '/w/build/run.sh'], permissions.variants(['build/run.sh'], '/w'))
 
 
 class ClaudeTest(unittest.TestCase):
@@ -98,7 +100,8 @@ class ClaudeTest(unittest.TestCase):
 
     def test_rules_match_the_program_run(self):
         p = settings(launch.argv(role(rules=[BLOCK_RUN, ALLOW_LINT]), which=lambda n: None, cwd='/w'))['permissions']
-        for d in ('Bash(build/cloud/run.sh:*)', 'Bash(./build/cloud/run.sh:*)', 'Bash(bash build/cloud/run.sh:*)'):
+        for d in ('Bash(build/cloud/run.sh:*)', 'Bash(./build/cloud/run.sh:*)', 'Bash(bash build/cloud/run.sh:*)',
+                  'Bash(/w/build/cloud/run.sh:*)'):
             self.assertIn(d, p['deny'])
         self.assertIn('Bash(make lint:*)', p['allow'])
 

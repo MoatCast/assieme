@@ -111,13 +111,14 @@ def check_rules(rules):
     return None
 
 
-def variants(program):
-    """The ways a program is run: a script path also as ./path, bash path and sh path."""
+def variants(program, cwd=None):
+    """The ways a program is run: a script path also as ./path, its full path in the worktree, bash path and sh path."""
     first, rest = program[0], program[1:]
     if '/' not in first or first.startswith(('/', '~')):
         return [program]
     p = first[2:] if first.startswith('./') else first
-    return [[x, *rest] for x in (p, './' + p)] + [[sh, x, *rest] for sh in ('bash', 'sh') for x in (p, './' + p)]
+    paths = [p, './' + p] + ([os.path.join(cwd, p)] if cwd else [])
+    return [[x, *rest] for x in paths] + [[sh, x, *rest] for sh in ('bash', 'sh') for x in paths]
 
 
 def _bash(program):
@@ -147,7 +148,7 @@ def claude(role, cwd=None, test=None):
         if key == 'secrets':
             deny += [f'Read({p})' for p in SECRET_PATHS]
     for r in role.rules:
-        (allow if r['decision'] == 'allow' else deny).extend(_bash(v) for v in variants(r['program']))
+        (allow if r['decision'] == 'allow' else deny).extend(_bash(v) for v in variants(r['program'], cwd))
     return allow, deny  # a deny always wins in Claude Code, so a block rule beats the level's allow
 
 
@@ -161,7 +162,7 @@ def codex_args(role):
     return a + ['-c', 'sandbox_workspace_write.network_access=true'] if role.level == 'trusted' else a
 
 
-def codex_rules(role):
+def codex_rules(role, cwd=None):
     """The text of Codex's program rules for this role, or None for a role without a level."""
     if not role.level:
         return None
@@ -179,7 +180,7 @@ def codex_rules(role):
             for p in ITEMS[key]['programs']:
                 rule(p, 'allow', ITEMS[key]['words'])
     for r in role.rules:
-        for v in variants(r['program']):
+        for v in variants(r['program'], cwd):
             rule(v, 'forbidden' if r['decision'] == 'block' else 'allow', r.get('words') or 'your rule')
     return '\n'.join(out) + '\n'
 
@@ -187,7 +188,7 @@ def codex_rules(role):
 def write_codex_rules(cwd, role):
     """Write (or, for a role without a level, remove) the rules file in the agent's worktree."""
     path = os.path.join(cwd, RULES_FILE)
-    text = codex_rules(role)
+    text = codex_rules(role, cwd)
     if text is None:
         if os.path.exists(path):
             os.remove(path)
