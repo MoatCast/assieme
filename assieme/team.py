@@ -7,7 +7,7 @@ import re
 import time
 from dataclasses import dataclass
 
-from . import brief, launch, prompts, runtime, worktree
+from . import bridge, brief, container, launch, prompts, runtime, worktree
 
 TEAM, ROLE, BRIEFED, KIND = 'assieme.team', 'assieme.role', 'assieme.briefed', 'assieme.kind'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
@@ -115,7 +115,13 @@ def _review_hint(role):
 
 
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
-    t = rt.start(launch.argv(role, block_push=tm.practices.get('safety') is not False, cwd=cwd), cwd, {TEAM: tm.name, ROLE: role.name, KIND: role.agent}, name=terminal_name(tm.name, role.name), parent=parent)
+    name = terminal_name(tm.name, role.name)
+    ticket, port = (bridge.issue(), bridge.port()) if role.container else (None, None)
+    t = rt.start(launch.argv(role, block_push=tm.practices.get('safety') is not False, cwd=cwd, terminal=name,
+                             bridge=f'{port}/{ticket}' if port else None),
+                 cwd, {TEAM: tm.name, ROLE: role.name, KIND: role.agent}, name=name, parent=parent)
+    if ticket:
+        bridge.bind(ticket, t)
     deadline = clock.monotonic() + FIRST_STATUS_S
     while True:
         info = rt.get(t)
@@ -150,6 +156,10 @@ def start(tm, task, rt, ask, only=None, clock=time):
     missing = launch.missing_clis(roles)
     if missing:
         raise TeamError(f'not installed: {", ".join(missing)}. Install it, then start the team again.')
+    for r in roles:
+        problem = r.container and container.problem(r.agent)
+        if problem:
+            raise TeamError(f'{r.name} runs in a container. {problem}')
     worktree.check_repo(tm.project)
     if task and not only:
         brief.save(tm.name, goal=task)  # what the whole team is for; rules and decisions stay

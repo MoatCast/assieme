@@ -85,6 +85,8 @@ def serve(sock, handlers, tick=None, every_s=15):
     os.chmod(sock, 0o600)
     server.handlers = handlers
     server.daemon_threads = True
+    from . import bridge
+    bridge.start(handlers)  # container agents' team tools
     if tick:
         threading.Thread(target=_ticker, args=(tick, every_s), daemon=True).start()
     server.serve_forever()

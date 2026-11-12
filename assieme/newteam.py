@@ -171,6 +171,7 @@ def _role_toml(r):
     out = ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
            f'checkout = {q(r.get("checkout", "branch"))}']
     out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group') if r.get(key)]
+    out += [f'{key} = true' for key in ('container', 'share_signin') if r.get(key) is True]
     return out + ['']
 
 

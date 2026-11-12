@@ -9,7 +9,7 @@ import re
 import shlex
 import sys
 
-from . import quiet, setup, worktree
+from . import container, quiet, setup, worktree
 
 CLIS = {'claude': 'claude', 'codex': 'codex', 'gemini': 'gemini', 'opencode': 'opencode', 'cursor': 'cursor-agent'}
 NAMES = {'claude': 'Claude Code', 'codex': 'Codex', 'gemini': 'Gemini CLI', 'opencode': 'OpenCode', 'cursor': 'Cursor'}
@@ -33,22 +33,24 @@ HOOKS = {'SessionStart': 'idle', 'UserPromptSubmit': 'working', 'Stop': 'idle', 
 
 
 def missing_clis(roles, which=setup.agent_path):
-    return sorted({CLIS[r.agent] for r in roles if not which(CLIS[r.agent])})
+    """Programs that must be on this Mac: a container brings its own agent."""
+    return sorted({CLIS[r.agent] for r in roles if not r.container and not which(CLIS[r.agent])})
 
 
-def hook_command(state):
-    return f'{shlex.quote(sys.executable)} -P -m assieme.hook {state}'  # -P: never import from the worktree
+def hook_command(state, py=None):
+    """py: the Python that runs it; this one on the Mac, the image's `python3` in a container."""
+    return f'{shlex.quote(py or sys.executable)} -P -m assieme.hook {state}'  # -P: never import from the worktree
 
 
-def _mcp():
-    return {'command': sys.executable, 'args': ['-P', '-m', 'assieme', 'mcp']}  # -P: never import from the worktree
+def _mcp(py=None):
+    return {'command': py or sys.executable, 'args': ['-P', '-m', 'assieme', 'mcp']}  # -P: never import from the worktree
 
 
-def _claude(role):
+def _claude(role, py=None):
     # Its own team's message and report tools: asking the person about each one would defeat them.
-    settings = {'hooks': {e: [{'hooks': [{'type': 'command', 'command': hook_command(s)}]}] for e, s in HOOKS.items()},
+    settings = {'hooks': {e: [{'hooks': [{'type': 'command', 'command': hook_command(s, py)}]}] for e, s in HOOKS.items()},
                 'permissions': {'allow': ['mcp__assieme']}}
-    a = ['claude', '--settings', json.dumps(settings), '--mcp-config', json.dumps({'mcpServers': {'assieme': _mcp()}})]
+    a = ['claude', '--settings', json.dumps(settings), '--mcp-config', json.dumps({'mcpServers': {'assieme': _mcp(py)}})]
     if role.model:
         a += ['--model', role.model]
     if role.effort:
@@ -68,23 +70,23 @@ def codex_hook_hash(event, command):
     return 'sha256:' + hashlib.sha256(json.dumps(ident, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
-def _codex(role):
+def _codex(role, py=None):
     a = ['codex', '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
     # Its sandbox keeps .git read-only, so each commit is a request to step outside it: the person answers, in Assieme.
     a += ['-c', 'approval_policy="on-request"', '-c', 'approvals_reviewer="user"']
     trust = []
     for e, s in HOOKS.items():
         # A JSON string is a valid TOML basic string.
-        a += ['-c', f'hooks.{e}=[{{hooks=[{{type="command",command={json.dumps(hook_command(s))}}}]}}]']
+        a += ['-c', f'hooks.{e}=[{{hooks=[{{type="command",command={json.dumps(hook_command(s, py))}}}]}}]']
         key = f'/<session-flags>/config.toml:{CODEX_EVENTS[e]}:0:0'
-        trust.append(f'{json.dumps(key)}={{trusted_hash={json.dumps(codex_hook_hash(CODEX_EVENTS[e], hook_command(s)))}}}')
+        trust.append(f'{json.dumps(key)}={{trusted_hash={json.dumps(codex_hook_hash(CODEX_EVENTS[e], hook_command(s, py)))}}}')
     # Trust these four hooks for this run only, so a first Codex team doesn't stop at "Hooks need review".
     # Any other hook (the person's, a project's, a plugin's) still goes through Codex's own review.
     a += ['-c', 'hooks.state={' + ','.join(trust) + '}']
     # Codex hands MCP servers a short list of variables: these say which agent this is.
-    a += ['-c', f'mcp_servers.assieme.command={json.dumps(_mcp()["command"])}',
-          '-c', f'mcp_servers.assieme.args={json.dumps(_mcp()["args"])}',
-          '-c', 'mcp_servers.assieme.env_vars=["HC_SESSION","HC_TERMINAL_ID","XDG_STATE_HOME"]',
+    a += ['-c', f'mcp_servers.assieme.command={json.dumps(_mcp(py)["command"])}',
+          '-c', f'mcp_servers.assieme.args={json.dumps(_mcp(py)["args"])}',
+          '-c', 'mcp_servers.assieme.env_vars=["HC_SESSION","HC_TERMINAL_ID","XDG_STATE_HOME","ASSIEME_BRIDGE","PYTHONPATH"]',
           '-c', 'mcp_servers.assieme.default_tools_approval_mode="approve"']
     if role.model:
         a += ['-m', role.model]
@@ -103,12 +105,12 @@ def _state_file(kind, cwd, suffix):
     return path
 
 
-def _gemini(role, cwd):
+def _gemini(role, cwd, py=None):
     """Gemini CLI takes no settings on its command line: a system settings file, named in its environment."""
-    hook = lambda state: [{'hooks': [{'type': 'command', 'command': hook_command(state)}]}]
+    hook = lambda state: [{'hooks': [{'type': 'command', 'command': hook_command(state, py)}]}]
     settings = {'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
                           'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
-                'mcpServers': {'assieme': {**_mcp(), 'trust': True}}}  # its own team tools, without asking each time
+                'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}}  # its own team tools, without asking each time
     path = _state_file('gemini', cwd, '.json')
     with open(path, 'w') as f:
         json.dump(settings, f)
@@ -121,27 +123,27 @@ def _gemini(role, cwd):
 OPENCODE_PLUGIN = os.path.join(os.path.dirname(__file__), 'opencode_status.js')
 
 
-def _opencode(role, cwd):
+def _opencode(role, cwd, py=None):
     """OpenCode reads a whole config from its environment; the status plugin calls our hook."""
     config = {'plugin': ['file://' + OPENCODE_PLUGIN],
-              'mcp': {'assieme': {'type': 'local', 'command': [_mcp()['command'], *_mcp()['args']], 'enabled': True}}}
+              'mcp': {'assieme': {'type': 'local', 'command': [_mcp(py)['command'], *_mcp(py)['args']], 'enabled': True}}}
     if role.checkout == 'read-only':
         config['permission'] = {'edit': 'deny'}
     a = ['opencode'] + (['-m', role.model] if role.model else [])
-    hook = shlex.split(hook_command('idle'))[:-1]
+    hook = shlex.split(hook_command('idle', py))[:-1]
     return a, {'OPENCODE_CONFIG_CONTENT': json.dumps(config), 'ASSIEME_HOOK': json.dumps(hook)}
 
 
 CURSOR_FILES = ('.cursor/hooks.json', '.cursor/mcp.json')
 
 
-def _cursor(role, cwd):
+def _cursor(role, cwd, py=None):
     """Cursor reads hooks and MCP servers only from files: written into the agent's own folder when it has none,
     and kept out of git there."""
-    hook = lambda state: [{'command': hook_command(state)}]
+    hook = lambda state: [{'command': hook_command(state, py)}]
     files = {CURSOR_FILES[0]: {'version': 1, 'hooks': {'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'),
                                                        'stop': hook('idle')}},
-             CURSOR_FILES[1]: {'mcpServers': {'assieme': _mcp()}}}
+             CURSOR_FILES[1]: {'mcpServers': {'assieme': _mcp(py)}}}
     for rel, data in files.items():
         path = os.path.join(cwd, rel)
         if not os.path.exists(path):  # never over a project's own file
@@ -155,7 +157,7 @@ def _cursor(role, cwd):
     return a, {}
 
 
-BUILDERS = {'claude': lambda role, cwd: (_claude(role), {}), 'codex': lambda role, cwd: (_codex(role), {}),
+BUILDERS = {'claude': lambda role, cwd, py=None: (_claude(role, py), {}), 'codex': lambda role, cwd, py=None: (_codex(role, py), {}),
             'gemini': _gemini, 'opencode': _opencode, 'cursor': _cursor}
 
 
@@ -163,10 +165,16 @@ BUILDERS = {'claude': lambda role, cwd: (_claude(role), {}), 'codex': lambda rol
 BLOCK_PUSH = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'url.assieme-push-blocked://.pushInsteadOf', 'GIT_CONFIG_VALUE_0': ''}
 
 
-def argv(role, block_push=True, which=setup.agent_path, cwd=None):
+def argv(role, block_push=True, which=setup.agent_path, cwd=None, terminal=None, bridge=None):
     """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on.
-    cwd: the agent's folder, for the kinds that read their settings from files."""
-    a, extra = BUILDERS[role.agent](role, cwd or os.getcwd())
+    cwd: the agent's folder, for the kinds that read their settings from files. A container role runs inside
+    `docker run`; terminal names the container, bridge is the port its team tools reach the brain on."""
+    cwd = cwd or os.getcwd()
+    if role.container:
+        a, extra = BUILDERS[role.agent](role, cwd, 'python3')
+        return container.run_argv(role, a, {**(BLOCK_PUSH if block_push else {}), **extra}, cwd, terminal or role.name,
+                                  bridge, which)
+    a, extra = BUILDERS[role.agent](role, cwd)
     a[0] = which(a[0]) or a[0]
     env = {**(BLOCK_PUSH if block_push else {}), **extra}
     if os.path.isabs(a[0]):

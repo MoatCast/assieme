@@ -26,6 +26,8 @@ class Role:
     job: str = ''
     effort: str | None = None
     group: str | None = None  # where it sits on the map of a big team
+    container: bool = False  # runs in a container that sees only its own copy
+    share_signin: bool = False  # that container may use this kind's sign-in folder from the Mac
 
 
 @dataclass
@@ -115,7 +117,7 @@ def load(folder, practices=True):
         if problem:
             raise PresetError(f'{path}: role {r!r}: {problem}')
         roles.append(Role(r, agent, brief_path, brief, raw.get('model'), checkout, raw.get('parent'), raw.get('job', ''),
-                          raw.get('effort'), raw.get('group')))
+                          raw.get('effort'), raw.get('group'), raw.get('container') is True, raw.get('share_signin') is True))
     if not roles:
         raise PresetError(f'{path}: the team has no roles ([[role]] tables)')
     for r in roles:
