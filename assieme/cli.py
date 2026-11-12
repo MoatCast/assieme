@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, process, quiet, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
+from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
 
 
 def main(argv=None):
@@ -151,6 +151,9 @@ def _serve():
     brain = teammap.Brain(claude, codex, rt, starter, suggested)
     reviews = review.Review(rt, newteam.teams_dir())
     activity.register_merge(reviews)
+    previews = preview.Previews(reviews)
+    previews.stop_left_behind()
+    reviews.on_archive = previews.stop
     menu = menubar.Menubar(brain, reviews)
     sched = schedule.Scheduler(rt, starter.start, starter.records,
                                announce=lambda title, body: None if menu.app_watching() else live.notify(title, body))
@@ -166,7 +169,8 @@ def _serve():
         for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()),
                      lambda: brain.tick(announce=None if menu.app_watching() else live.notify),
                      lambda: machine.tick(status.now_utc()),
-                     sched.tick):
+                     sched.tick,
+                     previews.sweep):
             try:
                 step()
             except Exception:  # one failing step must not stop notifications, delivery or the others
@@ -186,7 +190,8 @@ def _serve():
                  **sched.handlers(),
                  **connect.handlers(),
                  **menu.handlers(),
-                 **setup.handlers(rt)},
+                 **setup.handlers(rt),
+                 **previews.handlers()},
                 tick=tick)
     return 0
 

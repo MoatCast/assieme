@@ -305,7 +305,7 @@ export type ReviewData = {
   agent: { live: boolean; working: boolean; address: string | null };
 };
 export type ReviewWaiting = { team: string; project: string; role: string; branch: string; ahead: number };
-export type MergeResult = { role: string; base: string; problem: string | null; undo: string };
+export type MergeResult = { role: string; base: string; problem: string | null; undo: string; preview_stopped?: boolean };
 
 const slow = <T>(method: string, params: object, timeoutS: number) => invoke<T>("brain_call", { method, params, timeoutS });
 
@@ -328,6 +328,31 @@ export const reviewNote = (team: string, role: string, note: string, action: "fi
 export const reviewEditor = (team: string, role: string, file: string, line?: number) =>
   brain<{ ok: boolean }>("review.open_editor", { team, role, file, line });
 export const openLink = (url: string) => openUrl(url);
+
+/** One agent's live preview: its dev server in its worktree. `needs_command` asks the person how the project starts. */
+export type Preview = {
+  team: string;
+  role: string;
+  project: string;
+  state: "starting" | "running" | "failed" | "needs_command" | "confirm";
+  command?: string;
+  url?: string | null;
+  port?: number | null;
+  reason?: string;
+  output?: string;
+  fix?: "install" | "retry" | "command" | null;
+  /** The install command "Install and try again" runs, named on screen because it downloads. */
+  install?: string | null;
+  /** For `confirm`: each command with the package scripts it runs (their content, and whether the branch changed them),
+   *  the names of the changed ones, and what to send back to run it. */
+  steps?: { line: string; scripts: { name: string; runs: string; changed: boolean }[] }[];
+  changed?: string[];
+  fingerprint?: string;
+};
+export const previewList = () => brain<Preview[]>("preview.list");
+export const previewStart = (team: string, role: string, command: string | null = null, install = false,
+  confirm: string | null = null) => slow<Preview>("preview.start", { team, role, command, install, confirm }, 60);
+export const previewStop = (team: string, role: string) => slow<{ stopped: boolean }>("preview.stop", { team, role }, 30);
 
 export type BoardStatus = "todo" | "doing" | "review" | "done";
 export type BoardCard = {

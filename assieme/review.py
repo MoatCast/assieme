@@ -116,6 +116,7 @@ class Review:
         self.codex_dir = codex_dir or os.path.expanduser('~/.codex/sessions')
         self.lock = threading.RLock()  # one merge, undo or discard at a time
         self.tests, self.test_locks, self.undos, self.transcripts, self.aheads = {}, {}, {}, {}, {}
+        self.on_archive = lambda team, role: None  # the brain stops the agent's preview before its folder goes
 
     def _git(self, cwd, *args, **kw):
         return self.run(['git', '-C', cwd, *args], capture_output=True, encoding='utf-8', errors='replace', **kw)
@@ -154,6 +155,13 @@ class Review:
         if not project:
             raise ReviewError(f"Can't find the project for team {name}.")
         return project
+
+    def worktree(self, team, role):
+        """An agent's project, base branch, branch and worktree folder; ReviewError when it has no branch."""
+        return self._ctx(team, role)
+
+    def team_live(self, team):
+        return any(r.get('state') == 'live' for r in self._rows(team))
 
     def _has_branch(self, project, branch):
         return self._git(project, 'rev-parse', '--verify', '--quiet', f'refs/heads/{branch}').returncode == 0
@@ -468,6 +476,7 @@ class Review:
                 self._set_ignored(project, self._ignored(project) | notes)
             except OSError:
                 pass  # the merge stands: old notes showing again is the lesser problem
+            previewed = bool((self.on_archive(team, role) or {}).get('stopped'))
             problem = self._archive(project, team, role, branch, path, tip)
             uid = uuid.uuid4().hex
             self.undos[uid] = {'team': team, 'role': role, 'project': project, 'base': base, 'branch': branch,
@@ -477,7 +486,7 @@ class Review:
                              'title': f"Merged {role} into {base}", 'reason': problem or 'Its worktree is archived.',
                              'restore': self.undos[uid]})
             tasks.merged(team, role, base, uid)
-            return {'role': role, 'base': base, 'problem': problem, 'undo': uid}
+            return {'role': role, 'base': base, 'problem': problem, 'undo': uid, 'preview_stopped': previewed}
 
     def undo(self, id):
         with self.lock:
@@ -519,6 +528,7 @@ class Review:
             self._same_tip(project, branch, tip, role)
             notes = {n['id'] for n in self._notes(project, role, branch)}
             self._set_ignored(project, self._ignored(project) | notes)
+            self.on_archive(team, role)
             problem = self._archive(project, team, role, branch, path, tip, force=True)
             self._write_log({'id': uuid.uuid4().hex, 'team': team, 'agent': role, 'action': 'discard', 'undo': False,
                              'title': f"Discarded {role}'s work", 'reason': problem or 'Its worktree is removed.'})

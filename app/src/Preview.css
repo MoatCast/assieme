@@ -1,0 +1,65 @@
+/* Live preview: Paper "v2 — Preview: running, in Review" and "v2 — Preview: states". */
+.preview-group .preview-text { margin: 0; font-size: 13px; line-height: 18px; color: var(--quiet-slate); }
+.preview-group .preview-state { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.preview-group .preview-state svg { flex-shrink: 0; }
+.preview-group .preview-state.bad { color: var(--quiet-needs-you-text); }
+.preview-group .mono { font-family: var(--quiet-font-mono); }
+.preview-group .ink { color: var(--quiet-ink); }
+.preview-dot { width: 7px; height: 7px; margin: 0 3px; border-radius: 50%; flex-shrink: 0; background: var(--quiet-control); }
+.preview-dot.on { background: var(--quiet-working); }
+.preview-group .preview-sub { padding-left: 21px; font-size: 13px; line-height: 19px; color: var(--quiet-slate); overflow-wrap: anywhere; }
+.preview-group .preview-sub.small { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.preview-group .preview-out { margin: 0 0 0 21px; padding: 10px 12px; max-height: 200px; overflow: auto; border-radius: var(--quiet-radius-inner);
+  background: var(--quiet-term); color: var(--quiet-term-text); font: 12px/17px var(--quiet-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview-group .preview-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 2px; }
+.preview-group .preview-buttons.indent { padding-left: 21px; }
+.review .preview-group .primary { padding: 5px 12px; font-size: 13px; font-weight: 500; line-height: 16px; }
+.review .preview-group .secondary { padding: 5px 12px; }
+.review .preview-group .quiet { padding: 5px 4px; font-weight: 500; }
+
+.preview-scrim { position: fixed; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--quiet-term) 18%, transparent); }
+.preview-sheet { width: 430px; max-width: calc(100% - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 18px;
+  background: var(--quiet-surface); color: var(--quiet-ink); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-term) 18%, transparent); font-family: var(--quiet-font-ui); }
+.preview-sheet-title { font-size: 14px; font-weight: 600; line-height: 18px; }
+.preview-sheet input { font: 13px/19px var(--quiet-font-mono); padding: 9px 12px; color: var(--quiet-ink); background: var(--quiet-surface);
+  border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner); outline: none; }
+.preview-sheet input:focus { border-color: var(--quiet-ink); }
+.preview-sheet p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.preview-sheet code { font-family: var(--quiet-font-mono); color: var(--quiet-ink); }
+.preview-sheet .preview-bad { color: var(--quiet-needs-you-text); }
+.preview-sheet:focus { outline: none; }
+.preview-sheet .preview-steps { max-height: 240px; overflow: auto; padding: 10px 12px; border-radius: var(--quiet-radius-inner);
+  background: var(--quiet-term); color: var(--quiet-term-text); font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview-sheet .preview-label { padding-left: 16px; color: color-mix(in srgb, var(--quiet-term-text) 65%, transparent); }
+.preview-sheet .preview-script { padding-left: 32px; }
+.preview-sheet .preview-small { font-size: 12px; line-height: 16px; }
+.preview-sheet .preview-warn { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px;
+  border-radius: var(--quiet-radius-inner); background: var(--quiet-needs-you-tint); border: 1px solid var(--quiet-needs-you-line); }
+.preview-sheet .preview-warn p { color: var(--quiet-needs-you-text); line-height: 18px; }
+.preview-sheet .pv-link { padding: 0; color: var(--quiet-ink); font-weight: 500; text-decoration: underline; }
+.preview-sheet-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+.preview-sheet button { font: inherit; font-size: 13px; line-height: 16px; cursor: pointer; border: 0; background: none; color: inherit; }
+.preview-sheet button:disabled { opacity: 0.5; cursor: default; }
+.preview-sheet .pv-quiet { padding: 7px 10px; color: var(--quiet-slate); }
+.preview-sheet .pv-primary { padding: 7px 14px; border-radius: var(--quiet-radius-control); background: var(--quiet-ink); color: var(--quiet-on-ink); font-weight: 500; }
+
+.preview-problem { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 8; width: 500px; max-width: calc(100% - 32px);
+  box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--quiet-radius-inner);
+  background: var(--quiet-needs-you-tint); border: 1px solid var(--quiet-needs-you-line); color: var(--quiet-needs-you-text); font-size: 13px; line-height: 18px; }
+.preview-problem span { flex: 1; min-width: 0; }
+.preview-problem button { font: inherit; font-weight: 600; border: 0; background: none; color: inherit; cursor: pointer; padding: 0; }
+
+/* A preview on a Terminals pane and a Board card. */
+.terminals .fix-reason.bad { color: var(--quiet-needs-you-text); }
+/* Paper sizes these buttons at 12px, so the port fits beside Stop, Open preview and Review changes. */
+.terminals .preview-foot { flex-wrap: wrap; gap: 6px; row-gap: 6px; font-size: 12px; }
+.terminals .preview-foot .fix-reason { flex: 1 0 auto; } /* a narrow pane wraps its buttons rather than cut the port */
+.terminals .preview-foot button { font-size: 12px; line-height: 16px; }
+.terminals .preview-foot .primary { padding: 4px 9px; }
+.terminals .preview-foot .secondary { padding: 3px 9px; }
+.terminals .preview-foot .quiet { padding: 4px 2px; }
+.terminals .fix-reason .mono { font-family: var(--quiet-font-mono); color: var(--quiet-ink); }
+.task-checks i.preview-on { background: var(--quiet-working); }
+.task-checks i.preview-wait { background: var(--quiet-control); }
+.task-checks .preview-bad { color: var(--quiet-needs-you-text); }

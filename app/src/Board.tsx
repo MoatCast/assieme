@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { boardAdd, boardGet, boardMove, boardRemove, type BoardCard, type BoardData, type BoardStatus, type Pane } from "./bridge";
+import { boardAdd, boardGet, boardMove, boardRemove, openLink, type BoardCard, type BoardData, type BoardStatus, type Pane } from "./bridge";
+import { Cross, host, usePreviews, type Previews } from "./Preview";
 import Offline from "./Offline";
 import { FixButtons, SAYS, tokens } from "./Team";
 import { ago } from "./Terminals";
@@ -135,9 +136,10 @@ export function NewTask({ team, roles, onClose }: {
   );
 }
 
-function Task({ team, card, onChanged, onOpenTerminal, onReview }: {
+function Task({ team, card, pv, onChanged, onOpenTerminal, onReview }: {
   team: string;
   card: BoardCard;
+  pv: Previews;
   onChanged: () => void;
   onOpenTerminal: (role: string) => void;
   onReview: (team: string, role: string) => void;
@@ -151,6 +153,8 @@ function Task({ team, card, onChanged, onOpenTerminal, onReview }: {
     : branch ? [plural(branch.files, "file"), `+${branch.add} −${branch.del}`]
     : done ? [card.note, card.moved_s < 60 ? "just now" : `${ago(card.moved_s)} ago`] : [];
   const line = facts.filter(Boolean).join(" · ");
+  const shown = branch && branch.ahead > 0 && card.role ? card.role : null; // Paper "v2 — Preview: states"
+  const pr = shown ? pv.of(team, shown) : undefined;
   const classes = ["task", needs && "needs", done && "finished", done && card.note.startsWith("merged into") && card.moved_s < MERGED_GLOW_S && "merged"];
   return (
     <div className={classes.filter(Boolean).join(" ")} data-testid={`task-${card.id}`}>
@@ -167,7 +171,7 @@ function Task({ team, card, onChanged, onOpenTerminal, onReview }: {
       {!card.role && !done && <div className="task-quiet">Not assigned yet</div>}
       {!done && !card.needs_you && card.note && <div>{card.note}</div>}
       {agent?.state === "asking" && agent.fix && <div>“{agent.fix.text}”</div>}
-      {branch && (branch.tests || branch.notes.length > 0) && (
+      {branch && (branch.tests || branch.notes.length > 0 || pr) && (
         <div className="task-checks">
           {branch.tests && (
             <div>
@@ -180,11 +184,20 @@ function Task({ team, card, onChanged, onOpenTerminal, onReview }: {
           {noted(branch.notes).map(({ author, n }) => (
             <div key={author}><i /><span><span className="mono">{author}</span> left {plural(n, "comment")}</span></div>
           ))}
+          {pr?.state === "running" && <div><i className="preview-on" /><span>Preview at <span className="mono">{host(pr)}</span></span></div>}
+          {pr?.state === "starting" && <div><i className="preview-wait" />Starting the preview…</div>}
+          {pr?.state === "failed" && <div className="preview-bad"><Cross size={12} />The preview didn't start</div>}
         </div>
       )}
       {agent && needs && agent.fix && <FixButtons team={team} pane={agent} onChanged={onChanged} onOpenTerminal={onOpenTerminal} />}
-      {branch && branch.ahead > 0 && card.role && (
-        <button type="button" className="btn-primary" onClick={() => onReview(team, card.role!)}>Review changes</button>
+      {shown && (
+        <div className="card-buttons">
+          <button type="button" className="btn-primary" onClick={() => onReview(team, shown)}>Review changes</button>
+          {!pr && <button type="button" className="btn-secondary" disabled={pv.busy} onClick={() => pv.start(team, shown)}>Preview</button>}
+          {pr?.state === "running" && <button type="button" className="btn-secondary" onClick={() => pr.url && openLink(pr.url)}>Open preview</button>}
+          {pr?.state === "failed" && <button type="button" className="btn-secondary" onClick={() => onReview(team, shown)}>See why</button>}
+          {pr && pr.state !== "failed" && <button type="button" className="btn-quiet" disabled={pv.busy} onClick={() => pv.stop(team, shown)}>Stop</button>}
+        </div>
       )}
     </div>
   );
@@ -204,6 +217,7 @@ export default function Board({ team, pollMs = 5000, refreshKey = 0, onNewTeam, 
   const [data, setData] = useState<BoardData | null>(null);
   const [offline, setOffline] = useState(false);
   const refresh = useRef<() => void>(() => {});
+  const pv = usePreviews(pollMs, onReview);
 
   useEffect(() => {
     if (!team) return;
@@ -268,7 +282,7 @@ export default function Board({ team, pollMs = 5000, refreshKey = 0, onNewTeam, 
             <section key={id} className="board-col" aria-label={label}>
               <h2>{label} <span>{count(id)}</span></h2>
               {cards.filter((c) => c.status === id).map((c) => (
-                <Task key={c.id} team={data.team} card={c} onChanged={() => refresh.current()} onOpenTerminal={onOpenTerminal} onReview={onReview} />
+                <Task key={c.id} team={data.team} card={c} pv={pv} onChanged={() => refresh.current()} onOpenTerminal={onOpenTerminal} onReview={onReview} />
               ))}
               {id === "todo" && cards.length === 0 && (
                 <div className="board-none">
@@ -283,6 +297,7 @@ export default function Board({ team, pollMs = 5000, refreshKey = 0, onNewTeam, 
           ))}
         </div>
       </div>
+      {pv.sheet}
     </div>
   );
 }

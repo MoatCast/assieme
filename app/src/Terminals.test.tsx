@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Pane, PaneButton, TeamView } from "./bridge";
 
-const b = vi.hoisted(() => ({ teamView: vi.fn(), paneAct: vi.fn(), reviewWaiting: vi.fn() }));
+const b = vi.hoisted(() => ({ teamView: vi.fn(), paneAct: vi.fn(), reviewWaiting: vi.fn(), openLink: vi.fn(), previewList: vi.fn((): Promise<unknown[]> => Promise.resolve([])), previewStart: vi.fn(), previewStop: vi.fn(), }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({
   default: ({ address, typing }: { address: string; typing?: boolean }) => (
@@ -206,4 +206,30 @@ test("a failed waiting list doesn't break the page", async () => {
   await flush();
   expect(screen.getByText(/No team is running/)).toBeTruthy();
   expect(screen.queryByText("Waiting for review")).toBeNull();
+});
+
+const PREVIEW = (role: string, more: object = {}) => ({ team: "shop", project: "checkout", role, state: "running", command: "npm run dev",
+  url: "http://localhost:5175", port: 5175, reason: "", output: "", fix: null, ...more });
+
+test("finished work can be previewed from its pane, and a running or failed preview shows at its foot", async () => {
+  b.reviewWaiting.mockResolvedValue([WAITING("idle-one"), WAITING("idle-two"), WAITING("idle-three")]);
+  b.teamView.mockResolvedValue({ ...VIEW, panes: [P({ role: "idle-one", address: "t6" }), P({ role: "idle-two", address: "t7" }),
+    P({ role: "idle-three", address: "t8" })] });
+  b.previewList.mockResolvedValue([PREVIEW("idle-two"), PREVIEW("idle-three", { state: "failed", url: null, reason: "It stopped." })]);
+  b.previewStart.mockResolvedValue(PREVIEW("idle-one", { state: "starting", url: null }));
+  render(<Terminals team="shop" pollMs={1000} onNewTeam={() => {}} onReview={onReview} />);
+  await flush();
+  await flush();
+  fireEvent.click(within(screen.getByTestId("pane-idle-one")).getByRole("button", { name: "Preview" }));
+  await flush();
+  expect(b.previewStart).toHaveBeenCalledWith("shop", "idle-one", null, false, null);
+  const two = within(screen.getByTestId("pane-idle-two"));
+  expect(two.getByText("localhost:5175")).toBeTruthy();
+  fireEvent.click(two.getByRole("button", { name: "Open preview" }));
+  expect(b.openLink).toHaveBeenCalledWith("http://localhost:5175");
+  expect(two.getByRole("button", { name: "Review changes" })).toBeTruthy();
+  const three = within(screen.getByTestId("pane-idle-three"));
+  expect(three.getByText("The preview didn't start")).toBeTruthy();
+  fireEvent.click(three.getByRole("button", { name: "See why" }));
+  expect(onReview).toHaveBeenCalledWith("shop", "idle-three");
 });
