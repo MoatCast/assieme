@@ -193,6 +193,9 @@ Without `--name`, SSH machines use the first host label (IPs stay whole),
 shortened to 32 characters with `-2`, `-3`, etc. added if the name is taken
 or looks like a terminal id (`t14` becomes `t14-2`).
 
+A machine whose SSH login fails shows `needs_login` and retries slowly (up to
+every 10 minutes); `asm machine login <name>` in a terminal reconnects now.
+
 On Windows, `asm server status` never starts a core. If elevated SSH startup
 would block the same user's desktop session, open Assieme on that Windows
 machine or run `asm server start` in a normal desktop terminal, then reconnect.
