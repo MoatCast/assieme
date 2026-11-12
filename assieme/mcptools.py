@@ -5,7 +5,7 @@ import os
 import subprocess
 import uuid
 
-from . import brief, budget, live, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
+from . import brief, budget, herdr, live, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -240,6 +240,16 @@ class Tools:
             opened = False
         return {'id': id_, 'opened': opened}
 
+    def herdr_import(self, source):
+        """A herdr team or launch script as a New team draft for the app to open. It starts nothing and changes
+        nothing of herdr's."""
+        draft = herdr.draft(source)
+        if not draft['roles']:
+            raise ValueError('No Claude Code or Codex agents were found in it. '
+                             + ' '.join(n['text'] for n in draft['notes']))
+        newteam.validate(draft['roles'])
+        return draft | {'id': uuid.uuid4().hex[:12], 'why': '', 'from': 'herdr', 'practices': settings.load()['practices']}
+
     def draft_next(self):
         """The oldest draft waiting to open, or None. The app asks often, so this only lists a folder."""
         try:
@@ -275,5 +285,6 @@ class Tools:
                 'mcp.read': self.read, 'mcp.send': self.send, 'mcp.answer': self.answer,
                 'mcp.fix_check': self.fix_check, 'mcp.fix': self.fix, 'mcp.stop_agent': self.stop_agent,
                 'mcp.start_saved': self.start_saved, 'mcp.draft_save': self.draft_save, 'draft.take': self.draft_take,
+                'herdr.find': herdr.find, 'herdr.import': self.herdr_import,
                 'mcp.brief': self.team_brief, 'mcp.record_decision': self.record_decision,
                 'brief.get': brief.load, 'brief.save': brief.save, 'brief.remove': brief.remove}

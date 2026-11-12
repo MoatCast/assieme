@@ -30,6 +30,16 @@
 .newteam .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .newteam .chip { border: 1px solid var(--quiet-line-strong); border-radius: 999px; padding: 7px 12px;
   color: var(--quiet-slate); font-size: 13px; line-height: 16px; }
+.newteam .chip.herdr { border-style: dashed; }
+/* An import from herdr, from Paper "v2 — New team: imported from herdr". */
+.newteam .still-running { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; background: var(--quiet-tip-tint);
+  border: 1px solid var(--quiet-tip-line); border-radius: var(--quiet-radius-inner); color: var(--quiet-tip-text);
+  font-size: 13px; line-height: 18px; }
+.newteam .carried { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--quiet-fog);
+  border-radius: var(--quiet-radius-inner); }
+.newteam .carried-title { color: var(--quiet-ink); font-size: 13px; font-weight: 600; line-height: 16px; }
+.newteam .carried-note p { margin: 0; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+.newteam .carried-note .carried-agents { color: var(--quiet-mute); font-family: var(--quiet-font-mono); font-size: 12px; line-height: 16px; }
 .newteam .chip.on { background: var(--quiet-ink); border-color: var(--quiet-ink); color: var(--quiet-on-ink); font-weight: 500; }
 .newteam .link { display: inline-flex; align-items: center; gap: 6px; color: var(--quiet-ink); font-size: 13px; font-weight: 500; }
 .newteam .agents { border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); display: flex; flex-direction: column; }

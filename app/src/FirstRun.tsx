@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { snapshot, type Agent, type AgentKind, type Snapshot } from "./bridge";
+import { snapshot, type Agent, type AgentKind, type Snapshot, type TeamDraft } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
+import HerdrImport from "./HerdrImport";
 import NewTeam from "./NewTeam";
 import InstallSheet from "./InstallSheet";
 import NewUserChecklist, { useSetupStatus } from "./NewUserChecklist";
@@ -46,6 +47,9 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   // "first": New team opened from the checklist, whose Start also moves on to Team.
   const [creating, setCreating] = useState<false | "new" | "first">(false);
   const [grouping, setGrouping] = useState(false);
+  // Moving from herdr: the import sheet, then New team filled in from what was picked.
+  const [importing, setImporting] = useState(false);
+  const [imported, setImported] = useState<TeamDraft | null>(null);
   // The install sheet lives here, not in the checklist: it must survive the checklist going away mid-install.
   const [sheet, setSheet] = useState<{ agent: AgentKind; start: "install" | "signin" } | null>(null);
   const report = useRef(onSnapshot);
@@ -88,7 +92,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   const clis = [
     { key: "claude", name: "Claude Code", found: !!snap?.clis.claude, note: plural(count("claude-code")) },
     { key: "codex", name: "Codex", found: !!snap?.clis.codex, note: plural(count("codex")) },
-    { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected, so fixes can be sent" },
+    { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected ·" },
   ].filter((c) => c.key !== "herdr" || snap?.clis.herdr); // herdr gets a row only once it is found
 
   // A team shows here while it starts, if its start failed, or while an agent needs you or didn't come up.
@@ -107,8 +111,16 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   return (
     <div className="first-run">
       {creating && (
-        <NewTeam clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null} onClose={() => setCreating(false)}
+        <NewTeam key={imported?.id ?? "new"} clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null}
+          draft={imported} onClose={() => { setCreating(false); setImported(null); }}
           onStarted={creating === "first" ? onOpenTeam : undefined} />
+      )}
+      {importing && (
+        <HerdrImport onClose={() => setImporting(false)} onImported={(d) => {
+          setImporting(false);
+          setImported(d);
+          setCreating("new");
+        }} />
       )}
       {newUser ? (
         <NewUserChecklist status={setup.status} statusError={setup.error} offline={offline} herdr={!!snap?.clis.herdr}
@@ -127,6 +139,9 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
               <Check ok={c.found} />
               <span className="cli-name">{c.name}</span>
               <span className="cli-note">{!snap ? (offline ? "" : "checking…") : c.found ? c.note : "not found"}</span>
+              {c.key === "herdr" && c.found && (
+                <button type="button" className="link-btn cli-import" onClick={() => setImporting(true)}>Import a team</button>
+              )}
             </div>
           ))}
         </div>

@@ -7,13 +7,19 @@ const setupStatus = vi.fn<() => Promise<SetupStatus>>();
 vi.mock("./bridge", () => ({ snapshot: () => snapshot(), setupStatus: () => setupStatus() }));
 vi.mock("./ChangeGroups", () => ({ default: () => <div>change the groups sheet</div> }));
 vi.mock("./NewTeam", () => ({
-  default: ({ clis, onClose, onStarted }: { clis: { codex: boolean }; onClose: () => void; onStarted?: () => void }) => (
+  default: ({ clis, draft, onClose, onStarted }: { clis: { codex: boolean }; draft?: { task: string } | null; onClose: () => void; onStarted?: () => void }) => (
     <div>
       <h2>New team screen</h2>
+      {draft && <span>{`draft: ${draft.task}`}</span>}
       <span>{clis.codex ? "codex on" : "codex off"}</span>
       <button type="button" onClick={onClose}>close new team</button>
       <button type="button" onClick={() => { onStarted?.(); onClose(); }}>start the team</button>
     </div>
+  ),
+}));
+vi.mock("./HerdrImport", () => ({
+  default: ({ onImported }: { onImported: (d: { id: string; task: string }) => void }) => (
+    <button type="button" onClick={() => onImported({ id: "d1", task: "Add a cart" })}>pick a herdr team</button>
   ),
 }));
 vi.mock("./InstallSheet", () => ({
@@ -375,4 +381,14 @@ test("an open install sheet survives the checklist going away, and keeps the sta
   const calls = setupStatus.mock.calls.length;
   await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
   expect(setupStatus.mock.calls.length).toBeGreaterThan(calls);
+});
+
+test("moving from herdr: Import a team opens New team filled in from the pick", async () => {
+  snapshot.mockResolvedValue(SNAP);
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  fireEvent.click(within(screen.getByTestId("cli-herdr")).getByText("Import a team"));
+  fireEvent.click(screen.getByText("pick a herdr team"));
+  expect(screen.getByText("New team screen")).toBeTruthy();
+  expect(screen.getByText("draft: Add a cart")).toBeTruthy();
 });
