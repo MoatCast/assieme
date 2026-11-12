@@ -197,3 +197,87 @@ class McpTest(unittest.TestCase):
         s = conf['mcp_servers']['assieme']
         self.assertEqual(s['args'], ['-P', '-m', 'assieme', 'mcp'])
         self.assertIn('HC_TERMINAL_ID', s['env_vars'])
+
+
+def env_of(a):
+    """The KEY=VALUE words in front of the program, and the program's own words."""
+    words = a[1:] if a[0] == '/usr/bin/env' else a
+    env = {}
+    while words and '=' in words[0] and not words[0].startswith('-'):
+        k, _, v = words.pop(0).partition('=')
+        env[k] = v
+    return env, words
+
+
+class NewKindsTest(unittest.TestCase):
+    def setUp(self):
+        self.state = tempfile.mkdtemp()
+        p = unittest.mock.patch.dict(os.environ, {'XDG_STATE_HOME': self.state})
+        p.start()
+        self.addCleanup(p.stop)
+        self.cwd = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', self.cwd], check=True)
+
+    def argv(self, r):
+        return launch.argv(r, block_push=False, which=lambda n: None, cwd=self.cwd)
+
+    def test_gemini_reads_hooks_and_team_tools_from_a_settings_file(self):
+        env, words = env_of(self.argv(role('gemini', model='gemini-2.5-pro', checkout='read-only')))
+        self.assertEqual(words, ['gemini', '-m', 'gemini-2.5-pro', '--approval-mode', 'plan'])
+        path = env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']
+        self.assertTrue(path.startswith(self.state))
+        s = json.load(open(path))
+        cmd = lambda e: s['hooks'][e][0]['hooks'][0]['command']
+        self.assertTrue(cmd('BeforeAgent').endswith('assieme.hook working'))
+        self.assertTrue(cmd('AfterAgent').endswith('assieme.hook idle'))
+        self.assertTrue(cmd('SessionStart').endswith('assieme.hook idle'))
+        self.assertEqual(s['hooks']['Notification'][0]['matcher'], 'ToolPermission')
+        self.assertTrue(cmd('Notification').endswith('assieme.hook blocked'))
+        self.assertEqual(s['mcpServers']['assieme']['args'], ['-P', '-m', 'assieme', 'mcp'])
+
+    def test_opencode_gets_its_config_and_the_status_plugin_from_its_environment(self):
+        env, words = env_of(self.argv(role('opencode', model='anthropic/claude-sonnet-4', checkout='read-only')))
+        self.assertEqual(words, ['opencode', '-m', 'anthropic/claude-sonnet-4'])
+        config = json.loads(env['OPENCODE_CONFIG_CONTENT'])
+        self.assertTrue(os.path.isfile(config['plugin'][0].removeprefix('file://')))
+        self.assertEqual(config['mcp']['assieme']['command'][-2:], ['assieme', 'mcp'])
+        self.assertEqual(config['permission'], {'edit': 'deny'})
+        self.assertEqual(json.loads(env['ASSIEME_HOOK'])[-2:], ['-m', 'assieme.hook'])
+
+    def test_cursor_gets_its_files_in_its_folder_kept_out_of_git(self):
+        _, words = env_of(self.argv(role('cursor', checkout='read-only')))
+        self.assertEqual(words, ['cursor-agent', '--approve-mcps', '--mode', 'plan'])
+        hooks = json.load(open(os.path.join(self.cwd, '.cursor', 'hooks.json')))['hooks']
+        self.assertTrue(hooks['beforeSubmitPrompt'][0]['command'].endswith('assieme.hook working'))
+        self.assertTrue(hooks['stop'][0]['command'].endswith('assieme.hook idle'))
+        self.assertIn('assieme', json.load(open(os.path.join(self.cwd, '.cursor', 'mcp.json')))['mcpServers'])
+        st = subprocess.run(['git', '-C', self.cwd, 'status', '--porcelain'], capture_output=True, text=True).stdout
+        self.assertEqual(st, '')
+
+    def test_cursor_never_overwrites_a_projects_own_hooks(self):
+        os.makedirs(os.path.join(self.cwd, '.cursor'))
+        with open(os.path.join(self.cwd, '.cursor', 'hooks.json'), 'w') as f:
+            f.write('{"theirs": true}')
+        self.argv(role('cursor'))
+        self.assertEqual(json.load(open(os.path.join(self.cwd, '.cursor', 'hooks.json'))), {'theirs': True})
+
+    def test_new_kinds_take_no_thinking_effort(self):
+        for kind in ('gemini', 'opencode', 'cursor'):
+            self.assertIn('no thinking effort', launch.check_model_effort(kind, None, 'high'))
+
+
+@unittest.skipUnless(__import__('shutil').which('node'), 'needs node')
+class OpencodePluginTest(unittest.TestCase):
+    def test_states_reach_the_hook(self):
+        d = tempfile.mkdtemp()
+        out, hook = os.path.join(d, 'said'), os.path.join(d, 'hook.sh')
+        with open(hook, 'w') as f:
+            f.write(f'#!/bin/sh\necho "$1" >> {out}\n')
+        os.chmod(hook, 0o755)
+        script = ("const m = await import(process.argv[1]); const p = await m.AssiemeStatus({});"
+                  "for (const e of [{type: 'session.status', properties: {status: {type: 'busy'}}},"
+                  "{type: 'permission.asked'}, {type: 'session.idle'}, {type: 'message.updated'}]) await p.event({event: e});"
+                  "await new Promise(r => setTimeout(r, 300));")
+        subprocess.run(['node', '--input-type=module', '-e', script, launch.OPENCODE_PLUGIN], check=True,
+                       env={**os.environ, 'ASSIEME_HOOK': json.dumps([hook])})
+        self.assertEqual(sorted(open(out).read().split()), sorted(['idle', 'working', 'blocked', 'idle']))

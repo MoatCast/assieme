@@ -24,14 +24,17 @@ def check_repo(project):
         raise NoCommitsError(f'{project} has no commits yet. Make a first commit, then start again.')
 
 
-def _exclude(project):
+def _exclude(project, pattern='.assieme/'):
+    """Keep `pattern` out of git in this repository, without touching any tracked file."""
     path = _git(project, 'rev-parse', '--git-path', 'info/exclude').stdout.strip()
+    if not path:
+        return
     path = os.path.join(project, path) if not os.path.isabs(path) else path
     lines = open(path).read().splitlines() if os.path.exists(path) else []
-    if '.assieme/' not in lines:
+    if pattern not in lines:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'a') as f:
-            f.write(('\n' if lines and lines[-1] else '') + '.assieme/\n')
+            f.write(('\n' if lines and lines[-1] else '') + pattern + '\n')
 
 
 def ensure(team, role):

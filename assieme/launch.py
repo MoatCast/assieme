@@ -1,4 +1,4 @@
-"""Each agent's command line: Claude Code or Codex, its model, read-only settings and the status hook.
+"""Each agent's command line: its CLI, model, read-only settings, the status hook and the team tools.
 
 The brief is not on the command line: it is sent after the agent's first turn ends.
 """
@@ -9,7 +9,7 @@ import re
 import shlex
 import sys
 
-from . import quiet, setup
+from . import quiet, setup, worktree
 
 CLIS = {'claude': 'claude', 'codex': 'codex', 'gemini': 'gemini', 'opencode': 'opencode', 'cursor': 'cursor-agent'}
 NAMES = {'claude': 'Claude Code', 'codex': 'Codex', 'gemini': 'Gemini CLI', 'opencode': 'OpenCode', 'cursor': 'Cursor'}
@@ -95,15 +95,80 @@ def _codex(role):
     return a
 
 
+def _state_file(kind, cwd, suffix):
+    """A per-agent settings file under Assieme's state folder, named by the agent's folder."""
+    base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
+    path = os.path.join(base, 'assieme', kind, hashlib.sha256(cwd.encode()).hexdigest()[:16] + suffix)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
+
+
+def _gemini(role, cwd):
+    """Gemini CLI takes no settings on its command line: a system settings file, named in its environment."""
+    hook = lambda state: [{'hooks': [{'type': 'command', 'command': hook_command(state)}]}]
+    settings = {'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
+                          'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
+                'mcpServers': {'assieme': {**_mcp(), 'trust': True}}}  # its own team tools, without asking each time
+    path = _state_file('gemini', cwd, '.json')
+    with open(path, 'w') as f:
+        json.dump(settings, f)
+    a = ['gemini'] + (['-m', role.model] if role.model else [])
+    if role.checkout == 'read-only':
+        a += ['--approval-mode', 'plan']
+    return a, {'GEMINI_CLI_SYSTEM_SETTINGS_PATH': path}
+
+
+OPENCODE_PLUGIN = os.path.join(os.path.dirname(__file__), 'opencode_status.js')
+
+
+def _opencode(role, cwd):
+    """OpenCode reads a whole config from its environment; the status plugin calls our hook."""
+    config = {'plugin': ['file://' + OPENCODE_PLUGIN],
+              'mcp': {'assieme': {'type': 'local', 'command': [_mcp()['command'], *_mcp()['args']], 'enabled': True}}}
+    if role.checkout == 'read-only':
+        config['permission'] = {'edit': 'deny'}
+    a = ['opencode'] + (['-m', role.model] if role.model else [])
+    hook = shlex.split(hook_command('idle'))[:-1]
+    return a, {'OPENCODE_CONFIG_CONTENT': json.dumps(config), 'ASSIEME_HOOK': json.dumps(hook)}
+
+
+CURSOR_FILES = ('.cursor/hooks.json', '.cursor/mcp.json')
+
+
+def _cursor(role, cwd):
+    """Cursor reads hooks and MCP servers only from files: written into the agent's own folder when it has none,
+    and kept out of git there."""
+    hook = lambda state: [{'command': hook_command(state)}]
+    files = {CURSOR_FILES[0]: {'version': 1, 'hooks': {'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'),
+                                                       'stop': hook('idle')}},
+             CURSOR_FILES[1]: {'mcpServers': {'assieme': _mcp()}}}
+    for rel, data in files.items():
+        path = os.path.join(cwd, rel)
+        if not os.path.exists(path):  # never over a project's own file
+            worktree._exclude(cwd, '/' + rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w') as f:
+                json.dump(data, f, indent=2)
+    a = ['cursor-agent', '--approve-mcps'] + (['--model', role.model] if role.model else [])
+    if role.checkout == 'read-only':
+        a += ['--mode', 'plan']
+    return a, {}
+
+
+BUILDERS = {'claude': lambda role, cwd: (_claude(role), {}), 'codex': lambda role, cwd: (_codex(role), {}),
+            'gemini': _gemini, 'opencode': _opencode, 'cursor': _cursor}
+
+
 # An empty prefix matches every remote; pushes go to a git-remote helper (quiet.install writes it) that refuses. Fetch is untouched.
 BLOCK_PUSH = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'url.assieme-push-blocked://.pushInsteadOf', 'GIT_CONFIG_VALUE_0': ''}
 
 
-def argv(role, block_push=True, which=setup.agent_path):
-    """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on."""
-    a = _claude(role) if role.agent == 'claude' else _codex(role)
+def argv(role, block_push=True, which=setup.agent_path, cwd=None):
+    """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on.
+    cwd: the agent's folder, for the kinds that read their settings from files."""
+    a, extra = BUILDERS[role.agent](role, cwd or os.getcwd())
     a[0] = which(a[0]) or a[0]
-    env = dict(BLOCK_PUSH) if block_push else {}
+    env = {**(BLOCK_PUSH if block_push else {}), **extra}
     if os.path.isabs(a[0]):
         # An npm-installed agent is a `#!/usr/bin/env node` script whose node sits beside it, and the core may be older
         # than this brain, with a shorter PATH. Quiet send's folder stays first, as the core sets it.
