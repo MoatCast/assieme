@@ -59,6 +59,8 @@ def _claude(role, cwd=None):
         a += ['--model', role.model]
     if role.effort:
         a += ['--effort', role.effort]
+    if role.level:  # "anything else asks you first": not the person's auto mode or a skip-prompts default
+        a += ['--permission-mode', 'default']
     if role.checkout == 'read-only' or role.level == 'read-only':
         a += ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit']
     return a

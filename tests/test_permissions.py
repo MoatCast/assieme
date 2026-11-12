@@ -63,6 +63,7 @@ class ClaudeTest(unittest.TestCase):
         a = launch.argv(role(level=None), block_push=False, which=lambda n: None, cwd='/w')
         self.assertEqual(settings(a)['permissions'], {'allow': ['mcp__assieme']})
         self.assertEqual(a[0], 'claude')  # no push block env either: unchanged
+        self.assertNotIn('--permission-mode', a)
 
     def test_safe_edits_its_worktree_and_blocks_the_floor(self):
         a = launch.argv(role(), block_push=False, which=lambda n: None, cwd='/w/b1')
@@ -75,6 +76,8 @@ class ClaudeTest(unittest.TestCase):
         # The push block is on for every role with a level, whatever the practice switch said.
         self.assertEqual(a[0], '/usr/bin/env')
         self.assertIn('GIT_CONFIG_KEY_0=url.assieme-push-blocked://.pushInsteadOf', a)
+        # Anything not listed asks the person, whatever their own default mode is.
+        self.assertEqual(a[a.index('--permission-mode') + 1], 'default')
 
     def test_owned_files_only(self):
         p = settings(launch.argv(role(owns=['payments/retry.py', './a.py']), which=lambda n: None, cwd='/w'))['permissions']
