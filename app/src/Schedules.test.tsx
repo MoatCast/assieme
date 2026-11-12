@@ -130,3 +130,15 @@ test("next run in words", () => {
   expect(dayWords(nextRun({ kind: "week", day: 0, at: "07:00" }, now), now)).toBe("Monday at 07:00");
   expect(dayWords(nextRun({ kind: "hours", n: 6 }, now), now)).toBe("today at 23:00");
 });
+
+test("Escape closes only the sheet", async () => {
+  await open([]);
+  const outer = vi.fn();
+  window.addEventListener("keydown", outer);
+  await click("New schedule");
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(outer).not.toHaveBeenCalled();
+  window.removeEventListener("keydown", outer);
+});

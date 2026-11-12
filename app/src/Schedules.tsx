@@ -27,6 +27,18 @@ export function dayWords(t: Date, now = new Date()): string {
   return `${day} at ${t.toTimeString().slice(0, 5)}`;
 }
 
+/** A select drawn like the sheet's other fields, with Paper's chevron. */
+function Select({ label, value, onChange, children }: { label: string; value: string | number; onChange: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <span className="select">
+      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>{children}</select>
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <path d="M3 4.5l3 3 3-3" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
 function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams: ScheduleTeam[]; onClose: () => void; onSaved: (rows: Schedule[]) => void }) {
   const [name, setName] = useState(edit?.name ?? "");
   const [project, setProject] = useState(edit?.project ?? "");
@@ -44,9 +56,14 @@ function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams
   const latest = useRef(0);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !setup && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Capture, so Escape closes only this sheet: Settings, behind it, listens for Escape too.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || setup) return;
+      e.stopPropagation();
+      onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose, setup]);
 
   const verify = async (p: string) => {
@@ -140,10 +157,10 @@ function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams
         </label>
         <label className="field">
           <span>Team</span>
-          <select aria-label="Team" value={preset} onChange={(e) => setPreset(e.target.value)}>
+          <Select label="Team" value={preset} onChange={setPreset}>
             {teams.map((t) => <option key={t.id} value={t.id}>{t.label} · {t.who}</option>)}
             {!chosen && <option value={preset}>{preset.replace(/^saved:/, "")}</option>}
-          </select>
+          </Select>
           <p className="hint">Or a team you saved, with its agents and models. Daily limits you set on it apply to every run.</p>
           {error("preset")}
         </label>
@@ -158,9 +175,9 @@ function Sheet({ edit, teams, onClose, onSaved }: { edit: Schedule | null; teams
             {kind === "week" && (
               <>
                 <span>on</span>
-                <select aria-label="Day" value={day} onChange={(e) => setDay(Number(e.target.value))}>
+                <Select label="Day" value={day} onChange={(v) => setDay(Number(v))}>
                   {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                </select>
+                </Select>
               </>
             )}
             {kind === "hours" ? (

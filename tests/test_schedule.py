@@ -166,6 +166,8 @@ class RunTest(SchedulerCase):
         self.refuse = 'This project already has a running team: shop. Stop it first.'
         self.tick(at(days=1))
         self.assertEqual(self.said, ["Couldn't start Nightly tests"])
+        [failed] = [r for r in activity.list_rows(team='other', now=self.clock[0])['rows'] if r['action'] == 'schedule_failed']
+        self.assertIn('already has a running team', failed['reason'])  # shown under any team, with its why
         row = self.s.rows(tz=UTC)[0]
         self.assertEqual(row['result'], 'failed')
         self.assertIn("Couldn’t start today at 12:00: This project already has a running team", row['line'])

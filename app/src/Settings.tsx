@@ -348,8 +348,7 @@ export default function Settings({ team, section: first, onClose, onShowFirstRun
 
   useEffect(() => { void getSettings().then(setValues).catch((e) => setError(String(e))); }, []);
   useEffect(() => {
-    // The Scheduled runs sheet closes itself on Escape: Settings stays open behind it.
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !grouping && !document.querySelector(".schedule-sheet")) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !grouping) onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, grouping]);

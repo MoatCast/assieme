@@ -209,7 +209,9 @@ class Scheduler:
             return s
 
     def _log(self, s, action, title, reason, ok=True, alert=False):
-        live.record(action, s['name'], reason, ok=ok, team=s['team'], by='auto', title=title, now=self.now())
+        # A row that didn't work shows its detail ("It didn't work: ..."), so the why goes there too.
+        live.record(action, s['name'], reason, ok=ok, detail='' if ok else reason, team=s['team'], by='auto', title=title,
+                    now=self.now())
         if alert and self.announce:
             self.announce(title, reason)
 
@@ -225,7 +227,7 @@ class Scheduler:
                                                          last={'at': (x.get('last') or {}).get('at'), 'result': 'ended'}))
                 self._log(s, 'schedule_ended', f"{s['name']} stopped early",
                           'Its agents ended before its top agent said the work was done. What it committed waits in '
-                          'Review.', ok=False, alert=self._notify_finished())
+                          'Review.', alert=self._notify_finished())
             if s.get('removed'):
                 if not going:
                     with _lock:

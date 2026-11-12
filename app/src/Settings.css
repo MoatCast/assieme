@@ -93,5 +93,9 @@
 .schedule-sheet .error { margin: 0; color: var(--quiet-needs-you-text); }
 .schedule-sheet .when-row { display: flex; align-items: center; gap: 10px; color: var(--quiet-slate); }
 .schedule-sheet .when-row input.hours { width: 56px; }
-.schedule-sheet .when-row input.time { width: 96px; }
+.schedule-sheet .when-row input.time { width: 84px; padding: 6px 10px; }
+.schedule-sheet .select { position: relative; display: flex; }
+.schedule-sheet .select select { flex: 1; appearance: none; -webkit-appearance: none; padding: 8px 32px 8px 12px; border: 1px solid var(--quiet-line-strong); }
+.schedule-sheet .when-row .select select { padding: 6px 30px 6px 10px; }
+.schedule-sheet .select svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .schedule-sheet .sheet-actions .remove { margin-right: auto; color: var(--quiet-needs-you-text); }
