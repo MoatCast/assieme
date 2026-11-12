@@ -11,11 +11,12 @@ import sys
 
 from . import quiet, setup
 
-CLIS = {'claude': 'claude', 'codex': 'codex'}
-NAMES = {'claude': 'Claude Code', 'codex': 'Codex'}
+CLIS = {'claude': 'claude', 'codex': 'codex', 'gemini': 'gemini', 'opencode': 'opencode', 'cursor': 'cursor-agent'}
+NAMES = {'claude': 'Claude Code', 'codex': 'Codex', 'gemini': 'Gemini CLI', 'opencode': 'OpenCode', 'cursor': 'Cursor'}
 # Thinking effort each CLI accepts (claude --effort; codex model_reasoning_effort). Codex models list their own.
 EFFORTS = {'claude': ('low', 'medium', 'high', 'xhigh', 'max'),
-           'codex': ('low', 'medium', 'high', 'xhigh', 'max', 'ultra')}
+           'codex': ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'),
+           'gemini': (), 'opencode': (), 'cursor': ()}  # no thinking-effort flag
 MODEL = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')  # the Codex value goes into a config setting: keep it plain
 
 

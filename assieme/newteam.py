@@ -99,7 +99,8 @@ def model_options(codex_cache=None):
     common = [e for e in launch.EFFORTS['codex'] if codex and all(e in m['efforts'] for m in codex)]
     return {'claude': {'models': [{'id': i, 'label': n, 'efforts': claude} for i, n in CLAUDE_MODELS],
                        'efforts': claude},
-            'codex': {'models': codex, 'efforts': common}}
+            'codex': {'models': codex, 'efforts': common},
+            **{k: {'models': [], 'efforts': []} for k in ('gemini', 'opencode', 'cursor')}}  # their own default only
 
 
 def project_check(path):
@@ -141,7 +142,7 @@ def validate(roles):
         if not NAME.match(names[i]) or names[i] in names[:i]:
             raise NewTeamError(field, BAD_NAME)
         if r.get('agent') not in preset.AGENTS:
-            raise NewTeamError(field, 'Choose Claude Code or Codex for this agent.')
+            raise NewTeamError(field, 'Choose which agent runs this.')
         if r.get('checkout', 'branch') not in preset.CHECKOUTS:
             raise NewTeamError(field, f"Unknown checkout {r.get('checkout')!r}.")
         if r.get('parent') and r['parent'] not in names:
@@ -384,7 +385,7 @@ _KIND_JOBS = {'planner': 'reads the project, splits the task and hands out piece
 def _models_text(agents, models):
     out = []
     for a in agents:
-        ms = models[a]['models']
+        ms = models.get(a, {'models': []})['models']
         if a == 'claude':
             out.append(f'- claude models, strongest and most expensive first: {", ".join(m["id"] for m in ms)}. '
                        f'Efforts: {", ".join(models[a]["efforts"])}')
@@ -402,7 +403,7 @@ def _prompt(size, review, budget, agents, models):
             f'The change is {_WORDS["size"].get(size, size)}. The person wants to review '
             f'{_WORDS["review"].get(review, review)}. Budget: {_WORDS["budget"].get(budget, budget)}.\n\n'
             f'Role kinds you can use:\n{kinds}\n\n'
-            f'Use 1 to {MAX_ROLES} agents. Each agent is "claude" or "codex"; only these are installed: '
+            f'Use 1 to {MAX_ROLES} agents. Each agent is one of these, the ones installed: '
             f'{", ".join(agents)}. Names use lower-case letters, digits and dashes, and differ.\n\n'
             'Also choose each agent\'s model and thinking effort. Think harder where mistakes cost most (a reviewer '
             'usually thinks harder than a builder); on a lean budget prefer cheaper models and lower effort. Leave '
@@ -437,7 +438,7 @@ def _team_from(text, installed, models):
             raise ValueError(f'unknown role kind {kind!r}.')
         if r.get('agent') not in installed:
             raise ValueError(f"it chose {r.get('agent')}, which is not installed.")
-        model, effort = _model_effort(r, models[r['agent']])
+        model, effort = _model_effort(r, models.get(r['agent'], {'models': [], 'efforts': []}))
         roles.append({'name': str(r.get('name', '')), 'agent': r['agent'], 'job': str(r.get('job', '')),
                       'checkout': KINDS[kind][1], 'parent': planner if kind != 'planner' else None,
                       'brief': kind_brief(kind), 'model': model, 'effort': effort})

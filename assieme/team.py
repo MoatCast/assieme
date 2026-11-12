@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from . import brief, launch, prompts, runtime, worktree
 
-TEAM, ROLE, BRIEFED = 'assieme.team', 'assieme.role', 'assieme.briefed'
+TEAM, ROLE, BRIEFED, KIND = 'assieme.team', 'assieme.role', 'assieme.briefed', 'assieme.kind'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
 BRIEF_WAIT_S = 60     # for a screen that is still settling when the first status arrives
 TAIL_LINES = 8
@@ -115,7 +115,7 @@ def _review_hint(role):
 
 
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
-    t = rt.start(launch.argv(role, block_push=tm.practices.get('safety') is not False), cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
+    t = rt.start(launch.argv(role, block_push=tm.practices.get('safety') is not False), cwd, {TEAM: tm.name, ROLE: role.name, KIND: role.agent}, name=terminal_name(tm.name, role.name), parent=parent)
     deadline = clock.monotonic() + FIRST_STATUS_S
     while True:
         info = rt.get(t)

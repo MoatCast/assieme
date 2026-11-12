@@ -5,7 +5,7 @@ import tomllib
 from . import launch
 from dataclasses import dataclass, field
 
-AGENTS = ('claude', 'codex')
+AGENTS = tuple(launch.CLIS)
 PRACTICES = os.path.join(os.path.dirname(__file__), 'practices.toml')
 CHECKOUTS = ('branch', 'read-only')
 

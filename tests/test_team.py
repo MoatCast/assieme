@@ -110,7 +110,8 @@ class StartTest(unittest.TestCase):
     def test_labels_and_cwd(self):
         rt = FakeRuntime()
         self.start(rt, demo(COORD))
-        self.assertEqual(rt.started[0]['labels'], {'assieme.team': 'demo', 'assieme.role': 'coordinator'})
+        self.assertEqual(rt.started[0]['labels'], {'assieme.team': 'demo', 'assieme.role': 'coordinator',
+                                                       'assieme.kind': 'claude'})
         self.assertEqual(rt.started[0]['cwd'], '/p/.assieme/worktrees/coordinator')
 
     def test_brief_sent_only_after_first_status(self):

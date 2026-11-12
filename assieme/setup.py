@@ -3,6 +3,7 @@
 Must not import `launch`: launch uses `agent_path` as its default lookup.
 """
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -13,7 +14,12 @@ from concurrent.futures import ThreadPoolExecutor
 from . import runtime
 
 # Exit code 1 is what both status commands give when signed out (measured); anything else unclear counts as signed in.
-STATUS = {'claude': ['auth', 'status'], 'codex': ['login', 'status']}
+STATUS = {'claude': ['auth', 'status'], 'codex': ['login', 'status'], 'gemini': None, 'opencode': ['auth', 'list'],
+          'cursor': ['status']}
+PROGRAM = {'cursor': 'cursor-agent'}  # the others' program is their kind
+# Exit 0 either way: their words say it. Read in memory and dropped (they can name the account).
+SIGNED_OUT = {'opencode': re.compile(r'\b0 credentials'), 'cursor': re.compile(r'not logged in', re.I)}
+GEMINI_SIGNIN = ('~/.gemini/oauth_creds.json', '~/.gemini/google_accounts.json')  # only whether they exist
 TIMEOUT_S = 5
 LOGIN_PATH_TTL_S = 60
 _login_cache = {}  # login_path function -> (read at, value)
@@ -61,14 +67,19 @@ def agent_path(name, which=shutil.which, login_path=_login_path, clock=time.mono
 
 
 def _signed_in(path, name, run):
+    if STATUS[name] is None:  # Gemini CLI has no status command
+        return any(os.path.exists(os.path.expanduser(f)) for f in GEMINI_SIGNIN)
     try:
+        if name in SIGNED_OUT:
+            r = run([path, *STATUS[name]], capture_output=True, text=True, timeout=TIMEOUT_S, env={**os.environ, 'NO_COLOR': '1'})
+            return not SIGNED_OUT[name].search((r.stdout or '') + (r.stderr or ''))
         return run([path, *STATUS[name]], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=TIMEOUT_S).returncode != 1
     except (OSError, subprocess.TimeoutExpired):
         return True
 
 
 def status(run=subprocess.run):
-    paths = {name: agent_path(name) for name in STATUS}
+    paths = {name: agent_path(PROGRAM.get(name, name)) for name in STATUS}
     with ThreadPoolExecutor(len(STATUS)) as pool:  # side by side, so two hanging commands still answer in one timeout
         signed = {n: pool.submit(_signed_in, p, n, run) if p else None for n, p in paths.items()}
     agents = {n: {'installed': bool(paths[n]), 'signed_in': bool(f and f.result())} for n, f in signed.items()}
@@ -286,6 +297,11 @@ AGENTS = {
                'signin': 'claude auth login', 'status': 'claude auth status'},
     'codex': {'name': 'Codex', 'install': 'curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh',
               'signin': 'codex login', 'status': 'codex login status'},
+    'gemini': {'name': 'Gemini CLI', 'install': 'npm install -g @google/gemini-cli', 'signin': 'gemini', 'status': ''},
+    'opencode': {'name': 'OpenCode', 'install': 'npm install -g --allow-scripts=opencode-ai opencode-ai',
+                 'signin': 'opencode auth login', 'status': 'opencode auth list'},
+    'cursor': {'name': 'Cursor', 'install': 'curl -fsS https://cursor.com/install | bash',
+               'signin': 'cursor-agent login', 'status': 'cursor-agent status'},
 }
 
 
@@ -309,13 +325,19 @@ def _known(agent):
 
 def install_agent(rt, agent):
     _known(agent)
-    return _start(rt, agent, 'install', AGENTS[agent]['install'])
+    command = AGENTS[agent]['install']
+    if command.startswith('npm '):  # nvm's npm and node aren't on a running core's PATH
+        npm = agent_path('npm')
+        if not npm:
+            raise SetupError(f"{AGENTS[agent]['name']} installs with npm, which comes with Node.js. Install Node.js first.")
+        command = f'PATH={shlex.quote(os.path.dirname(npm))}:"$PATH" {command}'
+    return _start(rt, agent, 'install', command)
 
 
 def signin_agent(rt, agent):
     """The shown string with its program resolved to an absolute path: a running core keeps its old PATH."""
     _known(agent)
-    path = agent_path(agent)
+    path = agent_path(PROGRAM.get(agent, agent))
     if not path:
         raise SetupError(f"{AGENTS[agent]['name']} isn't installed yet.")
     rest = AGENTS[agent]['signin'].split(' ', 1)[1:]

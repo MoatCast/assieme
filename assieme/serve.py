@@ -10,9 +10,9 @@ import threading
 import time
 import traceback
 
-from . import runtime, settings, setup, status, team, teammap
+from . import launch, runtime, settings, setup, status, team, teammap
 
-CLIS = {'claude': 'claude', 'codex': 'codex', 'hc': 'hc', 'herdr': 'herdr'}
+CLIS = {**launch.CLIS, 'hc': 'hc', 'herdr': 'herdr'}
 
 
 def brain_socket_path():
