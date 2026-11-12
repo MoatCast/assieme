@@ -136,6 +136,13 @@ pub fn run() {
         .manage(menubar::LastHidden::default())
         .setup(|app| Ok(menubar::setup(app.handle())?))
         .on_window_event(menubar::window_event)
+        // The main window starts hidden (tauri.conf.json) so it never shows a frame in the wrong theme. Once its page
+        // has loaded, its CSS already has the theme: show it here, so a failing script can never leave no window.
+        .on_page_load(|webview, payload| {
+            if webview.label() == "main" && payload.event() == tauri::webview::PageLoadEvent::Finished {
+                let _ = webview.window().show();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             brain_call,
             terminal_open,

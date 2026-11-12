@@ -74,7 +74,7 @@ const setSetting = vi.hoisted(() => vi.fn());
 const takeDraft = vi.hoisted(() => vi.fn());
 let opened: (r: { team: string; role: string | null; view: string | null }) => void = () => {};
 vi.mock("./bridge", () => ({
-  setSetting, reviewUndo: undo, takeDraft,
+  setSetting, reviewUndo: undo, takeDraft, windowTheme: () => Promise.resolve(),
   onOpen: (run: typeof opened) => { opened = run; return Promise.resolve(() => {}); },
 }));
 

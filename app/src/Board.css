@@ -1,7 +1,7 @@
 /* Paper "v2 — Board" and "v2 — Board: after merge". */
 .board { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px; box-sizing: border-box; }
 .board-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px 24px 20px; box-sizing: border-box;
-  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: 16px; box-shadow: 0 1px 3px #1b24330f; }
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: 16px; box-shadow: 0 1px 3px color-mix(in srgb, var(--quiet-shade) 6%, transparent); }
 .board-head { display: flex; align-items: baseline; gap: 14px; font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
 .board-head h1 { margin: 0; min-width: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .board-head > span { flex-shrink: 0; }
@@ -16,9 +16,9 @@
 .board-none { padding: 18px 14px; border: 1px dashed var(--quiet-line-strong); border-radius: 12px; font-size: 13px; line-height: 19px; color: var(--quiet-mute); }
 
 .task { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 14px; flex-shrink: 0; font-size: 12px; line-height: 16px; color: var(--quiet-slate);
-  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: 12px; box-shadow: 0 1px 2px #1b24330d; }
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: 12px; box-shadow: 0 1px 2px color-mix(in srgb, var(--quiet-shade) 5%, transparent); }
 .task.needs { background: var(--quiet-needs-you-tint); border: 1.5px solid var(--quiet-needs-you); }
-.task.merged { border-color: #a9cdb6; box-shadow: 0 0 0 3px #3e8e5e2e; }
+.task.merged { border-color: var(--quiet-working-line); box-shadow: 0 0 0 3px color-mix(in srgb, var(--quiet-working) 18%, transparent); }
 .task-title { font-size: 14px; font-weight: 500; line-height: 20px; color: var(--quiet-ink); overflow-wrap: anywhere; }
 .task.finished { gap: 8px; }
 .task.finished .task-title { font-weight: 400; color: var(--quiet-slate); }
@@ -31,7 +31,7 @@
 .task-waits, .task-checks div { display: flex; align-items: center; gap: 6px; }
 .task-waits i, .task-checks i { width: 7px; height: 7px; border-radius: 4px; flex-shrink: 0; background: var(--quiet-waste); }
 .task-waits i, .task-checks i.bad { background: var(--quiet-needs-you); }
-.task-waits i { box-shadow: 0 0 0 3px #c8432b26; }
+.task-waits i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--quiet-needs-you) 15%, transparent); }
 .task-checks { display: flex; flex-direction: column; gap: 4px; }
 .task-checks svg { flex-shrink: 0; }
 .task .btn-primary, .task .btn-secondary, .task .btn-quiet { padding: 5px 10px; font-size: 12px; line-height: 16px; }
@@ -48,7 +48,7 @@
 .task.needs .task-more:hover, .task.needs .task-more.on { background: var(--quiet-surface); }
 .task-menu-away { position: fixed; inset: 0; z-index: 3; }
 .task-menu { position: absolute; top: 40px; right: 10px; z-index: 4; width: 180px; box-sizing: border-box; display: flex; flex-direction: column; gap: 1px; padding: 6px;
-  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: 12px; box-shadow: 0 8px 24px #1b243326; }
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: 12px; box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-shade) 15%, transparent); }
 .task-menu-label { padding: 6px 10px 4px; color: var(--quiet-mute); }
 .task-menu button { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border: 0; border-radius: 8px; background: none;
   font: inherit; font-size: 13px; line-height: 18px; text-align: left; color: var(--quiet-ink); cursor: pointer; }

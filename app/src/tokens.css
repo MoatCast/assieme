@@ -1,31 +1,56 @@
-/* The Paper "C · Quiet v2" look (file "Assieme"). Light only for now; dark mode is step 29. */
+/* The Paper "C · Quiet v2" look (file "Assieme"), light and dark ("C · Quiet dark").
+   A colour that changes is written once as `var(--light, L) var(--dark, D)`. The mode below sets one of --light and
+   --dark to `initial` (so its fallback, the colour, is used) and the other to a space (so it adds nothing). This
+   works on any WebKit, unlike the newer light-dark function. Appearance.tsx sets data-theme; with none, the Mac's setting decides.
+   Terminals look the same in both. */
 :root {
-  --quiet-bg: #ebeff5;
-  --quiet-surface: #ffffff;
-  --quiet-fog: #ebeff5;
-  --quiet-line: #d5dbe4;
-  --quiet-line-strong: #bec6d2; /* secondary buttons, map nodes, switches when off */
-  --quiet-control: #808a99; /* form fields only */
-  --quiet-edge: #808a99;
-  --quiet-ink: #17253f;
-  --quiet-on-ink: #ffffff;
-  --quiet-slate: #4f5b6d;
-  --quiet-mute: #5f6b7e;
-  --quiet-accent: #2747d9; /* selected tab and brand mark only */
-  --quiet-working: #3e8e5e; /* dots */
-  --quiet-working-text: #2a7348;
-  --quiet-waste: #a36e0e;
-  --quiet-waste-text: #7a5410;
-  --quiet-needs-you: #c8432b; /* dots and borders */
-  --quiet-needs-you-text: #9c3a25;
-  --quiet-needs-you-tint: #fae9e4;
-  --quiet-needs-you-line: #ebc8be;
-  --quiet-tip-tint: #f9f0da;
-  --quiet-tip-line: #e3c887;
-  --quiet-tip-text: #5e4a1e;
+  --quiet-bg: var(--light, #ebeff5) var(--dark, #131519);
+  --quiet-surface: var(--light, #ffffff) var(--dark, #1c2027);
+  --quiet-fog: var(--light, #ebeff5) var(--dark, #131519);
+  --quiet-raised: var(--light, #ffffff) var(--dark, #2b313a); /* the selected segment of tabs and two-way switches */
+  --quiet-line: var(--light, #d5dbe4) var(--dark, #2a2f37);
+  --quiet-line-soft: var(--light, #e3e6ea) var(--dark, #343a44);
+  --quiet-line-strong: var(--light, #bec6d2) var(--dark, #3a404a); /* secondary buttons, map nodes, switches when off */
+  --quiet-control: var(--light, #808a99) var(--dark, #6b7480); /* form fields only */
+  --quiet-edge: var(--light, #808a99) var(--dark, #7d8692);
+  --quiet-edge-waste: #d9a441;
+  --quiet-idle: var(--light, #c2c8d0) var(--dark, #7d8692); /* the dot of an agent that is done */
+  --quiet-track: var(--light, #eceef1) var(--dark, #2a2f37);
+  --quiet-ink: var(--light, #17253f) var(--dark, #e8ebef);
+  --quiet-on-ink: var(--light, #ffffff) var(--dark, #14171c);
+  --quiet-on-ink-accent: var(--light, #c9d3ff) var(--dark, #2747d9); /* a button on an ink notice */
+  --quiet-on-ink-ok: var(--light, #7fd19d) var(--dark, #2a7348); /* the tick on an ink notice */
+  --quiet-slate: var(--light, #4f5b6d) var(--dark, #a3abb6);
+  --quiet-mute: var(--light, #5f6b7e) var(--dark, #8b939e);
+  --quiet-accent: var(--light, #2747d9) var(--dark, #8ea2ff); /* selected tab and brand mark only */
+  --quiet-working: var(--light, #3e8e5e) var(--dark, #5db27e); /* dots */
+  --quiet-working-text: var(--light, #2a7348) var(--dark, #7cc79a);
+  --quiet-working-line: var(--light, #a9cdb6) var(--dark, #2f5a40);
+  --quiet-waste: var(--light, #a36e0e) var(--dark, #d9a441);
+  --quiet-waste-text: var(--light, #7a5410) var(--dark, #e0b45e);
+  --quiet-needs-you: var(--light, #c8432b) var(--dark, #e0634b); /* dots and borders */
+  --quiet-needs-you-text: var(--light, #9c3a25) var(--dark, #f08c76);
+  --quiet-needs-you-tint: var(--light, #fae9e4) var(--dark, #3a221d);
+  --quiet-needs-you-line: var(--light, #ebc8be) var(--dark, #6b3529);
+  --quiet-tip-tint: var(--light, #f9f0da) var(--dark, #2a2518);
+  --quiet-tip-line: var(--light, #e3c887) var(--dark, #5a4a26);
+  --quiet-tip-text: var(--light, #5e4a1e) var(--dark, #e3cfa0);
+  --quiet-diff-add-bg: var(--light, #eef7f1) var(--dark, #1a2b21);
+  --quiet-diff-add-text: var(--light, #225a39) var(--dark, #8fd3a8);
+  --quiet-diff-add-number: var(--light, #7faf90) var(--dark, #4f7d60);
+  --quiet-diff-del-bg: var(--light, #fbefec) var(--dark, #33201c);
+  --quiet-diff-del-text: var(--light, #842e1b) var(--dark, #f2a593);
+  --quiet-diff-del-number: var(--light, #c99486) var(--dark, #a86c5e);
+  --quiet-glass: var(--light, #fffffff5) var(--dark, #1f232af5); /* the menu bar panel */
+  --quiet-glass-fill: var(--light, #f4f5f7) var(--dark, #2a2f37);
+  --quiet-glass-control: var(--light, #d5dae0) var(--dark, #4a515c);
+  --quiet-glass-ink: var(--light, #1b2433) var(--dark, #e8ebef);
+  --quiet-knob: #ffffff;
+  --quiet-shade: var(--light, #1b2433) var(--dark, #000000); /* shadows mix this with transparent */
+  --quiet-scrim: var(--light, #17253f33) var(--dark, #00000080);
   --quiet-term: #141b28;
   --quiet-term-text: #dce2eb;
-  --quiet-sheet-shadow: 0 1px 3px #1b24330f;
+  --quiet-sheet-shadow: 0 1px 3px color-mix(in srgb, var(--quiet-shade) 6%, transparent);
   --quiet-radius-control: 999px;
   --quiet-radius-card: 18px;
   --quiet-radius-sheet: 16px;
@@ -33,6 +58,13 @@
   --quiet-radius-inner: 12px;
   --quiet-font-ui: system-ui, -apple-system, sans-serif;
   --quiet-font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+/* The mode, in one place: light by default, dark when chosen or when the Mac is dark and nothing else was chosen. */
+:root { --light: initial; --dark: ; color-scheme: light; }
+:root[data-theme="dark"] { --light: ; --dark: initial; color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --light: ; --dark: initial; color-scheme: dark; }
 }
 
 html,

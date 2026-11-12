@@ -2,6 +2,7 @@
 // and the native bridge behind it.
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -179,6 +180,8 @@ export const onMenuState = (run: (m: MenuState | null) => void) => listen<MenuSt
 export type OpenRequest = { team: string; role: string | null; view: "terminals" | "review" | null };
 /** Bring the main window forward, on this agent if one is given. Closes the menu bar panel. */
 export const windowOpen = (a: Partial<OpenRequest> = {}) => invoke<void>("window_open", a);
+/** Light or dark window chrome; "system" follows the Mac. */
+export const windowTheme = async (t: "light" | "dark" | "system") => getCurrentWindow().setTheme(t === "system" ? null : t);
 /** The menu bar or a notification asks the main window to show an agent. */
 export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
 

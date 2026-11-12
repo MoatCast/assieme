@@ -7,7 +7,7 @@
   background: var(--quiet-fog); border-radius: 999px; }
 .shell-bar .tabs button { font: inherit; font-size: 13px; line-height: 16px; border: 0; background: none; cursor: pointer;
   color: var(--quiet-slate); padding: 5px 14px; border-radius: 999px; }
-.shell-bar .tabs button.on { background: var(--quiet-surface); color: var(--quiet-accent); font-weight: 600; box-shadow: 0 1px 2px #1b24331a; }
+.shell-bar .tabs button.on { background: var(--quiet-raised); color: var(--quiet-accent); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--quiet-shade) 10%, transparent); }
 .window-strip { height: 40px; flex-shrink: 0; } /* First run has no bar: the window buttons and dragging need a place */
 .shell-page { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 .shell-page[hidden], .shell-bar[hidden] { display: none; }
@@ -20,3 +20,12 @@
   color: var(--quiet-ink); background: none; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control);
   padding: 6px 12px; cursor: pointer; }
 .shell-bar .gear { display: flex; background: none; border: 0; padding: 0; cursor: pointer; }
+/* The appearance switch, Paper "v2 — Appearance menu open": a small menu under its icon, a tick on the current choice. */
+.shell-bar .appearance { position: relative; display: flex; }
+.appearance-menu { position: absolute; top: 32px; right: -18px; z-index: 8; width: 200px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px;
+  padding: 5px; background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-inner);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-shade) 15%, transparent); }
+.appearance-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; border-radius: 8px; background: none;
+  font: inherit; font-size: 13px; line-height: 16px; color: var(--quiet-ink); text-align: left; cursor: pointer; }
+.appearance-menu button[aria-pressed="true"] { font-weight: 500; }
+.appearance-menu button:hover, .appearance-menu button:focus-visible { background: var(--quiet-fog); }

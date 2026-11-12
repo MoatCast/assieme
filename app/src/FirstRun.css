@@ -216,7 +216,7 @@
   background: var(--quiet-surface);
   border: 1px solid var(--quiet-line);
   border-radius: var(--quiet-radius-card);
-  box-shadow: 0 8px 24px rgba(27, 36, 51, 0.08);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-shade) 8%, transparent);
   font-size: 14px;
   line-height: 20px;
   z-index: 10;
