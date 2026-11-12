@@ -58,7 +58,21 @@ export type RoleDraft = {
   /** null: the agent's own default, as in the person's terminal. */
   model?: string | null;
   effort?: string | null;
+  /** planner, builder, reviewer or tester; null for a custom role. */
+  kind?: string | null;
+  /** Paths in the project only this agent edits. */
+  owns?: string[];
+  /** null: starts as agents did before levels existed (a team saved earlier). */
+  level?: Level | null;
+  rules?: Rule[];
 };
+
+export type Level = "safe" | "read-only" | "trusted";
+/** A rule on the program run: its first words, matched as a prefix. `words` is how the person wrote it. */
+export type Rule = { decision: "block" | "allow"; program: string[]; words: string };
+export type KindInfo = { brief: string; job: string; checkout: "branch" | "read-only" };
+export type PermissionLevel = { id: Level; title: string; about: string; summary: string; allowed: string[]; blocked: string[] };
+export type PermissionTable = { levels: PermissionLevel[]; items: Record<string, { words: string; note: string }> };
 
 export type ModelChoice = { id: string; label: string; efforts: string[] };
 /** Per CLI: the models offered and the efforts offered when the model is left at Default. */
@@ -97,13 +111,21 @@ export const takeDraft = (id: string) => brain<TeamDraft | null>("draft.take", {
 export type ProjectCheck = { ok: boolean; reason?: string; setup?: boolean; tools?: boolean; too_large?: boolean; uncommitted?: number };
 export const checkProject = (path: string) => brain<ProjectCheck>("project.check", { path });
 export const teamPresets = () =>
-  brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions; practice_defaults?: Record<string, boolean> }>("team.presets");
+  brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions; practice_defaults?: Record<string, boolean>;
+    kinds?: Record<string, KindInfo>; permissions?: PermissionTable }>("team.presets");
 /** Start creates a git worktree per agent before it answers, which can take a while on a large repository. */
 export const startTeam = (form: TeamForm) =>
   invoke<{ team: string }>("brain_call", { method: "team.start", params: form, timeoutS: 120 });
 /** Help me choose runs the person's own agent, so it may take minutes. */
 export const suggestTeam = (a: { project: string; size: string; review: string; budget: string }) =>
   invoke<Suggestion>("brain_call", { method: "team.suggest", params: a, timeoutS: 180 });
+
+/** Improve this brief: the person's own agent rewrites it, read-only in the project. Nothing is saved. */
+export const improveBrief = (project: string, role: RoleDraft) =>
+  invoke<{ brief: string }>("brain_call", { method: "team.improve_brief", params: { project, role }, timeoutS: 180 });
+/** Add a rule: plain words to a rule on the program run, shown before it is added. Nothing is saved. */
+export const ruleDraft = (project: string, words: string) =>
+  invoke<Rule>("brain_call", { method: "team.rule_draft", params: { project, words }, timeoutS: 130 });
 
 /** herdr teams on this Mac that can be imported, and one of them (or `script:<path>`) as a New team draft. */
 /** unreadable: herdr is running but couldn't be read, in words; null when it was read or isn't running. */

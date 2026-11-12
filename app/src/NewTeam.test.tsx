@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Preset, RoleDraft } from "./bridge";
+import { KINDS, TABLE } from "./editorFixtures";
 
 const b = vi.hoisted(() => ({
   teamPresets: vi.fn(),
@@ -37,6 +38,10 @@ export const PRACTICES = {
   basics: [1, 2, 3, 4, 5].map((i) => ({ title: `Basic ${i}`, detail: "d" })),
 };
 
+/** What New team sends: every agent with a role (from its name) and a permission level. */
+const sent = (rs: RoleDraft[]) => rs.map((x) => ({ ...x, kind: /^(planner|builder|reviewer|tester)/.exec(x.name)?.[1] ?? null,
+  level: x.checkout === "read-only" ? "read-only" : "safe" }));
+
 const LEVELS = ["low", "medium", "high", "xhigh", "max"];
 const MODELS = {
   claude: { models: [{ id: "fable", label: "Fable", efforts: LEVELS }, { id: "opus", label: "Opus", efforts: LEVELS }], efforts: LEVELS },
@@ -51,7 +56,7 @@ const both = { claude: true, codex: true };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS });
+  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS, kinds: KINDS, permissions: TABLE });
   b.checkProject.mockResolvedValue({ ok: true });
   b.pickFolder.mockResolvedValue("/Users/me/shop");
 });
@@ -121,7 +126,7 @@ test("Start with recommended starts the team without step 2", async () => {
   fireEvent.click(go);
   await flush();
   expect(b.startTeam).toHaveBeenCalledWith({
-    project: "/Users/me/shop", task: "Fix login", roles: PRESETS[0].roles,
+    project: "/Users/me/shop", task: "Fix login", roles: sent(PRESETS[0].roles),
     practices: { messages: true, safety: true, reviews: true, stopping: true, machine: true },
   });
   expect(onStarted).toHaveBeenCalled();
@@ -198,10 +203,10 @@ test("add, rename, remove and edit a brief", async () => {
   expect(names()).toEqual(["builder"]);
   fireEvent.click(screen.getByText("Brief"));
   fireEvent.change(screen.getByLabelText("Brief for builder"), { target: { value: "New brief." } });
-  fireEvent.click(screen.getByText("Done"));
+  fireEvent.click(screen.getByText("Save brief"));
   fireEvent.click(screen.getByText("Brief"));
   expect((screen.getByLabelText("Brief for builder") as HTMLTextAreaElement).value).toBe("New brief.");
-  fireEvent.click(screen.getByText("Done"));
+  fireEvent.click(screen.getByText("Cancel", { selector: ".editor .btn-quiet" }));
   fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "Bad Name" } });
   fireEvent.click(screen.getByText("Customise"));
   expect(screen.getByText("Names use lower-case letters, digits and dashes, and must differ.")).toBeTruthy();
@@ -480,7 +485,7 @@ test("groups are on and switch off", async () => {
   fireEvent.click(screen.getByText("Start 2 agents"));
   await flush();
   expect(b.startTeam).toHaveBeenCalledWith({
-    project: "/Users/me/shop", task: "Fix login", roles: PRESETS[1].roles,
+    project: "/Users/me/shop", task: "Fix login", roles: sent(PRESETS[1].roles),
     practices: { messages: true, safety: true, reviews: false, stopping: true, machine: true },
   });
 });

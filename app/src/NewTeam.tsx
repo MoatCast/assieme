@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import BriefEditor, { guessKind } from "./BriefEditor";
+import { defaultLevel } from "./PermissionsEditor";
 import FolderSheet from "./FolderSheet";
 import HelpMeChoose from "./HelpMeChoose";
 import HerdrImport from "./HerdrImport";
@@ -43,6 +45,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [briefOf, setBriefOf] = useState<number | null>(null);
   const [modelOf, setModelOf] = useState<number | null>(null);
   const [models, setModels] = useState<ModelOptions | null>(null);
+  const [kinds, setKinds] = useState<Record<string, KindInfo>>({});
+  const [perms, setPerms] = useState<PermissionTable | null>(null);
   const [roleErrors, setRoleErrors] = useState<Record<number, string>>({});
   const [helping, setHelping] = useState(false);
   const [why, setWhy] = useState("");
@@ -55,8 +59,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [pending, setPending] = useState(false);
   const starting = useRef(false); // a second click before React re-renders must not start a second team
 
+  // Every agent gets a role and a permission level here, shown in its Brief before Start.
   const fit = (rs: RoleDraft[]) =>
-    rs.map((r) => (clis?.[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }));
+    rs.map((r) => ({ ...(clis?.[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }),
+      kind: r.kind !== undefined ? r.kind : guessKind(r.name), level: r.level ?? defaultLevel(r) }));
 
   useEffect(() => {
     let stopped = false;
@@ -68,6 +74,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       setPresets(all);
       setPractices(p.practices);
       setModels(p.models);
+      setKinds(p.kinds ?? {});
+      setPerms(p.permissions ?? null);
       setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, (draft?.practices ?? p.practice_defaults)?.[g.id] !== false])));
       if (draft) apply(draft);
       else if (all.length) {
@@ -388,12 +396,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                     {modelOf === i && models && (
                       <ModelMenu role={r} options={models} onChange={(c) => edit(i, c)} />
                     )}
-                    {briefOf === i && (
-                      <div className="brief">
-                        <textarea aria-label={`Brief for ${r.name}`} value={r.brief} rows={8}
-                          onChange={(e) => edit(i, { brief: e.target.value })} />
-                        <button type="button" className="link" onClick={() => setBriefOf(null)}>Done</button>
-                      </div>
+                    {briefOf === i && perms && (
+                      <BriefEditor role={r} roles={roles} project={project} installed={installed} kinds={kinds} table={perms}
+                        asker={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
+                        onCancel={() => setBriefOf(null)} onSave={(c) => { edit(i, c); setBriefOf(null); }} />
                     )}
                   </div>
                 ))}
