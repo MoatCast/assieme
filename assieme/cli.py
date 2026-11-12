@@ -13,13 +13,15 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
+from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ['shim']:  # the hc stand-in: hc's own flags must reach it untouched
         return quiet.shim_main(argv[1:])
+    if argv[:1] == ['call'] and len(argv) == 2:  # the Mac's brain asking this machine's, over hc's line
+        return remote.call_main(argv[1])
     p = argparse.ArgumentParser(prog='assieme', description='Run with no command for the live view: team health, '
                                 'what needs you, and one-key fixes. Commands give snapshots and reports.')
     sub = p.add_subparsers(dest='cmd')  # no command: the live view
@@ -160,8 +162,10 @@ def _serve():
     tools = mcptools.Tools(brain, starter, scheduler=sched)
     board = tasks.Board(brain, reviews, tools._me)
 
-    def start_team(project, task, roles, practices):
-        got = starter.start(project, task, roles, practices)
+    remotes = remote.Remotes(rt)
+
+    def start_team(project, task, roles, practices, name=None):
+        got = starter.start(project, task, roles, practices, name=name)  # a name: chosen by the Mac's brain
         tasks.fresh(got['team'], task)  # a new team, a new board; restarting a saved team keeps its cards
         return got
 
@@ -170,13 +174,14 @@ def _serve():
                      lambda: brain.tick(announce=None if menu.app_watching() else live.notify),
                      lambda: machine.tick(status.now_utc()),
                      sched.tick,
-                     previews.sweep):
+                     previews.sweep,
+                     lambda: remotes.tick(watching=menu.app_watching())):
             try:
                 step()
             except Exception:  # one failing step must not stop notifications, delivery or the others
                 traceback.print_exc()
     serve.serve(serve.brain_socket_path(),
-                {'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
+                remotes.wrap({'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
                                                           starting=starter.records()) | {'draft': tools.draft_next(),
                                                                                        'scheduled_teams': sched.run_teams()},
                  'project.check': newteam.project_check,
@@ -191,7 +196,8 @@ def _serve():
                  **connect.handlers(),
                  **menu.handlers(),
                  **setup.handlers(rt),
-                 **previews.handlers()},
+                 **previews.handlers(),
+                 **remote.remote_handlers()}),
                 tick=tick)
     return 0
 
