@@ -21,7 +21,7 @@ const TABS = [["team", "Team"], ["board", "Board"], ["terminals", "Terminals"], 
 export function liveTeams(snap: Snapshot | null): { names: string[]; neediest: string | null } {
   const rows = (snap?.teams ?? []).filter((t) => t.state === "live");
   const started = [...new Set(rows.map((t) => t.team))];
-  const names = [...started, ...(snap?.found_teams ?? []).filter((n) => !started.includes(n))];
+  const names = [...new Set([...started, ...(snap?.found_teams ?? []), ...(snap?.scheduled_teams ?? [])])];
   let neediest: string | null = started.length ? started[started.length - 1] : names[0] ?? null;
   let most = 0;
   for (const n of started) {
@@ -223,7 +223,14 @@ export default function Shell() {
       )}
       {settings && (
         <Settings team={team} section={settingsAt} onClose={() => setSettings(false)}
-          onShowFirstRun={() => { setSettings(false); setTab("first-run"); }} />
+          onShowFirstRun={() => { setSettings(false); setTab("first-run"); }}
+          onOpenTeam={(t, role) => {
+            setSettings(false);
+            setPicked(t);
+            if (role) return setReview({ team: t, role });
+            setFocus(null);
+            setTab("terminals");
+          }} />
       )}
     </div>
   );

@@ -38,6 +38,8 @@ export type Snapshot = {
   teams: TeamRow[];
   starting: Starting[];
   found_teams?: string[];
+  /** Teams of scheduled runs: kept in the team picker after their agents stop. */
+  scheduled_teams?: string[];
   first_run_done?: boolean;
   /** An assistant's draft waiting to open in New team. */
   draft?: string | null;
@@ -374,3 +376,25 @@ export type FolderPreview = { files: number; sample: string[]; left_out: string[
 export const folderPreview = (path: string) => slow<FolderPreview>("setup.folder_preview", { project: path }, 120);
 export const folderSave = (path: string) => slow<{ ok: boolean }>("setup.folder_save", { project: path }, 120);
 export const folderCreate = (path: string) => slow<{ path: string }>("setup.folder_create", { path }, 120);
+
+/** Scheduled runs (Paper "v2 — Settings: scheduled runs"). `every` is a day or week time, or every n hours. */
+export type Every = { kind: "day"; at: string } | { kind: "week"; day: number; at: string } | { kind: "hours" | "minutes"; n: number };
+export type Schedule = {
+  id: string; name: string; team: string; project: string; project_name: string; preset: string; preset_label: string; who: string;
+  task: string; every: Every; when: string; paused: boolean; state: "running" | "paused" | "waiting";
+  result: "running" | "started" | "finished" | "ended" | "stopped" | "failed" | null; line: string; note: string | null;
+  next: string; review_role: string | null;
+};
+export type ScheduleTeam = { id: string; label: string; who: string };
+export type ScheduleForm = { id?: string; name: string; project: string; preset: string; task: string; every: Every };
+/** `teams` also lists the team choices, which reads every preset: ask for it when a sheet opens, not on every poll. */
+export const scheduleList = (teams = false) => brain<{ schedules: Schedule[]; teams?: ScheduleTeam[] }>("schedule.list", { teams });
+/** Saving checks the folder and the team, so it can take a moment on a large project. */
+export const scheduleSave = (form: ScheduleForm) =>
+  invoke<Schedule[]>("brain_call", { method: "schedule.save", params: form, timeoutS: 60 });
+export const schedulePause = (id: string, paused: boolean) => brain<Schedule[]>("schedule.pause", { id, paused });
+export const scheduleRemove = (id: string) => brain<Schedule[]>("schedule.remove", { id });
+export const scheduleStop = (id: string) => brain<Schedule[]>("schedule.stop", { id });
+/** Try again now starts the team, which creates its worktrees first. */
+export const scheduleRunNow = (id: string) =>
+  invoke<Schedule[]>("brain_call", { method: "schedule.run_now", params: { id }, timeoutS: 120 });

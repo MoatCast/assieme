@@ -5,7 +5,7 @@ import os
 import subprocess
 import uuid
 
-from . import brief, budget, live, newteam, panes, preset, quiet, reports, settings, status, team as team_, teammap
+from . import brief, budget, live, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -22,8 +22,8 @@ def _pane(p):
 
 
 class Tools:
-    def __init__(self, brain, starter, teams=None, opener=None, notify=live.notify):
-        self.brain, self.starter, self.notify = brain, starter, notify
+    def __init__(self, brain, starter, teams=None, opener=None, notify=live.notify, scheduler=None):
+        self.brain, self.starter, self.notify, self.scheduler = brain, starter, notify, scheduler
         self.teams = teams or newteam.teams_dir()
         self.opener = opener or (lambda: subprocess.run(['open', '-b', 'dev.assieme.app'], capture_output=True, timeout=10).returncode == 0)
 
@@ -77,6 +77,8 @@ class Tools:
         reports.save(name, me, state, note, turn=reports.running_turn(info))
         if state == 'need_decision' and settings.load()['notify']['needs_you']:
             self.notify(f'{me} needs a decision', note[:200])
+        if state == 'done' and self.scheduler and self.scheduler.done(name, me):
+            return {'ok': True, 'detail': schedule.ENDS_NOW}
         return {'ok': True, 'detail': 'Reported. End your turn now if you cannot go on.' if state in reports.SHOWN else 'Reported.'}
 
     def team_brief(self, address):

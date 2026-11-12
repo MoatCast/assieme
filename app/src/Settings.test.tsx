@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 const b = vi.hoisted(() => ({
   getSettings: vi.fn(), setSetting: vi.fn(), quietPairs: vi.fn(), quietSet: vi.fn(), listTeams: vi.fn(), stopTeam: vi.fn(),
   serviceInstall: vi.fn(), serviceRunning: vi.fn(), teamPresets: vi.fn(), setGroups: vi.fn(),
-  assistantsStatus: vi.fn(), assistantsConnect: vi.fn(), assistantsDisconnect: vi.fn(),
+  assistantsStatus: vi.fn(), assistantsConnect: vi.fn(), assistantsDisconnect: vi.fn(), scheduleList: vi.fn(),
 }));
 vi.mock("./bridge", () => b);
 
@@ -316,4 +316,16 @@ test("A failed update says why and can be tried again", async () => {
   await flush();
   screen.getByText("launchctl failed");
   screen.getByRole("button", { name: "Update it" });
+});
+
+test("Scheduled runs opens a run's team from Settings", async () => {
+  b.scheduleList.mockResolvedValue({ schedules: [{ id: "s1", name: "Nightly", team: "nightly", project: "/p", project_name: "p", preset: "one-agent",
+    preset_label: "One agent", who: "Claude Code, its default model", task: "t", every: { kind: "day", at: "02:00" }, when: "Every day at 02:00",
+    paused: false, state: "running", result: "running", line: "Running now.", note: null, next: "", review_role: null }], teams: [] });
+  const onOpenTeam = vi.fn();
+  render(<Settings team="shop" section="schedules" onClose={vi.fn()} onShowFirstRun={vi.fn()} onOpenTeam={onOpenTeam} />);
+  await flush();
+  expect(screen.getByRole("heading", { name: "Scheduled runs" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Open" }));
+  expect(onOpenTeam).toHaveBeenCalledWith("nightly", null);
 });

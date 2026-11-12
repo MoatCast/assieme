@@ -220,8 +220,10 @@ class Starter:
     """Starts teams for the app: checks and saves at once, then runs 7a's `team.start` in a thread, keeping a
     progress record per team for the snapshot. Records live in memory; the teams themselves outlive the brain."""
 
-    def __init__(self, rt, teams, thread=threading.Thread, now=time.time, which=setup.agent_path):
+    def __init__(self, rt, teams, thread=threading.Thread, now=time.time, which=setup.agent_path, scheduled=set):
+        """`scheduled()` names the teams of scheduled runs, which may share a project with another team."""
         self.rt, self.teams, self.thread, self.now, self.which = rt, teams, thread, now, which
+        self.scheduled = scheduled
         self.lock, self.recs, self.busy = threading.Lock(), [], {}  # busy: project → name, while checks run
 
     def _live_names(self):
@@ -237,7 +239,8 @@ class Starter:
         except (OSError, tomllib.TOMLDecodeError):
             return None  # started from the command line, or the folder is gone
 
-    def start(self, project, task, roles, practices):
+    def start(self, project, task, roles, practices, name=None):
+        """`name` is a scheduled run's own team name; New team leaves it to the project's folder name."""
         validate(roles)
         project = os.path.expanduser(project)
         check = project_check(project)
@@ -248,11 +251,19 @@ class Starter:
         with self.lock:  # held only for bookkeeping: git work below must not block records()
             if project in self.busy or any(r['project'] == project and not r['done'] for r in self.recs):
                 raise NewTeamError('start', 'This team is still starting.')
-            running = sorted(n for n in live if self._project_of(n) == project)
-            if running:  # a second team here would share the first team's worktrees
+            sched, mine = self.scheduled(), {r['name'] for r in roles}
+
+            def blocks(other):
+                if mine & set(roster(other, self.teams)):  # worktrees are per role name: these would share one
+                    return True
+                return other not in sched and name not in sched  # New team beside New team: one per project
+            running = sorted(n for n in live if self._project_of(n) == project and blocks(n))
+            if running:
                 raise NewTeamError('project', f'This project already has a running team: {running[0]}. Stop it first.')
             taken = live | set(self.busy.values()) | {r['team'] for r in self.recs if not r['done']}
-            name = self.busy[project] = team_name(project, taken)
+            if name in taken:
+                raise NewTeamError('start', f'{name} is still running.')
+            name = self.busy[project] = name or team_name(project, taken)
         try:
             folder = save(project, roles, practices, name, self.teams)
             try:

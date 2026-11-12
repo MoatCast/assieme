@@ -4,11 +4,12 @@ import {
   type Assistants, type Practices, type QuietPair, type Settings as Values, type TeamListing,
 } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
+import Schedules from "./Schedules";
 import "./Settings.css";
 
 const SECTIONS = [
   ["general", "General"], ["fixes", "Fixes"], ["practices", "Team practices"],
-  ["notifications", "Notifications"], ["teams", "Teams"], ["privacy", "Privacy"],
+  ["notifications", "Notifications"], ["teams", "Teams"], ["schedules", "Scheduled runs"], ["privacy", "Privacy"],
 ] as const;
 type Section = (typeof SECTIONS)[number][0];
 
@@ -335,7 +336,11 @@ function Privacy({ values, set }: { values: Values; set: (k: string, v: unknown)
 }
 
 /** Settings: a sheet over the whole window, from the gear. */
-export default function Settings({ team, section: first, onClose, onShowFirstRun }: { team: string | null; section?: string; onClose: () => void; onShowFirstRun: () => void }) {
+export default function Settings({ team, section: first, onClose, onShowFirstRun, onOpenTeam = () => {} }: {
+  team: string | null; section?: string; onClose: () => void; onShowFirstRun: () => void;
+  /** A scheduled run's Open (its terminals) or Review (role's branch). */
+  onOpenTeam?: (team: string, role: string | null) => void;
+}) {
   const [section, setSection] = useState<Section>(SECTIONS.find(([id]) => id === first)?.[0] ?? "general");
   const [values, setValues] = useState<Values | null>(null);
   const [grouping, setGrouping] = useState(false);
@@ -371,6 +376,7 @@ export default function Settings({ team, section: first, onClose, onShowFirstRun
           {section === "practices" && values && <PracticesPane values={values} set={set} />}
           {section === "notifications" && values && <Notifications values={values} set={set} />}
           {section === "teams" && <Teams onChangeGroups={() => setGrouping(true)} />}
+          {section === "schedules" && <Schedules onOpen={onOpenTeam} />}
           {section === "privacy" && values && <Privacy values={values} set={set} />}
         </div>
       </div>
