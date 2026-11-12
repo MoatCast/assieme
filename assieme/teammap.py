@@ -503,7 +503,10 @@ class Brain:
         return run_automatic(views, st, self.rt, now=now) if auto else []
 
     def handlers(self):
-        return {'team.view': lambda team: self.view(team),
+        from . import improve  # it reads teams through this module
+        return {'team.improve': lambda team: improve.check(self, team),
+                'team.improve_apply': lambda team, ids: improve.apply(self, team, ids),
+                'team.view': lambda team: self.view(team),
                 'team.map': lambda team: self.map(team),
                 'pane.act': self.act,
                 'agent.detail': lambda team, role: self.detail(team, role),

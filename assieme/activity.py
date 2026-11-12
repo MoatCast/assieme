@@ -72,10 +72,16 @@ def _undo_add(e, rt):
         pass  # no saved folder to tidy: the agent itself has stopped
 
 
+def _undo_improve(e, rt):
+    from . import improve  # it reads the team through teammap, which imports this module
+    improve.undo(e, rt)
+
+
 # action -> (fn(entry, rt), button label, seconds it stays available or None for as long as it applies)
 UNDO = {'quiet': (_undo_quiet, 'Stop', None),
         'fix_mode': (_undo_fix, 'Undo', UNDO_S),
         'practice': (_undo_practice, 'Undo', UNDO_S),
+        'improve': (_undo_improve, 'Undo', UNDO_S),
         'add_agent': (_undo_add, 'Stop', UNDO_S)}
 
 
