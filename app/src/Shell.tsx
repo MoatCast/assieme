@@ -223,6 +223,7 @@ export default function Shell() {
       )}
       {settings && (
         <Settings team={team} section={settingsAt} onClose={() => setSettings(false)}
+          onDraft={(d) => { setSettings(false); setDraft(d); setCreating(true); }}
           onShowFirstRun={() => { setSettings(false); setTab("first-run"); }}
           onOpenTeam={(t, role) => {
             setSettings(false);

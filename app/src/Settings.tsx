@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   assistantsConnect, assistantsDisconnect, assistantsStatus, getSettings, listTeams, quietPairs, quietSet, serviceInstall, serviceRunning, setSetting, stopTeam, teamPresets,
-  type Assistants, type Practices, type QuietPair, type Settings as Values, type TeamListing,
+  type Assistants, type Practices, type QuietPair, type Settings as Values, type TeamDraft, type TeamListing,
 } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
+import ImproveTeam from "./ImproveTeam";
+import { AlwaysOnSheet, BiggerTeams, Chevron, GroupSheet, Shield, ruleCount } from "./Practices";
 import Schedules from "./Schedules";
 import "./Settings.css";
 
@@ -18,7 +20,6 @@ const FIXES = [
   ["compact", "Free up memory between tasks", "When a team agent is idle and its memory is over 75% full."],
   ["tell", "Explain blocked commands", "When an agent keeps retrying something your rules don’t allow."],
 ] as const;
-const rules = (n: number) => (n === 1 ? "1 rule" : `${n} rules`);
 const plural = (n: number) => (n === 1 ? "1 agent" : `${n} agents`);
 
 function Switch({ label, on, disabled, onChange }: { label: string; on: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
@@ -210,10 +211,14 @@ function Fixes({ values, set, team }: { values: Values; set: (k: string, v: unkn
   );
 }
 
-function PracticesPane({ values, set }: { values: Values; set: (k: string, v: unknown) => void }) {
+function PracticesPane({ values, set, onDraft }: { values: Values; set: (k: string, v: unknown) => void; onDraft: (d: TeamDraft) => void }) {
   const [practices, setPractices] = useState<Practices | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const [basics, setBasics] = useState(false);
+  const [improving, setImproving] = useState(false);
   useEffect(() => { void teamPresets().then((p) => setPractices(p.practices)).catch(() => {}); }, []);
+  const change = (key: string, on: boolean) => set(`practices.${key}`, on);
+  const group = practices?.groups.find((g) => g.id === open);
   return (
     <>
       <Head title="Team practices">Habits from teams that ran for weeks. New teams start with all of them; turn any off here. Changes reach each agent at its next task.</Head>
@@ -222,23 +227,29 @@ function PracticesPane({ values, set }: { values: Values; set: (k: string, v: un
           <div className="set-list">
             {practices.groups.map((g) => (
               <Row key={g.id} title={g.title} sub={g.summary}>
-                <span className="mode">{rules(g.rules.length)}</span>
-                <Switch label={g.title} on={values.practices[g.id] !== false} onChange={(on) => set(`practices.${g.id}`, on)} />
+                <span className="mode">{ruleCount(g.rules.length)}</span>
+                <Switch label={g.title} on={values.practices[g.id] !== false} onChange={(on) => change(g.id, on)} />
+                <Chevron title={g.title} onClick={() => setOpen(g.id)} />
               </Row>
             ))}
           </div>
           <div className="basics">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l5 2v4c0 3.2-2.2 5.6-5 7-2.8-1.4-5-3.8-5-7v-4z" fill="none" stroke="var(--quiet-working)" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+            <Shield />
             <span className="grow">Plus <b>{practices.basics.length} basics that are always on</b>, like never answering an agent’s permission prompt for it.</span>
-            <button type="button" className="text strong" onClick={() => setBasics(!basics)}>See all</button>
+            <button type="button" className="text strong" onClick={() => setBasics(true)}>See all</button>
           </div>
-          {basics && (
-            <ul className="basic-list">
-              {practices.basics.map((b) => <li key={b.title}><b>{b.title}</b> {b.detail}</li>)}
-            </ul>
-          )}
+          <BiggerTeams bigger={practices.bigger} value={values.practices} note="these add agents to the next team you start" onChange={change} />
+          <div className="set-list">
+            <div className="set-row note-row">
+              <span className="grow">Started a team outside Assieme? Compare it with these practices and apply what’s missing.</span>
+              <button type="button" className="btn-small" onClick={() => setImproving(true)}>Improve this team</button>
+            </div>
+          </div>
         </>
       )}
+      {group && <GroupSheet group={group} value={values.practices} onChange={change} onClose={() => setOpen(null)} />}
+      {basics && practices && <AlwaysOnSheet basics={practices.basics} onClose={() => setBasics(false)} />}
+      {improving && <ImproveTeam onClose={() => setImproving(false)} onDraft={onDraft} />}
     </>
   );
 }
@@ -336,8 +347,10 @@ function Privacy({ values, set }: { values: Values; set: (k: string, v: unknown)
 }
 
 /** Settings: a sheet over the whole window, from the gear. */
-export default function Settings({ team, section: first, onClose, onShowFirstRun, onOpenTeam = () => {} }: {
+export default function Settings({ team, section: first, onClose, onShowFirstRun, onOpenTeam = () => {}, onDraft = () => {} }: {
   team: string | null; section?: string; onClose: () => void; onShowFirstRun: () => void;
+  /** Improve this team's "Open in New team": the same agents as a New team draft. */
+  onDraft?: (d: TeamDraft) => void;
   /** A scheduled run's Open (its terminals) or Review (role's branch). */
   onOpenTeam?: (team: string, role: string | null) => void;
 }) {
@@ -373,7 +386,7 @@ export default function Settings({ team, section: first, onClose, onShowFirstRun
           {error && <p className="set-error">{error}</p>}
           {section === "general" && <General onShowFirstRun={onShowFirstRun} />}
           {section === "fixes" && values && <Fixes values={values} set={set} team={team} />}
-          {section === "practices" && values && <PracticesPane values={values} set={set} />}
+          {section === "practices" && values && <PracticesPane values={values} set={set} onDraft={onDraft} />}
           {section === "notifications" && values && <Notifications values={values} set={set} />}
           {section === "teams" && <Teams onChangeGroups={() => setGrouping(true)} />}
           {section === "schedules" && <Schedules onOpen={onOpenTeam} />}

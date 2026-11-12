@@ -1,0 +1,43 @@
+/* Improve this team: Paper "v2 — Improve this team" and its two state artboards. */
+.improve { display: flex; flex-direction: column; max-width: calc(100% - 32px); max-height: calc(100vh - 64px); overflow: auto; box-sizing: border-box;
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-panel);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--quiet-shade) 8%, transparent); outline: none; }
+.improve button { font: inherit; cursor: pointer; }
+.improve .grow { flex: 1; min-width: 0; }
+.improve.small { width: 380px; gap: 16px; padding: 24px 24px 20px; }
+.improve.wide { width: 760px; }
+.improve-head { display: flex; flex-direction: column; gap: 4px; }
+.improve.wide .improve-head { gap: 6px; padding: 24px 28px 16px; }
+.improve-head h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; line-height: 24px; color: var(--quiet-ink); }
+.improve-head h2.big { font-size: 22px; letter-spacing: -0.02em; line-height: 28px; }
+.improve-head p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.improve-head p.big { font-size: 14px; line-height: 21px; }
+.improve-kicker { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.improve-list { display: flex; flex-direction: column; margin: 0 28px; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); }
+.improve-row { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; }
+.improve-row + .improve-row { border-top: 1px solid var(--quiet-line); }
+.improve-row > .grow { display: flex; flex-direction: column; gap: 4px; }
+.improve-row b { font-size: 14px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
+.improve-row > .grow > span { font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.improve-review { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; padding: 12px 14px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); }
+.improve-review p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.improve-review pre { margin: 0; font-family: var(--quiet-font-mono); font-size: 12px; line-height: 18px; color: var(--quiet-ink); white-space: pre-wrap; }
+.improve-applied { display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding: 7px 0; }
+.improve-applied .done { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; line-height: 16px; color: var(--quiet-working-text); }
+.improve .link-undo { padding: 0; background: none; border: 0; font-size: 13px; font-weight: 500; line-height: 16px; color: var(--quiet-ink); text-decoration: underline; }
+.improve-in-place { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--quiet-fog); border-radius: 14px; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.improve.wide .improve-in-place { margin: 14px 28px 0; }
+.improve-in-place svg { flex-shrink: 0; }
+.improve.wide .modal-error { margin: 12px 28px 0; }
+.improve-foot { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 16px 28px; border-top: 1px solid var(--quiet-line); }
+.improve-foot .grow { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.improve-foot .btn-quiet { padding: 8px 12px; }
+.improve-foot .btn-primary { padding: 8px 18px; }
+.improve .sheet-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.improve.small .btn-primary { padding: 8px 18px; }
+.improve-teams { display: flex; flex-direction: column; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); }
+.improve-team { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.improve-team + .improve-team { border-top: 1px solid var(--quiet-line); }
+.improve-team .grow { display: flex; flex-direction: column; gap: 2px; }
+.improve-team b { font-size: 14px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
+.improve-team small { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }

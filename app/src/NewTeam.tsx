@@ -5,6 +5,7 @@ import HelpMeChoose from "./HelpMeChoose";
 import HerdrImport from "./HerdrImport";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
 import Offline from "./Offline";
+import { pushesBlocked } from "./Practices";
 import RecommendedSetup, { footerNote } from "./RecommendedSetup";
 import "./NewTeam.css";
 
@@ -68,7 +69,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       setPresets(all);
       setPractices(p.practices);
       setModels(p.models);
-      setPracticeOn(Object.fromEntries(p.practices.groups.map((g) => [g.id, (draft?.practices ?? p.practice_defaults)?.[g.id] !== false])));
+      setPracticeOn({ ...(draft?.practices ?? p.practice_defaults ?? {}) }); // groups and rules are on unless false
       if (draft) apply(draft);
       else if (all.length) {
         setChosen(all[0].id);
@@ -264,7 +265,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
 
   if (step === 2 && practices)
     return (
-      <RecommendedSetup practices={practices} roleCount={roles.length} value={practiceOn}
+      <RecommendedSetup practices={practices} roles={roles} value={practiceOn}
         onChange={setPracticeOn} onBack={() => setStep(1)} onStart={start} pending={pending} error={startError} />
     );
 
@@ -424,7 +425,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
               <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M8 1.5l5.5 2v4c0 3.5-2.4 6-5.5 7-3.1-1-5.5-3.5-5.5-7v-4z" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" />
               </svg>
-              {footerNote(practiceOn.safety !== false)}
+              {footerNote(pushesBlocked(practiceOn))}
             </span>
           )}
           {startError && <span className="error">{startError}</span>}

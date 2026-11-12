@@ -44,8 +44,10 @@ beforeEach(() => {
   b.serviceRunning.mockResolvedValue(true);
   b.assistantsStatus.mockResolvedValue({ clients: [], problems: [] });
   b.teamPresets.mockResolvedValue({ practices: {
-    groups: [{ id: "messages", title: "Fewer, cheaper messages", summary: "Short notes.", rules: ["1", "2", "3"] }],
+    groups: [{ id: "messages", title: "Fewer, cheaper messages", summary: "Short notes.", detail: "Every message wakes it.",
+      rules: ["1", "2", "3"].map((x) => ({ id: `r${x}`, title: `Rule ${x}`, detail: "d", note: x === "1" ? "Learned from a real team." : undefined, text: "t" })) }],
     basics: [{ title: "One coordinator", detail: "does outside work" }],
+    bigger: [{ id: "steward", title: "Steward agent", summary: "s", detail: "d" }, { id: "research-pairs", title: "Research pairs", summary: "r", detail: "d" }],
   } });
 });
 afterEach(cleanup);
@@ -119,15 +121,30 @@ test("Add a pair needs a team in Assieme", async () => {
   expect((screen.getByRole("button", { name: /Start a team/ }) as HTMLButtonElement).disabled).toBe(true);
 });
 
-test("practices: group switches, no chevrons or Improve button, See all shows basics", async () => {
+test("practices: group and rule switches, the presets for bigger teams, See all shows the basics", async () => {
   await open("Team practices");
   fireEvent.click(screen.getByRole("switch", { name: "Fewer, cheaper messages" }));
   await flush();
   expect(b.setSetting).toHaveBeenCalledWith("practices.messages", false);
   expect(screen.getByText("3 rules")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Improve this team" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Fewer, cheaper messages: each rule" }));
+  screen.getByText("Learned from a real team.");
+  fireEvent.click(screen.getByRole("switch", { name: "Rule 2" }));
+  await flush();
+  expect(b.setSetting).toHaveBeenCalledWith("practices.r2", false);
+  fireEvent.keyDown(screen.getByRole("dialog", { name: "Fewer, cheaper messages" }), { key: "Escape" });
+  fireEvent.click(screen.getByRole("switch", { name: "Research pairs" }));
+  await flush();
+  expect(b.setSetting).toHaveBeenCalledWith("practices.research-pairs", true);
   fireEvent.click(screen.getByRole("button", { name: "See all" }));
   expect(screen.getByText("One coordinator")).toBeTruthy();
+});
+
+test("Improve this team says so when no team started outside Assieme is running", async () => {
+  await open("Team practices");
+  fireEvent.click(screen.getByRole("button", { name: "Improve this team" }));
+  await flush();
+  expect(screen.getByRole("dialog", { name: "No team to improve" })).toBeTruthy();
 });
 
 test("notifications: all three switches work", async () => {
