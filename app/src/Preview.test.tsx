@@ -40,7 +40,7 @@ test("no command found: the sheet asks once, and the typed command starts it", a
   const starts = screen.getAllByRole("button", { name: "Start preview" });
   fireEvent.click(starts[starts.length - 1]);
   await flush();
-  expect(b.previewStart).toHaveBeenLastCalledWith("shop", "builder-1", "python3 -m http.server $PORT", false);
+  expect(b.previewStart).toHaveBeenLastCalledWith("shop", "builder-1", "python3 -m http.server $PORT", false, null);
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
@@ -78,7 +78,7 @@ test("a preview that didn't start says why, shows its last lines, and names what
   expect(screen.getByText(/in builder-1's worktree, which downloads its packages/).textContent).toContain("Runs npm install");
   fireEvent.click(screen.getByRole("button", { name: "Install and try again" }));
   await flush();
-  expect(b.previewStart).toHaveBeenCalledWith("shop", "builder-1", null, true);
+  expect(b.previewStart).toHaveBeenCalledWith("shop", "builder-1", null, true, null);
   fireEvent.click(screen.getByRole("button", { name: "Change the start command" }));
   expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("npm run dev");
 });
@@ -90,4 +90,49 @@ test("a refusal is shown, not swallowed", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Start preview" }));
   await flush();
   expect(screen.getByRole("alert").textContent).toContain("builder-1 has no branch to review.");
+});
+
+test("an agent's first preview shows what runs, names a changed script, and runs only on Run it", async () => {
+  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), install: "npm install", runs: "next dev",
+    changed: ["dev", "postinstall"], fingerprint: "f1" });
+  b.previewStart.mockResolvedValueOnce(P({ state: "starting", url: null }));
+  render(<Harness />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Start preview" }));
+  await flush();
+  const sheet = screen.getByRole("dialog", { name: "Run builder-1's preview?" });
+  expect(sheet.textContent).toContain("with your permissions, not the agent's");
+  expect(sheet.querySelector("pre")!.textContent).toBe("npm install\nnpm run dev\n  runs: next dev");
+  expect(sheet.textContent).toContain("builder-1 changed the dev and postinstall scripts on its branch. Read them before you run them.");
+  expect(sheet.textContent).toContain("npm install comes first");
+  fireEvent.click(screen.getByRole("button", { name: "Run it" }));
+  await flush();
+  expect(b.previewStart).toHaveBeenLastCalledWith("shop", "builder-1", null, false, "f1");
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+test("Cancel runs nothing", async () => {
+  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), changed: [], fingerprint: "f1" });
+  render(<Harness />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Start preview" }));
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(b.previewStart).toHaveBeenCalledTimes(1);
+});
+
+test("screens share one poller, and it rests while the window is hidden", async () => {
+  render(<><Harness /><Harness /><Harness /></>);
+  await flush();
+  expect(b.previewList).toHaveBeenCalledTimes(1);
+  await act(async () => { vi.advanceTimersByTime(1000); });
+  expect(b.previewList).toHaveBeenCalledTimes(2);
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+  await act(async () => { vi.advanceTimersByTime(5000); });
+  expect(b.previewList).toHaveBeenCalledTimes(2); // nothing while hidden
+  hidden.mockReturnValue(false);
+  await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+  expect(b.previewList).toHaveBeenCalledTimes(3);
+  hidden.mockRestore();
 });

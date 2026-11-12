@@ -183,7 +183,7 @@ test("a review card previews its branch: start, then open and stop, or see why i
   b.previewList.mockResolvedValue([PREVIEW("builder-2"), PREVIEW("builder-3", { state: "failed", url: null, reason: "npm run dev stopped." })]);
   fireEvent.click(within(screen.getByTestId("task-1")).getByRole("button", { name: "Preview" }));
   await flush();
-  expect(b.previewStart).toHaveBeenCalledWith("shop", "builder-1", null, false);
+  expect(b.previewStart).toHaveBeenCalledWith("shop", "builder-1", null, false, null);
   await flush();
   const two = screen.getByTestId("task-2");
   expect(two.textContent).toContain("Preview at localhost:5175");

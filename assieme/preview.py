@@ -4,6 +4,7 @@ the branch before merging it.
 Each preview runs in its own process group, and only that group is ever stopped. The groups are saved, so a brain that
 restarts stops what it left running. Refusals raise ReviewError (or PreviewError) with a sentence for the screen.
 """
+import hashlib
 import json
 import os
 import re
@@ -17,12 +18,16 @@ from . import quiet, runtime
 
 START_TIMEOUT_S = 90
 INSTALL_TIMEOUT_S = 300
+LOST_TIMEOUT_S = 10  # a running server with no port this long has stopped serving
+LOCAL = {'HOST': '127.0.0.1', 'HOSTNAME': '127.0.0.1'}  # Next.js and others: this Mac only, not the network
 TAIL = 12
 SCRIPTS = ('dev', 'start', 'serve')
 ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
 MISSING = re.compile(r"(?:^|\s)([\w@./-]+): command not found|Cannot find (?:module|package) '([^']+)'|"
                      r"No module named '?([\w.]+)", re.M)
 IN_USE = re.compile(r'EADDRINUSE|address already in use', re.I)
+SCRIPT = re.compile(r'^(?:npm|pnpm|yarn|bun)(?: run)? ([\w:.-]+)\s*$')
+INSTALL_SCRIPTS = ('preinstall', 'install', 'postinstall', 'prepare')  # what a package install runs
 
 
 class PreviewError(ValueError):
@@ -40,15 +45,32 @@ def _package_manager(path):
     return 'npm'
 
 
+def _package(text):
+    try:
+        got = json.loads(text)
+    except (TypeError, ValueError):
+        return {}
+    return got if isinstance(got, dict) else {}
+
+
+def _read(path, name):
+    try:
+        with open(os.path.join(path, name), encoding='utf-8', errors='replace') as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def _scripts(package):
+    scripts = package.get('scripts')
+    return scripts if isinstance(scripts, dict) else {}
+
+
 def start_command(path):
     """The command that starts the project's dev server, read from what is in its folder (as `review.test_command`
     does for tests); None when there isn't one we can tell."""
     if _has(path, 'package.json'):
-        try:
-            with open(os.path.join(path, 'package.json')) as f:
-                scripts = json.load(f).get('scripts') or {}
-        except (OSError, ValueError, AttributeError):
-            scripts = {}
+        scripts = _scripts(_package(_read(path, 'package.json')))
         for name in SCRIPTS:
             if isinstance(scripts.get(name), str) and scripts[name].strip():
                 return f'{_package_manager(path)} run {name}'
@@ -61,6 +83,21 @@ def start_command(path):
 
 def install_command(path):
     return f'{_package_manager(path)} install' if _has(path, 'package.json') else None
+
+
+def needs_install(path):
+    """A Node project whose packages aren't in this worktree yet (a fresh worktree has none). Yarn Plug'n'Play keeps
+    them without node_modules."""
+    package = _package(_read(path, 'package.json'))
+    wants = any(package.get(k) for k in ('dependencies', 'devDependencies'))
+    return wants and not os.path.isdir(os.path.join(path, 'node_modules')) and not (
+        _has(path, '.pnp.cjs') or _has(path, '.pnp.js'))
+
+
+def script_of(command):
+    """The package.json script a command runs (`npm run dev` -> 'dev'), or None."""
+    m = SCRIPT.match(command or '')
+    return m and m.group(1)
 
 
 def free_port():
@@ -86,8 +123,7 @@ def why(command, role, rc, output, path, installed):
     if IN_USE.search(output):
         return f'{command} stopped: its port was already taken. Try again to get another one.', 'retry'
     found = MISSING.search(output)
-    no_packages = _has(path, 'package.json') and not os.path.isdir(os.path.join(path, 'node_modules'))
-    if found or rc == 127 or no_packages:
+    if found or rc == 127 or needs_install(path):
         what = next((g for g in found.groups() if g), None) if found else None
         thing = f"{what} isn't installed" if what else "something it needs isn't installed"
         if installed or not install_command(path):
@@ -102,8 +138,9 @@ class Previews:
         self.reviews, self.popen, self.run, self.clock, self.start_timeout = reviews, popen, run, clock, start_timeout
         self.file = file or os.path.join(quiet.state_dir(), 'previews.json')
         self.logs = logs or os.path.join(quiet.state_dir(), 'previews')
-        self.items = {}
+        self.items, self.confirmed = {}, {}  # confirmed: (team, role) -> the fingerprint of what the person saw run
         self.lock = threading.RLock()
+        self.lost_timeout = LOST_TIMEOUT_S
 
     # --- saved state: the start command per project, and the process groups running now
 
@@ -181,8 +218,35 @@ class Previews:
 
     # --- what the app calls
 
-    def start(self, team, role, command=None, install=False):
-        project, _, _, path = self.reviews._ctx(team, role)
+    def _what_runs(self, project, base, path, cmd, first):
+        """What the person is shown before a first run: the steps, the script `cmd` runs, and which of the scripts
+        involved the branch changed compared with the base branch (the agent may have written them)."""
+        package = _package(_read(path, 'package.json'))
+        name = script_of(cmd)
+        names = ([f'pre{name}', name, f'post{name}'] if name else []) + (list(INSTALL_SCRIPTS) if first else [])
+        before = _scripts(_package(self._git_show(project, base, 'package.json')))
+        now = _scripts(package)
+        changed = [n for n in names if now.get(n) != before.get(n) and (n in now or n in before)]
+        if 'manage.py' in cmd and _read(path, 'manage.py') != self._git_show(project, base, 'manage.py'):
+            changed.append('manage.py')
+        info = {'command': cmd, 'install': first, 'runs': now.get(name) if name else None, 'changed': changed}
+        return info | {'fingerprint': hashlib.sha256(json.dumps([path, info], sort_keys=True).encode()).hexdigest()[:16]}
+
+    def _git_show(self, project, base, name):
+        r = self.run(['git', '-C', project, 'show', f'{base}:{name}'], capture_output=True, encoding='utf-8',
+                     errors='replace')
+        return r.stdout if r.returncode == 0 else None
+
+    def _take(self, key):
+        """Out of the list under the lock; the caller stops it outside, so a slow stop holds nobody up."""
+        with self.lock:
+            item = self.items.pop(key, None)
+            if item:
+                self._save()
+            return item
+
+    def start(self, team, role, command=None, install=False, confirm=None):
+        project, base, _, path = self.reviews.worktree(team, role)
         if not os.path.isdir(path):
             raise PreviewError(f"{role}'s worktree isn't there any more, so there's nothing to preview.")
         typed = (command or '').strip()
@@ -190,70 +254,85 @@ class Previews:
             if typed:
                 self._save(self.commands() | {project: typed})
             cmd = typed or self.commands().get(project) or start_command(path)
-            if not cmd:
-                return {'team': team, 'role': role, 'project': os.path.basename(project), 'state': 'needs_command'}
-            self.stop(team, role)  # one preview per agent: starting again replaces it
-            first = install_command(path) if install else None
-            port = free_port()
-            os.makedirs(self.logs, exist_ok=True)
-            log = os.path.join(self.logs, f'{team}-{role}.log')
-            env = runtime.clean_env(os.environ) | {'PORT': str(port), 'BROWSER': 'none'}  # the app opens it, not the tool
-            with open(log, 'wb') as out:
-                try:
-                    proc = self.popen(['/bin/sh', '-c', f'{first} && {cmd}' if first else cmd], cwd=path, env=env,
-                                      stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
-                                      start_new_session=True)  # its own process group: Stop ends exactly this
-                except OSError as e:
-                    raise PreviewError(f"Couldn't start {cmd}: {e}") from None
-            self.items[(team, role)] = {
-                'team': team, 'role': role, 'project': project, 'path': path, 'command': cmd, 'port': port,
+        if not cmd:
+            return {'team': team, 'role': role, 'project': os.path.basename(project), 'state': 'needs_command'}
+        first = install_command(path) if install or needs_install(path) else None
+        shown = self._what_runs(project, base, path, cmd, first)
+        if typed and not (shown['runs'] or first or shown['changed']):
+            confirm = shown['fingerprint']  # the person just typed it, and it runs nothing an agent wrote
+        if self.confirmed.get((team, role)) != shown['fingerprint']:
+            if confirm != shown['fingerprint']:  # nothing the agent wrote runs before the person has seen it
+                return {'team': team, 'role': role, 'project': os.path.basename(project), 'state': 'confirm', **shown}
+            self.confirmed[(team, role)] = shown['fingerprint']
+        old = self._take((team, role))  # one preview per agent: starting again replaces it
+        if old:
+            self._kill(old['pgid'], old['proc'])
+        port = free_port()
+        os.makedirs(self.logs, exist_ok=True)
+        log = os.path.join(self.logs, f'{team}-{role}.log')
+        env = runtime.clean_env(os.environ) | LOCAL | {'PORT': str(port), 'BROWSER': 'none'}  # the app opens it
+        with open(log, 'wb') as out:
+            try:
+                proc = self.popen(['/bin/sh', '-c', f'{first} && {cmd}' if first else cmd], cwd=path, env=env,
+                                  stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
+                                  start_new_session=True)  # its own process group: Stop ends exactly this
+            except OSError as e:
+                raise PreviewError(f"Couldn't start {cmd}: {e}") from None
+        item = {'team': team, 'role': role, 'project': project, 'path': path, 'command': cmd, 'port': port,
                 'proc': proc, 'pgid': proc.pid, 'log': log, 'started': self.clock(), 'installed': bool(first),
                 'timeout': INSTALL_TIMEOUT_S if first else self.start_timeout, 'state': 'starting', 'url': None,
-                'reason': '', 'output': '', 'fix': None,
-                'team_live': self._team_live(team)}  # a stopped team's branch can be previewed too
+                'reason': '', 'output': '', 'fix': None, 'lost': None,
+                'team_live': self.reviews.team_live(team)}  # a stopped team's branch can be previewed too
+        with self.lock:
+            self.items[(team, role)] = item
             self._save()
-            return self._view(self._refresh(self.items[(team, role)]))
+        return self._view(self._refresh(item))
 
     def stop(self, team, role):
-        with self.lock:
-            item = self.items.pop((team, role), None)
-            if item:
-                self._kill(item['pgid'], item['proc'])
-                self._save()
-            return {'stopped': bool(item)}
-
-    def _team_live(self, team):
-        return any(r.get('state') == 'live' for r in self.reviews._rows(team))
+        item = self._take((team, role))
+        if item:
+            self._kill(item['pgid'], item['proc'])
+        return {'stopped': bool(item)}
 
     def sweep(self):
         """Previews stop when their worktree is gone (merged, discarded, removed by hand) or their team was running
         and has stopped, however it was stopped."""
         with self.lock:
-            live = {}
-            for key, item in list(self.items.items()):
-                if item['team_live'] and key[0] not in live:
-                    live[key[0]] = self._team_live(key[0])
-                if not os.path.isdir(item['path']) or (item['team_live'] and not live[key[0]]):
-                    self.stop(*key)
+            items = list(self.items.items())
+        live = {t: self.reviews.team_live(t) for t in {k[0] for k, i in items if i['team_live']}}
+        for key, item in items:
+            if not os.path.isdir(item['path']) or (item['team_live'] and not live[key[0]]):
+                self.stop(*key)
 
     def list(self):
+        self.sweep()
         with self.lock:
-            self.sweep()
-            return [self._view(self._refresh(i)) for i in self.items.values()]
+            items = list(self.items.values())
+        return [self._view(self._refresh(i)) for i in items]  # lsof per preview, outside the lock
 
     def _refresh(self, item):
         if item['state'] == 'failed':
             return item
         rc = item['proc'].poll()
         ports = [] if rc is not None else self._ports(item['pgid'])
+        now = self.clock()
         if ports:
             port = item['port'] if item['port'] in ports else ports[0]
-            item.update(state='running', url=f'http://localhost:{port}', shown_port=port)
-        elif rc is not None or (item['state'] == 'starting' and self.clock() - item['started'] > item['timeout']):
-            self._kill(item['pgid'], item['proc'])
-            output = _tail(item['log'])
-            reason, fix = why(item['command'], item['role'], rc, output, item['path'], item['installed'])
-            item.update(state='failed', url=None, reason=reason, fix=fix, output=output, pgid=None)
+            item.update(state='running', url=f'http://localhost:{port}', shown_port=port, lost=None)
+            return item
+        if rc is None and item['state'] == 'running':
+            item['lost'] = item['lost'] or now
+            if now - item['lost'] <= self.lost_timeout:
+                return item  # a restart in the dev server's own watcher closes its port for a moment
+        elif rc is None and now - item['started'] <= item['timeout']:
+            return item
+        lost = rc is None and item['state'] == 'running'
+        self._kill(item['pgid'], item['proc'])
+        output = _tail(item['log'])
+        reason, fix = ((f'{item["command"]} stopped listening on its port, so it was stopped.', 'retry') if lost
+                       else why(item['command'], item['role'], rc, output, item['path'], item['installed']))
+        item.update(state='failed', url=None, reason=reason, fix=fix, output=output, pgid=None)
+        with self.lock:
             self._save()
         return item
 

@@ -329,7 +329,7 @@ export type Preview = {
   team: string;
   role: string;
   project: string;
-  state: "starting" | "running" | "failed" | "needs_command";
+  state: "starting" | "running" | "failed" | "needs_command" | "confirm";
   command?: string;
   url?: string | null;
   port?: number | null;
@@ -338,10 +338,14 @@ export type Preview = {
   fix?: "install" | "retry" | "command" | null;
   /** The install command "Install and try again" runs, named on screen because it downloads. */
   install?: string | null;
+  /** For `confirm`: what the package script runs, the scripts the branch changed, and what to send back to run it. */
+  runs?: string | null;
+  changed?: string[];
+  fingerprint?: string;
 };
 export const previewList = () => brain<Preview[]>("preview.list");
-export const previewStart = (team: string, role: string, command: string | null = null, install = false) =>
-  slow<Preview>("preview.start", { team, role, command, install }, 60);
+export const previewStart = (team: string, role: string, command: string | null = null, install = false,
+  confirm: string | null = null) => slow<Preview>("preview.start", { team, role, command, install, confirm }, 60);
 export const previewStop = (team: string, role: string) => slow<{ stopped: boolean }>("preview.stop", { team, role }, 30);
 
 export type BoardStatus = "todo" | "doing" | "review" | "done";

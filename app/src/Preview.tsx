@@ -8,43 +8,72 @@ const keyOf = (team: string, role: string) => `${team}/${role}`;
 export const host = (p: Preview) => (p.url ?? "").replace(/^https?:\/\//, "");
 
 type Asking = { team: string; role: string; project: string; command: string };
+type Confirming = Preview & { asked: { command: string | null; install: boolean } };
 
-/** Every agent's preview, polled, with start, stop and the start-command sheet. Review, Terminals and the Board each
- *  use one; a preview started from a screen opens in the browser once, when it is running. */
+/** One poller for every screen that shows previews (Review, Terminals and the Board can all be mounted): it runs while
+ *  any of them is, and rests while the window is hidden. */
+const store = {
+  list: [] as Preview[],
+  renders: new Set<() => void>(),
+  wants: new Map<symbol, number>(), // each screen's poll interval
+  opening: new Set<string>(), // started from a screen: opened once, when it runs
+  timer: undefined as ReturnType<typeof setTimeout> | undefined,
+};
+const show = (list: Preview[]) => {
+  store.list = list;
+  for (const render of store.renders) render();
+};
+const wake = () => !document.hidden && void poll();
+
+async function poll() {
+  clearTimeout(store.timer);
+  if (!store.wants.size || document.hidden) return; // visibilitychange wakes it
+  try {
+    const all = await previewList();
+    if (!store.wants.size) return;
+    show(all);
+    for (const p of all) {
+      const k = keyOf(p.team, p.role);
+      if (store.opening.has(k) && p.state !== "starting") {
+        store.opening.delete(k);
+        if (p.state === "running" && p.url) void openLink(p.url);
+      }
+    }
+  } catch {
+    // the screen's own poll says when the brain is away
+  }
+  clearTimeout(store.timer); // a refresh may have polled meanwhile: keep one timer
+  if (store.wants.size && !document.hidden)
+    store.timer = setTimeout(poll, store.opening.size ? 1000 : Math.min(...store.wants.values()));
+}
+
+/** Every agent's preview, with start, stop and the sheets they need. A preview started from a screen opens in the
+ *  browser once, when it is running. */
 export function usePreviews(pollMs = 3000) {
-  const [list, setList] = useState<Preview[]>([]);
+  const [, render] = useState(0);
   const [asking, setAsking] = useState<Asking | null>(null);
+  const [confirming, setConfirming] = useState<Confirming | null>(null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
-  const opening = useRef(new Set<string>());
-  const refresh = useRef<() => void>(() => {});
 
   useEffect(() => {
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      clearTimeout(timer);
-      try {
-        const all = await previewList();
-        if (stopped) return;
-        setList(all);
-        for (const p of all) {
-          const k = keyOf(p.team, p.role);
-          if (opening.current.has(k) && p.state !== "starting") {
-            opening.current.delete(k);
-            if (p.state === "running" && p.url) void openLink(p.url);
-          }
-        }
-      } catch {
-        // the screen's own poll says when the brain is away
-      }
-      if (!stopped) timer = setTimeout(poll, opening.current.size ? 1000 : pollMs);
-    };
-    refresh.current = () => void poll();
-    void poll();
+    const me = Symbol("previews");
+    const draw = () => render((n) => n + 1);
+    store.renders.add(draw);
+    store.wants.set(me, pollMs);
+    if (store.wants.size === 1) {
+      document.addEventListener("visibilitychange", wake);
+      void poll();
+    } else draw();
     return () => {
-      stopped = true;
-      clearTimeout(timer);
+      store.renders.delete(draw);
+      store.wants.delete(me);
+      if (!store.wants.size) {
+        clearTimeout(store.timer);
+        document.removeEventListener("visibilitychange", wake);
+        store.list = [];
+        store.opening.clear();
+      }
     };
   }, [pollMs]);
 
@@ -57,24 +86,27 @@ export function usePreviews(pollMs = 3000) {
       setProblem(words(e));
     } finally {
       setBusy(false);
-      refresh.current();
+      void poll();
     }
   };
 
-  const start = (team: string, role: string, command: string | null = null, install = false) => act(async () => {
-    const p = await previewStart(team, role, command, install);
-    if (p.state === "needs_command") return setAsking({ team, role, project: p.project, command: "" });
-    setAsking(null);
-    opening.current.add(keyOf(team, role));
-    setList((l) => [...l.filter((x) => keyOf(x.team, x.role) !== keyOf(team, role)), p]);
-  });
+  const start = (team: string, role: string, command: string | null = null, install = false, confirm: string | null = null) =>
+    act(async () => {
+      const p = await previewStart(team, role, command, install, confirm);
+      setAsking(null);
+      if (p.state === "needs_command") return setAsking({ team, role, project: p.project, command: "" });
+      if (p.state === "confirm") return setConfirming({ ...p, asked: { command, install } });
+      setConfirming(null);
+      store.opening.add(keyOf(team, role));
+      show([...store.list.filter((x) => keyOf(x.team, x.role) !== keyOf(team, role)), p]);
+    });
   const stop = (team: string, role: string) => act(async () => {
-    opening.current.delete(keyOf(team, role));
+    store.opening.delete(keyOf(team, role));
     await previewStop(team, role);
-    setList((l) => l.filter((x) => keyOf(x.team, x.role) !== keyOf(team, role)));
+    show(store.list.filter((x) => keyOf(x.team, x.role) !== keyOf(team, role)));
   });
   const change = (p: Preview) => setAsking({ team: p.team, role: p.role, project: p.project, command: p.command ?? "" });
-  const of = (team: string, role: string) => list.find((p) => p.team === team && p.role === role);
+  const of = (team: string, role: string) => store.list.find((p) => p.team === team && p.role === role);
 
   const sheet = (
     <>
@@ -82,7 +114,12 @@ export function usePreviews(pollMs = 3000) {
         <CommandSheet key={keyOf(asking.team, asking.role)} asking={asking} busy={busy} problem={problem}
           onCancel={() => setAsking(null)} onStart={(command) => start(asking.team, asking.role, command)} />
       )}
-      {problem && !asking && (
+      {confirming && !asking && (
+        <ConfirmSheet p={confirming} busy={busy} problem={problem} onCancel={() => setConfirming(null)}
+          onRun={() => start(confirming.team, confirming.role, confirming.asked.command, confirming.asked.install,
+            confirming.fingerprint ?? null)} />
+      )}
+      {problem && !asking && !confirming && (
         <div className="preview-problem" role="alert">
           <span>{problem}</span>
           <button type="button" onClick={() => setProblem("")}>OK</button>
@@ -91,6 +128,52 @@ export function usePreviews(pollMs = 3000) {
     </>
   );
   return { of, start, stop, change, busy, sheet };
+}
+
+const listed = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+/** Paper "v2 — Preview: states", row 4: what runs, shown before an agent's first preview, since the agent may have
+ *  written it. */
+function ConfirmSheet({ p, busy, problem, onCancel, onRun }: {
+  p: Preview;
+  busy: boolean;
+  problem: string;
+  onCancel: () => void;
+  onRun: () => void;
+}) {
+  const run = useRef<HTMLButtonElement>(null);
+  useEffect(() => run.current?.focus(), []);
+  const changed = p.changed ?? [];
+  const scripts = changed.filter((n) => n !== "manage.py");
+  const what = [scripts.length ? `the ${listed(scripts)} script${scripts.length > 1 ? "s" : ""}` : "",
+    changed.includes("manage.py") ? "manage.py" : ""].filter(Boolean);
+  const many = scripts.length > 1 || what.length > 1;
+  return (
+    <div className="preview-scrim" onKeyDown={(e) => e.key === "Escape" && onCancel()}>
+      <div className="preview-sheet" role="dialog" aria-modal="true" aria-labelledby="preview-confirm-title">
+        <div id="preview-confirm-title" className="preview-sheet-title">Run {p.role}'s preview?</div>
+        <p>This runs in {p.role}'s worktree with your permissions, not the agent's:</p>
+        <pre className="preview-steps">
+          {p.install && <>{p.install}{"\n"}</>}
+          {p.command}
+          {p.runs && <span className="preview-runs">{"\n  runs: "}{p.runs}</span>}
+        </pre>
+        {p.install && (
+          <p className="preview-small"><code>{p.install}</code> comes first: this worktree has no packages yet, and it downloads them.</p>
+        )}
+        {what.length > 0 && (
+          <p className="preview-warn">
+            {p.role} changed {what.join(" and ")} on its branch. Read {many ? "them" : "it"} before you run {many ? "them" : "it"}.
+          </p>
+        )}
+        {problem && <p className="preview-bad">{problem}</p>}
+        <div className="preview-sheet-actions">
+          <button type="button" className="pv-quiet" onClick={onCancel}>Cancel</button>
+          <button type="button" className="pv-primary" ref={run} disabled={busy} onClick={onRun}>Run it</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export type Previews = ReturnType<typeof usePreviews>;

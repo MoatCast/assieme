@@ -156,6 +156,13 @@ class Review:
             raise ReviewError(f"Can't find the project for team {name}.")
         return project
 
+    def worktree(self, team, role):
+        """An agent's project, base branch, branch and worktree folder; ReviewError when it has no branch."""
+        return self._ctx(team, role)
+
+    def team_live(self, team):
+        return any(r.get('state') == 'live' for r in self._rows(team))
+
     def _has_branch(self, project, branch):
         return self._git(project, 'rev-parse', '--verify', '--quiet', f'refs/heads/{branch}').returncode == 0
 

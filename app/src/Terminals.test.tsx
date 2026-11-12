@@ -222,7 +222,7 @@ test("finished work can be previewed from its pane, and a running or failed prev
   await flush();
   fireEvent.click(within(screen.getByTestId("pane-idle-one")).getByRole("button", { name: "Preview" }));
   await flush();
-  expect(b.previewStart).toHaveBeenCalledWith("shop", "idle-one", null, false);
+  expect(b.previewStart).toHaveBeenCalledWith("shop", "idle-one", null, false, null);
   const two = within(screen.getByTestId("pane-idle-two"));
   expect(two.getByText("localhost:5175")).toBeTruthy();
   fireEvent.click(two.getByRole("button", { name: "Open preview" }));
