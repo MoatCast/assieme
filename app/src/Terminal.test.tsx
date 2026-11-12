@@ -10,7 +10,9 @@ const h = vi.hoisted(() => {
     dataHandler: (d: string) => void = () => {};
     cols = 100;
     rows = 30;
-    constructor() {
+    options: { theme?: Record<string, string> };
+    constructor(o: { theme?: Record<string, string> } = {}) {
+      this.options = o;
       xterms.push(this);
     }
     open() {}
@@ -169,4 +171,16 @@ test("a pane opened after its agent finished shows the last screen", async () =>
   expect(readTerminal).toHaveBeenCalledWith("assieme", "t9");
   expect(xterms[0].written.join("")).toContain("Error: boom");
   expect(screen.getByText("This agent has finished.")).toBeTruthy();
+});
+
+test("the terminal's ground and text come from the --quiet-term tokens", async () => {
+  document.documentElement.style.setProperty("--quiet-term", "#010203");
+  document.documentElement.style.setProperty("--quiet-term-text", "#040506");
+  render(<Terminal session="assieme" address="t3" />);
+  await flush();
+  const theme = xterms[0].options.theme!;
+  expect([theme.background, theme.cursorAccent, theme.black]).toEqual(["#010203", "#010203", "#010203"]);
+  expect([theme.foreground, theme.cursor, theme.white]).toEqual(["#040506", "#040506", "#040506"]);
+  document.documentElement.style.removeProperty("--quiet-term");
+  document.documentElement.style.removeProperty("--quiet-term-text");
 });

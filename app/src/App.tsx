@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import Shell from "./Shell";
-import { serviceInstall, serviceRunning, windowShow } from "./bridge";
+import { serviceInstall, serviceRunning } from "./bridge";
 import "./tokens.css";
 
 type Ask = "checking" | "ask" | "starting" | "done" | { error: string };
 
 export default function App() {
   const [ask, setAsk] = useState<Ask>("checking");
-
-  // The window starts hidden (tauri.conf.json) and shows once the page is drawn in its theme: no white flash.
-  useEffect(() => void windowShow().catch(() => {}), []);
 
   useEffect(() => {
     serviceRunning()

@@ -182,8 +182,6 @@ export type OpenRequest = { team: string; role: string | null; view: "terminals"
 export const windowOpen = (a: Partial<OpenRequest> = {}) => invoke<void>("window_open", a);
 /** Light or dark window chrome; "system" follows the Mac. */
 export const windowTheme = async (t: "light" | "dark" | "system") => getCurrentWindow().setTheme(t === "system" ? null : t);
-/** The main window starts hidden so it never shows a frame in the wrong theme; the page shows it once drawn. */
-export const windowShow = async () => getCurrentWindow().show();
 /** The menu bar or a notification asks the main window to show an agent. */
 export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
 

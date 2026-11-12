@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { windowTheme } from "./bridge";
 
 export type Theme = "light" | "dark" | "system";
 
-// Read before the first paint by index.html too, so keep the key and values in step with it.
-const KEY = "assieme.theme";
+// Read before the first paint by index.html too; a test keeps the two in step.
+export const THEME_KEY = "assieme.theme";
+
 const CHOICES: [Theme, string][] = [["light", "Light"], ["dark", "Dark"], ["system", "Match the Mac"]];
 
 export function savedTheme(): Theme {
   try {
-    const t = localStorage.getItem(KEY);
+    const t = localStorage.getItem(THEME_KEY);
     return t === "light" || t === "dark" ? t : "system";
   } catch {
     return "system";
@@ -25,27 +26,41 @@ export function applyTheme(t: Theme) {
 
 /** The other window (main or menu bar panel) shares this storage: follow its change at once. */
 export function followTheme() {
-  window.addEventListener("storage", (e) => e.key === KEY && applyTheme(savedTheme()));
+  window.addEventListener("storage", (e) => e.key === THEME_KEY && applyTheme(savedTheme()));
 }
 
 /** The appearance switch in the top bar. Paper "v2 — Appearance menu open" and "Dark — Appearance menu open". */
 export default function Appearance() {
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState(savedTheme);
+  const wrap = useRef<HTMLDivElement>(null);
+  const icon = useRef<HTMLButtonElement>(null);
+  const close = () => {
+    setOpen(false);
+    icon.current?.focus();
+  };
+  useEffect(() => {
+    if (!open) return;
+    wrap.current?.querySelector<HTMLElement>("[aria-pressed=true]")?.focus();
+    // A press anywhere else closes it and still does what it was for (a tab, a button).
+    const away = (e: PointerEvent) => !wrap.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
   const pick = (t: Theme) => {
     try {
-      if (t === "system") localStorage.removeItem(KEY);
-      else localStorage.setItem(KEY, t);
+      if (t === "system") localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, t);
     } catch {
       // storage refused: the choice still applies until the app restarts
     }
     applyTheme(t);
     setTheme(t);
-    setOpen(false);
+    close();
   };
   return (
-    <div className="appearance" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
-      <button type="button" className="gear" aria-label="Appearance" title="Appearance" aria-haspopup="menu" aria-expanded={open}
+    <div className="appearance" ref={wrap} onKeyDown={(e) => e.key === "Escape" && open && close()}>
+      <button type="button" ref={icon} className="gear" aria-label="Appearance" title="Appearance" aria-expanded={open}
         onClick={() => setOpen(!open)}>
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
           <circle cx="9" cy="9" r="6.25" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" />
@@ -53,19 +68,16 @@ export default function Appearance() {
         </svg>
       </button>
       {open && (
-        <>
-          <div className="appearance-away" onClick={() => setOpen(false)} />
-          <div className="appearance-menu" role="menu" aria-label="Appearance">
-            {CHOICES.map(([id, label]) => (
-              <button key={id} type="button" role="menuitemradio" aria-checked={theme === id} onClick={() => pick(id)}>
-                <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                  {theme === id && <path d="M3 8.5l3 3 7-7" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.8" strokeLinecap="round" />}
-                </svg>
-                {label}
-              </button>
-            ))}
-          </div>
-        </>
+        <div className="appearance-menu" role="group" aria-label="Appearance">
+          {CHOICES.map(([id, label]) => (
+            <button key={id} type="button" aria-pressed={theme === id} onClick={() => pick(id)}>
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                {theme === id && <path d="M3 8.5l3 3 7-7" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.8" strokeLinecap="round" />}
+              </svg>
+              {label}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

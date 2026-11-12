@@ -22,11 +22,10 @@
 .shell-bar .gear { display: flex; background: none; border: 0; padding: 0; cursor: pointer; }
 /* The appearance switch, Paper "v2 — Appearance menu open": a small menu under its icon, a tick on the current choice. */
 .shell-bar .appearance { position: relative; display: flex; }
-.appearance-away { position: fixed; inset: 0; z-index: 7; }
 .appearance-menu { position: absolute; top: 32px; right: -18px; z-index: 8; width: 200px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px;
   padding: 5px; background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-inner);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-shade) 15%, transparent); }
 .appearance-menu button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; border-radius: 8px; background: none;
   font: inherit; font-size: 13px; line-height: 16px; color: var(--quiet-ink); text-align: left; cursor: pointer; }
-.appearance-menu button[aria-checked="true"] { font-weight: 500; }
+.appearance-menu button[aria-pressed="true"] { font-weight: 500; }
 .appearance-menu button:hover, .appearance-menu button:focus-visible { background: var(--quiet-fog); }
