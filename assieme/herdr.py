@@ -10,10 +10,9 @@ import json
 import os
 import re
 import shlex
-import socket
 import subprocess
 
-from . import launch, newteam, setup, worktree
+from . import launch, newteam, setup, status, worktree
 
 KINDS = ('claude', 'codex')
 # Agent kinds herdr knows (`herdr agent start --kind`): one of these that isn't Claude Code or Codex is left out with a
@@ -476,24 +475,7 @@ def _grouped(records):
     return out
 
 
-def _hc_path():
-    """The person's herdr install's own hc, else theirs on the login PATH: the brain's PATH puts the bundled one first."""
-    herdr = setup.agent_path('herdr')
-    own = herdr and os.path.join(os.path.dirname(herdr), 'hc')
-    return own if own and os.access(own, os.X_OK) else setup.agent_path('hc')
-
-
-def _core_up():
-    """Whether the person's herdr core is listening. Asked first because any `hc` command starts a core of its own."""
-    session = os.environ.get('HC_SESSION') or 'default'
-    path = os.environ.get('HC_SOCKET') or os.path.expanduser(f'~/.local/state/herdr-core/{session}/{session}.sock')
-    with socket.socket(socket.AF_UNIX) as s:
-        s.settimeout(1)
-        try:
-            s.connect(path)
-            return True
-        except OSError:
-            return False
+_hc_path, _core_up = status.hc_path, status.herdr_core_up  # shared with First run's herdr check
 
 
 def _hc(args):

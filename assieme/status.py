@@ -9,9 +9,10 @@ import json
 import os
 import re
 import shlex
+import socket
 import subprocess
 
-from . import detect, rules
+from . import detect, rules, setup
 from .adapters import CODEX_REFUSED, _output_text, _strip_common_prefix, box_metrics, box_path, command_label, program, wake_sender
 from .model import HUMAN, parse_ts
 
@@ -496,13 +497,36 @@ def _apply_herdr(agents, terminals):
             a.ask_since = a.ask_since or a.last
 
 
+def hc_path():
+    """The person's herdr install's own hc, else theirs on the login PATH: the brain's PATH puts the bundled one first."""
+    herdr = setup.agent_path('herdr')
+    own = herdr and os.path.join(os.path.dirname(herdr), 'hc')
+    return own if own and os.access(own, os.X_OK) else setup.agent_path('hc')
+
+
+def herdr_core_up():
+    """Whether the person's herdr core is listening. Asked first because any `hc` command starts a core of its own."""
+    session = os.environ.get('HC_SESSION') or 'default'
+    path = os.environ.get('HC_SOCKET') or os.path.expanduser(f'~/.local/state/herdr-core/{session}/{session}.sock')
+    with socket.socket(socket.AF_UNIX) as s:
+        s.settimeout(1)
+        try:
+            s.connect(path)
+            return True
+        except OSError:
+            return False
+
+
 def _hc_json(*args):
-    out = subprocess.run(['hc', *args, '--json'], capture_output=True, text=True, timeout=5, check=False).stdout
+    out = subprocess.run([hc_path() or 'hc', *args, '--json'], capture_output=True, text=True, timeout=5, check=False).stdout
     return json.loads(out)
 
 
 def herdr_terminals():
-    """Live herdr-core terminals with their reported status; None when hc is missing. Never fatal."""
+    """Live herdr-core terminals with their reported status; [] when herdr's core isn't running (asking would start
+    one), None when hc is missing. Never fatal."""
+    if not herdr_core_up():
+        return []
     try:
         terminals = _hc_json('ls').get('terminals') or []
         for t in terminals:

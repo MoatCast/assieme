@@ -242,3 +242,22 @@ class NamesTest(unittest.TestCase):
                  f'{home}--codex-worktrees-x-Site']
         self.assertEqual(sorted(_strip_common_prefix(names).values()),
                          ['Alpha', 'agent-wakegraph', 'coord', 'x-Site'])
+
+
+class HerdrCheckTest(unittest.TestCase):
+    def test_no_herdr_core_runs_no_hc_command(self):
+        # Any `hc` command starts a herdr core of its own: First run's check must not start one by looking.
+        from unittest import mock
+        with mock.patch.object(status, 'herdr_core_up', return_value=False), \
+                mock.patch.object(status.subprocess, 'run') as run:
+            self.assertEqual(status.herdr_terminals(), [])
+        run.assert_not_called()
+
+    def test_a_running_core_is_read_with_herdrs_own_hc(self):
+        from unittest import mock
+        got = mock.Mock(stdout=json.dumps({'terminals': []}))
+        with mock.patch.object(status, 'herdr_core_up', return_value=True), \
+                mock.patch.object(status, 'hc_path', return_value='/herdr/bin/hc'), \
+                mock.patch.object(status.subprocess, 'run', return_value=got) as run:
+            self.assertEqual(status.herdr_terminals(), [])
+        self.assertEqual(run.call_args.args[0][0], '/herdr/bin/hc')
