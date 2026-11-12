@@ -17,10 +17,10 @@
 .review .preview-group .secondary { padding: 5px 12px; }
 .review .preview-group .quiet { padding: 5px 4px; font-weight: 500; }
 
-.preview-scrim { position: fixed; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--quiet-term) 18%, transparent); }
+.preview-scrim { position: fixed; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; background: var(--quiet-scrim); }
 .preview-sheet { width: 430px; max-width: calc(100% - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 18px;
   background: var(--quiet-surface); color: var(--quiet-ink); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-term) 18%, transparent); font-family: var(--quiet-font-ui); }
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-shade) 18%, transparent); font-family: var(--quiet-font-ui); }
 .preview-sheet-title { font-size: 14px; font-weight: 600; line-height: 18px; }
 .preview-sheet input { font: 13px/19px var(--quiet-font-mono); padding: 9px 12px; color: var(--quiet-ink); background: var(--quiet-surface);
   border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner); outline: none; }
