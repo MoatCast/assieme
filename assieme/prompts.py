@@ -67,6 +67,23 @@ def menu(screen):
     return items if len(items) >= 2 else []
 
 
+ALWAYS = re.compile(r"^Yes, (and )?(don.t ask again|allow all|always)", re.I)
+
+
+def permission_labels(items):
+    """{n: label} for an agent's permission menu, in Assieme's words: Allow once, Always allow, Block. The person's
+    click still presses the agent's own choice; anything else on the menu keeps its own label. {} for other menus."""
+    if not items or not items[0][1].startswith('Yes') or not any(l.startswith('No') for _, l in items[1:]):
+        return {}
+    out = {items[0][0]: 'Allow once'}
+    for n, label in items[1:]:
+        if ALWAYS.match(label) and 'Always allow' not in out.values():
+            out[n] = 'Always allow'
+        elif label.startswith('No') and 'Block' not in out.values():
+            out[n] = 'Block'
+    return out
+
+
 def menu_context(screen, lines_above=8):
     """The text just above the menu ("Do you want to create note.txt?", the tool line): what the menu is about."""
     found, first, lines = _block(screen)

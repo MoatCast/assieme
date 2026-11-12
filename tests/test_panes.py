@@ -97,7 +97,10 @@ class ViewTest(unittest.TestCase):
         v = view([row('a', 'blocked')], screens={'t-a': fixture('claude_permission.txt')})
         b = pane(v, 'a')['fix']['buttons']
         self.assertEqual([(x['kind'], x['send']) for x in b], [('menu', '1'), ('menu', '2'), ('menu', '3'), ('reply', None)])
-        self.assertEqual(b[0]['label'], 'Yes')
+        # Its own permission menu in Assieme's words; the middle choice (accept edits for the session) keeps its own.
+        self.assertEqual(b[0]['label'], 'Allow once')
+        self.assertTrue(b[1]['label'].startswith('Yes, and switch to accept edits'))
+        self.assertEqual(b[2]['label'], 'Block')
 
     def test_answers_pending_gives_reply_only(self):
         ans = FakeAnswers(None)

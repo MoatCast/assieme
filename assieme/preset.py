@@ -2,7 +2,7 @@
 import os
 import tomllib
 
-from . import launch
+from . import launch, permissions
 from dataclasses import dataclass, field
 
 AGENTS = ('claude', 'codex')
@@ -26,6 +26,10 @@ class Role:
     job: str = ''
     effort: str | None = None
     group: str | None = None  # where it sits on the map of a big team
+    kind: str | None = None  # planner, builder, reviewer, tester; None for a custom role
+    owns: list = field(default_factory=list)  # paths in the project only this agent edits
+    level: str | None = None  # safe, read-only or trusted; None: started as before levels existed
+    rules: list = field(default_factory=list)  # the person's own: {decision, program, words}
 
 
 @dataclass
@@ -114,8 +118,16 @@ def load(folder, practices=True):
         problem = launch.check_model_effort(agent, raw.get('model'), raw.get('effort'))
         if problem:
             raise PresetError(f'{path}: role {r!r}: {problem}')
+        owns, level, rules = raw.get('owns', []), raw.get('level'), raw.get('rules', [])
+        problem = permissions.check_owns(owns) or permissions.check_rules(rules)
+        if level is not None and level not in permissions.LEVELS:
+            problem = f'unknown permission level {level!r}'
+        if problem:
+            raise PresetError(f'{path}: role {r!r}: {problem}')
         roles.append(Role(r, agent, brief_path, brief, raw.get('model'), checkout, raw.get('parent'), raw.get('job', ''),
-                          raw.get('effort'), raw.get('group')))
+                          raw.get('effort'), raw.get('group'), raw.get('kind'), list(owns), level,
+                          [{'decision': x['decision'], 'program': list(x['program']), 'words': str(x.get('words', ''))}
+                           for x in rules]))
     if not roles:
         raise PresetError(f'{path}: the team has no roles ([[role]] tables)')
     for r in roles:

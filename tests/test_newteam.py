@@ -45,7 +45,8 @@ class PresetsTest(unittest.TestCase):
         self.assertEqual([r['name'] for r in full],
                          ['planner', 'builder-1', 'builder-2', 'builder-3', 'reviewer', 'tester'])
         self.assertTrue(all(r['job'] and r['brief'] and 'Team practices' not in r['brief'] for r in full))
-        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief', 'model', 'effort', 'group'})
+        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief', 'model', 'effort', 'group',
+                                         'kind', 'owns', 'level', 'rules'})
         self.assertIsNone(full[0]['parent'])
         self.assertEqual(full[4]['checkout'], 'read-only')
         self.assertEqual([g['id'] for g in p['practices']['groups']][0], 'messages')

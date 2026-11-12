@@ -183,6 +183,8 @@ def _serve():
                  'team.presets': lambda: newteam.presets(),
                  'team.start': start_team,
                  'team.suggest': newteam.suggest,
+                 'team.improve_brief': newteam.improve_brief,
+                 'team.rule_draft': newteam.rule_draft,
                  **brain.handlers(),
                  **reviews.handlers(),
                  **tools.handlers(),

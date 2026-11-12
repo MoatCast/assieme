@@ -9,7 +9,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, live, launch, preset, runtime, settings, setup, team, worktree
+from . import ask, live, launch, permissions, preset, runtime, settings, setup, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -45,7 +45,8 @@ def kind_brief(kind):
 
 def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
-            'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group}
+            'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group, 'kind': r.kind,
+            'owns': r.owns, 'level': r.level, 'rules': r.rules}
 
 
 def _as_preset(folder, id_, label=None):
@@ -69,8 +70,9 @@ def presets(teams=None):
             break
         except (preset.PresetError, OSError):
             continue  # a half-written or hand-edited folder: try the next one
+    kinds = {k: {'brief': kind_brief(k), 'job': _KIND_JOBS[k], 'checkout': c} for k, (_, c) in KINDS.items()}
     return {'presets': builtin, 'practices': preset.practices(), 'last': last, 'models': model_options(),
-            'practice_defaults': settings.load()['practices']}
+            'practice_defaults': settings.load()['practices'], 'kinds': kinds, 'permissions': permissions.table()}
 
 
 # Claude Code's own aliases, strongest first (Help me choose is told that order)
@@ -149,6 +151,11 @@ def validate(roles):
         if not (r.get('brief') or '').strip():
             raise NewTeamError(field, 'Every agent needs a brief.')
         problem = launch.check_model_effort(r['agent'], r.get('model'), r.get('effort'))
+        if r.get('kind') is not None and r['kind'] not in KINDS:
+            problem = problem or f"Unknown role {r['kind']!r}."
+        if r.get('level') is not None and r['level'] not in permissions.LEVELS:
+            problem = problem or f"Unknown permission level {r['level']!r}."
+        problem = problem or permissions.check_owns(r.get('owns') or []) or permissions.check_rules(r.get('rules') or [])
         if problem:
             raise NewTeamError(field, problem)
 
@@ -169,7 +176,13 @@ def _role_toml(r):
     q = _toml_str
     out = ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
            f'checkout = {q(r.get("checkout", "branch"))}']
-    out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group') if r.get(key)]
+    out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level') if r.get(key)]
+    if r.get('owns'):
+        out.append(f'owns = {json.dumps(r["owns"], ensure_ascii=False)}')  # a JSON list of strings is a TOML array
+    if r.get('rules'):
+        tables = ['{' + f'decision = {q(x["decision"])}, program = {json.dumps(x["program"], ensure_ascii=False)}, '
+                  f'words = {q(x.get("words", ""))}' + '}' for x in r['rules']]
+        out.append(f'rules = [{", ".join(tables)}]')
     return out + ['']
 
 
@@ -459,3 +472,76 @@ def suggest(project, size, review, budget, run=subprocess.run, which=setup.agent
         return _team_from(text, have, models)
     except ValueError as e:
         raise NewTeamError('suggest', pre + str(e)) from None
+
+
+IMPROVE_TIMEOUT_S = 170
+BRIEF_MAX = 6000
+
+
+def _brief_prompt(role):
+    kind = role.get('kind')
+    lines = [f'Role: {kind} ({_KIND_JOBS[kind]}).' if kind in _KIND_JOBS else 'Role: custom.',
+             f'Its job in one line: {role.get("job") or "(not written yet)"}']
+    if role.get('owns'):
+        lines.append(f'Files only it edits: {", ".join(role["owns"])}')
+    if role.get('parent'):
+        lines.append(f'It reports to the agent named {role["parent"]}.')
+    return ('Improve the brief below for one AI coding agent in a team working on the code in this folder. Read enough '
+            'of the project to make it concrete: name the real files, commands and checks. Keep it short: one line on '
+            'what it does, then a few bullet points. Keep every instruction the person wrote unless it is wrong for '
+            'this project. Leave out reporting format, stop rules and handoff format: they are added automatically.\n\n'
+            + '\n'.join(lines) + '\n\nThe current brief, between triple quotes:\n"""\n'
+            + (role.get('brief') or '').strip() + '\n"""\n\nReply with only one JSON object: {"brief": "..."}')
+
+
+def improve_brief(project, role, run=subprocess.run, which=setup.agent_path):
+    """Improve this brief: the person's own Claude Code (else Codex), read-only in the project, rewrites it.
+    Nothing is saved: the editor shows the result and the person keeps or undoes it."""
+    pre = "Couldn't improve the brief: "
+    try:
+        text = ask.ask_agent(_brief_prompt(role), project, IMPROVE_TIMEOUT_S, run=run, which=which,
+                             timeout_label='3 minutes')
+    except ask.AskError as e:
+        raise NewTeamError('suggest', str(e) if e.missing else pre + str(e)) from None
+    got = (ask.first_json(text) or {}).get('brief')
+    if not isinstance(got, str) or not got.strip() or len(got) > BRIEF_MAX:
+        raise NewTeamError('suggest', pre + "the answer wasn't a brief.")
+    return {'brief': got.strip() + '\n'}
+
+
+RULE_TIMEOUT_S = 120
+_RULE_PROMPT = '''A person is setting what one AI coding agent may run in the project in this folder. They wrote a rule in
+plain words, quoted below between triple quotes. Turn it into one rule on the program the agent runs.
+
+"""
+{words}
+"""
+
+A rule is the program and, if needed, its first few arguments, matched as a prefix of the command run: ["npm",
+"publish"] matches "npm publish --tag next". If the words name something in this project (a script, a launcher, a
+tool), read the project to find the exact path or command, such as ["build/cloud/run.sh"]. Words only: no spaces
+inside a word, no wildcards, no shell symbols.
+
+Reply with only one JSON object: {{"decision": "block" or "allow", "program": ["...", "..."]}}
+If the words don't describe running a program, reply {{"unclear": "one short sentence saying why"}}'''
+
+
+def rule_draft(project, words, run=subprocess.run, which=setup.agent_path):
+    """Add a rule: plain words to a rule on the program run, for the person to see before Add. Nothing is saved."""
+    words = (words or '').strip()
+    if not words:
+        raise NewTeamError('suggest', 'Write the rule in a few words first.')
+    pre = "Couldn't turn that into a rule: "
+    try:
+        text = ask.ask_agent(_RULE_PROMPT.format(words=words[:300]), project, RULE_TIMEOUT_S, run=run, which=which,
+                             timeout_label='2 minutes')
+    except ask.AskError as e:
+        raise NewTeamError('suggest', str(e) if e.missing else pre + str(e)) from None
+    data = ask.first_json(text) or {}
+    if isinstance(data.get('unclear'), str):
+        raise NewTeamError('suggest', pre + data['unclear'])
+    try:
+        program = permissions.check_rule(data.get('decision'), data.get('program'))
+    except ValueError as e:
+        raise NewTeamError('suggest', pre + str(e)) from None
+    return {'decision': data['decision'], 'program': program, 'words': words}
