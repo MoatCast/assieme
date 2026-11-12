@@ -36,7 +36,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
   const [pressed, setPressed] = useState<Set<string>>(new Set()); // fix ids already acted on: no second send
   const [offline, setOffline] = useState(false);
   const refresh = useRef<() => void>(() => {});
-  const pv = usePreviews(pollMs);
+  const pv = usePreviews(pollMs, onReview);
 
   useEffect(() => {
     if (!team) return;

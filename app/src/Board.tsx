@@ -217,7 +217,7 @@ export default function Board({ team, pollMs = 5000, refreshKey = 0, onNewTeam, 
   const [data, setData] = useState<BoardData | null>(null);
   const [offline, setOffline] = useState(false);
   const refresh = useRef<() => void>(() => {});
-  const pv = usePreviews(pollMs);
+  const pv = usePreviews(pollMs, onReview);
 
   useEffect(() => {
     if (!team) return;

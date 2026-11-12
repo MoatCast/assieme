@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { openLink, previewList, previewStart, previewStop, type Preview } from "./bridge";
 import "./Preview.css";
 
@@ -49,7 +49,7 @@ async function poll() {
 
 /** Every agent's preview, with start, stop and the sheets they need. A preview started from a screen opens in the
  *  browser once, when it is running. */
-export function usePreviews(pollMs = 3000) {
+export function usePreviews(pollMs = 3000, onSeeChanges?: (team: string, role: string) => void) {
   const [, render] = useState(0);
   const [asking, setAsking] = useState<Asking | null>(null);
   const [confirming, setConfirming] = useState<Confirming | null>(null);
@@ -116,6 +116,10 @@ export function usePreviews(pollMs = 3000) {
       )}
       {confirming && !asking && (
         <ConfirmSheet p={confirming} busy={busy} problem={problem} onCancel={() => setConfirming(null)}
+          onSee={() => {
+            setConfirming(null);
+            onSeeChanges?.(confirming.team, confirming.role);
+          }}
           onRun={() => start(confirming.team, confirming.role, confirming.asked.command, confirming.asked.install,
             confirming.fingerprint ?? null)} />
       )}
@@ -134,37 +138,48 @@ const listed = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -
 
 /** Paper "v2 — Preview: states", row 4: what runs, shown before an agent's first preview, since the agent may have
  *  written it. */
-function ConfirmSheet({ p, busy, problem, onCancel, onRun }: {
+function ConfirmSheet({ p, busy, problem, onCancel, onSee, onRun }: {
   p: Preview;
   busy: boolean;
   problem: string;
   onCancel: () => void;
+  onSee: () => void;
   onRun: () => void;
 }) {
   const run = useRef<HTMLButtonElement>(null);
-  useEffect(() => run.current?.focus(), []);
+  const dialog = useRef<HTMLDivElement>(null);
   const changed = p.changed ?? [];
+  useEffect(() => (changed.length ? dialog.current : run.current)?.focus(), []); // eslint-disable-line react-hooks/exhaustive-deps
   const scripts = changed.filter((n) => n !== "manage.py");
   const what = [scripts.length ? `the ${listed(scripts)} script${scripts.length > 1 ? "s" : ""}` : "",
     changed.includes("manage.py") ? "manage.py" : ""].filter(Boolean);
   const many = scripts.length > 1 || what.length > 1;
   return (
     <div className="preview-scrim" onKeyDown={(e) => e.key === "Escape" && onCancel()}>
-      <div className="preview-sheet" role="dialog" aria-modal="true" aria-labelledby="preview-confirm-title">
+      <div className="preview-sheet" role="dialog" aria-modal="true" aria-labelledby="preview-confirm-title" ref={dialog} tabIndex={-1}>
         <div id="preview-confirm-title" className="preview-sheet-title">Run {p.role}'s preview?</div>
         <p>This runs in {p.role}'s worktree with your permissions, not the agent's:</p>
-        <pre className="preview-steps">
-          {p.install && <>{p.install}{"\n"}</>}
-          {p.command}
-          {p.runs && <span className="preview-runs">{"\n  runs: "}{p.runs}</span>}
-        </pre>
+        <div className="preview-steps">
+          {(p.steps ?? []).map((step) => (
+            <Fragment key={step.line}>
+              <div>{step.line}</div>
+              {step.scripts.map((s) => (
+                <Fragment key={s.name}>
+                  <div className="preview-label">{s.name}{s.changed ? ", changed on this branch:" : ":"}</div>
+                  <div className="preview-script">{s.runs}</div>
+                </Fragment>
+              ))}
+            </Fragment>
+          ))}
+        </div>
         {p.install && (
           <p className="preview-small"><code>{p.install}</code> comes first: this worktree has no packages yet, and it downloads them.</p>
         )}
         {what.length > 0 && (
-          <p className="preview-warn">
-            {p.role} changed {what.join(" and ")} on its branch. Read {many ? "them" : "it"} before you run {many ? "them" : "it"}.
-          </p>
+          <div className="preview-warn">
+            <p>{p.role} changed {what.join(" and ")} on its branch. Read {many ? "them" : "it"} before you run {many ? "them" : "it"}.</p>
+            <button type="button" className="pv-link" onClick={onSee}>See the changes</button>
+          </div>
         )}
         {problem && <p className="preview-bad">{problem}</p>}
         <div className="preview-sheet-actions">

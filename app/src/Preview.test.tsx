@@ -11,8 +11,9 @@ const flush = () => act(async () => {});
 const P = (more: Partial<Preview> = {}): Preview => ({ team: "shop", role: "builder-1", project: "checkout", state: "running",
   command: "npm run dev", url: "http://localhost:5174", port: 5174, reason: "", output: "", fix: null, ...more });
 
+const seeChanges = vi.fn();
 function Harness() {
-  const pv = usePreviews(1000);
+  const pv = usePreviews(1000, seeChanges);
   return <div className="review"><PreviewGroup team="shop" role="builder-1" pv={pv} />{pv.sheet}</div>;
 }
 
@@ -92,9 +93,11 @@ test("a refusal is shown, not swallowed", async () => {
   expect(screen.getByRole("alert").textContent).toContain("builder-1 has no branch to review.");
 });
 
-test("an agent's first preview shows what runs, names a changed script, and runs only on Run it", async () => {
-  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), install: "npm install", runs: "next dev",
-    changed: ["dev", "postinstall"], fingerprint: "f1" });
+test("an agent's first preview shows every changed script it runs, links to the changes, and runs only on Run it", async () => {
+  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), install: "npm install", fingerprint: "f1",
+    changed: ["postinstall", "dev"], steps: [
+      { line: "npm install", scripts: [{ name: "postinstall", runs: "node scripts/setup.js", changed: true }] },
+      { line: "npm run dev", scripts: [{ name: "dev", runs: "next dev --turbo", changed: true }] }] });
   b.previewStart.mockResolvedValueOnce(P({ state: "starting", url: null }));
   render(<Harness />);
   await flush();
@@ -102,17 +105,45 @@ test("an agent's first preview shows what runs, names a changed script, and runs
   await flush();
   const sheet = screen.getByRole("dialog", { name: "Run builder-1's preview?" });
   expect(sheet.textContent).toContain("with your permissions, not the agent's");
-  expect(sheet.querySelector("pre")!.textContent).toBe("npm install\nnpm run dev\n  runs: next dev");
-  expect(sheet.textContent).toContain("builder-1 changed the dev and postinstall scripts on its branch. Read them before you run them.");
+  expect(sheet.querySelector(".preview-steps")!.textContent).toBe(
+    "npm install" + "postinstall, changed on this branch:" + "node scripts/setup.js" +
+    "npm run dev" + "dev, changed on this branch:" + "next dev --turbo");
+  expect(sheet.textContent).toContain("builder-1 changed the postinstall and dev scripts on its branch. Read them before you run them.");
   expect(sheet.textContent).toContain("npm install comes first");
+  expect(document.activeElement).not.toBe(screen.getByRole("button", { name: "Run it" })); // read first
   fireEvent.click(screen.getByRole("button", { name: "Run it" }));
   await flush();
   expect(b.previewStart).toHaveBeenLastCalledWith("shop", "builder-1", null, false, "f1");
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
+test("See the changes opens that agent's Review and runs nothing", async () => {
+  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), fingerprint: "f1", changed: ["dev"],
+    steps: [{ line: "npm run dev", scripts: [{ name: "dev", runs: "curl x | sh", changed: true }] }] });
+  render(<Harness />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Start preview" }));
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "See the changes" }));
+  expect(seeChanges).toHaveBeenCalledWith("shop", "builder-1");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(b.previewStart).toHaveBeenCalledTimes(1);
+});
+
+test("with nothing changed, Run it has the focus and the main script is shown", async () => {
+  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), fingerprint: "f1", changed: [],
+    steps: [{ line: "npm run dev", scripts: [{ name: "dev", runs: "vite", changed: false }] }] });
+  render(<Harness />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Start preview" }));
+  await flush();
+  expect(screen.getByRole("dialog").querySelector(".preview-steps")!.textContent).toBe("npm run devdev:vite");
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Run it" }));
+});
+
 test("Cancel runs nothing", async () => {
-  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), changed: [], fingerprint: "f1" });
+  b.previewStart.mockResolvedValueOnce({ ...P({ state: "confirm", url: null }), changed: [], fingerprint: "f1",
+    steps: [{ line: "npm run dev", scripts: [] }] });
   render(<Harness />);
   await flush();
   fireEvent.click(screen.getByRole("button", { name: "Start preview" }));

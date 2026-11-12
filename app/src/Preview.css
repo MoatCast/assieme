@@ -28,12 +28,16 @@
 .preview-sheet p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
 .preview-sheet code { font-family: var(--quiet-font-mono); color: var(--quiet-ink); }
 .preview-sheet .preview-bad { color: var(--quiet-needs-you-text); }
-.preview-sheet .preview-steps { margin: 0; padding: 10px 12px; border-radius: var(--quiet-radius-inner); background: var(--quiet-term);
-  color: var(--quiet-term-text); font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
-.preview-sheet .preview-runs { color: color-mix(in srgb, var(--quiet-term-text) 65%, transparent); }
+.preview-sheet:focus { outline: none; }
+.preview-sheet .preview-steps { max-height: 240px; overflow: auto; padding: 10px 12px; border-radius: var(--quiet-radius-inner);
+  background: var(--quiet-term); color: var(--quiet-term-text); font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview-sheet .preview-label { padding-left: 16px; color: color-mix(in srgb, var(--quiet-term-text) 65%, transparent); }
+.preview-sheet .preview-script { padding-left: 32px; }
 .preview-sheet .preview-small { font-size: 12px; line-height: 16px; }
-.preview-sheet .preview-warn { padding: 10px 12px; border-radius: var(--quiet-radius-inner); background: var(--quiet-needs-you-tint);
-  border: 1px solid var(--quiet-needs-you-line); color: var(--quiet-needs-you-text); line-height: 18px; }
+.preview-sheet .preview-warn { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px;
+  border-radius: var(--quiet-radius-inner); background: var(--quiet-needs-you-tint); border: 1px solid var(--quiet-needs-you-line); }
+.preview-sheet .preview-warn p { color: var(--quiet-needs-you-text); line-height: 18px; }
+.preview-sheet .pv-link { padding: 0; color: var(--quiet-ink); font-weight: 500; text-decoration: underline; }
 .preview-sheet-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 .preview-sheet button { font: inherit; font-size: 13px; line-height: 16px; cursor: pointer; border: 0; background: none; color: inherit; }
 .preview-sheet button:disabled { opacity: 0.5; cursor: default; }

@@ -338,8 +338,9 @@ export type Preview = {
   fix?: "install" | "retry" | "command" | null;
   /** The install command "Install and try again" runs, named on screen because it downloads. */
   install?: string | null;
-  /** For `confirm`: what the package script runs, the scripts the branch changed, and what to send back to run it. */
-  runs?: string | null;
+  /** For `confirm`: each command with the package scripts it runs (their content, and whether the branch changed them),
+   *  the names of the changed ones, and what to send back to run it. */
+  steps?: { line: string; scripts: { name: string; runs: string; changed: boolean }[] }[];
   changed?: string[];
   fingerprint?: string;
 };

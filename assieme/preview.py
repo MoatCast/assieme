@@ -219,17 +219,22 @@ class Previews:
     # --- what the app calls
 
     def _what_runs(self, project, base, path, cmd, first):
-        """What the person is shown before a first run: the steps, the script `cmd` runs, and which of the scripts
-        involved the branch changed compared with the base branch (the agent may have written them)."""
-        package = _package(_read(path, 'package.json'))
-        name = script_of(cmd)
-        names = ([f'pre{name}', name, f'post{name}'] if name else []) + (list(INSTALL_SCRIPTS) if first else [])
+        """What the person is shown before a first run, step by step: each command, with the content of the package
+        scripts it runs that the branch changed against the base branch (the agent may have written them), and of the
+        main script it runs. manage.py counts as a script when the branch changed it."""
+        now = _scripts(_package(_read(path, 'package.json')))
         before = _scripts(_package(self._git_show(project, base, 'package.json')))
-        now = _scripts(package)
-        changed = [n for n in names if now.get(n) != before.get(n) and (n in now or n in before)]
-        if 'manage.py' in cmd and _read(path, 'manage.py') != self._git_show(project, base, 'manage.py'):
-            changed.append('manage.py')
-        info = {'command': cmd, 'install': first, 'runs': now.get(name) if name else None, 'changed': changed}
+        script = lambda n, always=False: ([{'name': n, 'runs': str(now[n]), 'changed': now.get(n) != before.get(n)}]
+                                          if n in now and (always or now.get(n) != before.get(n)) else [])
+        name = script_of(cmd)
+        steps = [{'line': first, 'scripts': [x for n in INSTALL_SCRIPTS for x in script(n)]}] if first else []
+        mine = [*script(f'pre{name}'), *script(name, always=True), *script(f'post{name}')] if name else []
+        managed = _read(path, 'manage.py') if 'manage.py' in cmd else None
+        if managed is not None and managed != self._git_show(project, base, 'manage.py'):
+            mine.append({'name': 'manage.py', 'runs': managed.strip(), 'changed': True})
+        steps.append({'line': cmd, 'scripts': mine})
+        changed = [x['name'] for st in steps for x in st['scripts'] if x['changed']]
+        info = {'command': cmd, 'install': first, 'steps': steps, 'changed': changed}
         return info | {'fingerprint': hashlib.sha256(json.dumps([path, info], sort_keys=True).encode()).hexdigest()[:16]}
 
     def _git_show(self, project, base, name):
@@ -258,7 +263,7 @@ class Previews:
             return {'team': team, 'role': role, 'project': os.path.basename(project), 'state': 'needs_command'}
         first = install_command(path) if install or needs_install(path) else None
         shown = self._what_runs(project, base, path, cmd, first)
-        if typed and not (shown['runs'] or first or shown['changed']):
+        if typed and not first and not any(st['scripts'] for st in shown['steps']):
             confirm = shown['fingerprint']  # the person just typed it, and it runs nothing an agent wrote
         if self.confirmed.get((team, role)) != shown['fingerprint']:
             if confirm != shown['fingerprint']:  # nothing the agent wrote runs before the person has seen it
