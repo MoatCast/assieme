@@ -36,6 +36,10 @@ pub struct Gate {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SavedGate {
     last_human_ms: u64,
+    #[serde(default)]
+    held: Vec<u8>,
+    #[serde(default)]
+    held_human: bool,
     draft: usize,
     pasting: bool,
     sequence: Vec<u8>,
@@ -44,9 +48,16 @@ pub struct SavedGate {
 
 impl Gate {
     pub fn snapshot(&self) -> Option<SavedGate> {
-        let elapsed = self.last_human?.elapsed().as_millis().min(u64::MAX as u128) as u64;
+        if self.last_human.is_none() && self.held.is_empty() {
+            return None;
+        }
         Some(SavedGate {
-            last_human_ms: crate::runtime::now_ms().saturating_sub(elapsed),
+            last_human_ms: self.last_human.map_or(0, |at| {
+                let elapsed = at.elapsed().as_millis().min(u64::MAX as u128) as u64;
+                crate::runtime::now_ms().saturating_sub(elapsed)
+            }),
+            held: self.held.clone(),
+            held_human: self.held_human,
             draft: self.draft,
             pasting: self.pasting,
             sequence: self.sequence.clone(),
@@ -58,6 +69,8 @@ impl Gate {
         let elapsed = Duration::from_millis(crate::runtime::now_ms().saturating_sub(saved.last_human_ms));
         Self {
             last_human: Instant::now().checked_sub(elapsed),
+            held: saved.held,
+            held_human: saved.held_human,
             draft: saved.draft,
             pasting: saved.pasting,
             sequence: saved.sequence,
