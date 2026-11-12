@@ -4,13 +4,16 @@ Read-only: herdr's files and terminals are only read, and nothing is started. Wh
 draft's `notes`, one plain sentence per kind with the agents it is about, instead of being dropped.
 """
 import collections
+import concurrent.futures
+import functools
 import json
 import os
 import re
 import shlex
+import socket
 import subprocess
 
-from . import launch, newteam, status, worktree
+from . import launch, newteam, setup, worktree
 
 KINDS = ('claude', 'codex')
 # Agent kinds herdr knows (`herdr agent start --kind`): one of these that isn't Claude Code or Codex is left out with a
@@ -61,9 +64,26 @@ def _kind_of(name):
     return 'builder'
 
 
+@functools.lru_cache(maxsize=1)
 def _jobs():
     full = newteam._as_preset(os.path.join(newteam.PRESETS_DIR, 'full'), 'full')['roles']
     return {r['name'].split('-')[0]: r['job'] for r in full}
+
+
+def _known_models():
+    """{CLI: the model ids New team offers}. Codex's come from this Mac's own list; an empty one checks nothing."""
+    return {cli: {m['id'] for m in o['models']} for cli, o in newteam.model_options().items()}
+
+
+def _model_problem(kind, model, known):
+    """Why a model can't be carried over, or None. A full Claude model name is fine: New team's menu has aliases."""
+    if not launch.MODEL.match(model):
+        return f'model {model!r}'
+    if kind == 'claude' and model not in known['claude'] and not model.startswith('claude-'):
+        return f"model {model!r} isn't on this Mac's list"
+    if kind == 'codex' and known['codex'] and model not in known['codex']:
+        return f"model {model!r} isn't on this Mac's list"
+    return None
 
 
 def _checkout(cwd):
@@ -115,10 +135,12 @@ def _unquote(v):
     return v[1:-1] if v and len(v) > 1 and v[0] == v[-1] and v[0] in '"\'' else v
 
 
-def _read_brief(path, say):
+def _read_brief(path, say, base=None):
+    """A brief file's text. A relative path is read from the agent's folder (else the script's), as the agent would."""
     if path is None:
         say('brief-part', 'its brief file is chosen when the script runs')
         return ''
+    path = os.path.join(base or '', os.path.expanduser(path))
     try:
         if os.path.getsize(path) > MAX_BRIEF:
             raise OSError
@@ -129,9 +151,10 @@ def _read_brief(path, say):
         return ''
 
 
-def agent_role(name, kind, args, env_names=(), holds_task=False):
+def agent_role(name, kind, args, env_names=(), holds_task=False, base=None, known=None):
     """A New team role from one Claude Code or Codex command line, and what didn't carry over (kind, agent, detail).
-    holds_task: its first message is the team's task (in `_task`), so it is left out of the brief."""
+    holds_task: its first message is the team's task (in `_task`), so it is left out of the brief.
+    base: the folder relative brief files are read from. known: `_known_models()`, read once per import."""
     notes = []
     say = lambda kind, detail='': notes.append((kind, name, detail))
     if ARRAY in args:
@@ -151,12 +174,13 @@ def agent_role(name, kind, args, env_names=(), holds_task=False):
             say('extras', 'a setting chosen when the script runs')
     model = first('--model', '-m') or config.pop('model', False)
     effort = first('--effort') or config.pop('model_reasoning_effort', False)
+    problem = model and _model_problem(kind, model, known or _known_models())
     if model is None:
         say('model', 'model chosen when the script runs')
-    elif model and launch.MODEL.match(model):
-        role['model'] = model
+    elif problem:
+        say('model', problem)
     elif model:
-        say('model', f'model {model!r}')
+        role['model'] = model
     if effort is None:
         say('model', 'effort chosen when the script runs')
     elif effort and not launch.check_model_effort(kind, None, effort):
@@ -201,7 +225,7 @@ def agent_role(name, kind, args, env_names=(), holds_task=False):
 
     parts = []
     for f in ('--system-prompt-file', '--append-system-prompt-file'):
-        parts += [_read_brief(p, say) for p in opts.get(f, [])]
+        parts += [_read_brief(p, say, base) for p in opts.get(f, [])]
     for f in ('--system-prompt', '--append-system-prompt'):
         for text in opts.get(f, []):
             if text is None:
@@ -341,10 +365,12 @@ def _split(argv):
 
 # --- the three sources ----------------------------------------------------------------------------------------
 
-def _team(members, project=None, notes=None):
-    """The draft from [(herdr name, program, args, env names, cwd, parent name)], one per terminal or pane. The first
-    agent that reports to no one has the team's task: its first message."""
+def _team(members, project=None, notes=None, base=None):
+    """The draft from [(herdr name, program, args, env names, cwd, parent name)], one per terminal or pane. The parent
+    is '' when the agent is known to report to no one and None when that is only decided at run time; the first agent
+    known to report to no one has the team's task: its first message. base: the script's folder."""
     roles, notes, taken, cwds, task = [], list(notes or []), set(), {}, None
+    known = _known_models()
     for n, (name, prog, args, env_names, cwd, parent) in enumerate(members, 1):
         if prog is None:
             notes.append(('unknown-program', name or f'agent-{n}', ''))
@@ -361,14 +387,24 @@ def _team(members, project=None, notes=None):
         while slug in taken:
             slug, k = f'{base}-{k}', k + 1
         taken.add(slug)
-        role, said = agent_role(slug, prog, list(args), env_names, holds_task=task is None and not parent)
-        if task is None and not parent:
+        leads = task is None and parent == ''
+        role, said = agent_role(slug, prog, list(args), env_names, holds_task=leads, base=cwd or base, known=known)
+        try:  # one role New team would refuse is left out, not the whole import
+            newteam.validate([dict(role, parent=None)])
+        except newteam.NewTeamError as e:
+            notes.append(('refused', slug, e.message))
+            continue
+        if leads:
             task = role.pop('_task', '')
         role.pop('_task', None)
         role['_herdr'], role['_parent'] = name, parent
         roles.append(role)
         notes += said
         cwds[slug] = cwd
+    if task is None and roles:
+        task = ''
+        notes.append(('task', None, "Which agent leads is only decided when the script runs, so the team's task is "
+                                    'left empty here. Say what the team should work on.'))
     by_herdr = {r['_herdr']: r['name'] for r in roles if r['_herdr']}
     for r in roles:
         parent = r.pop('_parent')
@@ -391,7 +427,7 @@ def _team(members, project=None, notes=None):
         main, branch = places.get(r['name'], (None, None))
         if r['checkout'] == 'branch' and branch and os.path.realpath(cwds[r['name']]) != main:
             notes.append(('branch', r['name'], branch))
-    return {'project': project, 'task': task, 'roles': roles, 'notes': _grouped(notes)}
+    return {'project': project, 'task': task or '', 'roles': roles, 'notes': _grouped(notes)}
 
 
 def _count(n):
@@ -400,6 +436,7 @@ def _count(n):
 
 # What each kind of note says about the agents it lists, in the order they are shown.
 SENTENCES = {
+    'refused': lambda n, d: f"{_count(n)} couldn't be carried over as New team would refuse them, so they are left out.",
     'unknown-program': lambda n, d: f'The program {_count(n)} ran is chosen when the script runs, so they are left out.',
     'other-cli': lambda n, d: f"{_count(n)} ran a CLI Assieme doesn't start yet ({', '.join(d)}), so they are left out.",
     'wide': lambda n, d: f'{_count(n)} ran with wider permissions ({", ".join(d)}). They start with safe permissions '
@@ -439,25 +476,55 @@ def _grouped(records):
     return out
 
 
+def _hc_path():
+    """The person's herdr install's own hc, else theirs on the login PATH: the brain's PATH puts the bundled one first."""
+    herdr = setup.agent_path('herdr')
+    own = herdr and os.path.join(os.path.dirname(herdr), 'hc')
+    return own if own and os.access(own, os.X_OK) else setup.agent_path('hc')
+
+
+def _core_up():
+    """Whether the person's herdr core is listening. Asked first because any `hc` command starts a core of its own."""
+    session = os.environ.get('HC_SESSION') or 'default'
+    path = os.environ.get('HC_SOCKET') or os.path.expanduser(f'~/.local/state/herdr-core/{session}/{session}.sock')
+    with socket.socket(socket.AF_UNIX) as s:
+        s.settimeout(1)
+        try:
+            s.connect(path)
+            return True
+        except OSError:
+            return False
+
+
+def _hc(args):
+    out = subprocess.run([_hc_path() or 'hc', *args, '--json'], capture_output=True, text=True, timeout=5, check=True)
+    return json.loads(out.stdout)
+
+
 def _hc_terminals():
-    """Live herdr-core terminals with their full details, or [] when hc is missing or isn't running."""
+    """(live herdr-core terminals with their full details, what went wrong reading them or None). No core: none."""
+    if not _core_up():
+        return [], None
     try:
-        listed = status._hc_json('ls').get('terminals') or []
-        return [status._hc_json('get', t['address']) for t in listed if t.get('state') == 'live']
-    except (OSError, ValueError, AttributeError, KeyError, TypeError, subprocess.SubprocessError):
-        return []
+        listed = [t['address'] for t in _hc(['ls']).get('terminals') or [] if t.get('state') == 'live']
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:  # `hc ls` has no argv or labels
+            return list(pool.map(lambda a: _hc(['get', a]), listed)), None
+    except (OSError, ValueError, AttributeError, KeyError, TypeError, subprocess.SubprocessError) as e:
+        return [], f"Couldn't read what is running in herdr ({type(e).__name__}). Saved workspaces and scripts still work."
 
 
 def _running(terminals=None):
-    """{team key: [terminal]} for herdr-core terminals running an agent, by herdr space, else by project folder."""
+    """({team key: [terminal]} for herdr-core terminals running an agent, by herdr space, else by project folder,
+    what went wrong reading them or None)."""
     teams = collections.defaultdict(list)
-    for t in _hc_terminals() if terminals is None else terminals:
+    terminals, problem = _hc_terminals() if terminals is None else (terminals, None)
+    for t in terminals:
         prog = _split(t.get('argv') or [])[0]
         if prog not in HERDR_KINDS and (t.get('agent') or '') not in HERDR_KINDS:
             continue
         key = (t.get('labels') or {}).get('herdr.space') or _checkout(t.get('cwd'))[0] or 'herdr'
         teams[key].append(t)
-    return teams
+    return teams, problem
 
 
 def _from_terminals(ts):
@@ -555,7 +622,7 @@ def _from_script(path):
 
     run(walk, env)
     project = _checkout(os.path.dirname(path))[0]
-    return _team(members, project if not any(m[4] for m in members) else None)
+    return _team(members, project if not any(m[4] for m in members) else None, base=os.path.dirname(path))
 
 
 def _assign(line, env):
@@ -612,7 +679,8 @@ def _script_member(tool, words):
 def find(terminals=None, cfg=None):
     """Every herdr team on this Mac that can be imported: running ones first, then saved workspaces."""
     teams = []
-    for key, ts in _running(terminals).items():
+    running, problem = _running(terminals)
+    for key, ts in running.items():
         label = key if not os.path.isabs(key) else os.path.basename(key)
         teams.append({'id': f'running:{key}', 'label': label, 'where': 'Running in herdr', 'agents': len(ts),
                       'running': True})
@@ -625,14 +693,14 @@ def find(terminals=None, cfg=None):
                               'label': ws.get('custom_name') or os.path.basename(folder.rstrip('/')) or 'workspace',
                               'where': 'Saved in herdr' + ('' if session == 'default' else f', session {session}'),
                               'agents': len(panes), 'running': False})
-    return {'teams': teams}
+    return {'teams': teams, 'unreadable': problem}
 
 
 def draft(source, terminals=None, cfg=None):
     """The New team draft for one source from `find`, or `script:<path>` for a launch script."""
     kind, _, rest = source.partition(':')
     if kind == 'running':
-        ts = _running(terminals).get(rest)
+        ts = _running(terminals)[0].get(rest)
         if not ts:
             raise ValueError("That herdr team isn't running any more.")
         # Started here while still running there, two teams would work on the same project.

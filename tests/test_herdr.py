@@ -5,8 +5,21 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from assieme import herdr, newteam
+
+# Made-up model lists: the tests never read this Mac's own Codex list.
+KNOWN = {'claude': {'fable', 'opus', 'sonnet', 'haiku'}, 'codex': {'gpt-5', 'gpt-5-mini'}}
+_known = mock.patch.object(herdr, '_known_models', return_value=KNOWN)
+
+
+def setUpModule():
+    _known.start()
+
+
+def tearDownModule():
+    _known.stop()
 from tests.test_newteam import git_repo
 
 
@@ -76,6 +89,43 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual((role['model'], role['effort']), (None, None))
         self.assertEqual(len(notes), 2 + 1)  # model, effort, standard brief
 
+    def test_model_must_be_on_this_macs_list(self):
+        role, notes = herdr.agent_role('builder', 'codex', ['-m', 'gpt-9-made-up', 'Go.'])
+        self.assertIsNone(role['model'])
+        self.assertIn("isn't on this Mac's list", said(notes))
+        role, notes = herdr.agent_role('lead', 'claude', ['--model', 'claude-opus-5-5', 'Go.'])
+        self.assertEqual(role['model'], 'claude-opus-5-5')  # a full Claude model name is fine
+        role, notes = herdr.agent_role('lead', 'claude', ['--model', 'gpt-5', 'Go.'])
+        self.assertIsNone(role['model'])
+
+    def test_this_macs_codex_list_is_read(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        with open(os.path.join(d, 'models_cache.json'), 'w') as f:
+            json.dump({'models': [{'slug': 'gpt-made-up', 'supported_reasoning_levels': [{'effort': 'high'}]}]}, f)
+        _known.stop()
+        try:
+            with mock.patch.dict(os.environ, {'CODEX_HOME': d}):
+                self.assertIn('gpt-made-up', herdr._known_models()['codex'])
+        finally:
+            _known.start()
+
+    def test_relative_brief_file_is_read_from_the_agents_folder(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        os.makedirs(os.path.join(d, 'build'))
+        with open(os.path.join(d, 'build', 'rules.md'), 'w') as f:
+            f.write('Folder rules.')
+        role, notes = herdr.agent_role('builder', 'claude', ['--append-system-prompt-file', 'build/rules.md'], base=d)
+        self.assertEqual(role['brief'], 'Folder rules.')
+
+    def test_jobs_are_read_once(self):
+        herdr._jobs.cache_clear()
+        with mock.patch.object(newteam, '_as_preset', wraps=newteam._as_preset) as load:
+            for name in ('a', 'b', 'c'):
+                herdr.agent_role(name, 'claude', ['Go.'])
+        self.assertEqual(load.call_count, 1)
+
     def test_environment_names_only(self):
         role, notes = herdr.agent_role('builder', 'claude', ['Go.'], ['PATH', 'SECRET_TOKEN'])
         self.assertEqual(notes, [('extras', 'builder', 'SECRET_TOKEN')])
@@ -123,6 +173,65 @@ class RunningTest(unittest.TestCase):
         self.assertEqual(d['running'], 'shopteam')
         self.assertEqual(d['task'], 'Split the cart work.')
         newteam.validate(d['roles'])
+
+    def test_hc_details_are_read_at_once_with_the_persons_hc(self):
+        import threading, time
+        seen, lock = [], threading.Lock()
+
+        def hc(args):
+            if args[0] == 'ls':
+                return {'terminals': [{'address': f't{i}', 'state': 'live'} for i in range(6)]}
+            with lock:
+                seen.append(threading.get_ident())
+            time.sleep(0.2)
+            return {'address': args[1], 'argv': ['claude']}
+        start = time.monotonic()
+        with mock.patch.object(herdr, '_hc', side_effect=hc), mock.patch.object(herdr, '_core_up', return_value=True):
+            got, problem = herdr._hc_terminals()
+        self.assertEqual((len(got), problem), (6, None))
+        self.assertLess(time.monotonic() - start, 0.8, 'hc get runs for each terminal at the same time')
+
+    def test_herdr_not_running_starts_nothing_and_unreadable_says_so(self):
+        with mock.patch.object(herdr, '_core_up', return_value=False), mock.patch.object(herdr, '_hc') as hc:
+            self.assertEqual(herdr._hc_terminals(), ([], None))
+        hc.assert_not_called()  # hc would start a herdr core of its own
+        with mock.patch.object(herdr, '_core_up', return_value=True), \
+                mock.patch.object(herdr, '_hc', side_effect=OSError('hc broke')):
+            got, problem = herdr._hc_terminals()
+        self.assertEqual(got, [])
+        self.assertIn("Couldn't read what is running in herdr", problem)
+        with mock.patch.object(herdr, '_hc_terminals', return_value=([], 'Couldn\'t read what is running in herdr.')):
+            self.assertIn("Couldn't read", herdr.find(cfg=tempfile.mkdtemp())['unreadable'])
+
+    def test_herdrs_own_hc_comes_first(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        for p in ('herdr', 'hc'):
+            with open(os.path.join(d, p), 'w') as f:
+                f.write('#!/bin/sh\n')
+            os.chmod(os.path.join(d, p), 0o755)
+        with mock.patch.object(herdr.setup, 'agent_path', side_effect=lambda n: os.path.join(d, n) if n == 'herdr' else '/bundle/hc'):
+            self.assertEqual(herdr._hc_path(), os.path.join(d, 'hc'))
+
+    def test_task_only_from_an_agent_known_to_report_to_no_one(self):
+        d = herdr._team([('lead', 'claude', ['Plan it.'], {}, '', None), ('two', 'claude', ['Build it.'], {}, '', None)])
+        self.assertEqual(d['task'], '')
+        self.assertTrue(any('task' in n['text'] for n in d['notes']))
+        self.assertIn('Plan it.', by_name(d)['lead']['brief'])
+        d = herdr._team([('helper', 'claude', ['Help.'], {}, '', None), ('lead', 'claude', ['Plan it.'], {}, '', '')])
+        self.assertEqual(d['task'], 'Plan it.')
+
+    def test_a_role_new_team_would_refuse_is_left_out_with_a_note(self):
+        real = newteam.validate
+
+        def refuse_two(roles):
+            if any(r['name'] == 'two' for r in roles) and len(roles) == 1:
+                raise newteam.NewTeamError('role:0', 'Every agent needs a brief.')
+            return real(roles)
+        with mock.patch.object(newteam, 'validate', side_effect=refuse_two):
+            d = herdr._team([('one', 'claude', ['Go.'], {}, '', ''), ('two', 'claude', ['Go.'], {}, '', 'one')])
+        self.assertEqual([r['name'] for r in d['roles']], ['one'])
+        self.assertIn('two (Every agent needs a brief.)', notes_for(d, 'two')[0])
 
     def test_gone_team(self):
         with self.assertRaisesRegex(ValueError, 'running'):
@@ -232,14 +341,15 @@ class ScriptTest(unittest.TestCase):
         roles = by_name(d)
         self.assertEqual(sorted(roles), ['builder', 'checker', 'lead', 'reviewer'])
         checker = roles['checker']
-        self.assertEqual((checker['agent'], checker['checkout'], checker['brief']), ('codex', 'read-only', 'Check the cart diff.'))
+        self.assertEqual((checker['agent'], checker['checkout']), ('codex', 'read-only'))
         self.assertTrue(any('report to no one' in n for n in notes_for(d, 'lead')))  # --parent may hide in "${parent[@]}"
         lead, builder, reviewer = roles['lead'], roles['builder'], roles['reviewer']
         self.assertEqual((lead['agent'], lead['model']), ('claude', 'claude-opus-5-5'))
-        self.assertEqual(lead['brief'], 'House rules.')
+        self.assertEqual(lead['brief'], 'House rules.\n\nPlan the cart.')
         self.assertTrue(any('permission mode "auto"' in n for n in notes_for(d, 'lead')))
-        self.assertEqual(d['task'], 'Plan the cart.')  # the first agent's first message
-        self.assertNotIn('Plan the cart.', lead['brief'])
+        # The lead's parent may hide in "${parent[@]}", so the task is the first message of the first agent known
+        # to report to no one.
+        self.assertEqual(d['task'], 'Check the cart diff.')
         self.assertEqual((builder['agent'], builder['model'], builder['effort']), ('codex', 'gpt-5', 'high'))
         self.assertEqual(builder['brief'], 'Build the cart.')
         self.assertTrue(any('TOKEN_X' in n for n in notes_for(d, 'builder')))
@@ -276,7 +386,7 @@ class ScriptTest(unittest.TestCase):
         self.assertEqual(draft['project'], self.repo)
         self.assertEqual(sorted(r['name'] for r in draft['roles']), ['builder', 'checker', 'lead', 'reviewer'])
         self.assertTrue(draft['notes'])
-        self.assertEqual(draft['task'], 'Plan the cart.')
+        self.assertEqual(draft['task'], 'Check the cart diff.')
         with open(self.script, 'w') as f:
             f.write('hc run -- npm run dev\n')
         with mock.patch.dict(os.environ, {'XDG_STATE_HOME': state}), self.assertRaisesRegex(ValueError, 'No Claude'):

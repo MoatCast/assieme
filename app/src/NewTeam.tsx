@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { checkProject, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
 import FolderSheet from "./FolderSheet";
 import HelpMeChoose from "./HelpMeChoose";
 import HerdrImport from "./HerdrImport";
@@ -102,8 +102,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setImported(d.from === "herdr" ? { notes: d.notes ?? [], running: d.running } : null);
   }
 
-  const choose = (p: Preset) => {
-    if (edited && !window.confirm("Replace the agents you've edited?")) return;
+  const choose = async (p: Preset) => {
+    if (edited && !(await confirmReplace())) return;
     setImported(null);
     setChosen(p.id);
     setRoles(fit(p.roles));
@@ -436,10 +436,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     </div>
     {folderSheet && <FolderSheet project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
     {importing && (
-      <HerdrImport onClose={() => setImporting(false)} onImported={(d) => {
-        if (edited && !window.confirm("Replace the agents you've edited?")) return;
+      <HerdrImport onClose={() => setImporting(false)} onImported={async (d) => {
         setImporting(false);
-        apply(d);
+        if (!edited || await confirmReplace()) apply(d);
       }} />
     )}
     </>

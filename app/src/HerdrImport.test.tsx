@@ -59,3 +59,11 @@ test("a script that can't be imported says why and opens nothing", async () => {
   expect(screen.getByRole("alert").textContent).toContain("No Claude Code or Codex agents");
   expect(onImported).not.toHaveBeenCalled();
 });
+
+test("when herdr can't be read, the sheet says so instead of saying nothing is running", async () => {
+  b.herdrFind.mockResolvedValue({ teams: [], unreadable: "Couldn't read what is running in herdr (OSError). Saved workspaces and scripts still work." });
+  await open();
+  expect(screen.getByText(/Couldn't read what is running in herdr/)).toBeTruthy();
+  expect(screen.queryByText(/Nothing is running in herdr/)).toBeNull();
+  expect(screen.getByText("Choose a launch script…")).toBeTruthy();
+});

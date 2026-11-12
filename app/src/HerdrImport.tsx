@@ -10,11 +10,15 @@ const agents = (n: number) => (n === 1 ? "1 agent" : `${n} agents`);
  *  From Paper "v2 — Import from herdr" and "v2 — Import from herdr: nothing found". Nothing is started here. */
 export default function HerdrImport({ onClose, onImported }: { onClose: () => void; onImported: (draft: TeamDraft) => void }) {
   const [teams, setTeams] = useState<HerdrTeam[] | null>(null);
+  const [unreadable, setUnreadable] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
   useEffect(() => {
-    herdrFind().then((r) => setTeams(r.teams), (e) => {
+    herdrFind().then((r) => {
+      setTeams(r.teams);
+      setUnreadable(r.unreadable ?? "");
+    }, (e) => {
       setTeams([]);
       setError(message(e));
     });
@@ -50,6 +54,7 @@ export default function HerdrImport({ onClose, onImported }: { onClose: () => vo
           <h2>Import a team from herdr</h2>
           <p className="big">Pick one and New team fills in its agents, models and briefs. You check it, then start it. Nothing in herdr changes.</p>
         </div>
+        {unreadable && <p className="herdr-error" role="status">{unreadable}</p>}
         {teams === null ? <p className="herdr-quiet">Looking for herdr teams…</p> : teams.length ? (
           <div className="herdr-found">
             <p className="herdr-quiet">Found on this Mac</p>
@@ -71,7 +76,10 @@ export default function HerdrImport({ onClose, onImported }: { onClose: () => vo
         ) : (
           <div className="herdr-empty">
             <strong>No herdr teams on this Mac</strong>
-            <p>Nothing is running in herdr, and herdr has no saved workspaces with agents. If a script starts your team, choose it here.</p>
+            <p>
+              {unreadable ? "herdr has no saved workspaces with agents." : "Nothing is running in herdr, and herdr has no saved workspaces with agents."}
+              {" "}If a script starts your team, choose it here.
+            </p>
             {chooseScript}
           </div>
         )}

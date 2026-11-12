@@ -2,7 +2,7 @@
 // and the native bridge behind it.
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 export type Agent = {
@@ -103,8 +103,13 @@ export const suggestTeam = (a: { project: string; size: string; review: string; 
   invoke<Suggestion>("brain_call", { method: "team.suggest", params: a, timeoutS: 180 });
 
 /** herdr teams on this Mac that can be imported, and one of them (or `script:<path>`) as a New team draft. */
-export const herdrFind = () => brain<{ teams: HerdrTeam[] }>("herdr.find");
+/** unreadable: herdr is running but couldn't be read, in words; null when it was read or isn't running. */
+export const herdrFind = () => brain<{ teams: HerdrTeam[]; unreadable?: string | null }>("herdr.find");
 export const herdrImport = (source: string) => brain<TeamDraft>("herdr.import", { source });
+
+/** The app's own dialog: `window.confirm` shows nothing in its web view, so it would replace without asking. */
+export const confirmReplace = () =>
+  ask("Replace the agents you've edited?", { title: "New team", kind: "warning", okLabel: "Replace", cancelLabel: "Keep them" });
 
 export async function pickScript(): Promise<string | null> {
   const p = await open({ directory: false, multiple: false, title: "Choose a launch script" });

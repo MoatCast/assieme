@@ -15,6 +15,7 @@ const b = vi.hoisted(() => ({
   installTools: vi.fn(),
   herdrFind: vi.fn(),
   herdrImport: vi.fn(),
+  confirmReplace: vi.fn(),
 }));
 vi.mock("./bridge", async (orig) => ({ ...(await orig<typeof import("./bridge")>()), ...b }));
 
@@ -442,12 +443,16 @@ test("a suggested model and effort show on the row and reach Start", async () =>
 test("replacing an edited list asks first", async () => {
   await open();
   fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
-  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const confirm = vi.spyOn(window, "confirm");
+  b.confirmReplace.mockResolvedValue(false);
   fireEvent.click(screen.getByText("Builder + reviewer"));
-  expect(confirm).toHaveBeenCalled();
+  await flush();
+  expect(b.confirmReplace).toHaveBeenCalled();
+  expect(confirm).not.toHaveBeenCalled(); // shows nothing in the app's web view
   expect(names()).toEqual(["lead"]);
-  confirm.mockReturnValue(true);
+  b.confirmReplace.mockResolvedValue(true);
   fireEvent.click(screen.getByText("Builder + reviewer"));
+  await flush();
   expect(names()).toEqual(["builder", "reviewer"]);
 });
 
@@ -712,9 +717,26 @@ test("an import from herdr fills the form, says what didn't carry over, and a pr
   expect(screen.getByText("Opus · High")).toBeTruthy(); // each agent's model and effort, as New team shows them
   expect(screen.getByText("Start team")).toBeTruthy();
   expect(screen.getByText("From herdr…").getAttribute("aria-pressed")).toBe("true");
-  vi.spyOn(window, "confirm").mockReturnValue(true);
+  b.confirmReplace.mockResolvedValue(true);
   fireEvent.click(screen.getByText("Builder + reviewer"));
+  await flush();
   expect(screen.queryByText("shop is still running in herdr")).toBeNull();
   expect(screen.queryByText("lead, builder")).toBeNull();
   expect(screen.getByText("Start with recommended")).toBeTruthy();
+});
+
+test("an import over edited agents asks first, and No keeps them", async () => {
+  b.herdrFind.mockResolvedValue({ teams: [{ id: "saved:default:w1", label: "docs", where: "Saved in herdr", agents: 1, running: false }] });
+  b.herdrImport.mockResolvedValue({ id: "d2", from: "herdr", project: "/Users/me/docs", task: "", why: "", practices: {},
+    roles: [r("writer")], notes: [] });
+  await open();
+  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
+  b.confirmReplace.mockResolvedValue(false);
+  fireEvent.click(screen.getByText("From herdr…"));
+  await flush();
+  fireEvent.click(screen.getByText("Import"));
+  await flush();
+  expect(b.confirmReplace).toHaveBeenCalled();
+  expect(names()).toEqual(["lead"]);
+  expect(screen.queryByText("Import a team from herdr")).toBeNull(); // the sheet closes either way
 });
