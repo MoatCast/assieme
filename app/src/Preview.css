@@ -42,6 +42,13 @@
 
 /* A preview on a Terminals pane and a Board card. */
 .terminals .fix-reason.bad { color: var(--quiet-needs-you-text); }
+/* Paper sizes these buttons at 12px, so the port fits beside Stop, Open preview and Review changes. */
+.terminals .preview-foot { flex-wrap: wrap; gap: 6px; row-gap: 6px; font-size: 12px; }
+.terminals .preview-foot .fix-reason { flex: 1 0 auto; } /* a narrow pane wraps its buttons rather than cut the port */
+.terminals .preview-foot button { font-size: 12px; line-height: 16px; }
+.terminals .preview-foot .primary { padding: 4px 9px; }
+.terminals .preview-foot .secondary { padding: 3px 9px; }
+.terminals .preview-foot .quiet { padding: 4px 2px; }
 .terminals .fix-reason .mono { font-family: var(--quiet-font-mono); color: var(--quiet-ink); }
 .task-checks i.preview-on { background: var(--quiet-working); }
 .task-checks i.preview-wait { background: var(--quiet-control); }

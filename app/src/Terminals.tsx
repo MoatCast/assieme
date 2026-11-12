@@ -145,7 +145,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
 
   /** Paper "v2 — Preview: states": finished work, and its preview, at the foot of a pane. */
   const finished = (p: Pane, w: ReviewWaiting | undefined, pr: ReturnType<typeof pv.of>) => (
-    <div className="fix">
+    <div className="fix preview-foot">
       <span className={`fix-reason${pr?.state === "failed" ? " bad" : ""}`}>
         {!pr ? `${commits(w!.ahead)} ready to review`
           : pr.state === "running" ? <span className="mono">{host(pr)}</span>
