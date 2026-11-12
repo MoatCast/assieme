@@ -260,7 +260,13 @@ paths start at your current folder. Prefer explicit paths for remote work.
   every OS, including after a host shutdown. On macOS, shutdown warnings
   preserve kept programs even if they catch a signal and exit with a code;
   on Linux, systemd stops the core before its holders. Ordinary exits and
-  explicit kills remain final. Streams end on loss; reattach after the
+  explicit kills remain final. Set `restore_screen = true` in
+  `~/.config/assieme-core/config.toml` (Windows: `%APPDATA%\assieme-core\config.toml`)
+  to show the lost program's last saved screen above the new shell, separated
+  by a divider. It defaults to false and applies at the next recovery. On Windows,
+  the old screen is in history. `asm read` includes restored text, so scripts
+  reading it can match old output. Saved screens are consumed or discarded once; a power cut
+  that saves nothing starts blank. Streams end on loss; reattach after the
   restarted event. Pending input/attach may be unavailable: retry after recovery.
 - Once work is accepted: `asm kill <t>`, then `asm rm <t>`. Only clean up
   terminals you started; `asm ls` includes your user's other live work.
