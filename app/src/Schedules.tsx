@@ -30,12 +30,12 @@ export function dayWords(t: Date, now = new Date()): string {
 /** A select drawn like the sheet's other fields, with Paper's chevron. */
 function Select({ label, value, onChange, children }: { label: string; value: string | number; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
-    <span className="select">
+    <div className="select">
       <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>{children}</select>
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
         <path d="M3 4.5l3 3 3-3" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-    </span>
+    </div>
   );
 }
 

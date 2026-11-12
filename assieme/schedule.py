@@ -181,6 +181,10 @@ def options(teams=None):
     return out
 
 
+def _agents(n):
+    return 'its agent was' if n == 1 else f'its {n} agents were'
+
+
 # --- the scheduler -------------------------------------------------------------------------------------------------
 
 class Scheduler:
@@ -275,10 +279,10 @@ class Scheduler:
                                                  last={'at': (x.get('last') or {}).get('at'), 'result': result}))
         if result == 'finished':
             self._log(s, 'schedule_done', f"{s['name']} finished",
-                      f"Its top agent said the work is done, so its {n} agent(s) were stopped. Its work waits in Review; "
+                      f"Its top agent said the work is done, so {_agents(n)} stopped. Its work waits in Review; "
                       'nothing was merged.', alert=self._notify_finished())
         else:
-            live.record('schedule_stop', s['name'], f'You stopped its {n} agent(s). What it committed waits in Review.',
+            live.record('schedule_stop', s['name'], 'You stopped the run. What it committed waits in Review.',
                         team=s['team'], title=f"Stopped the run of {s['name']}", now=self.now())
         return True
 
