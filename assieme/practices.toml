@@ -1,71 +1,176 @@
-# The built-in team practices. One list feeds New team's Recommended setup
-# and the rules added to every agent's brief. A group is on unless a team sets it to false in [practices].
-version = 1
+# The built-in team practices. One list feeds New team's Recommended setup, Settings, Improve this team and the
+# rules added to every agent's brief. A team's [practices] table turns a group or a single rule off by its id
+# (ids are unique across the file); a rule is given only when its group and itself are on. [[bigger]] presets are
+# off unless set to true.
+version = 2
 
 [[group]]
 id = "messages"
 title = "Fewer, cheaper messages"
 summary = "Short notes, long briefs saved as files, a fresh start between tasks."
-rules = [
-  "End every report with one line: done, blocked, or needs a decision.",
-  "Put anything longer than a few lines in a file and send a short note that says \"Read <file> and do it\".",
-  "Treat each task as a fresh start: never rely on an earlier conversation; every brief you write must stand on its own.",
-]
+detail = "Every message an agent receives wakes it and re-reads its whole memory. These keep that rare and small."
+
+[[group.rule]]
+id = "brief-file"
+title = "Long briefs go in a file"
+detail = "The message just says “Read the brief and do it”. Also avoids rules that block words inside a message."
+note = "Learned from a real team: long briefs sent as text were resent in full every time."
+text = "Put anything longer than a few lines in a file and send a short note that says \"Read <file> and do it\"."
+
+[[group.rule]]
+id = "fresh-start"
+title = "Fresh start between tasks"
+detail = "A builder is restarted once it’s idle, so the next task doesn’t carry the last one’s memory."
+note = "Only between tasks, never mid-work."
+text = "Treat each task as a fresh start: never rely on an earlier conversation; every brief you write must stand on its own."
+
+[[group.rule]]
+id = "report-line"
+title = "Every brief ends with a report line"
+detail = "“When done or stuck, tell planner your commit or the blocker.” A finished turn wakes nobody, so this does."
+note = "Becomes automatic once agents report through Assieme directly."
+text = "End every report with one line: done, blocked, or needs a decision."
 
 [[group]]
 id = "safety"
 title = "Safe by default"
 summary = "One command at a time, no pushes or downloads, rules that match the program run."
-rules = [
-  "Run one action per shell command. If a command is refused, report it; never retry it in another form.",
-  "Never push, tag, change repository settings, add dependencies, download files, or open the keychain or secret folders.",
-  "A rule about a program is about running it, not mentioning it: you may discuss git push, never run it.",
-]
+detail = "An agent does only what its rules allow, and a refusal is reported, never worked around."
+
+[[group.rule]]
+id = "one-action"
+title = "One action per command"
+detail = "Each shell command does one thing, so a rule can judge it. A refused command is reported, never retried in another form."
+text = "Run one action per shell command. If a command is refused, report it; never retry it in another form."
+
+[[group.rule]]
+id = "no-push"
+title = "No pushes, downloads or secrets"
+detail = "Agents never push, tag, change repository settings, add dependencies, download files or open the keychain."
+note = "Turning this off lets agents git push."
+text = "Never push, tag, change repository settings, add dependencies, download files, or open the keychain or secret folders."
+
+[[group.rule]]
+id = "program-rules"
+title = "Rules match the program run"
+detail = "A rule about git push stops running it, not talking about it."
+note = "Learned from a real team: a rule on the word “deploy” refused harmless commands."
+text = "A rule about a program is about running it, not mentioning it: you may discuss git push, never run it."
 
 [[group]]
 id = "reviews"
 title = "Careful reviews"
 summary = "Fresh read-only reviewers, a fixed handoff, tests never weakened to pass."
-rules = [
-  "Reviewers read and never edit; a review's first line is the verdict.",
-  "Never weaken a test or a threshold to make it pass.",
-  "Hand off with: the commit, the commands run with their results, the tests with their counts, and open issues.",
-]
+detail = "A review is worth it only when the reviewer is fresh, can’t change the code, and the bar never moves."
+
+[[group.rule]]
+id = "read-only-review"
+title = "Reviewers only read"
+detail = "Reviewers never edit, and a review’s first line is the verdict."
+text = "Reviewers read and never edit; a review's first line is the verdict."
+
+[[group.rule]]
+id = "no-weakening"
+title = "Tests are never weakened"
+detail = "No test or threshold is changed just to make it pass."
+text = "Never weaken a test or a threshold to make it pass."
+
+[[group.rule]]
+id = "handoff"
+title = "A fixed handoff"
+detail = "The commit, the commands run with their results, the tests with their counts, and open issues."
+text = "Hand off with: the commit, the commands run with their results, the tests with their counts, and open issues."
 
 [[group]]
 id = "stopping"
 title = "Know when to stop"
-summary = "Two fix attempts, clear stop rules."
-rules = [
-  "Try at most 2 repairs for a failing check, writing down the cause before each rerun; then stop and report.",
-  "Stop and report when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict. Begin that report with the word \"Stopped:\" and the reason, so your owner is told.",
-]
+summary = "Two fix attempts, clear stop rules, a notification when work stops."
+detail = "An agent that keeps trying burns time and money. These make it stop and tell you."
+
+[[group.rule]]
+id = "two-repairs"
+title = "At most two repairs"
+detail = "A failing check gets two fix attempts, with the cause written down before each rerun."
+text = "Try at most 2 repairs for a failing check, writing down the cause before each rerun; then stop and report."
+
+[[group.rule]]
+id = "stop-rules"
+title = "Clear stop rules"
+detail = "It stops when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict."
+text = "Stop and report when a check fails twice, a test would need weakening, a forbidden action is needed, or 3 review rounds pass without a clean verdict."
+
+[[group.rule]]
+id = "stop-notice"
+title = "A notification when work stops"
+detail = "A stop report starts with “Stopped:” and the reason, so Assieme can tell you on your Mac."
+text = "Begin every stop report with the word \"Stopped:\" and the reason, so your owner is told."
 
 [[group]]
 id = "machine"
 title = "Easy on your Mac"
 summary = "Leave 2 cores free, offline installs, only the relevant tests until the end."
-rules = [
-  "Leave 2 CPU cores free when running tests, and install from the lockfile without going online.",
-  "While iterating, run only the relevant tests; run the full set once, on the final version, as the evidence.",
-]
+detail = "Agents share your Mac with you. These keep it usable while they work."
+
+[[group.rule]]
+id = "cores-offline"
+title = "Leave 2 cores free, install offline"
+detail = "Tests leave two CPU cores for you, and installs come from the lockfile without going online."
+text = "Leave 2 CPU cores free when running tests, and install from the lockfile without going online."
+
+[[group.rule]]
+id = "relevant-tests"
+title = "Relevant tests first"
+detail = "While iterating, only the tests for what changed; the full set once, on the final version."
+text = "While iterating, run only the relevant tests; run the full set once, on the final version, as the evidence."
 
 [[basic]]
-title = "Each builder has its own branch"
-detail = "Every builder works in its own git worktree and branch, so no two agents edit the same files."
+title = "Only the coordinator pushes, merges and talks to GitHub"
+detail = "Builders commit locally; reviewers only read."
 
 [[basic]]
-title = "Reviewers and planners only read"
-detail = "Read-only roles start without edit tools (Claude Code) or in the read-only sandbox (Codex)."
+title = "Each role gets its own checkout"
+detail = "Builders on their own branch, the coordinator and reviewers read-only, so no two agents edit the same files."
 
 [[basic]]
-title = "No message before an agent is ready"
+title = "Workers report to their coordinator automatically"
+detail = "Workers are the coordinator’s children, so their exits, blocks and errors reach it."
+
+[[basic]]
+title = "No message until an agent has finished starting"
 detail = "An agent gets its brief only after it reports its first status, so nothing is lost while it starts."
 
 [[basic]]
-title = "Trust is yours to give"
-detail = "Assieme answers an agent's \"trust this folder\" prompt only after you agree, never by guessing."
+title = "No polling or long sleeps; checks every 5 minutes"
+detail = "A waiter stops on change and says whether something changed, timed out or failed."
 
 [[basic]]
-title = "A clean start"
-detail = "Agents start without settings leaked from the shell or another agent session."
+title = "Read an agent’s latest output before acting"
+detail = "On every wake its state and recent output come first; a brief is never resent unread."
+
+[[basic]]
+title = "Shared resources queue themselves"
+detail = "One heavy test run at a time, behind a lock the test command waits on."
+
+[[basic]]
+title = "A lost terminal never comes back without its rules"
+detail = "It comes back as a shell, never as an agent without its brief."
+
+[[basic]]
+title = "Never answer an agent’s permission prompt for it"
+detail = "Trust is yours to give, and Assieme only removes terminals it started."
+
+[[basic]]
+title = "Each agent’s model is set when it starts"
+detail = "Never with /model, which would change your own default."
+
+[[bigger]]
+id = "steward"
+title = "Steward agent"
+summary = "Settles routine stops, so only real decisions reach you"
+detail = "Adds a read-only steward that answers routine stops itself and asks you only what is yours to decide."
+
+[[bigger]]
+id = "research-pairs"
+title = "Research pairs"
+summary = "An investigator and a critic who checks every claim"
+detail = "Adds a read-only critic to each researcher in the team. A team without researchers is unchanged."

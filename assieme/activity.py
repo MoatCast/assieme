@@ -159,13 +159,26 @@ def undo(id, rt, path=None, now=None):
     return {'ok': True, 'detail': ''}
 
 
-def _apply_practice(group, on, rt):
-    settings.set_value(f'practices.{group}', on)
-    g = next((x for x in preset.practices()['groups'] if x['id'] == group), None)
-    if not g:
+def practice_item(key):
+    """(title, rules it covers, whether running agents are told) for a group, rule or bigger-team key."""
+    p = preset.practices()
+    for g in p['groups']:
+        if g['id'] == key:
+            return g['title'], g['rules'], True
+        for r in g['rules']:
+            if r['id'] == key:
+                return r['title'], [r], True
+    b = next((x for x in p['bigger'] if x['id'] == key), None)
+    return (b['title'], [], False) if b else (key, [], False)
+
+
+def _apply_practice(key, on, rt):
+    settings.set_value(f'practices.{key}', on)
+    title, rules, tell = practice_item(key)
+    if not tell:  # a bigger-team preset shapes the next team started, not the agents running now
         return
-    text = f"assieme: the team practice \"{g['title']}\" is now {'on' if on else 'off'}."
-    text += (' From your next task, follow these:\n' + '\n'.join(f'- {r}' for r in g['rules'])) if on else ' You no longer need to follow it.'
+    text = f"assieme: the team practice \"{title}\" is now {'on' if on else 'off'}."
+    text += (' From your next task, follow these:\n' + '\n'.join(f"- {r['text']}" for r in rules)) if on else ' You no longer need to follow it.'
     try:
         rows = rt.list({}, all=False)
     except Exception:  # no core running means no agents to tell
@@ -175,13 +188,12 @@ def _apply_practice(group, on, rt):
             quiet.hold_note(r['address'], r['cwd'], text, getattr(rt, 'session', None), getattr(rt, 'sock', None))
 
 
-def change_practice(group, on, rt, log=None, now=None):
+def change_practice(key, on, rt, log=None, now=None):
     """Saved as New team's default; each running agent is told with its next turn, through quiet send."""
-    old = settings.load()['practices'].get(group, True)
-    _apply_practice(group, on, rt)
-    g = next((x for x in preset.practices()['groups'] if x['id'] == group), None)
-    return live.record('practice', g['title'] if g else group, 'You changed this in Settings.', log=log, now=now,
-                       group=group, old=old, new=on)
+    old = settings.load()['practices'].get(key, key not in {b['id'] for b in preset.practices()['bigger']})
+    _apply_practice(key, on, rt)
+    return live.record('practice', practice_item(key)[0], 'You changed this in Settings.', log=log, now=now,
+                       group=key, old=old, new=on)
 
 
 def change_fix(fix, mode, log=None, now=None):

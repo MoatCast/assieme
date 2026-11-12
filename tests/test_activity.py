@@ -277,3 +277,26 @@ class UndoTest(ActivityCase):
         self.assertIs(settings.load()['practices']['reviews'], False)
         [r] = self.rows()
         self.assertEqual(r['title'], 'Turned Careful reviews off')
+
+    def test_one_rule_changes_alone_and_undo_restores_it(self):
+        class Live(Rt):
+            session, sock = 'assieme', '/s/hc.sock'
+
+            def list(self, labels, all=False):
+                return [{'address': 't1', 'state': 'live', 'cwd': '/w/a', 'labels': {team.TEAM: 'shop'}}]
+        e = activity.change_practice('report-line', False, Live())
+        self.assertEqual(settings.load()['practices'], {'report-line': False})
+        [n] = quiet.held()[os.path.realpath('/w/a')]
+        self.assertIn('Every brief ends with a report line', n['text'])
+        self.assertEqual(self.rows()[0]['title'], 'Turned Every brief ends with a report line off')
+        activity.undo(e['id'], Live())
+        self.assertIs(settings.load()['practices']['report-line'], True)
+
+    def test_a_bigger_team_switch_tells_no_running_agent(self):
+        class Live(Rt):
+            def list(self, labels, all=False):
+                raise AssertionError('running agents are not told')
+        e = activity.change_practice('steward', True, Live())
+        self.assertEqual((e['old'], e['new']), (False, True))
+        self.assertEqual(self.rows()[0]['title'], 'Turned Steward agent on')
+        self.assertEqual(quiet.held(), {})

@@ -191,7 +191,7 @@ def forget_role(folder, name):
 def roster(name, teams=None):
     """What the saved team folder says about each role. A team started from the command line has none."""
     try:
-        tm = preset.load(os.path.join(teams or teams_dir(), name), practices=False)
+        tm = preset.load(os.path.join(teams or teams_dir(), name))  # with the roles bigger-team presets add
     except (preset.PresetError, OSError):
         return {}
     return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
@@ -283,7 +283,7 @@ class Starter:
                 self.busy.pop(project, None)
             raise
         rec = {'team': name, 'project': project, 'done': False, 'error': None, 'done_at': None,
-               'roles': [{'role': r['name'], 'state': 'starting', 'detail': ''} for r in roles]}
+               'roles': [{'role': r.name, 'state': 'starting', 'detail': ''} for r in tm.roles]}  # with preset-added roles
         with self.lock:
             self.busy.pop(project, None)
             self.recs.append(rec)
