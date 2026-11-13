@@ -50,7 +50,8 @@ ITEMS = {
     'secrets': {'words': 'Read secrets (~/.ssh, cloud keys, keychain)', 'programs': SECRET_PROGRAMS,
                 'note': 'its file tools and commands that name them',
                 'notes': {'codex': 'only the keychain command, for now', 'gemini': 'its file tools only, for now',
-                          'opencode': 'its file tools only, for now', 'cursor': 'its file tools only, for now'}},
+                          'opencode': 'its file tools only, for now', 'cursor': 'its file tools only, for now',
+                          'antigravity': 'its file tools only, for now'}},
     'network': {'words': 'Direct network calls', 'programs': NETWORK},
 }
 LEVEL_INFO = {
@@ -329,4 +330,18 @@ def cursor(role, cwd=None, test=None):
         out['deny'] += [f"Read({os.path.expanduser('~')}/{p[2:]})" for p in SECRET_PATHS]
     if 'read' in allowed:  # Read only
         out['deny'].append('Write(**)')
+    return {k: list(dict.fromkeys(v)) for k, v in out.items()}
+
+
+def antigravity(role, cwd=None, test=None):
+    """Antigravity's `permissions` {allow, deny} for its session settings, or None for a role without a level. A deny
+    always wins; anything not named asks the person."""
+    if not role.level:
+        return None
+    allow, deny, allowed, blocked = _program_lists(role, cwd, test)
+    out = {'allow': [f'command({" ".join(p)})' for p in allow], 'deny': [f'command({" ".join(p)})' for p in deny]}
+    if 'network' in blocked:
+        out['deny'] += ['read_url(*)', 'execute_url(*)']
+    if 'secrets' in blocked:
+        out['deny'] += [f'read_file({d})' for d in _secret_dirs()]
     return {k: list(dict.fromkeys(v)) for k, v in out.items()}

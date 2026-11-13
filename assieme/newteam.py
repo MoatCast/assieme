@@ -104,7 +104,7 @@ def model_options(codex_cache=None):
     return {'claude': {'models': [{'id': i, 'label': n, 'efforts': claude} for i, n in CLAUDE_MODELS],
                        'efforts': claude},
             'codex': {'models': codex, 'efforts': common},
-            **{k: {'models': [], 'efforts': []} for k in ('gemini', 'opencode', 'cursor')}}  # their own default only
+            **{k: {'models': [], 'efforts': []} for k in ('gemini', 'opencode', 'cursor', 'antigravity')}}  # their own default only
 
 
 def project_check(path):

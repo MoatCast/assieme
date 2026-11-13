@@ -49,7 +49,7 @@ export type Snapshot = {
   draft?: string | null;
 };
 
-export type AgentKind = "claude" | "codex" | "gemini" | "opencode" | "cursor";
+export type AgentKind = "claude" | "codex" | "gemini" | "opencode" | "cursor" | "antigravity";
 /** One agent in the New team form, in the brain's shape. */
 export type RoleDraft = {
   name: string;
@@ -446,7 +446,7 @@ export const assistantsDisconnect = () => invoke<Assistants>("brain_call", { met
 export const serviceRunning = () => invoke<boolean>("service_running");
 export const serviceInstall = () => invoke<void>("service_install");
 
-export type SetupStatus = { git: boolean; agents: Partial<Record<AgentKind, { installed: boolean; signed_in: boolean }>> };
+export type SetupStatus = { git: boolean; agents: Partial<Record<AgentKind, { installed: boolean; signed_in: boolean; connected?: boolean }>> };
 export type SetupCommands = Record<AgentKind, { name: string; install: string; signin: string; status: string }>;
 // The brain answers status in about 5 s, under the 20 s default call timeout.
 export const setupStatus = () => brain<SetupStatus>("setup.status");
@@ -456,6 +456,8 @@ export const installAgent = (agent: AgentKind) => brain<{ address: string }>("se
 export const signinAgent = (agent: AgentKind) => brain<{ address: string }>("setup.signin_agent", { agent });
 export const terminalState = (address: string) => brain<"running" | "finished">("setup.terminal_state", { address });
 export const installStop = (address: string) => brain<{ ok: boolean }>("setup.install_stop", { address });
+/** Installs Assieme's plugin into Antigravity, in a setup terminal; only after the person clicks Connect. */
+export const connectAntigravity = () => brain<{ address: string }>("setup.connect_antigravity");
 /** The container tool on this Mac, whether it runs, and whether this kind's container is built. */
 export type ContainerState = { tool: "docker" | "container" | null; running: boolean; image_ready: boolean };
 export const containerStatus = (agent: AgentKind) => brain<ContainerState>("container.status", { agent });

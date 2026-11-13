@@ -11,12 +11,14 @@ import sys
 
 from . import container, permissions, quiet, setup, worktree
 
-CLIS = {'claude': 'claude', 'codex': 'codex', 'gemini': 'gemini', 'opencode': 'opencode', 'cursor': 'cursor-agent'}
-NAMES = {'claude': 'Claude Code', 'codex': 'Codex', 'gemini': 'Gemini CLI', 'opencode': 'OpenCode', 'cursor': 'Cursor'}
+CLIS = {'claude': 'claude', 'codex': 'codex', 'gemini': 'gemini', 'opencode': 'opencode', 'cursor': 'cursor-agent',
+        'antigravity': 'agy'}
+NAMES = {'claude': 'Claude Code', 'codex': 'Codex', 'gemini': 'Gemini CLI', 'opencode': 'OpenCode', 'cursor': 'Cursor',
+         'antigravity': 'Antigravity'}
 # Thinking effort each CLI accepts (claude --effort; codex model_reasoning_effort). Codex models list their own.
 EFFORTS = {'claude': ('low', 'medium', 'high', 'xhigh', 'max'),
            'codex': ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'),
-           'gemini': (), 'opencode': (), 'cursor': ()}  # no thinking-effort flag
+           'gemini': (), 'opencode': (), 'cursor': (), 'antigravity': ('low', 'medium', 'high', 'xhigh', 'max')}  # no thinking-effort flag
 MODEL = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')  # the Codex value goes into a config setting: keep it plain
 
 
@@ -143,7 +145,7 @@ def _merge(cwd, rel, ours):
 
 
 # Kinds that read their settings from the agent's folder only when told it is trusted: Assieme asks the person first.
-ASKS_TRUST = ('gemini', 'cursor')
+ASKS_TRUST = ('gemini', 'cursor', 'antigravity')
 
 
 def _gemini(role, cwd, py=None, trusted=False):
@@ -235,9 +237,29 @@ def _cursor(role, cwd, py=None, trusted=False):
     return a, {}
 
 
+def _antigravity(role, cwd, py=None, trusted=False):
+    """Antigravity: hooks from the agent's own folder (`.agents/hooks.json`); its level, the person's rules and a trusted
+    folder in settings for this session only, never saved. Its team tools come from Assieme's plugin (`antigravity`)."""
+    hook = lambda state: [{'type': 'command', 'command': hook_command(state, py)}]
+    _merge(cwd, os.path.join('.agents', 'hooks.json'),
+           {'assieme': {'SessionStart': hook('idle'), 'PreInvocation': hook('working'), 'Stop': hook('idle')}})
+    session = {'toolPermission': 'request-review'}  # anything not named asks the person
+    perms = permissions.antigravity(role, cwd, _test_command(cwd) if role.level else None)
+    if perms:
+        session['permissions'] = perms
+    if trusted:
+        session['trustedWorkspaces'] = [cwd]
+    a = ['agy', '--settings', json.dumps(session)] + (['--model', role.model] if role.model else [])
+    if role.effort:
+        a += ['--effort', role.effort]
+    if role.checkout == 'read-only' or role.level == 'read-only':
+        a += ['--mode', 'plan']
+    return a, {}
+
+
 BUILDERS = {'claude': lambda role, cwd, py=None, trusted=False: (_claude(role, cwd, py), {}),
             'codex': lambda role, cwd, py=None, trusted=False: (_codex(role, py), {}),
-            'gemini': _gemini, 'opencode': _opencode, 'cursor': _cursor}
+            'gemini': _gemini, 'opencode': _opencode, 'cursor': _cursor, 'antigravity': _antigravity}
 
 
 # An empty prefix matches every remote; pushes go to a git-remote helper (quiet.install writes it) that refuses. Fetch is untouched.

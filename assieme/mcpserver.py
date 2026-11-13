@@ -245,7 +245,7 @@ def control_server():
         return await _with_yes(ctx, f'Start {team} again?' + (f'\n\nTask: {task}' if task else ''), 'mcp.start_saved', team=team, task=task)
 
     @m.tool(annotations=ACT)
-    async def add_agent(team: str, name: str, agent: Literal['claude', 'codex', 'gemini', 'opencode', 'cursor'], kind: Literal['builder', 'reviewer', 'tester', 'planner'],
+    async def add_agent(team: str, name: str, agent: Literal['claude', 'codex', 'gemini', 'opencode', 'cursor', 'antigravity'], kind: Literal['builder', 'reviewer', 'tester', 'planner'],
                         ctx: Context, job: str = '', parent: str | None = None, brief: str = '') -> Acted:
         """Add an agent to a running team, once the person agrees. It works from the kind's brief unless you give one."""
         role = {'name': name, 'agent': agent, 'kind': kind, 'job': job, 'parent': parent, 'brief': brief}

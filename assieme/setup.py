@@ -16,8 +16,8 @@ from . import runtime
 
 # Exit code 1 is what both status commands give when signed out (measured); anything else unclear counts as signed in.
 STATUS = {'claude': ['auth', 'status'], 'codex': ['login', 'status'], 'gemini': None, 'opencode': ['auth', 'list'],
-          'cursor': ['status']}
-PROGRAM = {'cursor': 'cursor-agent'}  # the others' program is their kind
+          'cursor': ['status'], 'antigravity': None}
+PROGRAM = {'cursor': 'cursor-agent', 'antigravity': 'agy'}  # the others' program is their kind
 # Exit 0 either way: their words say it. Read in memory and dropped (they can name the account).
 SIGNED_OUT = {'opencode': re.compile(r'\b0 credentials'), 'cursor': re.compile(r'not logged in', re.I)}
 GEMINI_SIGNIN = ('~/.gemini/oauth_creds.json', '~/.gemini/google_accounts.json')  # only whether they exist
@@ -68,6 +68,8 @@ def agent_path(name, which=shutil.which, login_path=_login_path, clock=time.mono
 
 
 def _signed_in(path, name, run):
+    if name == 'antigravity':  # no way to ask it; its first run signs in, in its own terminal
+        return True
     if STATUS[name] is None:  # Gemini CLI has no status command
         return any(os.path.exists(os.path.expanduser(f)) for f in GEMINI_SIGNIN)
     try:
@@ -84,6 +86,9 @@ def status(run=subprocess.run):
     with ThreadPoolExecutor(len(STATUS)) as pool:  # side by side, so two hanging commands still answer in one timeout
         signed = {n: pool.submit(_signed_in, p, n, run) if p else None for n, p in paths.items()}
     agents = {n: {'installed': bool(paths[n]), 'signed_in': bool(f and f.result())} for n, f in signed.items()}
+    if paths.get('antigravity'):  # its team tools come from Assieme's plugin, installed with the person's OK
+        from . import antigravity
+        agents['antigravity']['connected'] = antigravity.connected(paths['antigravity'], run)
     return {'git': git_ready(), 'agents': agents}
 
 
@@ -303,6 +308,8 @@ AGENTS = {
                  'signin': 'opencode auth login', 'status': 'opencode auth list'},
     'cursor': {'name': 'Cursor', 'install': 'curl -fsS https://cursor.com/install | bash',
                'signin': 'cursor-agent login', 'status': 'cursor-agent status'},
+    'antigravity': {'name': 'Antigravity', 'install': 'curl -fsSL https://antigravity.google/cli/install.sh | bash',
+                    'signin': 'agy', 'status': ''},
 }
 
 
@@ -368,11 +375,17 @@ def install_stop(rt, address):
     return {'ok': True}
 
 
+def _antigravity():
+    from . import antigravity  # it builds on this module
+    return antigravity
+
+
 def handlers(rt):
     return {'setup.commands': commands, 'setup.install_agent': lambda agent: install_agent(rt, agent),
             'setup.signin_agent': lambda agent: signin_agent(rt, agent),
             'setup.terminal_state': lambda address: terminal_state(rt, address),
             'setup.install_stop': lambda address: install_stop(rt, address),
+            'setup.connect_antigravity': lambda: _antigravity().connect(rt),
             'setup.status': status, 'setup.install_tools': install_tools, 'setup.folder_preview': folder_preview,
             'setup.folder_save': folder_save, 'setup.folder_create': folder_create,
             'container.status': container_status, 'container.build': lambda agent: container_build(rt, agent),

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { containerBuild, containerOpen, containerStatus, openLink, terminalState, type AgentKind, type ContainerState } from "./bridge";
+import { createPortal } from "react-dom";
+import { containerBuild, containerOpen, containerStatus, openLink, setupStatus, terminalState, type AgentKind, type ContainerState } from "./bridge";
+import ConnectSheet from "./ConnectSheet";
 import { AGENT_KINDS, kindName } from "./kinds";
 import "./AgentMenu.css";
 
@@ -49,6 +51,15 @@ export default function AgentMenu({ value, installed, look, container, team, onC
   const here = AGENT_KINDS.filter((k) => installed[k.id]);
   const missing = AGENT_KINDS.filter((k) => !installed[k.id]);
   const pick = (c: { agent?: AgentKind; container?: boolean }) => { onChange(c); setOpen(false); };
+  const [connecting, setConnecting] = useState(false);
+  // Antigravity's team tools come from Assieme's plugin: until it's in, picking it asks to connect first.
+  const choose = async (agent: AgentKind) => {
+    if (agent !== "antigravity" || agent === value) return pick({ agent });
+    setOpen(false);
+    const connected = await setupStatus().then((s) => !!s.agents.antigravity?.connected, () => false);
+    if (connected) onChange({ agent });
+    else setConnecting(true);
+  };
 
   return (
     <div className={`agent-menu-box ${look}`} ref={box}>
@@ -63,7 +74,7 @@ export default function AgentMenu({ value, installed, look, container, team, onC
         <div className="agent-menu" role="menu">
           {here.map((k) => (
             <button key={k.id} type="button" role="menuitemradio" aria-checked={k.id === value}
-              onClick={() => pick({ agent: k.id })}>
+              onClick={() => void choose(k.id)}>
               <span className="slot">{k.id === value && <Tick />}</span>
               <span className="what">{k.name}</span>
               <span className="side">{k.maker}</span>
@@ -98,6 +109,9 @@ export default function AgentMenu({ value, installed, look, container, team, onC
           )}
         </div>
       )}
+      {connecting && createPortal(
+        <ConnectSheet onClose={() => setConnecting(false)}
+          onConnected={() => { setConnecting(false); onChange({ agent: "antigravity" }); }} />, document.body)}
     </div>
   );
 }

@@ -61,7 +61,7 @@ class SnapshotTest(unittest.TestCase):
                  'labels': {'assieme.team': 'demo', 'assieme.role': 'coordinator'}}]
         s = serve.snapshot('/c', '/x', NOW, FakeRt(rows), which=lambda c: None if c == 'codex' else '/bin/' + c)
         self.assertEqual(s['clis'], {'claude': True, 'codex': False, 'gemini': True, 'opencode': True, 'cursor': True,
-                                     'hc': True, 'herdr': True})
+                                     'antigravity': True, 'hc': True, 'herdr': True})
         self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams', 'starting', 'found_teams', 'first_run_done'})
         self.assertEqual(s['starting'], [])
         self.assertEqual([a['agent'] for a in s['agents']], ['builder', 'coord'])

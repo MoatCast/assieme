@@ -32,6 +32,11 @@ const CONFIRM: Record<AgentKind, { body: string; guide: string; guideName: strin
     guide: "https://opencode.ai/docs",
     guideName: "OpenCode’s install guide",
   },
+  antigravity: {
+    body: "This downloads Google’s installer from antigravity.google and runs it. Antigravity works with a Google account, including the free plan.",
+    guide: "https://antigravity.google/product/antigravity-cli",
+    guideName: "Google’s install guide",
+  },
   cursor: {
     body: "This downloads Cursor’s installer from cursor.com and runs it. Cursor’s agent needs a Cursor account.",
     guide: "https://cursor.com/docs/cli/overview",

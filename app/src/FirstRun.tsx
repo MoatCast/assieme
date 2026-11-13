@@ -96,6 +96,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
     { key: "gemini", name: "Gemini CLI", found: !!snap?.clis.gemini, note: count("gemini") ? plural(count("gemini")) : "installed" },
     { key: "opencode", name: "OpenCode", found: !!snap?.clis.opencode, note: count("opencode") ? plural(count("opencode")) : "installed" },
     { key: "cursor", name: "Cursor", found: !!snap?.clis.cursor, note: "installed" },
+    { key: "antigravity", name: "Antigravity", found: !!snap?.clis.antigravity, note: "installed" },
     { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected ·" },
   ].filter((c) => ["claude", "codex"].includes(c.key) || c.found); // the others get a row only once they are found
 
