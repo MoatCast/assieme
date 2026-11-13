@@ -75,6 +75,17 @@ test("opening a reviewer's fix in New team starts that reviewer read-only", asyn
   expect(onDraft.mock.calls[0][0].roles).toEqual([{ name: "rev", checkout: "read-only" }, { name: "b", checkout: "branch" }]);
 });
 
+test("after one row is applied by hand, the footer applies the rest", async () => {
+  b.teamImprove.mockResolvedValue({ team: "shop", found: true, in_place: [], findings: [finding("a", "apply"), finding("b", "apply")] });
+  await show();
+  screen.getByRole("button", { name: "Apply 2" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Apply" })[0]);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Apply the rest (1)" }));
+  await flush();
+  expect(b.teamImproveApply).toHaveBeenLastCalledWith("shop", ["b"]);
+});
+
 test("rules to paste for an agent Assieme can't reach", async () => {
   const writeText = vi.fn().mockResolvedValue(undefined);
   Object.assign(navigator, { clipboard: { writeText } });

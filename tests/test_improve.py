@@ -100,7 +100,7 @@ class FindingsTest(ImproveCase):
     def test_an_agent_outside_herdr_gets_the_rules_to_paste(self):
         f = self.ids(self.check(Brain([found_row('a', address='log:a')])))['practices']
         self.assertEqual(f['kind'], 'review')
-        self.assertIn('herdr', f['detail'])
+        self.assertIn('Assieme can’t send it messages, because it runs in a terminal Assieme doesn’t control', f['detail'])
         self.assertTrue(f['copy'].startswith('assieme: your owner added these team practices.'))
 
 
@@ -143,6 +143,16 @@ class ApplyTest(ImproveCase):
         self.assertEqual(got['practices']['to'], ['b1', 'b2'])
         improve.apply(Brain(rows), 'shop', ['practices'], NOW, self.log, terms)
         self.assertEqual(sorted(n['to'] for n in quiet.held()[os.path.realpath(ROOT)]), ['h-b1', 'h-b2'])
+
+    def test_a_refused_command_is_review_only_and_never_suggests_widening(self):
+        rows = [found_row('b')]
+        rep = {'agents': {}, 'findings': [], 'edges': [], 'send_less': [],
+               'refusals': [{'agent': 'b', 'command': 'npm run deploy', 'why': 'a deny rule', 'advice': 'allow it explicitly', 'count': 9}]}
+        with mock.patch.object(improve.teammap, '_team_report', lambda *a: rep):
+            f = self.ids(self.check(Brain(rows)))['refused:b:npm run deploy']
+        self.assertEqual(f['kind'], 'review')
+        self.assertIn('Check whether it should be allowed, or change the brief so it stops trying.', f['detail'])
+        self.assertNotIn('allow it explicitly', f['detail'])
 
     def test_review_findings_are_never_applied(self):
         rows = [found_row('x', cwd=ROOT), found_row('y', cwd=ROOT)]

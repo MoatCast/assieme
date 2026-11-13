@@ -162,10 +162,10 @@ def check(brain, team_name, now=None, log=None, terminals=None):
         findings.append(_finding(f'{group}:{who}', title, f"{f['what']}. {fix}", group=group, to=names_of[who]))
     for x in rep['refusals']:
         if x['agent'] in roles and x['count'] >= report.REPEATED_REFUSALS:
-            advice = x['advice'][:1].upper() + x['advice'][1:] + '.' if x['advice'] else 'Change the rule or the brief.'
             findings.append(_finding(f"refused:{x['agent']}:{x['command']}", 'A command keeps being refused',
                                      f"{x['agent']} tried `{x['command']}` {x['count']} times and {x['why']} refused it "
-                                     f'each time. {advice}', kind='review'))
+                                     'each time. Check whether it should be allowed, or change the brief so it stops trying.',
+                                     kind='review'))  # never a one-click allow: widening a rule is the person's call
 
     # The practices themselves: a team started outside Assieme was given none, unless Improve gave them.
     on = _group_rules(settings.load()['practices'])
@@ -188,7 +188,9 @@ def check(brain, team_name, now=None, log=None, terminals=None):
                 f['to'] = [n for n in f['to'] if n in reach]
             elif f['to']:  # outside herdr: nothing reaches it, so the person pastes it
                 f['kind'], f['copy'] = 'review', note_text([on[g] for g in groups])
-                f['detail'] += f" Assieme can’t reach {_names(f['to'])}: it isn’t running in herdr, so paste these rules into its next message."
+                one = len(f['to']) == 1
+                f['detail'] += (f" Assieme can’t send {'it' if one else 'them'} messages, because {'it runs' if one else 'they run'} "
+                                "in a terminal Assieme doesn’t control, so paste these rules into the next message.")
         elif f['restart']:
             f['draft'] = source
     out['findings'] = [f for f in findings if f['kind'] == 'review' or f['to']]

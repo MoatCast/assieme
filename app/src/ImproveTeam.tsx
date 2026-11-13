@@ -156,8 +156,10 @@ export default function ImproveTeam({ onClose, onDraft }: { onClose: () => void;
 
   const toApply = got.findings.filter((f) => f.kind === "apply" && !applied[f.id]).map((f) => f.id);
   const reviews = got.findings.filter((f) => f.kind === "review");
-  const primary = toApply.length && reviews.length ? `Apply ${toApply.length} and review ${reviews.length}`
-    : toApply.length ? `Apply ${toApply.length}` : reviews.length && !open.length ? `Review ${reviews.length}` : "Done";
+  // Once one row was applied by hand, the footer says it applies the others, not a count to read against the rows.
+  const applyAll = Object.keys(applied).length ? `Apply the rest (${toApply.length})` : `Apply ${toApply.length}`;
+  const primary = toApply.length && reviews.length && !open.length ? `${applyAll} and review ${reviews.length}`
+    : toApply.length ? applyAll : reviews.length && !open.length ? `Review ${reviews.length}` : "Done";
   const go = async () => {
     if (primary === "Done") return onClose();
     await apply(toApply);
