@@ -396,11 +396,6 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                     {modelOf === i && models && (
                       <ModelMenu role={r} options={models} onChange={(c) => edit(i, c)} />
                     )}
-                    {briefOf === i && perms && (
-                      <BriefEditor role={r} roles={roles} project={project} installed={installed} kinds={kinds} table={perms}
-                        asker={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
-                        onCancel={() => setBriefOf(null)} onSave={(c) => { edit(i, c); setBriefOf(null); }} />
-                    )}
                   </div>
                 ))}
                 <button type="button" className="add" onClick={add}>
@@ -440,6 +435,11 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
         </footer>
       </div>
     </div>
+    {briefOf !== null && roles[briefOf] && perms && (
+      <BriefEditor role={roles[briefOf]} roles={roles} project={project} installed={installed} kinds={kinds} table={perms}
+        asker={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
+        onCancel={() => setBriefOf(null)} onSave={(c) => { edit(briefOf, c); setBriefOf(null); }} />
+    )}
     {folderSheet && <FolderSheet project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
     {importing && (
       <HerdrImport onClose={() => setImporting(false)} onImported={async (d) => {

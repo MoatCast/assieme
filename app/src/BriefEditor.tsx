@@ -96,7 +96,7 @@ export default function BriefEditor({ role, roles, project, installed, kinds, ta
   const rules = draft.rules!.length;
   return (
     <div className="modal-dim">
-      <div className="editor brief" role="dialog" aria-modal="true" aria-label={`Edit ${role.name}`} tabIndex={-1}
+      <div className="editor tall" role="dialog" aria-modal="true" aria-label={`Edit ${role.name}`} tabIndex={-1}
         ref={ref} onKeyDown={onKeyDown}>
         <div className="editor-head">
           <div className="editor-title">
@@ -165,10 +165,15 @@ export default function BriefEditor({ role, roles, project, installed, kinds, ta
             </div>
             <label className="editor-field">
               <span className="editor-label">Reports to</span>
-              <select className="editor-select" value={draft.parent ?? ""} onChange={(e) => change({ parent: e.target.value || null })}>
-                <option value="">Nobody: it reports to you</option>
-                {parents.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
-              </select>
+              <span className="editor-select-wrap">
+                <select className="editor-select" value={draft.parent ?? ""} onChange={(e) => change({ parent: e.target.value || null })}>
+                  <option value="">Nobody: it reports to you</option>
+                  {parents.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
+                </select>
+                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M2 3.5l3 3 3-3" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+              </span>
             </label>
             <div className="editor-field">
               <span className="editor-label">Permissions</span>

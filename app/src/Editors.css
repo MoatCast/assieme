@@ -2,7 +2,7 @@
 .editor { width: 820px; max-width: calc(100% - 32px); max-height: calc(100vh - 48px); display: flex; flex-direction: column; box-sizing: border-box;
   background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-panel);
   box-shadow: 0 8px 30px color-mix(in srgb, var(--quiet-shade) 8%, transparent); color: var(--quiet-ink); font-family: var(--quiet-font-ui); }
-.editor.brief { height: 720px; }
+.editor.tall { height: 720px; }
 .editor code { font-family: var(--quiet-font-mono); }
 .editor button { font-family: inherit; }
 .editor .grow { flex: 1; min-width: 0; }
@@ -27,7 +27,9 @@
 .editor-input, .editor-select, .editor-text { box-sizing: border-box; width: 100%; border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner);
   background: var(--quiet-surface); color: var(--quiet-ink); font-family: var(--quiet-font-ui); }
 .editor-input { padding: 9px 12px; font-size: 14px; line-height: 18px; }
-.editor-select { padding: 7px 10px; font-size: 13px; line-height: 16px; }
+.editor-select { appearance: none; -webkit-appearance: none; padding: 8px 28px 8px 10px; font-family: var(--quiet-font-mono); font-size: 13px; line-height: 16px; }
+.editor-select-wrap { position: relative; display: block; }
+.editor-select-wrap svg { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .editor-text { flex: 1; min-height: 120px; padding: 12px 14px; border-radius: 14px; resize: none; font-size: 13px; line-height: 20px; }
 .editor-input:focus, .editor-select:focus, .editor-text:focus { outline: 2px solid var(--quiet-accent); outline-offset: -1px; }
 .editor-chips { display: flex; flex-wrap: wrap; gap: 6px; }
