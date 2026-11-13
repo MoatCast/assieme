@@ -307,7 +307,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2 4.5h4l1.5 1.5H14v6.5H2z" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" />
               </svg>
-              {machine ? <RemoteProject machine={machine} value={project} onChange={setProject} onDone={use} /> : <>
+              {machine !== null ? <RemoteProject machine={machine} value={project} onChange={setProject} onDone={use} /> : <>
               <span className="grow">{project ? shortPath(project) : "No folder chosen"}</span>
               <button type="button" className="pick" onClick={newFolder}>New folder…</button>
               <span className="muted" aria-hidden="true">·</span>

@@ -50,6 +50,15 @@ class TailscaleTest(unittest.TestCase):
     def test_without_tailscale_nothing(self):
         self.assertEqual(remote.tailscale_hosts(which=lambda n: None, app='/nonexistent'), [])
 
+    def test_the_mac_app_is_asked_only_while_it_runs(self):
+        calls = []
+
+        def run(cmd, **k):
+            calls.append(cmd[0])
+            return subprocess.CompletedProcess(cmd, 1, '', '')  # pgrep: not running
+        self.assertEqual(remote.tailscale_hosts(run=run, which=lambda n: None, app=sys.executable), [])
+        self.assertEqual(calls, ['pgrep'])
+
 
 class AddressTest(unittest.TestCase):
     def test_addresses_and_undo_ids_carry_the_machine_there_and_back(self):

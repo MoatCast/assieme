@@ -71,13 +71,21 @@ def ssh_hosts(path=None):
     return out
 
 
+def _tailscale_running(run):
+    """The Mac app's binary can start Tailscale when it isn't running: ask it only when it is."""
+    try:
+        return run(['pgrep', '-x', 'IPNExtension'], capture_output=True, timeout=2).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def tailscale_hosts(run=subprocess.run, which=shutil.which, app=TAILSCALE_APP):
     """Machines on the person's tailnet, online first, by their MagicDNS name. Nothing when Tailscale isn't here."""
-    exe = which('tailscale') or (app if os.path.exists(app) else None)
+    exe = which('tailscale') or (app if os.path.exists(app) and _tailscale_running(run) else None)
     if not exe:
         return []
     try:
-        data = json.loads(run([exe, 'status', '--json'], capture_output=True, text=True, timeout=5).stdout)
+        data = json.loads(run([exe, 'status', '--json'], capture_output=True, text=True, timeout=3).stdout)
         peers = (data.get('Peer') or {}).values()
     except (OSError, ValueError, AttributeError, subprocess.SubprocessError):
         return []

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import ConnectMachine, { AgentChecks } from "./ConnectMachine";
 import InstallSheet from "./InstallSheet";
 import { remoteCheck, remoteConnect, remoteMachines, remoteRepos, remoteTerminal, since, type Machine, type MachineCheck } from "./remote";
@@ -81,12 +82,12 @@ export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5
 
   const known = machines ?? [];
   return (
-    <div className="field">
+    <div className="field rm-field">
       <div className="label">Where should the agents run?</div>
       <div className="rm-where" role="radiogroup" aria-label="Where should the agents run?">
         <button type="button" role="radio" aria-checked={machine === null} className={machine === null ? "on" : ""} onClick={() => onMachine(null)}>
           <i className="rm-radio" />
-          <span><b>This Mac</b> <em>· recommended</em><small>Nothing to set up</small></span>
+          <span><span><b>This Mac</b><em> · recommended</em></span><small>Nothing to set up</small></span>
         </button>
         <button type="button" role="radio" aria-checked={machine !== null} className={machine !== null ? "on" : ""}
           onClick={() => machine === null && onMachine(known[0]?.name ?? "")}>
@@ -111,13 +112,13 @@ export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5
           {error && <p className="error">{error}</p>}
         </div>
       )}
-      {connecting && (
+      {connecting && createPortal(
         <ConnectMachine setUp={connecting.setUp} onClose={() => { setConnecting(null); void load(); setTick((t) => t + 1); }}
-          onUse={(m) => { setConnecting(null); void load(); onMachine(m); setTick((t) => t + 1); }} />
+          onUse={(m) => { setConnecting(null); void load(); onMachine(m); setTick((t) => t + 1); }} />, document.body,
       )}
-      {installing && machine && (
+      {installing && machine && createPortal(
         <InstallSheet agent={installing.agent} start={installing.start} status={null} machine={machine}
-          onClose={() => { setInstalling(null); setTick((t) => t + 1); }} />
+          onClose={() => { setInstalling(null); setTick((t) => t + 1); }} />, document.body,
       )}
     </div>
   );
@@ -131,15 +132,15 @@ export function RemoteProject({ machine, value, onChange, onDone }: {
   onDone: (p: string) => void;
 }) {
   const [repos, setRepos] = useState<string[]>([]);
-  useEffect(() => { void remoteRepos(machine).then(setRepos, () => setRepos([])); }, [machine]);
+  useEffect(() => { if (machine) void remoteRepos(machine).then(setRepos, () => setRepos([])); }, [machine]);
   return (
     <>
-      <input className="grow rm-path" aria-label="Project folder" list="rm-repos" value={value}
-        placeholder={`~/project on ${machine}`} onChange={(e) => onChange(e.target.value)}
+      <input className="grow rm-path" aria-label="Project folder" list="rm-repos" value={value} disabled={!machine}
+        placeholder={machine ? `~/project on ${machine}` : "Choose a machine first"} onChange={(e) => onChange(e.target.value)}
         onBlur={(e) => e.target.value.trim() && onDone(e.target.value.trim())}
         onKeyDown={(e) => e.key === "Enter" && value.trim() && onDone(value.trim())} />
       <datalist id="rm-repos">{repos.map((r) => <option key={r} value={r} />)}</datalist>
-      <span className="muted">on {machine}</span>
+      {machine && <span className="muted">on {machine}</span>}
     </>
   );
 }

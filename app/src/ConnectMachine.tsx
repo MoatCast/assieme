@@ -173,9 +173,9 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
         </div>
       ) : (
         <div className="rm-steps" aria-live="polite">
-          <div className="rm-step done"><Tick /><span className="rm-grow">Connected to {name}</span><code>{target}</code></div>
+          <div className="rm-step is-done"><Tick /><span className="rm-grow">Connected to {name}</span><code>{target}</code></div>
           {job.steps.map((s) => (
-            <div key={s.id} className={`rm-step ${s.state}`}>
+            <div key={s.id} className={`rm-step is-${s.state}`}>
               {s.state === "done" ? <Tick /> : (
                 <svg className="rm-icon" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
                   <circle cx="10" cy="10" r="8.5" fill="none" stroke="var(--quiet-line-strong)" strokeWidth={s.state === "doing" ? 2.4 : 1.6} />

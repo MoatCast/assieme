@@ -8,31 +8,30 @@
 .rm-icon { flex-shrink: 0; }
 .rm-radio { flex-shrink: 0; width: 14px; height: 14px; box-sizing: border-box; border: 1.5px solid var(--quiet-control); border-radius: 7px; }
 .on > .rm-radio, [aria-checked="true"] > .rm-radio { border: 4px solid var(--quiet-ink); }
-.rm-act, .rm-link { padding: 0; background: none; border: 0; font: inherit; font-size: 13px; line-height: 16px; cursor: pointer; }
+.rm-act, .rm-link, .rm-field .rm-act, .rm-field .rm-link { padding: 0; background: none; border: 0; font: inherit; font-size: 13px; line-height: 16px; cursor: pointer; }
 .rm-act { font-weight: 500; color: var(--quiet-ink); }
 .rm-link { color: var(--quiet-slate); }
 
 /* New team: where the agents run, and the machine row */
 .rm-where { display: flex; gap: 10px; }
-.rm-where button { flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; cursor: pointer;
+.rm-field .rm-where button { flex: 1; display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-align: left; cursor: pointer;
   background: var(--quiet-surface); border: 1px solid var(--quiet-line-strong); border-radius: 14px; font: inherit; color: var(--quiet-ink); }
-.rm-where button.on { border: 1.5px solid var(--quiet-ink); padding: 9.5px 11.5px; }
-.rm-where span { display: flex; flex-direction: column; gap: 1px; }
+.rm-field .rm-where button.on { border: 1.5px solid var(--quiet-ink); padding: 9.5px 11.5px; }
+.rm-where > button > span { display: flex; flex-direction: column; gap: 1px; }
 .rm-where b { display: inline; font-size: 14px; font-weight: 500; line-height: 18px; }
 .rm-where em { font-style: normal; font-size: 12px; line-height: 16px; color: var(--quiet-working-text); }
-.rm-where span > :first-child { display: inline; }
 .rm-where small { font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
 .rm-machine { display: flex; flex-direction: column; background: var(--quiet-glass-fill); border: 1px solid var(--quiet-line); border-radius: 14px; }
 .rm-pick { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
 .rm-machine .rm-pick + .rm-status { border-top: 1px solid var(--quiet-line); }
 .rm-label { flex-shrink: 0; width: 62px; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
-.rm-select { flex: 1; min-width: 0; padding: 6px 10px; font: inherit; font-family: var(--quiet-font-mono); font-size: 13px; line-height: 16px;
+.rm-select, .field .rm-select { flex: 1; min-width: 0; padding: 6px 10px; font: inherit; font-family: var(--quiet-font-mono); font-size: 13px; line-height: 16px;
   color: var(--quiet-ink); background: var(--quiet-surface); border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner); }
 .rm-status { display: flex; align-items: center; gap: 18px; padding: 9px 12px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
-.rm-status .rm-act { font-size: 12px; }
+.rm-field .rm-status .rm-act { font-size: 12px; }
 .rm-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
 .rm-dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 4px; background: var(--quiet-edge-waste); }
-.rm-path { min-width: 0; padding: 0; border: 0; outline: none; background: none; font: inherit; color: var(--quiet-ink); }
+.rm-path, .field .rm-path { min-width: 0; padding: 0; border: 0; outline: none; background: none; font: inherit; color: var(--quiet-ink); }
 
 /* Connect a machine */
 .modal.connect { width: 720px; padding: 24px 28px 0; gap: 16px; border-radius: var(--quiet-radius-panel); }
@@ -81,9 +80,9 @@ button.rm-way { cursor: pointer; }
 .rm-steps { display: flex; flex-direction: column; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); }
 .rm-step { display: flex; align-items: center; gap: 12px; padding: 14px 18px; font-size: 14px; line-height: 18px; color: var(--quiet-ink); }
 .rm-step + .rm-step { border-top: 1px solid var(--quiet-line); }
-.rm-step.waiting { color: var(--quiet-mute); }
-.rm-step.doing { align-items: flex-start; }
-.rm-step.doing .rm-step-name { font-weight: 600; }
+.rm-step.is-waiting { color: var(--quiet-mute); }
+.rm-step.is-doing { align-items: flex-start; }
+.rm-step.is-doing .rm-step-name { font-weight: 600; }
 .rm-step .rm-grow { display: flex; flex-direction: column; gap: 2px; }
 .rm-step small { font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
 .rm-step .rm-icon { width: 18px; height: 18px; }
@@ -98,5 +97,6 @@ button.rm-way { cursor: pointer; }
 .rm-away p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
 .rm-away .btn-secondary, .rm-away .btn-primary { padding: 6px 14px; font-size: 13px; line-height: 16px; }
 .team.away .well svg, .team.away .well .node, .team.away .well > :not(.spend), .team.away .tip, .team.away .ready button { opacity: 0.45; }
-.team.away .tip button, .team.away .ready button { pointer-events: none; }
+.team.away .tip button, .team.away .ready button, .team.away .limit { pointer-events: none; }
+.team.away .limit { opacity: 0.45; }
 .shell-bar .add-agent:disabled { opacity: 0.45; cursor: default; } /* a team whose machine is away */
