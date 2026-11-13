@@ -101,3 +101,4 @@
 .modal.folder .folder-files .link-btn { color: var(--quiet-ink); }
 .modal.folder .folder-box { padding: 10px 12px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); color: var(--quiet-ink);
   font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; max-height: 180px; overflow: auto; }
+.newteam .container-row { padding: 0 14px 12px 124px; }

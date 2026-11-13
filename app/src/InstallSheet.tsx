@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  installAgent, installStop, openLink, setupCommands, setupStatus, signinAgent, terminalState,
-  type AgentKind, type SetupCommands, type SetupStatus,
-} from "./bridge";
+import { installAgent, installStop, openLink, setupCommands, setupStatus, signinAgent, terminalState, type AgentKind, type SetupCommands, type SetupStatus } from "./bridge";
+import { kindName } from "./kinds";
 import Terminal from "./Terminal";
 import useModal from "./useModal";
 
@@ -19,6 +17,21 @@ const CONFIRM: Record<AgentKind, { body: string; guide: string; guideName: strin
     body: "This downloads OpenAI’s installer from chatgpt.com and runs it. Codex works with ChatGPT, with limits on the free plan.",
     guide: "https://developers.openai.com/codex/cli",
     guideName: "OpenAI’s install guide",
+  },
+  gemini: {
+    body: "This installs Google’s Gemini CLI with npm, which comes with Node.js. It works with a Google account, with daily limits on the free tier.",
+    guide: "https://github.com/google-gemini/gemini-cli",
+    guideName: "Google’s install guide",
+  },
+  opencode: {
+    body: "This installs OpenCode with npm, which comes with Node.js. It works with the model providers you sign in to.",
+    guide: "https://opencode.ai/docs",
+    guideName: "OpenCode’s install guide",
+  },
+  cursor: {
+    body: "This downloads Cursor’s installer from cursor.com and runs it. Cursor’s agent needs a Cursor account.",
+    guide: "https://cursor.com/docs/cli/overview",
+    guideName: "Cursor’s install guide",
   },
 };
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -37,7 +50,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
   const [commands, setCommands] = useState<SetupCommands | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const name = commands?.[agent].name ?? (agent === "claude" ? "Claude Code" : "Codex");
+  const name = commands?.[agent]?.name ?? kindName(agent);
 
   useEffect(() => { void setupCommands().then(setCommands).catch((e) => setError(message(e))); }, []);
 
@@ -78,7 +91,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
           const found = (await setupStatus()).agents[agent];
           if (stopped) return;
           setError("");
-          if (!found.installed) return setStep("failed");
+          if (!found?.installed) return setStep("failed");
           if (found.signed_in) return onClose();
           return void begin("signin");
         }
@@ -108,7 +121,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
   // Escape does what Cancel or Skip for now does.
   const { ref: dialog, onKeyDown } = useModal(() => void (step === "installing" || step === "signin" ? stopAndClose() : onClose()), [step, !!commands]);
 
-  const signedIn = !!status?.agents[agent].signed_in;
+  const signedIn = !!status?.agents[agent]?.signed_in;
   const terminal = address && (
     <div className="sheet-terminal">
       <Terminal key={address} session="assieme" address={address} typing />
@@ -127,7 +140,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
           </div>
           <div className="sheet-command">
             <p>The exact command, if you want to check it</p>
-            <code>{commands?.[agent].install}</code>
+            <code>{commands?.[agent]?.install}</code>
             <p>
               <button type="button" className="link-btn" onClick={() => openLink(c.guide)}>{c.guideName}</button>
               . Prefer another way? Install it yourself and Assieme will find it.

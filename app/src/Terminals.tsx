@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { openLink, paneAct, reviewWaiting, teamView, type Pane, type PaneButton, type ReviewWaiting, type TeamView } from "./bridge";
+import { kindName } from "./kinds";
 import { host, usePreviews } from "./Preview";
 import Offline from "./Offline";
 import Terminal from "./Terminal";
@@ -8,7 +9,6 @@ import "./Terminals.css";
 const STATE: Record<Pane["state"], string> = {
   asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", idle: "idle", exited: "exited",
 };
-const CLI = { claude: "Claude Code", codex: "Codex" };
 
 export function ago(s: number | null): string {
   if (s === null) return "";
@@ -165,7 +165,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
       <div className="pane-head" onClick={() => !full && setFocus(p.role)}>
         <span className="dot" />
         <button type="button" className="pane-name">{p.role}</button>
-        <span className="pane-cli">{CLI[p.agent]}</span>
+        <span className="pane-cli">{kindName(p.agent)}</span>
         <span className="pane-state">{[STATE[p.state], p.state === "exited" ? "" : ago(p.since_s)].filter(Boolean).join(" · ")}</span>
       </div>
       <div className="pane-screen">

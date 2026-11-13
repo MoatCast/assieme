@@ -16,6 +16,9 @@ const b = vi.hoisted(() => ({
   herdrFind: vi.fn(),
   herdrImport: vi.fn(),
   confirmReplace: vi.fn(),
+  containerStatus: vi.fn(),
+  containerBuild: vi.fn(),
+  containerOpen: vi.fn(),
 }));
 vi.mock("./bridge", async (orig) => ({ ...(await orig<typeof import("./bridge")>()), ...b }));
 
@@ -81,8 +84,9 @@ test("choosing a starting team fills the agents", async () => {
 
 test("only installed CLIs are offered", async () => {
   await open({ claude: true, codex: false });
-  expect(screen.queryByRole("button", { name: "Codex" })).toBeNull();
-  expect(screen.getAllByRole("button", { name: "Claude Code" }).length).toBe(1);
+  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
+  expect(screen.queryByRole("menuitemradio", { name: /Codex/ })).toBeNull();
+  expect(screen.getByRole("menuitem", { name: /Codex.*Install…/ })).toBeTruthy();
   cleanup();
   await open({ claude: false, codex: false });
   expect(screen.getByText("Install Claude Code or Codex, then reopen New team.")).toBeTruthy();
@@ -163,12 +167,24 @@ test("Where should the agents run is gone", async () => {
   expect(screen.queryByRole("radio")).toBeNull();
 });
 
-test("Mix Claude Code and Codex shows only when both are installed", async () => {
+test("Mix any agents shows only when more than one is installed", async () => {
   await open({ claude: true, codex: false });
-  expect(screen.queryByText(/Mix Claude Code and Codex/)).toBeNull();
+  expect(screen.queryByText(/Mix any agents/)).toBeNull();
   cleanup();
   await open(both);
-  screen.getByText("Mix Claude Code and Codex however you like");
+  screen.getByText("Mix any agents on this Mac. The box icon means it runs in a container.");
+});
+
+test("an agent can run in a container: the box shows, and Start waits for the container", async () => {
+  b.containerStatus.mockResolvedValue({ tool: "docker", running: true, image_ready: false });
+  await open(both);
+  await fillProjectAndTask();
+  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Run in a container/ }));
+  await flush();
+  expect(screen.getByRole("button", { name: "Agent: Claude Code, in a container" })).toBeTruthy();
+  expect(screen.getByText("Uses Docker. The first time, it downloads about 200 MB to build the container.")).toBeTruthy();
+  expect(screen.getByText("Get the container ready to continue.")).toBeTruthy();
 });
 
 test("a stopped service isn't reported as missing agents, and New team recovers", async () => {
@@ -585,7 +601,8 @@ test("codex efforts follow the chosen model; switching agent resets the choice",
   const menu = screen.getByRole("button", { name: "Model and effort for builder" });
   fireEvent.click(menu);
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: "opus" } });
-  fireEvent.click(screen.getByRole("button", { name: "Codex" }));
+  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: /Codex/ }));
   expect(menu.textContent).toBe("Default");
   expect(efforts()).toEqual(["Default", "Low", "Medium", "High", "Extra high", "Max"]);
   fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-6.1-sol" } });

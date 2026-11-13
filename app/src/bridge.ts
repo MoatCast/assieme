@@ -30,7 +30,8 @@ export type TeamRow = {
 
 export type Snapshot = {
   at: string;
-  clis: { claude: boolean; codex: boolean; hc: boolean; herdr: boolean };
+  /** An older service names only Claude Code and Codex. */
+  clis: Partial<Record<AgentKind, boolean>> & { hc: boolean; herdr: boolean };
   agents: Agent[];
   alerts: unknown[];
   queue: unknown[];
@@ -45,8 +46,7 @@ export type Snapshot = {
   draft?: string | null;
 };
 
-export type AgentKind = "claude" | "codex";
-
+export type AgentKind = "claude" | "codex" | "gemini" | "opencode" | "cursor";
 /** One agent in the New team form, in the brain's shape. */
 export type RoleDraft = {
   name: string;
@@ -58,6 +58,10 @@ export type RoleDraft = {
   /** null: the agent's own default, as in the person's terminal. */
   model?: string | null;
   effort?: string | null;
+  /** Runs in a container that sees only its own copy. */
+  container?: boolean;
+  /** That container may use this kind's sign-in from the Mac. */
+  share_signin?: boolean;
 };
 
 export type ModelChoice = { id: string; label: string; efforts: string[] };
@@ -404,7 +408,7 @@ export const assistantsDisconnect = () => invoke<Assistants>("brain_call", { met
 export const serviceRunning = () => invoke<boolean>("service_running");
 export const serviceInstall = () => invoke<void>("service_install");
 
-export type SetupStatus = { git: boolean; agents: Record<AgentKind, { installed: boolean; signed_in: boolean }> };
+export type SetupStatus = { git: boolean; agents: Partial<Record<AgentKind, { installed: boolean; signed_in: boolean }>> };
 export type SetupCommands = Record<AgentKind, { name: string; install: string; signin: string; status: string }>;
 // The brain answers status in about 5 s, under the 20 s default call timeout.
 export const setupStatus = () => brain<SetupStatus>("setup.status");
@@ -414,6 +418,11 @@ export const installAgent = (agent: AgentKind) => brain<{ address: string }>("se
 export const signinAgent = (agent: AgentKind) => brain<{ address: string }>("setup.signin_agent", { agent });
 export const terminalState = (address: string) => brain<"running" | "finished">("setup.terminal_state", { address });
 export const installStop = (address: string) => brain<{ ok: boolean }>("setup.install_stop", { address });
+/** The container tool on this Mac, whether it runs, and whether this kind's container is built. */
+export type ContainerState = { tool: "docker" | "container" | null; running: boolean; image_ready: boolean };
+export const containerStatus = (agent: AgentKind) => brain<ContainerState>("container.status", { agent });
+export const containerBuild = (agent: AgentKind) => brain<{ address: string }>("container.build", { agent });
+export const containerOpen = () => brain<{ ok: boolean }>("container.open");
 /** Listing and saving walk the whole folder, so they get the long timeout. */
 export type FolderPreview = { files: number; sample: string[]; left_out: string[]; empty: boolean; first: boolean };
 export const folderPreview = (path: string) => slow<FolderPreview>("setup.folder_preview", { project: path }, 120);
