@@ -161,7 +161,7 @@ export function ContainerLine({ agent, onReady, pollMs = 3000 }: { agent: AgentK
       ) : !state.image_ready ? (
         <div className="cl-row">
           <span className="cl-dot mute" />
-          <span className="cl-text">Uses {tool}. The first time, it downloads about 200 MB to build the container.</span>
+          <span className="cl-text">Uses {tool}. The first time, it downloads and builds the container, about 1.5 GB.</span>
           <button type="button" className="cl-button" onClick={() => void act(async () => setBuild((await containerBuild(agent)).address))}>
             Download and build
           </button>

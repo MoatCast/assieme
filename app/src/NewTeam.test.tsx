@@ -183,7 +183,7 @@ test("an agent can run in a container: the box shows, and Start waits for the co
   fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Run in a container/ }));
   await flush();
   expect(screen.getByRole("button", { name: "Agent: Claude Code, in a container" })).toBeTruthy();
-  expect(screen.getByText("Uses Docker. The first time, it downloads about 200 MB to build the container.")).toBeTruthy();
+  expect(screen.getByText("Uses Docker. The first time, it downloads and builds the container, about 1.5 GB.")).toBeTruthy();
   expect(screen.getByText("Get the container ready to continue.")).toBeTruthy();
 });
 
