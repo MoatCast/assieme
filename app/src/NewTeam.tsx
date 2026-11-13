@@ -6,7 +6,7 @@ import { AGENT_KINDS } from "./kinds";
 import { defaultLevel } from "./PermissionsEditor";
 import FolderSheet from "./FolderSheet";
 import HelpMeChoose from "./HelpMeChoose";
-import HerdrImport from "./HerdrImport";
+import BringOver from "./BringOver";
 import InstallSheet from "./InstallSheet";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
 import Offline from "./Offline";
@@ -63,7 +63,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [helping, setHelping] = useState(false);
   const [why, setWhy] = useState("");
   // An import from herdr: what didn't carry over, and the herdr team still running (if it is). A preset replaces it.
-  const [imported, setImported] = useState<Pick<TeamDraft, "notes" | "running"> | null>(null);
+  const [imported, setImported] = useState<Pick<TeamDraft, "notes" | "running" | "from" | "tool" | "label" | "scripts"
+    | "allow_scripts" | "cards"> | null>(null);
   const [importing, setImporting] = useState(false);
   const [step, setStep] = useState(1);
   const [practiceOn, setPracticeOn] = useState<Record<string, boolean>>({});
@@ -122,7 +123,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setEdited(true); // a preset's click must ask before replacing it
     setWhy(d.why);
     setRoleErrors({});
-    setImported(d.from === "herdr" ? { notes: d.notes ?? [], running: d.running } : null);
+    setImported(d.from === "herdr" || d.from === "bringover"
+      ? { notes: d.notes ?? [], running: d.running, from: d.from, tool: d.tool, label: d.label, scripts: d.scripts,
+          allow_scripts: d.allow_scripts, cards: d.cards }
+      : null);
   }
 
   const choose = async (p: Preset) => {
@@ -254,7 +258,11 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setPending(true);
     setStartError("");
     try {
-      const form = { project, task: task.trim(), roles, practices: practiceOn };
+      const brought = imported?.from === "bringover" ? {
+        scripts: imported.scripts ?? {}, allow_scripts: imported.allow_scripts ?? [], cards: imported.cards ?? [],
+        origin: { tool: imported.tool ?? "", label: imported.label ?? "" },
+      } : {};
+      const form = { project, task: task.trim(), roles, practices: practiceOn, ...brought };
       await (machine ? startTeamOn(form, machine) : startTeam(form));
       onStarted?.();
       onClose();
@@ -313,7 +321,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
           {offline && <Offline afterMs={0} />}
           {imported?.running && (
             <div className="still-running" role="status">
-              <strong>{imported.running} is still running in herdr</strong>
+              <strong>{imported.from === "bringover" ? imported.running : `${imported.running} is still running in herdr`}</strong>
               <span>Stop it there before you start this team, or two teams will work on the same project.</span>
             </div>
           )}
@@ -366,7 +374,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                   aria-pressed={chosen === p.id} onClick={() => choose(p)}>{p.label}</button>
               ))}
               <button type="button" className={imported ? "chip on" : "chip herdr"} aria-pressed={!!imported}
-                onClick={() => setImporting(true)}>From herdr…</button>
+                onClick={() => setImporting(true)}>From another tool…</button>
             </div>
             {helping && (
               <HelpMeChoose machine={machine || undefined} project={project} agent={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
@@ -433,7 +441,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
             )}
             {!!imported?.notes?.length && (
               <div className="carried">
-                <div className="carried-title">Imported from herdr. What didn’t carry over</div>
+                <div className="carried-title">{imported.from === "bringover"
+                  ? `Brought over from ${imported.tool}. What didn’t carry over` : "Imported from herdr. What didn’t carry over"}</div>
                 {imported.notes.map((n) => (
                   <div className="carried-note" key={n.text}>
                     <p>{n.text}</p>
@@ -468,7 +477,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     {folderSheet && <FolderSheet machine={machine || undefined} project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
     {installing && <InstallSheet agent={installing} start="install" status={setup.status} onClose={() => setInstalling(null)} />}
     {importing && (
-      <HerdrImport onClose={() => setImporting(false)} onImported={async (d) => {
+      <BringOver onClose={() => setImporting(false)} onImported={async (d) => {
         setImporting(false);
         if (!edited || await confirmReplace()) apply(d);
       }} />

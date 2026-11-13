@@ -463,6 +463,7 @@ def find(home=None, folder=None, teams=None, now=None, sessions=None, procs=None
                       'tasks': tasks.get(project, []) if tool == 'vibe-kanban' else []}
         where = TOOLS[tool] if tool != 'other' else 'another tool'
         projects.append({'id': id_, 'tool': tool, 'label': os.path.basename(project), 'summary': _summary(its),
+                         'count': len(its),
                          'running': f'Still running in {where}: stop it there first.'
                          if any(f.running_elsewhere for f in its) else None})
     try:
@@ -470,7 +471,7 @@ def find(home=None, folder=None, teams=None, now=None, sessions=None, procs=None
     except Exception:  # herdr's own reader: one broken source must not hide the others
         herdr_found = {'teams': []}
     for t in herdr_found.get('teams', []):
-        projects.append({'id': f'herdr:{t["id"]}', 'tool': 'herdr', 'label': t['label'],
+        projects.append({'id': f'herdr:{t["id"]}', 'tool': 'herdr', 'label': t['label'], 'count': t['agents'],
                          'summary': f'{t["where"]} · {t["agents"]} agent{"s" if t["agents"] != 1 else ""}',
                          'running': 'Still running in herdr: stop it there first.' if t.get('running') else None})
     problems = [p for p in (squad_problem, vibe_problem, cond_problem) if p]
@@ -498,7 +499,7 @@ def workspaces(id_):
     for f in g['items']:
         ticked = bool(f.ahead or f.dirty)
         n += ticked
-        rows.append({'name': f.name, 'branch': f.branch, 'ticked': ticked, 'becomes': _becomes(f, n) if ticked else '',
+        rows.append({'name': f.name, 'branch': f.branch, 'ticked': ticked, 'becomes': _becomes(f, n if ticked else n + 1),
                      'note': '' if ticked else 'Left out: nothing new on its branch. Tick it to bring it anyway.'})
     lines = [{'which': k, 'line': scripts.rewrite(v)[0], 'becomes': SCRIPT_WORDS[k]} for k, v in g['scripts'].items()
              if k in SCRIPT_WORDS]

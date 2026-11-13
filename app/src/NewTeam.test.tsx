@@ -16,6 +16,9 @@ const b = vi.hoisted(() => ({
   installTools: vi.fn(),
   herdrFind: vi.fn(),
   herdrImport: vi.fn(),
+  bringOverFind: vi.fn(),
+  bringOverWorkspaces: vi.fn(),
+  bringOverImport: vi.fn(),
   confirmReplace: vi.fn(),
   containerStatus: vi.fn(),
   containerBuild: vi.fn(),
@@ -745,8 +748,11 @@ test("the developer tools poll waits for the answer before asking again", async 
   }
 });
 
+const herdrRow = (id: string, label: string, summary: string, running: string | null = null) =>
+  ({ projects: [{ id: `herdr:${id}`, tool: "herdr", label, summary, count: 1, running }], unreadable: [], problems: [], looked_for: [] });
+
 test("an import from herdr fills the form, says what didn't carry over, and a preset takes it back out", async () => {
-  b.herdrFind.mockResolvedValue({ teams: [{ id: "running:shop", label: "shop", where: "Running in herdr", agents: 2, running: true }] });
+  b.bringOverFind.mockResolvedValue(herdrRow("running:shop", "shop", "Running in herdr · 2 agents", "Still running in herdr: stop it there first."));
   b.herdrImport.mockResolvedValue({
     id: "d1", from: "herdr", project: "/Users/me/shop", task: "Add a cart", why: "", practices: {}, running: "shop",
     roles: [r("lead", { model: "opus", effort: "high" }), r("builder", { agent: "codex", parent: "lead" })],
@@ -754,10 +760,11 @@ test("an import from herdr fills the form, says what didn't carry over, and a pr
   });
   await open();
   expect(screen.getByText("Start with recommended")).toBeTruthy();
-  fireEvent.click(screen.getByText("From herdr…"));
+  fireEvent.click(screen.getByText("From another tool…"));
   await flush();
-  fireEvent.click(screen.getByText("Import"));
+  fireEvent.click(screen.getByText("Bring over"));
   await flush();
+  expect(b.herdrImport).toHaveBeenCalledWith("running:shop");
   expect(names()).toEqual(["lead", "builder"]);
   expect((screen.getByLabelText("What should the team work on?") as HTMLInputElement).value).toBe("Add a cart");
   expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
@@ -766,7 +773,7 @@ test("an import from herdr fills the form, says what didn't carry over, and a pr
   expect(screen.getByText("lead, builder")).toBeTruthy();
   expect(screen.getByText("Opus · High")).toBeTruthy(); // each agent's model and effort, as New team shows them
   expect(screen.getByText("Start team")).toBeTruthy();
-  expect(screen.getByText("From herdr…").getAttribute("aria-pressed")).toBe("true");
+  expect(screen.getByText("From another tool…").getAttribute("aria-pressed")).toBe("true");
   b.confirmReplace.mockResolvedValue(true);
   fireEvent.click(screen.getByText("Builder + reviewer"));
   await flush();
@@ -776,17 +783,49 @@ test("an import from herdr fills the form, says what didn't carry over, and a pr
 });
 
 test("an import over edited agents asks first, and No keeps them", async () => {
-  b.herdrFind.mockResolvedValue({ teams: [{ id: "saved:default:w1", label: "docs", where: "Saved in herdr", agents: 1, running: false }] });
+  b.bringOverFind.mockResolvedValue(herdrRow("saved:default:w1", "docs", "Saved in herdr · 1 agent"));
   b.herdrImport.mockResolvedValue({ id: "d2", from: "herdr", project: "/Users/me/docs", task: "", why: "", practices: {},
     roles: [r("writer")], notes: [] });
   await open();
   fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
   b.confirmReplace.mockResolvedValue(false);
-  fireEvent.click(screen.getByText("From herdr…"));
+  fireEvent.click(screen.getByText("From another tool…"));
   await flush();
-  fireEvent.click(screen.getByText("Import"));
+  fireEvent.click(screen.getByText("Bring over"));
   await flush();
   expect(b.confirmReplace).toHaveBeenCalled();
   expect(names()).toEqual(["lead"]);
-  expect(screen.queryByText("Import a team from herdr")).toBeNull(); // the sheet closes either way
+  expect(screen.queryByText("Bring your team over")).toBeNull(); // the sheet closes either way
+});
+
+test("a team brought over from Conductor starts with its scripts, the ones said yes to, its cards and where it came from", async () => {
+  b.bringOverFind.mockResolvedValue({ projects: [{ id: "conductor:/Users/me/shop", tool: "conductor", label: "shop",
+    summary: "1 workspace · Claude Code · 1 with unmerged work", count: 1, running: null }], unreadable: [], problems: [], looked_for: [] });
+  b.bringOverWorkspaces.mockResolvedValue({ label: "shop", tool: "Conductor",
+    rows: [{ name: "tokyo", branch: "feature/retry", ticked: true, becomes: "Becomes builder-1 · Claude Code · 4 commits not merged", note: "" }],
+    scripts: [{ which: "setup", line: "npm ci", becomes: "runs in each new agent’s copy" }] });
+  const roles = [r("builder-1", { worktree: "/Users/me/conductor/workspaces/shop/tokyo", branch: "feature/retry", resume: "abc" })];
+  b.bringOverImport.mockResolvedValue({ id: "d3", from: "bringover", tool: "Conductor", label: "shop", project: "/Users/me/shop",
+    task: "", why: "", practices: {}, roles, scripts: { setup: "npm ci" }, running: null,
+    cards: [{ title: "Retry", status: "doing", role: "builder-1" }],
+    notes: [{ text: "They start with Assieme's safe permissions.", agents: [] }] });
+  b.checkProject.mockResolvedValue({ ok: true, reason: "" });
+  await open();
+  fireEvent.click(screen.getByText("From another tool…"));
+  await flush();
+  fireEvent.click(screen.getByText("Bring over"));
+  await flush();
+  fireEvent.click(screen.getByLabelText("Run this setup in each new agent’s copy"));
+  fireEvent.click(screen.getByText("Bring over 1 agent"));
+  await flush();
+  expect(b.bringOverImport).toHaveBeenCalledWith("conductor:/Users/me/shop", ["tokyo"]);
+  expect(screen.getByText("Brought over from Conductor. What didn’t carry over")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Finish the retry" } });
+  fireEvent.click(screen.getByText("Start team"));
+  await flush();
+  expect(b.startTeam).toHaveBeenCalledWith(expect.objectContaining({
+    scripts: { setup: "npm ci" }, allow_scripts: ["setup"], cards: [{ title: "Retry", status: "doing", role: "builder-1" }],
+    origin: { tool: "Conductor", label: "shop" },
+    roles: [expect.objectContaining({ worktree: "/Users/me/conductor/workspaces/shop/tokyo", branch: "feature/retry", resume: "abc" })],
+  }));
 });

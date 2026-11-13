@@ -72,6 +72,10 @@ export type RoleDraft = {
   container?: boolean;
   /** That container may use this kind's sign-in from the Mac. */
   share_signin?: boolean;
+  /** Brought over (step 30): the other tool's folder it keeps working in, its branch, and the conversation to resume. */
+  worktree?: string;
+  branch?: string;
+  resume?: string;
 };
 
 export type Level = "safe" | "read-only" | "trusted";
@@ -99,13 +103,32 @@ export type Starting = {
   error: string | null;
   roles: { role: string; state: string; detail: string }[];
 };
-export type TeamForm = { project: string; task: string; roles: RoleDraft[]; practices: Record<string, boolean> };
+/** A team brought over from another tool (step 30) also carries its scripts, the ones the person said yes to, its
+ *  task cards and where it came from. */
+export type TeamForm = {
+  project: string; task: string; roles: RoleDraft[]; practices: Record<string, boolean>;
+  scripts?: Partial<Record<ScriptKind, string>>; allow_scripts?: ScriptKind[];
+  cards?: { title: string; status: string; role: string | null }[]; origin?: { tool: string; label: string };
+};
+export type ScriptKind = "setup" | "run" | "archive";
 export type Suggestion = { roles: RoleDraft[]; why: string };
 /** One kind of thing an import from herdr couldn't carry over, and the agents it is about. */
 export type ImportNote = { text: string; agents: string[] };
-/** from "herdr": an import, with what didn't carry over and, for a team still running in herdr, its name. */
-export type TeamDraft = TeamForm & { id: string; why: string; from?: "herdr"; notes?: ImportNote[]; running?: string };
+/** from "herdr" or "bringover": an import, with what didn't carry over and, for a team still running in the other
+ *  tool, its name (herdr) or the sentence to show (bringover). tool and label: where a brought-over team came from. */
+export type TeamDraft = TeamForm & {
+  id: string; why: string; from?: "herdr" | "bringover"; notes?: ImportNote[]; running?: string | null;
+  tool?: string; label?: string;
+};
 export type HerdrTeam = { id: string; label: string; where: string; agents: number; running: boolean };
+/** Step 30: one row of "Bring your team over": a project from one tool. */
+export type BringOverProject = { id: string; tool: string; label: string; summary: string; count: number; running: string | null };
+export type BringOverFound = { projects: BringOverProject[]; unreadable: string[]; problems: string[]; looked_for: string[] };
+export type BringOverWorkspaces = {
+  label: string; tool: string;
+  rows: { name: string; branch: string; ticked: boolean; becomes: string; note: string }[];
+  scripts: { which: ScriptKind; line: string; becomes: string }[];
+};
 
 export type TerminalHandle = {
   input(text: string): Promise<unknown>;
@@ -142,6 +165,11 @@ export const ruleDraft = (project: string, words: string) =>
 /** unreadable: herdr is running but couldn't be read, in words; null when it was read or isn't running. */
 export const herdrFind = () => brain<{ teams: HerdrTeam[]; unreadable?: string | null }>("herdr.find");
 export const herdrImport = (source: string) => brain<TeamDraft>("herdr.import", { source });
+/** Step 30: agent work from other tools on this Mac; `folder` is a project the person chose. */
+export const bringOverFind = (folder?: string) =>
+  invoke<BringOverFound>("brain_call", { method: "bringover.find", params: folder ? { folder } : {}, timeoutS: 60 });
+export const bringOverWorkspaces = (id: string) => brain<BringOverWorkspaces>("bringover.workspaces", { id });
+export const bringOverImport = (id: string, ticked: string[]) => brain<TeamDraft>("bringover.import", { id, ticked });
 
 /** The app's own dialog: `window.confirm` shows nothing in its web view, so it would replace without asking. */
 export const confirmReplace = () =>
