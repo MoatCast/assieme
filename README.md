@@ -131,7 +131,7 @@ is planned alongside the new runtime.
 **Coming next:**
 
 - Control your team from your phone, through Claude Code's and Codex's own remote control.
-- Bring your team over from Conductor, and later other orchestrators, in one screen.
+- Bring your team over from other agent tools in one screen: any tool that uses git worktrees, with more detail from Conductor, Vibe Kanban, Claude Squad and herdr.
 - Assieme's own runtime: a Rust fork of herdr-core, in `runtime/` and tested side by side with the original, that adds
   message timing, status pushed by the agents and blocking programs by name. The app doesn't use it yet.
 - The macOS download, and an install with Homebrew.
