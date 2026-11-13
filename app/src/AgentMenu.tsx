@@ -171,7 +171,7 @@ export function ContainerLine({ agent, onReady, pollMs = 3000 }: { agent: AgentK
           <svg className="cl-tick" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
             <path d="M3 7.2l2.6 2.6L11 4.4" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span className="cl-text">Uses {tool}, already on this Mac. Starts in about 20 seconds.</span>
+          <span className="cl-text">Uses {tool}, already on this Mac. Takes a little longer to start.</span>
         </div>
       )}
       {error && <p className="error">{error}</p>}

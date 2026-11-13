@@ -65,7 +65,7 @@ test("Claude Code in a container is never offered a shared sign-in", async () =>
   await open();
   fireEvent.click(screen.getByRole("radio", { name: /A container/ }));
   await act(async () => {});
-  expect(screen.getByText("Uses Docker, already on this Mac. Starts in about 20 seconds.")).toBeTruthy();
+  expect(screen.getByText("Uses Docker, already on this Mac. Takes a little longer to start.")).toBeTruthy();
   expect(screen.queryByRole("checkbox")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Add agent" }));
   await act(async () => {});

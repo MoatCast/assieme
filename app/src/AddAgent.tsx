@@ -108,7 +108,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
         </div>
         <div className="two-fields">
           <div className="field">
-            <div className="label">Runs on</div>
+            <div className="label">Agent</div>
             <AgentMenu look="field" value={agent} installed={clis ?? {}} onChange={(c) => c.agent && switchCli(c.agent)}
               onInstall={setInstalling} />
           </div>
@@ -145,7 +145,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
             </button>
             <button type="button" role="radio" aria-checked={inContainer} onClick={() => setInContainer(true)}>
               <span className="radio" />
-              <span><b>A container</b><small>Sees that copy and nothing else</small></span>
+              <span><b>A container</b><small>Sees its copy of {team} and nothing else</small></span>
             </button>
           </div>
           {inContainer && (
