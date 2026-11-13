@@ -9,7 +9,7 @@ import useModal from "./useModal";
 import "./Remote.css";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
-/** `gpu-box` for `jp@gpu-box.tail1.ts.net:2222`: what hc names a machine. IP addresses stay whole, as in hc. */
+/** `gpu-box` for `dev@gpu-box.tail1.ts.net:2222`: what hc names a machine. IP addresses stay whole, as in hc. */
 export function shortName(target: string) {
   const host = target.replace(/^.*@/, "").replace(/:\d+$/, "");
   return /^[\d.]+$/.test(host) || host.includes(":") ? host : host.split(".")[0] || target;
@@ -137,7 +137,9 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
   }, [job]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { ref, onKeyDown } = useModal(() => onClose(), [result?.result, job?.done]);
-  const added = new Set(hosts?.machines.map((m) => m.target));
+  // A host already added says what it is, in the machine row's words.
+  const there = new Map(hosts?.machines.map((m) => [m.target,
+    !m.set_up ? "Not set up yet" : m.state === "connected" ? "Ready" : "Can’t reach"]));
 
   const sheet = (body: React.ReactNode, note: string, actions: React.ReactNode) => (
     <div className="modal-dim">
@@ -182,7 +184,6 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
               )}
               <span className="rm-grow">
                 <span className="rm-step-name">{s.state === "done" ? STEP_LABELS[s.id][1] : STEP_LABELS[s.id][0].replace("…", s.state === "doing" ? "…" : "")}</span>
-                {s.id === "assieme" && s.state === "doing" && <small>The first time also brings Python 3.12, in your home folder there.</small>}
               </span>
             </div>
           ))}
@@ -226,10 +227,10 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
       return sheet(
         <div className="rm-card">
           <div className="rm-title"><Tick /><b className="rm-grow">Connected to {name}</b><code>{result.target}</code></div>
-          <p className="rm-text">Assieme isn’t set up there yet. Setting it up adds its small service to your home folder on {name}. Nothing runs as admin.</p>
+          <p className="rm-text">Assieme isn’t set up there yet. Setting it up downloads what it needs (the runtime, uv and Python) into your home folder on {name}. Nothing runs as admin.</p>
           <div className="rm-adds">
             <span><b>Runtime</b>Keeps the agents’ terminals alive there</span>
-            <span><b>Assieme</b>Watches the team there, with Python if it’s missing</span>
+            <span><b>Assieme</b>Watches the team there</span>
             <span><b>Then</b>It checks for Claude Code and Codex there</span>
           </div>
         </div>,
@@ -242,14 +243,14 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
       new_host_key: [<Warn />, `This Mac hasn’t connected to ${name} before`,
         `SSH wants you to check ${name}’s fingerprint once. Accept it in Terminal, then test again. Assieme never accepts a host key for you.`],
       host_key_changed: [<Warn red />, `${name} isn’t the machine it was`,
-        `Its host key changed. That happens after a reinstall, or when something is in the way. Check with whoever runs ${name} before you trust it again.`],
+        `Its host key changed. That happens after a reinstall, or if another machine is pretending to be ${name}. Check with whoever runs ${name} before you trust it again.`],
     };
     const known = cases[r];
     return sheet(
       <div className={`rm-card ${r === "host_key_changed" ? "red" : ""}`}>
         <div className="rm-title">{known ? known[0] : <Warn red />}<b>{known ? known[1] : `Can’t reach ${name}`}</b></div>
         {known ? <p className="rm-text">{known[2]}</p> : (
-          <p className="rm-text">{result.why && <><code>{result.why}</code><br /></>}Check that {name} is on, and on your network or tailnet.</p>
+          <p className="rm-text">Check that {name} is on, and on your network or tailnet.{result.why && <small className="rm-detail">{result.why}</small>}</p>
         )}
       </div>,
       "",
@@ -263,7 +264,7 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
       <i className="rm-radio" />
       <code>{h.name ?? h.target}</code>
       <span className="rm-grow">{h.address}</span>
-      {added.has(h.target) && <span className="rm-ok">Added</span>}
+      {there.get(h.target) && <span className={there.get(h.target) === "Ready" ? "rm-ok" : "rm-muted"}>{there.get(h.target)}</span>}
       {h.from === "tailscale" && !h.online && <span className="rm-muted">Offline</span>}
     </button>
   );
@@ -290,20 +291,6 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
         </svg>
       ), "Tailscale", "Machines on your private network, by name",
         tail.length ? `${tail.filter((h) => h.online).length} online` : "Not on this Mac", tail)}
-      <div className="rm-way later">
-        <span className="rm-badge"><b>{"{ }"}</b></span>
-        <span className="rm-grow"><b>Dev container or Codespace</b><small>Uses the project’s devcontainer.json</small></span>
-        <span className="rm-muted">Later</span>
-      </div>
-      <div className="rm-way later">
-        <span className="rm-badge">
-          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.4">
-            <rect x="2" y="3" width="12" height="8" rx="1.5" /><path d="M5 14h6" />
-          </svg>
-        </span>
-        <span className="rm-grow"><b>New cloud machine</b><small>Create one at a provider, ready with Claude Code and Codex</small></span>
-        <span className="rm-muted">Later</span>
-      </div>
       <div className="rm-hand">
         <div className="rm-hand-head">
           <span className="rm-badge plain">

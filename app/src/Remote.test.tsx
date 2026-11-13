@@ -36,7 +36,8 @@ beforeEach(() => {
   r.remoteRepos.mockResolvedValue(["~/checkout-service"]);
   r.checkProjectOn.mockResolvedValue({ ok: true });
   r.startTeamOn.mockResolvedValue({ team: "checkout-service" });
-  r.remoteHosts.mockResolvedValue({ ssh: [{ target: "gpu-box", address: "jp@10.0.4.12", from: "ssh" }, { target: "devbox", address: "dev:2222", from: "ssh" }], tailscale: [], machines: [] });
+  r.remoteHosts.mockResolvedValue({ ssh: [{ target: "gpu-box", address: "dev@10.0.4.12", from: "ssh" }, { target: "devbox", address: "dev:2222", from: "ssh" }], tailscale: [],
+    machines: [{ name: "devbox", target: "devbox", state: "connected", set_up: true }] });
 });
 afterEach(cleanup);
 
@@ -101,6 +102,9 @@ test("Connect a machine: pick a host, test, set up with progress, then use it", 
   render(<ConnectMachine onClose={() => {}} onUse={onUse} pollMs={1} />);
   await flush();
   screen.getByText("2 found");
+  screen.getByText("Ready"); // devbox is set up already, and reached
+  expect(screen.queryByText("Dev container or Codespace")).toBeNull(); // step 24, after the MVP
+  expect(screen.queryByText("New cloud machine")).toBeNull();
   expect((screen.getByRole("button", { name: "Test connection" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole("radio", { name: /gpu-box/ }));
   r.remoteTest.mockResolvedValueOnce({ result: "not_set_up", target: "gpu-box" });
@@ -127,14 +131,14 @@ test("Connect a machine: pick a host, test, set up with progress, then use it", 
 test("a host typed by hand with its port is one ssh target", async () => {
   render(<ConnectMachine onClose={() => {}} onUse={() => {}} />);
   await flush();
-  fireEvent.change(screen.getByLabelText("Host"), { target: { value: "jp@10.0.4.12" } });
+  fireEvent.change(screen.getByLabelText("Host"), { target: { value: "dev@10.0.4.12" } });
   fireEvent.change(screen.getByLabelText("Port"), { target: { value: "2222" } });
-  r.remoteTest.mockResolvedValue({ result: "unreachable", target: "jp@10.0.4.12:2222", why: "ssh: connect to host 10.0.4.12 port 2222: Operation timed out" });
+  r.remoteTest.mockResolvedValue({ result: "unreachable", target: "dev@10.0.4.12:2222", why: "ssh: connect to host 10.0.4.12 port 2222: Operation timed out" });
   fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
   await flush();
-  expect(r.remoteTest).toHaveBeenCalledWith("jp@10.0.4.12:2222");
+  expect(r.remoteTest).toHaveBeenCalledWith("dev@10.0.4.12:2222");
   screen.getByText("Can’t reach 10.0.4.12"); // an IP address stays whole, as hc names it
-  screen.getByText(/Operation timed out/);
+  expect(screen.getByText(/Operation timed out/).className).toBe("rm-detail"); // the raw error is the small second line
   expect(screen.queryByRole("button", { name: "Open Terminal" })).toBeNull();
   screen.getByRole("button", { name: "Test again" });
 });
@@ -191,7 +195,7 @@ test("the team view while its machine is away: reconnecting, or a login in Termi
   r.remoteTerminal.mockResolvedValue({ ok: true });
   render(<Unreachable line={{ ...line, state: "needs_login" }} onRetried={retried} />);
   screen.getByText("gpu-box wants you to log in again");
-  fireEvent.click(screen.getByRole("button", { name: "Log in in Terminal" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open Terminal" }));
   await flush();
   expect(r.remoteTerminal).toHaveBeenCalledWith({ machine: "gpu-box" });
 });

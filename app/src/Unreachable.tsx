@@ -46,7 +46,7 @@ export default function Unreachable({ line, onRetried }: { line: Machine; onRetr
         : "Assieme tries again on its own, and at once when your Mac wakes. Buttons that change something there wait until it’s back."}</p>
       {note && <p className="rm-error">{note}</p>}
       <button type="button" className={login ? "btn-primary" : "btn-secondary"} disabled={busy} onClick={act}>
-        {login ? "Log in in Terminal" : busy ? "Trying…" : "Try now"}
+        {login ? "Open Terminal" : busy ? "Trying…" : "Try now"}
       </button>
     </div>
   );

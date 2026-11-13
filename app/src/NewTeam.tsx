@@ -93,7 +93,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   }, []);
 
   // Another machine has its own agents: each role uses one that is there.
-  useEffect(() => { if (have) setRoles((rs) => fit(rs)); }, [have]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (have) setRoles((rs) => fit(rs)); }, [have?.claude, have?.codex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** An assistant's draft, or an import from herdr: the whole form, which the person checks before Start. */
   function apply(d: TeamDraft) {

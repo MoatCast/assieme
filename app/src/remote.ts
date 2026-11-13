@@ -10,6 +10,8 @@ const call = <T>(method: string, params: object = {}, timeoutS?: number) =>
 export type Machine = {
   name: string; target: string; state: "connecting" | "connected" | "needs_login" | "needs_update" | "unreachable";
   since_ms?: number | null; why?: string | null; job?: SetupJob | null;
+  /** Assieme was set up there from this Mac (or found ready). */
+  set_up?: boolean;
 };
 export type SetupStep = { id: "runtime" | "assieme" | "brain"; state: "waiting" | "doing" | "done" | "failed" };
 export type SetupJob = { target: string; machine: string | null; done: boolean; error: string | null; steps: SetupStep[] };

@@ -22,7 +22,7 @@ from assieme import remote, runtime, team
 class SshHostsTest(unittest.TestCase):
     def test_hosts_with_where_they_go_and_no_patterns(self):
         with tempfile.NamedTemporaryFile('w', delete=False) as f:
-            f.write('Host gpu-box\n  HostName 10.0.4.12\n  User jp\n  IdentityFile ~/.ssh/k\n'
+            f.write('Host gpu-box\n  HostName 10.0.4.12\n  User dev\n  IdentityFile ~/.ssh/k\n'
                     'Host devbox build-01\n  HostName=dev.example.com\n  Port 2222\n  HostName ignored\n'
                     'Host *.internal !x\n  User nobody\nMatch host foo\n  User bar\n# Host commented\n')
         try:
@@ -30,7 +30,7 @@ class SshHostsTest(unittest.TestCase):
         finally:
             os.remove(f.name)
         self.assertEqual(got, [
-            {'target': 'gpu-box', 'address': 'jp@10.0.4.12', 'from': 'ssh'},
+            {'target': 'gpu-box', 'address': 'dev@10.0.4.12', 'from': 'ssh'},
             {'target': 'devbox', 'address': 'dev.example.com:2222', 'from': 'ssh'},
             {'target': 'build-01', 'address': 'dev.example.com:2222', 'from': 'ssh'}])
 
@@ -323,6 +323,7 @@ exec env -i HOME=$R PATH=$R/.local/bin:/usr/bin:/bin XDG_STATE_HOME=$R/state XDG
         c = self.rx.check('devbox')
         self.assertEqual((c['ready'], c['outdated']), (True, False))
         self.assertEqual(self.rx.test('devbox')['result'], 'ready')
+        self.assertEqual([(m['name'], m['set_up']) for m in self.rx.machines_view()], [('devbox', True)])
 
         # An agent of a team there: listed from here as devbox's, never as this Mac's.
         self.rt.call('terminal.run', on='devbox', argv=['sleep', '300'], wait=False,

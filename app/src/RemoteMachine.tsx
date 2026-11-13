@@ -60,7 +60,7 @@ export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5
     if (!check) return <span className="rm-muted">Checking {machine}…</span>;
     if (check.state === "needs_login")
       return <><span className="rm-waste">{machine} wants you to log in again. Its agents keep working there.</span><span className="rm-grow" />
-        <button type="button" className="rm-act" onClick={() => remoteTerminal({ machine: machine! }).catch((e) => setError(message(e)))}>Log in in Terminal</button></>;
+        <button type="button" className="rm-act" onClick={() => remoteTerminal({ machine: machine! }).catch((e) => setError(message(e)))}>Open Terminal</button></>;
     if (check.state !== "connected")
       return <><span className="rm-waste">{check.state === "connecting" ? `Connecting to ${machine}…` : `Can’t reach ${machine}${check.since_ms ? ` since ${since(check.since_ms)}` : ""}. Its agents keep working there.`}</span><span className="rm-grow" />
         <button type="button" className="rm-act" onClick={() => remoteConnect(machine!).then(() => setTick((t) => t + 1), (e) => setError(message(e)))}>Try now</button></>;

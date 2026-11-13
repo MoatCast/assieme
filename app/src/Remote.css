@@ -72,6 +72,7 @@ button.rm-way { cursor: pointer; }
 .rm-title code, .rm-step code { font-family: var(--quiet-font-mono); font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
 .rm-text { margin: 0; padding-left: 30px; font-size: 14px; line-height: 20px; color: var(--quiet-slate); }
 .rm-text code { font-family: var(--quiet-font-mono); font-size: 12px; }
+.rm-detail { display: block; padding-top: 2px; font-family: var(--quiet-font-mono); font-size: 12px; line-height: 18px; color: var(--quiet-mute); }
 .rm-adds { display: flex; flex-direction: column; gap: 6px; margin-left: 30px; padding: 12px 14px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); }
 .rm-adds span { display: flex; gap: 10px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
 .rm-adds b { flex-shrink: 0; width: 110px; font-weight: 600; color: var(--quiet-ink); }
@@ -98,3 +99,4 @@ button.rm-way { cursor: pointer; }
 .rm-away .btn-secondary, .rm-away .btn-primary { padding: 6px 14px; font-size: 13px; line-height: 16px; }
 .team.away .well svg, .team.away .well .node, .team.away .well > :not(.spend), .team.away .tip, .team.away .ready button { opacity: 0.45; }
 .team.away .tip button, .team.away .ready button { pointer-events: none; }
+.shell-bar .add-agent:disabled { opacity: 0.45; cursor: default; } /* a team whose machine is away */

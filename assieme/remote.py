@@ -509,6 +509,10 @@ class Remotes:
             except runtime.RuntimeError_ as e:
                 return _failure(target, e)
         c = self.check(name)
+        if c['ready'] and name not in self.set_up:  # found ready (set up from another Mac): its brain is looked after too
+            with self.lock:
+                self.set_up.add(name)
+            self._save()
         return c | {'result': 'ready' if c['ready'] else 'not_set_up' if c['state'] == 'connected' else c['state']}
 
     def _job(self, target):
@@ -642,7 +646,7 @@ class Remotes:
         return {'ok': True}
 
     def machines_view(self):
-        return [m | {'job': self._job(m['target'])} for m in self.machines()]
+        return [m | {'job': self._job(m['target']), 'set_up': m['name'] in self.set_up} for m in self.machines()]
 
     def handlers(self):
         return {'remote.hosts': lambda: {'ssh': ssh_hosts(), 'tailscale': tailscale_hosts(), 'machines': self.machines_view()},
