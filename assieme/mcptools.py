@@ -5,7 +5,7 @@ import os
 import subprocess
 import uuid
 
-from . import bringover, brief, budget, herdr, live, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
+from . import bringover, brief, budget, herdr, live, musicians, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -214,6 +214,8 @@ class Tools:
         if not check['ok']:
             raise newteam.NewTeamError('project', check['reason'])
         filled = []
+        roles = [{k: v for k, v in r.items() if k != 'musician' or v in musicians.INSTRUMENTS} for r in roles]
+        roles = [{**r, 'musician': m} for r, m in zip(roles, musicians.assign(roles))]  # before kind is dropped below
         for r in roles:
             r = {k: v for k, v in r.items() if k not in ('worktree', 'branch', 'resume')}  # only a bring-over sets them
             for key in ('tools_off', 'tools_known'):  # an assistant's ids are untrusted: keep only well-formed ones
