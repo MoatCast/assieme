@@ -7,7 +7,7 @@ import re
 import time
 from dataclasses import dataclass
 
-from . import brief, launch, preset, prompts, runtime, worktree
+from . import brief, launch, permissions, preset, prompts, runtime, worktree
 
 TEAM, ROLE, BRIEFED = 'assieme.team', 'assieme.role', 'assieme.briefed'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
@@ -53,6 +53,7 @@ def stop(rt, name):
     return len(live)
 
 
+OWNS = 'You own these files: {files}. Edit only these; ask before changing any other file.'
 WAIT_FOR_PARENT = '{parent} will send you your work. Until then, wait and do nothing.'
 TOOLS = ('Your assieme tools: message_agent reaches a teammate by name, list_teammates shows who is here. If you are '
          "stuck, or only the person can decide, call report and end your turn. Don't use `hc send`.\n"
@@ -73,6 +74,8 @@ def _brief(rt, t, role, task, tm, clock=time):
     """An agent with a parent gets its work from that parent: the whole task would have it do the same work again.
     A parent is told who reports to it here, in its first message: a note sent mid-turn can go missing."""
     parts = [role.brief.strip(), TOOLS]
+    if role.owns:
+        parts.insert(1, OWNS.format(files=', '.join(role.owns)))
     # Without the goal: the top agent has it as its task, and one with a parent would start on the whole of it
     # instead of waiting for its share. It is in `team_brief` for any agent that looks.
     shared = brief.text(tm.name, goal=False)
@@ -114,8 +117,19 @@ def _review_hint(role):
     return f'{launch.NAMES.get(role.agent, role.agent)} wants you to review new hooks once. Open {role.name} in Terminals and choose.'
 
 
+def _codex_rules(tm, role, cwd):
+    """Codex reads every rules file in its folder: one file for all the team's Codex agents working there."""
+    there = [r for r in tm.roles if r.agent == 'codex' and (r is role or worktree.folder(tm, r) == cwd)]
+    if any(r.level for r in there):
+        worktree.exclude(tm.project, permissions.RULES_FILE)
+    permissions.write_codex_rules(cwd, there)
+
+
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
-    t = rt.start(launch.argv(role, block_push=preset.rule_on(tm.practices, 'no-push')), cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
+    if role.agent == 'codex':
+        _codex_rules(tm, role, cwd)
+    argv = launch.argv(role, block_push=preset.rule_on(tm.practices, 'no-push'), cwd=cwd)
+    t = rt.start(argv, cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
     deadline = clock.monotonic() + FIRST_STATUS_S
     while True:
         info = rt.get(t)

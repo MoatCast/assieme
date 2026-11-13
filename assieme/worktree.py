@@ -24,22 +24,31 @@ def check_repo(project):
         raise NoCommitsError(f'{project} has no commits yet. Make a first commit, then start again.')
 
 
-def _exclude(project):
+def exclude(project, line='.assieme/'):
+    """Keep a file Assieme writes out of every commit: one line in the repository's own info/exclude."""
     path = _git(project, 'rev-parse', '--git-path', 'info/exclude').stdout.strip()
     path = os.path.join(project, path) if not os.path.isabs(path) else path
     lines = open(path).read().splitlines() if os.path.exists(path) else []
-    if '.assieme/' not in lines:
+    if line not in lines:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'a') as f:
-            f.write(('\n' if lines and lines[-1] else '') + '.assieme/\n')
+            f.write(('\n' if lines and lines[-1] else '') + line + '\n')
+
+
+_exclude = exclude  # step 23 still calls the old name; settled when the branches merge
+
+
+def folder(team, role):
+    """Where the role works."""
+    return os.path.join(team.project, '.assieme', 'worktrees', role.name)
 
 
 def ensure(team, role):
     """The role's worktree path: created on first use, reused while clean, never reset."""
     check_repo(team.project)
-    path = os.path.join(team.project, '.assieme', 'worktrees', role.name)
+    path = folder(team, role)
     branch = f'assieme/{team.name}/{role.name}'
-    _exclude(team.project)
+    exclude(team.project)
     if os.path.isdir(path):
         top = _git(path, 'rev-parse', '--show-toplevel')
         if top.returncode != 0 or os.path.realpath(top.stdout.strip()) != os.path.realpath(path):

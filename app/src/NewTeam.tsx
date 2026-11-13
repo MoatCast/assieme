@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type ModelOptions, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import BriefEditor, { guessKind } from "./BriefEditor";
+import { defaultLevel } from "./PermissionsEditor";
 import FolderSheet from "./FolderSheet";
 import HelpMeChoose from "./HelpMeChoose";
 import HerdrImport from "./HerdrImport";
@@ -49,6 +51,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [briefOf, setBriefOf] = useState<number | null>(null);
   const [modelOf, setModelOf] = useState<number | null>(null);
   const [models, setModels] = useState<ModelOptions | null>(null);
+  const [kinds, setKinds] = useState<Record<string, KindInfo>>({});
+  const [perms, setPerms] = useState<PermissionTable | null>(null);
   const [roleErrors, setRoleErrors] = useState<Record<number, string>>({});
   const [helping, setHelping] = useState(false);
   const [why, setWhy] = useState("");
@@ -61,8 +65,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [pending, setPending] = useState(false);
   const starting = useRef(false); // a second click before React re-renders must not start a second team
 
+  // Every agent gets a role and a permission level here, shown in its Brief before Start.
   const fit = (rs: RoleDraft[]) =>
-    rs.map((r) => (have?.[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }));
+    rs.map((r) => ({ ...(have?.[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }),
+      kind: r.kind !== undefined ? r.kind : guessKind(r.name), level: r.level ?? defaultLevel(r) }));
 
   useEffect(() => {
     let stopped = false;
@@ -74,6 +80,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       setPresets(all);
       setPractices(p.practices);
       setModels(p.models);
+      setKinds(p.kinds ?? {});
+      setPerms(p.permissions ?? null);
       setPracticeOn({ ...(draft?.practices ?? p.practice_defaults ?? {}) }); // groups and rules are on unless false
       if (draft) apply(draft);
       else if (all.length) {
@@ -404,13 +412,6 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                     {modelOf === i && models && (
                       <ModelMenu role={r} options={models} onChange={(c) => edit(i, c)} />
                     )}
-                    {briefOf === i && (
-                      <div className="brief">
-                        <textarea aria-label={`Brief for ${r.name}`} value={r.brief} rows={8}
-                          onChange={(e) => edit(i, { brief: e.target.value })} />
-                        <button type="button" className="link" onClick={() => setBriefOf(null)}>Done</button>
-                      </div>
-                    )}
                   </div>
                 ))}
                 <button type="button" className="add" onClick={add}>
@@ -450,6 +451,11 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
         </footer>
       </div>
     </div>
+    {briefOf !== null && roles[briefOf] && perms && (
+      <BriefEditor role={roles[briefOf]} roles={roles} project={project} installed={installed} kinds={kinds} table={perms}
+        asker={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
+        onCancel={() => setBriefOf(null)} onSave={(c) => { edit(briefOf, c); setBriefOf(null); }} />
+    )}
     {folderSheet && <FolderSheet machine={machine || undefined} project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
     {importing && (
       <HerdrImport onClose={() => setImporting(false)} onImported={async (d) => {

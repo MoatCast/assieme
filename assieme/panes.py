@@ -144,7 +144,8 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
             screen = read(r['address']) or ''
             menu, q = [] if report else prompts.menu(screen), report['note'] if report else None
             about = prompts.menu_context(screen) if menu else ''
-            buttons = [_button(role, 'menu', label, str(n), about) for n, label in menu]
+            ours = prompts.permission_labels(menu)
+            buttons = [_button(role, 'menu', ours.get(n, label), str(n), about) for n, label in menu]
             if not menu:
                 q = q or prompts.question(screen)
                 got = answers.get(f'{team_name}/{role}/{_id(q)}', q) if q else None

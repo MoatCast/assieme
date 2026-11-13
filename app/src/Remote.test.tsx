@@ -65,7 +65,7 @@ test("New team on a remote machine: its agents, a project typed there, and the s
   fireEvent.click(screen.getByText("Start with recommended"));
   await flush();
   expect(r.startTeamOn).toHaveBeenCalledWith(expect.objectContaining({ project: "~/checkout-service", task: "Fix login",
-    roles: [{ ...ROLE, agent: "claude" }] }), "gpu-box");
+    roles: [{ ...ROLE, agent: "claude", kind: "builder", level: "safe" }] }), "gpu-box");
   expect(b.startTeam).not.toHaveBeenCalled();
   expect(onClose).toHaveBeenCalled();
 });

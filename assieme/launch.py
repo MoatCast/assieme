@@ -9,7 +9,7 @@ import re
 import shlex
 import sys
 
-from . import quiet, setup
+from . import permissions, quiet, setup
 
 CLIS = {'claude': 'claude', 'codex': 'codex'}
 NAMES = {'claude': 'Claude Code', 'codex': 'Codex'}
@@ -43,16 +43,25 @@ def _mcp():
     return {'command': sys.executable, 'args': ['-P', '-m', 'assieme', 'mcp']}  # -P: never import from the worktree
 
 
-def _claude(role):
+def _test_command(cwd):
+    from . import review  # review imports team, which imports this module
+    return review.test_command(cwd) if cwd else None
+
+
+def _claude(role, cwd=None):
     # Its own team's message and report tools: asking the person about each one would defeat them.
+    allow, deny = permissions.claude(role, cwd, _test_command(cwd) if role.level else None)
+    perms = {'allow': ['mcp__assieme', *allow]} | ({'deny': deny} if deny else {})
     settings = {'hooks': {e: [{'hooks': [{'type': 'command', 'command': hook_command(s)}]}] for e, s in HOOKS.items()},
-                'permissions': {'allow': ['mcp__assieme']}}
+                'permissions': perms}
     a = ['claude', '--settings', json.dumps(settings), '--mcp-config', json.dumps({'mcpServers': {'assieme': _mcp()}})]
     if role.model:
         a += ['--model', role.model]
     if role.effort:
         a += ['--effort', role.effort]
-    if role.checkout == 'read-only':
+    if role.level:  # "anything else asks you first": not the person's auto mode or a skip-prompts default
+        a += ['--permission-mode', 'default']
+    if role.checkout == 'read-only' or role.level == 'read-only':
         a += ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit']
     return a
 
@@ -89,7 +98,8 @@ def _codex(role):
         a += ['-m', role.model]
     if role.effort:
         a += ['-c', f'model_reasoning_effort={json.dumps(role.effort)}']
-    if role.checkout == 'read-only':
+    a += permissions.codex_args(role)  # its program rules are a file in its worktree (team writes it)
+    if role.checkout == 'read-only' and '--sandbox' not in a:
         a += ['--sandbox', 'read-only']
     return a
 
@@ -98,11 +108,12 @@ def _codex(role):
 BLOCK_PUSH = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'url.assieme-push-blocked://.pushInsteadOf', 'GIT_CONFIG_VALUE_0': ''}
 
 
-def argv(role, block_push=True, which=setup.agent_path):
-    """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on."""
-    a = _claude(role) if role.agent == 'claude' else _codex(role)
+def argv(role, block_push=True, which=setup.agent_path, cwd=None):
+    """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on.
+    `cwd` is its worktree, for the paths in its permissions. A role with a permission level is always kept from pushing."""
+    a = _claude(role, cwd) if role.agent == 'claude' else _codex(role)
     a[0] = which(a[0]) or a[0]
-    env = dict(BLOCK_PUSH) if block_push else {}
+    env = dict(BLOCK_PUSH) if block_push or role.level else {}
     if os.path.isabs(a[0]):
         # An npm-installed agent is a `#!/usr/bin/env node` script whose node sits beside it, and the core may be older
         # than this brain, with a shorter PATH. Quiet send's folder stays first, as the core sets it.
