@@ -20,15 +20,15 @@ def trust_keys(screen):
     return None
 
 
-# Claude Code's first-run screens that only choose a look or say what to be careful about: never a permission, and
+# Claude Code's and Antigravity's first-run screens that only choose a look or say what to be careful about: never a permission, and
 # never the sign-in, which stays the person's. Compared without spaces, since a screen read can lose them.
-FIRST_RUN = ('Choosethetextstylethatlooksbestwithyourterminal', 'Securitynotes:')
+FIRST_RUN = ('Choosethetextstylethatlooksbestwithyourterminal', 'Securitynotes:', 'Chooseyourcolorscheme:')
 
 
 def first_run_keys(screen):
     """['enter'] (keep the default) on one of FIRST_RUN's screens, else None."""
     flat = ''.join(screen.split())
-    if FIRST_RUN[0] in flat or (FIRST_RUN[1] in flat and 'PressEntertocontinue' in flat):
+    if FIRST_RUN[0] in flat or FIRST_RUN[2] in flat or (FIRST_RUN[1] in flat and 'PressEntertocontinue' in flat):
         return ['enter']
     return None
 

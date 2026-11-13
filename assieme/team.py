@@ -113,6 +113,11 @@ def _tell_parent(tm, role, address, rt, addresses):
             pass
 
 
+def _asking_hint(role):
+    return (f'{launch.NAMES.get(role.agent, role.agent)} is asking something before it starts (its own setup or '
+            f'terms). Open {role.name} in Terminals and answer it.')
+
+
 def _review_hint(role):
     # Assieme's own hooks are trusted at launch; this is someone else's new hook. The CLI adds the attach command.
     return f'{launch.NAMES.get(role.agent, role.agent)} wants you to review new hooks once. Open {role.name} in Terminals and choose.'
@@ -149,10 +154,19 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
         info = rt.get(t)
         if info.get('state') == 'finished':
             return Started(role.name, t, 'exited', _tail(rt, t))
+        screen = rt.read(t)
+        first = prompts.first_run_keys(screen)  # a new machine's look and safety notes: not a permission
+        if first:  # Antigravity reports "blocked" on its color scheme screen, so this comes before the brief
+            rt.keys(t, first)
+            deadline = clock.monotonic() + FIRST_STATUS_S
+            clock.sleep(1)
+            continue
+        if (info.get('status') or {}).get('state') == 'blocked' and not prompts.trust_keys(screen) \
+                and not prompts.hook_review(screen):  # its own setup or terms: the person's to answer, not ours
+            return Started(role.name, t, 'needs-you', _asking_hint(role))
         if info.get('status'):
             _brief(rt, t, role, task, tm, clock)
             return Started(role.name, t, 'running')
-        screen = rt.read(t)
         keys = prompts.trust_keys(screen)
         if keys:
             if tm.project not in trusted:
@@ -161,9 +175,6 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
                     return Started(role.name, t, 'exited', 'folder not trusted')
                 trusted.add(tm.project)
             rt.keys(t, keys)
-            deadline = clock.monotonic() + FIRST_STATUS_S
-        elif first := prompts.first_run_keys(screen):  # a new machine's look and safety notes: not a permission
-            rt.keys(t, first)
             deadline = clock.monotonic() + FIRST_STATUS_S
         elif prompts.hook_review(screen):
             return Started(role.name, t, 'needs-you', _review_hint(role))

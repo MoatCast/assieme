@@ -140,7 +140,19 @@ LOGIN = """Select login method:
    2. Anthropic Console account · API usage billing"""
 
 
+AGY_THEME = """Welcome to Antigravity CLI!
+
+Choose your color scheme:        ╭──────────────╮
+  > terminal                     │ > you: add a │
+    light                        │              │
+    [Next]
+  ↑/↓ Navigate · enter Confirm"""
+
+
 class FirstRunTest(unittest.TestCase):
+    def test_antigravitys_color_scheme_is_passed_with_enter(self):
+        self.assertEqual(prompts.first_run_keys(AGY_THEME), ['enter'])
+
     def test_the_theme_and_security_screens_are_passed_with_enter(self):
         self.assertEqual(prompts.first_run_keys(THEME), ['enter'])
         self.assertEqual(prompts.first_run_keys(SECURITY), ['enter'])

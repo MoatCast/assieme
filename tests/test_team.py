@@ -207,6 +207,23 @@ class StartTest(unittest.TestCase):
         self.assertEqual(rt.keyed, [('t1', ['enter']), ('t1', ['enter'])])
         self.assertEqual(out[0].state, 'running')
 
+    def test_a_first_run_screen_that_already_reported_blocked_is_passed_before_the_brief(self):
+        theme = 'Welcome to Antigravity CLI!\nChoose your color scheme:\n  > terminal'
+        rt = FakeRuntime(screens={'coordinator': [theme, IDLE]},
+                         statuses={'coordinator': [{'state': 'blocked'}, {'state': 'idle'}]})
+        out = self.start(rt, demo(COORD), task='fix bug')
+        self.assertEqual(rt.keyed, [('t1', ['enter'])])
+        self.assertEqual(out[0].state, 'running')
+
+    def test_an_agent_asking_something_else_before_its_brief_needs_you(self):
+        terms = 'Terms of Service & Data Use\n  > [x] Yes, I agree'
+        rt = FakeRuntime(screens={'coordinator': [terms]}, statuses={'coordinator': [{'state': 'blocked'}]})
+        out = self.start(rt, demo(COORD), task='fix bug')
+        self.assertEqual(out[0].state, 'needs-you')
+        self.assertIn('Terminals', out[0].note)
+        self.assertEqual(rt.keyed, [])
+        self.assertEqual(rt.sent, [])
+
     def test_codex_trust_is_enter(self):
         rt = FakeRuntime(screens={'builder-1': [TRUST_CODEX, IDLE]}, statuses={'builder-1': [None, None, {'state': 'idle'}]})
         self.start(rt, demo(Role('builder-1', 'codex', 'b.md', 'x')))
