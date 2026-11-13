@@ -395,3 +395,44 @@ class CursorTest(unittest.TestCase):
         launch.BUILDERS['cursor'](role('cursor'), d)  # again: nothing doubled
         with open(os.path.join(d, '.cursor', 'cli.json')) as f:
             self.assertEqual(json.load(f)['permissions']['deny'].count('Shell(git:push*)'), 1)
+
+
+class OpenCodeVersionTest(unittest.TestCase):
+    def test_v2_runs_each_agent_on_its_own_server(self):  # v2 shares one background server on a fixed port
+        with unittest.mock.patch.object(launch, '_opencode_major', return_value=2):
+            argv, _ = launch.BUILDERS['opencode'](role('opencode'), tempfile.mkdtemp())
+        self.assertIn('--standalone', argv)
+
+    def test_v1_has_no_such_flag(self):
+        with unittest.mock.patch.object(launch, '_opencode_major', return_value=1):
+            argv, _ = launch.BUILDERS['opencode'](role('opencode'), tempfile.mkdtemp())
+        self.assertNotIn('--standalone', argv)
+
+    def test_the_major_version_is_read_from_its_own_output(self):
+        launch._opencode_major.cache_clear()
+        run = lambda *a, **k: subprocess.CompletedProcess(a[0], 0, 'opencode v2.3.0\n', '')
+        self.assertEqual(launch._opencode_major('/x/opencode', run), 2)
+        launch._opencode_major.cache_clear()
+        self.assertEqual(launch._opencode_major('/x/opencode', lambda *a, **k: subprocess.CompletedProcess(a[0], 0, '1.19.5\n', '')), 1)
+        launch._opencode_major.cache_clear()
+
+
+class CursorTeamToolsTest(unittest.TestCase):
+    def test_its_own_team_tools_never_ask_even_without_a_level(self):
+        for level in ('safe', None):
+            d = tempfile.mkdtemp()
+            subprocess.run(['git', 'init', '-q', d], check=True)
+            launch.BUILDERS['cursor'](role('cursor', level), d)
+            with open(os.path.join(d, '.cursor', 'cli.json')) as f:
+                self.assertIn('Mcp(assieme:*)', json.load(f)['permissions']['allow'], level)
+
+
+class CursorAgentToolsTest(unittest.TestCase):
+    def test_the_team_tools_learn_which_terminal_they_run_in(self):  # Cursor passes MCP servers no variables itself
+        d = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', d], check=True)
+        launch.BUILDERS['cursor'](role('cursor'), d)
+        with open(os.path.join(d, '.cursor', 'mcp.json')) as f:
+            env = json.load(f)['mcpServers']['assieme']['env']
+        for name in ('HC_SESSION', 'HC_TERMINAL_ID', 'XDG_STATE_HOME'):
+            self.assertEqual(env[name], '${env:%s}' % name)

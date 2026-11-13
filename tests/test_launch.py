@@ -242,7 +242,8 @@ class NewKindsTest(unittest.TestCase):
         _, words = env_of(launch.argv(role('cursor'), block_push=False, which=lambda n: None, cwd=self.cwd, trusted=True))
         self.assertIn('--trust', words)
 
-    def test_opencode_gets_its_config_and_the_status_plugin_from_its_environment(self):
+    @unittest.mock.patch.object(launch, "_opencode_major", return_value=1)  # whatever OpenCode this machine has
+    def test_opencode_gets_its_config_and_the_status_plugin_from_its_environment(self, _major):
         env, words = env_of(self.argv(role('opencode', model='anthropic/claude-sonnet-4', checkout='read-only')))
         self.assertEqual(words, ['opencode', '-m', 'anthropic/claude-sonnet-4'])
         config = json.loads(env['OPENCODE_CONFIG_CONTENT'])

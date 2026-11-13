@@ -2,11 +2,13 @@
 
 The brief is not on the command line: it is sent after the agent's first turn ends.
 """
+import functools
 import hashlib
 import json
 import os
 import re
 import shlex
+import subprocess
 import sys
 
 from . import container, permissions, quiet, setup, worktree
@@ -168,6 +170,16 @@ def _gemini(role, cwd, py=None, trusted=False):
 OPENCODE_PLUGIN = os.path.join(os.path.dirname(__file__), 'opencode_status.js')
 
 
+@functools.lru_cache(maxsize=4)
+def _opencode_major(path, run=subprocess.run):
+    """OpenCode's major version from `--version` ("opencode v2.3.0" or "1.19.5"); 1 when it can't tell."""
+    try:
+        out = run([path, '--version'], capture_output=True, text=True, timeout=10).stdout
+        return int(re.search(r'(\d+)\.\d+', out).group(1))
+    except (OSError, AttributeError, ValueError, subprocess.SubprocessError):
+        return 1
+
+
 def _opencode(role, cwd, py=None, trusted=False):
     """OpenCode reads a whole config from its environment; the status plugin calls our hook."""
     config = {'plugin': ['file://' + OPENCODE_PLUGIN],
@@ -178,6 +190,8 @@ def _opencode(role, cwd, py=None, trusted=False):
     if perms:
         config['permission'] = perms | ({'edit': 'deny'} if role.checkout == 'read-only' else {})
     a = ['opencode'] + (['-m', role.model] if role.model else [])
+    if _opencode_major(setup.agent_path('opencode') or 'opencode') >= 2:  # one shared server on a fixed port otherwise
+        a.append('--standalone')
     hook = shlex.split(hook_command('idle', py))[:-1]
     return a, {'OPENCODE_CONFIG_CONTENT': json.dumps(config), 'ASSIEME_HOOK': json.dumps(hook)}
 
@@ -227,8 +241,12 @@ def _cursor(role, cwd, py=None, trusted=False):
     hook = lambda state: [{'command': hook_command(state, py)}]
     _merge(cwd, '.cursor/hooks.json', {'version': 1, 'hooks': {
         'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'), 'stop': hook('idle')}})
-    mcp = _merge(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py)}})
-    _cursor_permissions(cwd, permissions.cursor(role, cwd, _test_command(cwd) if role.level else None))
+    # Cursor hands MCP servers none of the terminal's variables: these say which agent this is (as Codex's env_vars).
+    passed = {n: '${env:%s}' % n for n in ('HC_SESSION', 'HC_TERMINAL_ID', 'XDG_STATE_HOME', 'ASSIEME_BRIDGE', 'PYTHONPATH')}
+    mcp = _merge(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py) | {'env': passed}}})
+    ours = permissions.cursor(role, cwd, _test_command(cwd) if role.level else None) or {'allow': [], 'deny': []}
+    ours['allow'] = ['Mcp(assieme:*)', *ours['allow']]  # its own team's tools: asking about each would defeat them
+    _cursor_permissions(cwd, ours)
     # Approving MCP servers approves them all: only when Assieme's is the only one there.
     alone = mcp is not None and set(mcp.get('mcpServers') or {}) == {'assieme'}
     a = ['cursor-agent'] + (['--approve-mcps'] if alone else []) + (['--trust'] if trusted else []) + (['--model', role.model] if role.model else [])
