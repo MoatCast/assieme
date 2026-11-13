@@ -36,6 +36,11 @@ def _read_sessions(claude_dir, codex_dir, since):
         out += adapters.claude_code(claude_dir, since)
     if os.path.isdir(codex_dir):
         out += adapters.codex(codex_dir, since)
+    gemini, opencode = os.path.expanduser('~/.gemini'), os.path.expanduser('~/.local/share/opencode/opencode.db')
+    if os.path.isdir(os.path.join(gemini, 'tmp')):
+        out += adapters.gemini(gemini, since)
+    if os.path.isfile(opencode):
+        out += adapters.opencode(opencode, since)
     return out
 
 

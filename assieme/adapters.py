@@ -304,3 +304,83 @@ def generic(path, since, show_text=False):
         elif o.get('type') == 'refusal':
             s.refusals[(command_label('cmd', str(o.get('command') or ''), show_text), str(o.get('why') or 'reported'))] += 1
     yield from (s for s in sessions.values() if s.calls)
+
+
+def _gemini_text(content):
+    """A Gemini message's text: a string, or a list of parts with `text`."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return '\n'.join(p.get('text', '') for p in content if isinstance(p, dict) and isinstance(p.get('text'), str))
+    return ''
+
+
+def gemini(root, since, show_text=False):
+    """~/.gemini/tmp/<project>/chats/session-*.jsonl: a header line, then messages. A message is written again when it
+    changes (its tokens arrive after it), so the last copy of each id counts. projects.json maps folders to <project>."""
+    try:
+        with open(os.path.join(root, 'projects.json')) as f:
+            folders = {short: path for path, short in (json.load(f).get('projects') or {}).items()}
+    except (OSError, ValueError, AttributeError):
+        folders = {}
+    for path in _recent(glob.glob(os.path.join(root, 'tmp', '*', 'chats', '*.jsonl')), since):
+        cwd = folders.get(os.path.basename(os.path.dirname(os.path.dirname(path))))
+        s = Session(f"gemini:{os.path.basename(cwd or '') or '?'}", 'gemini')
+        s.cwd = cwd
+        messages = collections.OrderedDict()
+        for o in _rows(path):
+            if 'id' in o and 'type' in o:
+                messages[o['id']] = o
+        for m in messages.values():
+            ts = parse_ts(m.get('timestamp'))
+            if not ts or ts < since:
+                continue
+            if m['type'] == 'user':
+                s.wake(*wake_sender(_gemini_text(m.get('content'))), _gemini_text(m.get('content')), show_text, ts)
+            elif m['type'] == 'gemini' and isinstance(m.get('tokens'), dict):
+                t = m['tokens']
+                s.call(int(t.get('input') or 0), int(t.get('output') or 0) + int(t.get('thoughts') or 0), ts)
+        if s.calls:
+            yield s
+
+
+def opencode(db, since, show_text=False):
+    """OpenCode's SQLite database, read-only, and only its session and message tables (others hold sign-ins)."""
+    import sqlite3
+    from datetime import datetime, timezone
+    try:
+        con = sqlite3.connect(f'file:{db}?mode=ro', uri=True, timeout=2)
+    except sqlite3.Error:
+        return
+    cutoff = int(since.timestamp() * 1000)
+    try:
+        sessions = con.execute('SELECT id, directory, parent_id FROM session WHERE time_updated >= ?', (cutoff,)).fetchall()
+        for sid, cwd, parent in sessions:
+            s = Session(f"opencode:{os.path.basename(cwd or '') or '?'}" + ('/subagent' if parent else ''), 'opencode')
+            s.cwd = cwd
+            rows = con.execute('SELECT id, time_created, data FROM message WHERE session_id = ? AND time_created >= ? '
+                               'ORDER BY time_created', (sid, cutoff)).fetchall()
+            for mid, at, data in rows:
+                try:
+                    m = json.loads(data)
+                except ValueError:
+                    continue
+                ts = datetime.fromtimestamp(at / 1000, timezone.utc)
+                if m.get('role') == 'user':
+                    text = '\n'.join(json.loads(d).get('text', '') for (d,) in con.execute(
+                        'SELECT data FROM part WHERE message_id = ? ORDER BY time_created', (mid,))
+                        if '"text"' in d)
+                    sender, channel = wake_sender(text)
+                    if parent and not s.turns:
+                        sender, channel = 'opencode:parent', 'subagent'
+                    s.wake(sender, channel, text, show_text, ts)
+                elif m.get('role') == 'assistant' and isinstance(m.get('tokens'), dict):
+                    t, cache = m['tokens'], m['tokens'].get('cache') or {}
+                    s.call(int(t.get('input') or 0) + int(cache.get('read') or 0) + int(cache.get('write') or 0),
+                           int(t.get('output') or 0) + int(t.get('reasoning') or 0), ts)
+            if s.calls:
+                yield s
+    except sqlite3.Error:
+        return
+    finally:
+        con.close()

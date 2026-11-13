@@ -91,6 +91,10 @@ def main(argv=None):
                                          cwd_rules=rules.running_settings(), extra_rules=extra)
     if os.path.isdir(args.codex_dir):
         sessions += adapters.codex(args.codex_dir, since, args.show_text)
+    if os.path.isdir(os.path.expanduser('~/.gemini/tmp')):
+        sessions += adapters.gemini(os.path.expanduser('~/.gemini'), since, args.show_text)
+    if os.path.isfile(os.path.expanduser('~/.local/share/opencode/opencode.db')):
+        sessions += adapters.opencode(os.path.expanduser('~/.local/share/opencode/opencode.db'), since, args.show_text)
     for path in args.generic:
         sessions += adapters.generic(path, since, args.show_text)
 
