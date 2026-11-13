@@ -62,6 +62,15 @@ def _kept(role):
     return role.worktree if role.worktree and os.path.isdir(role.worktree) else None
 
 
+TOOL_PATHS = (('/conductor/', 'Conductor'), ('/.conductor/', 'Conductor'), ('/.claude-squad/', 'Claude Squad'),
+              ('/vibe-kanban/', 'Vibe Kanban'), ('/.vibe-kanban-workspaces/', 'Vibe Kanban'))
+
+
+def tool_name(folder):
+    """The tool a brought-over folder belongs to, from where it is; None when the path doesn't say."""
+    return next((name for part, name in TOOL_PATHS if part in folder + '/'), None)
+
+
 def branch_of(team, role):
     """The branch the role works on: the one it was brought over with while its folder is there, else Assieme's."""
     return role.branch if _kept(role) and role.branch else f'assieme/{team.name}/{role.name}'
