@@ -47,9 +47,9 @@
 .pair.add-pair:disabled { cursor: default; }
 .settings .text { padding: 0; background: none; border: 0; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
 .settings .text.strong { color: var(--quiet-ink); font-weight: 500; }
-.basics { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-top: -16px; padding: 8px 16px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
-.basic-list { margin: -20px 0 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
-.basic-list b { font-weight: 500; color: var(--quiet-ink); }
+.settings .basics { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-top: -16px; padding: 8px 16px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
+.settings .basic-list { margin: -20px 0 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.settings .basic-list b { font-weight: 500; color: var(--quiet-ink); }
 .note-row { flex-direction: row; align-items: center; gap: 16px; padding: 14px 18px; font-size: 14px; line-height: 20px; color: var(--quiet-ink); }
 .set-empty { margin: 0; font-size: 14px; color: var(--quiet-slate); }
 .set-error { margin: 0; font-size: 13px; color: var(--quiet-needs-you-text); }

@@ -180,7 +180,7 @@ export default function ImproveTeam({ onClose, onDraft }: { onClose: () => void;
             </div>
             {applied[f.id] ? (
               <span className="improve-applied">
-                <span className="done"><Check />Applied</span>
+                <span className="improve-done"><Check />Applied</span>
                 <button type="button" className="link-undo" onClick={() => void undo(f.id)}>Undo</button>
               </span>
             ) : f.kind === "apply" ? (

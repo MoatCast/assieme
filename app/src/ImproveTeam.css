@@ -2,7 +2,7 @@
 .improve { display: flex; flex-direction: column; max-width: calc(100% - 32px); max-height: calc(100vh - 64px); overflow: auto; box-sizing: border-box;
   background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-panel);
   box-shadow: 0 8px 30px color-mix(in srgb, var(--quiet-shade) 8%, transparent); outline: none; }
-.improve button { font: inherit; cursor: pointer; }
+.improve button { font-family: inherit; cursor: pointer; }
 .improve .grow { flex: 1; min-width: 0; }
 .improve.small { width: 380px; gap: 16px; padding: 24px 24px 20px; }
 .improve.wide { width: 760px; }
@@ -23,7 +23,7 @@
 .improve-review p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
 .improve-review pre { margin: 0; font-family: var(--quiet-font-mono); font-size: 12px; line-height: 18px; color: var(--quiet-ink); white-space: pre-wrap; }
 .improve-applied { display: flex; align-items: center; gap: 12px; flex-shrink: 0; padding: 7px 0; }
-.improve-applied .done { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; line-height: 16px; color: var(--quiet-working-text); }
+.improve-done { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; line-height: 16px; color: var(--quiet-working-text); }
 .improve .link-undo { padding: 0; background: none; border: 0; font-size: 13px; font-weight: 500; line-height: 16px; color: var(--quiet-ink); text-decoration: underline; }
 .improve-in-place { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--quiet-fog); border-radius: 14px; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
 .improve.wide .improve-in-place { margin: 14px 28px 0; }
