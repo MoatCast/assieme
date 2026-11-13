@@ -20,6 +20,7 @@ KINDS = {'planner': ('planner.md', 'read-only'), 'builder': ('builder.md', 'bran
 
 NAME = re.compile(r'^[a-z0-9-]+$')
 BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
+BRANCH = re.compile(r'^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$')  # a brought-over branch: plain git names only
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
 TOO_LARGE = "This folder is very large. Choose the folder for just this project."
@@ -48,7 +49,8 @@ def kind_brief(kind):
 def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
             'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group, 'kind': r.kind,
-            'owns': r.owns, 'level': r.level, 'rules': r.rules, 'container': r.container, 'share_signin': r.share_signin}
+            'owns': r.owns, 'level': r.level, 'rules': r.rules, 'container': r.container, 'share_signin': r.share_signin,
+            **{k: getattr(r, k) for k in ('worktree', 'branch', 'resume') if getattr(r, k)}}  # only brought-over roles
 
 
 def _as_preset(folder, id_, label=None):
@@ -160,6 +162,10 @@ def validate(roles):
             raise NewTeamError(field, 'Choose where this agent works.')
         if r.get('checkout', 'branch') not in preset.CHECKOUTS:
             raise NewTeamError(field, f"Unknown checkout {r.get('checkout')!r}.")
+        if r.get('worktree') and not os.path.isabs(r['worktree']):
+            raise NewTeamError(field, 'Its folder needs a full path.')
+        if r.get('branch') and not BRANCH.match(r['branch']):
+            raise NewTeamError(field, f"{r['branch']!r} isn't a branch name Assieme can use.")
         if r.get('parent') and r['parent'] not in names:
             raise NewTeamError(field, f"Reports to {r['parent']!r}, which isn't in this team.")
         if not (r.get('brief') or '').strip():
@@ -190,7 +196,8 @@ def _role_toml(r):
     q = _toml_str
     out = ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
            f'checkout = {q(r.get("checkout", "branch"))}']
-    out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level') if r.get(key)]
+    out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level', 'worktree', 'branch',
+                                                'resume') if r.get(key)]
     out += [f'{key} = true' for key in ('container', 'share_signin') if r.get(key) is True]
     if r.get('owns'):
         out.append(f'owns = {json.dumps(r["owns"], ensure_ascii=False)}')  # a JSON list of strings is a TOML array
@@ -213,7 +220,28 @@ def forget_role(folder, name):
     for r in roles:  # whoever reported to it now reports one level up, or the saved team would no longer load
         if r['parent'] == name:
             r['parent'] = gone.parent if gone else None
-    save(tm.project, roles, tm.practices, tm.name, os.path.dirname(folder))
+    save(tm.project, roles, tm.practices, tm.name, os.path.dirname(folder), tm.scripts)
+
+
+def _rewrite_role(folder, name, **changes):
+    """Save the team again with one role's fields changed, in the file's order and with its scripts."""
+    tm = preset.load(folder, practices=False)
+    with open(os.path.join(folder, 'team.toml'), 'rb') as f:
+        order = [r['name'] for r in tomllib.load(f).get('role', [])]
+    by_name = {r.name: _role_dict(r) for r in tm.roles}
+    if name in by_name:
+        by_name[name].update(changes)
+    save(tm.project, [by_name[n] for n in order], tm.practices, tm.name, os.path.dirname(folder), tm.scripts)
+
+
+def clear_resume(folder, name):
+    """After a brought-over agent's first start: later starts don't resume that conversation again."""
+    _rewrite_role(folder, name, resume=None)
+
+
+def clear_worktree(folder, name):
+    """After merging a brought-over agent: its next start makes an Assieme copy; the old folder stays where it is."""
+    _rewrite_role(folder, name, worktree=None, branch=None)
 
 
 def roster(name, teams=None):
@@ -225,8 +253,13 @@ def roster(name, teams=None):
     return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
 
 
-def save(project, roles, practices, name, teams):
-    """Write the team folder `preset.load` reads; TOML strings are written as JSON strings, which TOML accepts."""
+def save(project, roles, practices, name, teams, scripts=None):
+    """Write the team folder `preset.load` reads; TOML strings are written as JSON strings, which TOML accepts.
+    `scripts`: setup, run and archive lines brought over from another tool (step 30)."""
+    scripts = {k: v for k, v in (scripts or {}).items() if v}
+    unknown = set(scripts) - set(preset.SCRIPTS)
+    if unknown:
+        raise ValueError(f'Unknown script {", ".join(sorted(unknown))}.')
     folder = os.path.join(teams, name)
     if os.path.isdir(folder):
         shutil.rmtree(folder)
@@ -235,6 +268,8 @@ def save(project, roles, practices, name, teams):
     out = [f'name = {q(name)}', f'project = {q(os.path.abspath(project))}', '']
     if practices:
         out += ['[practices]'] + [f'{k} = {"true" if v else "false"}' for k, v in practices.items()] + ['']
+    if scripts:
+        out += ['[scripts]'] + [f'{k} = {q(v)}' for k, v in scripts.items()] + ['']
     for r in roles:
         out += _role_toml(r)
         with open(os.path.join(folder, f'{r["name"]}.md'), 'w') as f:
