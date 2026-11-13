@@ -11,7 +11,7 @@ import shlex
 import subprocess
 import sys
 
-from . import container, permissions, quiet, setup, worktree
+from . import container, permissions, quiet, setup, tools, worktree
 
 CLIS = {'claude': 'claude', 'codex': 'codex', 'gemini': 'gemini', 'opencode': 'opencode', 'cursor': 'cursor-agent',
         'antigravity': 'agy'}
@@ -55,12 +55,30 @@ def _test_command(cwd):
     return review.test_command(cwd) if cwd else None
 
 
+def _limits(role, cwd):
+    """Step 32: the ids turned off for this agent (servers, plugins, skills, extensions), as `tools` reads them from
+    what its kind has installed. Locked items are never in it; a role that never chose anything gets nothing off."""
+    if not role.tools_off and role.tools_new:
+        return set()
+    own = role.checkout == 'branch' and not role.worktree  # its own copy: settings read from its folder are its alone
+    return tools.off(role, tools.find(role.agent, cwd, own_copy=own)['items'])
+
+
+def _off(off, type_):
+    return sorted(i.split(':', 1)[1] for i in off if i.startswith(type_ + ':'))
+
+
 def _claude(role, cwd=None, py=None):
     # Its own team's message and report tools: asking the person about each one would defeat them.
     allow, deny = permissions.claude(role, cwd, _test_command(cwd) if role.level else None)
     perms = {'allow': ['mcp__assieme', *allow]} | ({'deny': deny} if deny else {})
     settings = {'hooks': {e: [{'hooks': [{'type': 'command', 'command': hook_command(s, py)}]}] for e, s in HOOKS.items()},
                 'permissions': perms}
+    off = _limits(role, cwd)
+    if _off(off, 'server'):  # removes the server and its tools for this session; no server settings are copied
+        settings['deniedMcpServers'] = [{'serverName': n} for n in _off(off, 'server')]
+    if _off(off, 'plugin'):
+        settings['enabledPlugins'] = {n: False for n in _off(off, 'plugin')}
     a = ['claude', '--settings', json.dumps(settings), '--mcp-config', json.dumps({'mcpServers': {'assieme': _mcp(py)}})]
     if role.model:
         a += ['--model', role.model]
@@ -72,6 +90,10 @@ def _claude(role, cwd=None, py=None):
         a += ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit']
     if _resume(role):  # brought over (step 30): its first start picks up the conversation it had
         a += ['--resume', role.resume]
+    elif role.cont:  # restarted from its details: its last conversation in this folder
+        a.append('--continue')
+    if 'skill:*' in off:  # Claude Code turns skills off only all together
+        a.append('--disable-slash-commands')
     return a
 
 
@@ -91,8 +113,12 @@ def codex_hook_hash(event, command):
     return 'sha256:' + hashlib.sha256(json.dumps(ident, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
-def _codex(role, py=None):
-    a = ['codex', *(['resume', role.resume] if _resume(role) else []),  # brought over (step 30): its conversation
+def _toml_key(name):
+    return name if re.match(r'^[A-Za-z0-9_-]+$', name) else json.dumps(name)
+
+
+def _codex(role, py=None, cwd=None):
+    a = ['codex', *(['resume', role.resume] if _resume(role) else ['resume', '--last'] if role.cont else []),
          '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
     # Its sandbox keeps .git read-only, so each commit is a request to step outside it: the person answers, in Assieme.
     a += ['-c', 'approval_policy="on-request"', '-c', 'approvals_reviewer="user"']
@@ -114,6 +140,12 @@ def _codex(role, py=None):
         a += ['-m', role.model]
     if role.effort:
         a += ['-c', f'model_reasoning_effort={json.dumps(role.effort)}']
+    off = _limits(role, cwd) if cwd else set()
+    a += [x for n in _off(off, 'server') for x in ('-c', f'mcp_servers.{_toml_key(n)}.enabled=false')]
+    paths = tools.skill_paths('codex', cwd) if _off(off, 'skill') else {}
+    skills = [f'{{path={json.dumps(paths[i])},enabled=false}}' for i in sorted(off) if i in paths]
+    if skills:
+        a += ['-c', f'skills.config=[{",".join(skills)}]']
     a += permissions.codex_args(role)  # its program rules are a file in its worktree (team writes it)
     if role.checkout == 'read-only' and '--sandbox' not in a:
         a += ['--sandbox', 'read-only']
@@ -162,10 +194,16 @@ ASKS_TRUST = ('gemini', 'cursor', 'antigravity')
 def _gemini(role, cwd, py=None, trusted=False):
     """Gemini CLI takes system settings only from files root owns: these go in the agent's own folder."""
     hook = lambda state: [{'hooks': [{'type': 'command', 'command': hook_command(state, py)}]}]
-    _merge(cwd, '.gemini/settings.json', {
-        'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
-                  'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
-        'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}})  # its own team tools, without asking each time
+    off = _limits(role, cwd)
+    items = tools.find('gemini', cwd)['items'] if off else []
+    ours = {'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
+                      'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
+            'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}}  # its own team tools, without asking each time
+    if _own(role):  # skills off: the project's own list (as committed) plus this agent's, so one turned back on returns
+        want = sorted(set(_committed(cwd, '.gemini/settings.json', 'skills', 'disabled')) | set(_off(off, 'skill')))
+        if want != sorted(_gemini_disabled(cwd)):
+            ours['skills'] = {'disabled': want}
+    _merge(cwd, '.gemini/settings.json', ours)
     a = ['gemini'] + (['-m', role.model] if role.model else [])
     if role.checkout == 'read-only' or role.level == 'read-only':
         a += ['--approval-mode', 'plan']
@@ -173,7 +211,39 @@ def _gemini(role, cwd, py=None, trusted=False):
     if policy:  # its level and the person's rules; the workspace policy folder isn't read yet, so it is named here
         worktree.exclude(cwd, '/' + permissions.GEMINI_POLICY)
         a += ['--policy', policy]
+    if _off(off, 'server'):  # these take lists, so they go last; an extension's own servers stay allowed with it
+        kept = [s for ext, names in tools.extension_servers().items() if f'extension:{ext}' not in off for s in names]
+        a += ['--allowed-mcp-server-names', *[i['name'] for i in items
+                                               if i['type'] == 'server' and i['id'] not in off], *kept, 'assieme']
+    if _off(off, 'extension'):
+        a += ['-e', *([i['name'] for i in items if i['type'] == 'extension' and i['id'] not in off] or ['none'])]
     return a, ({'GEMINI_CLI_TRUST_WORKSPACE': 'true'} if trusted else {})
+
+
+def _own(role):
+    """The agent works in its own copy, so settings files in its folder are its alone."""
+    return role.checkout == 'branch' and not role.worktree
+
+
+def _committed(cwd, rel, *keys):
+    """A value from the project's own version of a settings file (as committed), or [] / {}: never Assieme's edits."""
+    got = worktree._git(cwd, 'show', f'HEAD:{rel}')
+    try:
+        data = json.loads(got.stdout) if got.returncode == 0 else {}
+        for k in keys:
+            data = data.get(k) or {}
+        return data or ([] if keys and keys[-1] == 'disabled' else {})
+    except (ValueError, AttributeError):
+        return {}
+
+
+def _gemini_disabled(cwd):
+    try:
+        with open(os.path.join(cwd, '.gemini', 'settings.json')) as f:
+            got = (json.load(f).get('skills') or {}).get('disabled') or []
+        return [x for x in got if isinstance(x, str)]
+    except (OSError, ValueError, AttributeError):
+        return []
 
 
 OPENCODE_PLUGIN = os.path.join(os.path.dirname(__file__), 'opencode_status.js')
@@ -314,6 +384,17 @@ def _cursor(role, cwd, py=None, trusted=False):
     # Cursor hands MCP servers none of the terminal's variables: these say which agent this is (as Codex's env_vars).
     passed = {n: '${env:%s}' % n for n in ('HC_SESSION', 'HC_TERMINAL_ID', 'XDG_STATE_HOME', 'ASSIEME_BRIDGE', 'PYTHONPATH')}
     mcp = _merge(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py) | {'env': passed}}})
+    if mcp is not None and _own(role):  # its own copy only: shared-folder servers are locked
+        off = _off(_limits(role, cwd), 'server')
+        servers, before = mcp.setdefault('mcpServers', {}), set(mcp.get('mcpServers') or {})
+        for n, v in _committed(cwd, '.cursor/mcp.json', 'mcpServers').items():  # one turned back on returns
+            if n not in servers and n not in off:
+                servers[n] = v
+        for n in off:
+            servers.pop(n, None)
+        if set(servers) != before:  # the file is already kept out of git by _merge
+            with open(os.path.join(cwd, '.cursor', 'mcp.json'), 'w') as f:
+                json.dump(mcp, f, indent=2)
     ours = permissions.cursor(role, cwd, _test_command(cwd) if role.level else None) or {'allow': [], 'deny': []}
     ours['allow'] = ['Mcp(assieme:*)', *ours['allow']]  # its own team's tools: asking about each would defeat them
     _cursor_permissions(cwd, ours)
@@ -353,7 +434,7 @@ def _antigravity(role, cwd, py=None, trusted=False):
 
 
 BUILDERS = {'claude': lambda role, cwd, py=None, trusted=False: (_claude(role, cwd, py), {}),
-            'codex': lambda role, cwd, py=None, trusted=False: (_codex(role, py), {}),
+            'codex': lambda role, cwd, py=None, trusted=False: (_codex(role, py, cwd), {}),
             'gemini': _gemini, 'opencode': _opencode, 'cursor': _cursor, 'antigravity': _antigravity}
 
 

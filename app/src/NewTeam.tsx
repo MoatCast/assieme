@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import AgentMenu, { ContainerLine } from "./AgentMenu";
-import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type AgentKind, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, toolsFind, toolsSuggest, type AgentKind, type ToolItem, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
 import BriefEditor, { guessKind } from "./BriefEditor";
 import { AGENT_KINDS } from "./kinds";
 import { defaultLevel } from "./PermissionsEditor";
@@ -15,6 +15,8 @@ import RecommendedSetup, { footerNote } from "./RecommendedSetup";
 import RemoteMachine, { RemoteProject } from "./RemoteMachine";
 import { checkProjectOn, startTeamOn } from "./remote";
 import { useSetupStatus } from "./NewUserChecklist";
+import ToolPicker, { toolSummary } from "./ToolPicker";
+import { kindName } from "./kinds";
 import "./NewTeam.css";
 
 type Clis = Partial<Record<AgentKind, boolean>>;
@@ -71,6 +73,46 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [startError, setStartError] = useState("");
   const [pending, setPending] = useState(false);
   const starting = useRef(false); // a second click before React re-renders must not start a second team
+  // Step 32: what each agent kind has installed on this Mac, and which agent's picker is open. Each agent without a
+  // choice of its own gets its role's suggestion once its kind's list is in.
+  // Lists are read per kind and per where the agent works: a read-only agent shares the project folder, where some
+  // kinds can't be limited, and its list says so.
+  const [tools, setTools] = useState<Record<string, ToolItem[]>>({});  // "kind|own" → items
+  const [toolsOf, setToolsOf] = useState<number | null>(null);
+  const [suggested, setSuggested] = useState<Record<string, string[]>>({});  // suggestKey → its role's suggestion
+  const inFlight = useRef(new Set<string>());
+  const toolsHere = machine === null && project ? project : "";
+  const here = useRef(toolsHere);
+  here.current = toolsHere;
+  const own = (r: RoleDraft) => r.checkout === "branch" && !r.worktree;
+  const listKey = (r: RoleDraft) => `${r.agent}|${own(r)}`;
+  const suggestKey = (r: RoleDraft) => `${r.name}|${r.agent}|${r.kind ?? guessKind(r.name)}|${own(r)}`;
+  const listsUsed = [...new Set(roles.map(listKey))].join(",");
+  useEffect(() => { setTools({}); setSuggested({}); inFlight.current.clear(); }, [toolsHere]);
+  useEffect(() => {
+    if (!toolsHere) return;
+    for (const key of listsUsed.split(",").filter(Boolean)) {
+      if (tools[key] || inFlight.current.has(`find:${key}`)) continue;
+      inFlight.current.add(`find:${key}`);
+      const [kind, mine] = key.split("|");
+      Promise.resolve(toolsFind(kind as AgentKind, toolsHere, mine === "true")).then((got) => {
+        if (here.current === toolsHere) setTools((t) => ({ ...t, [key]: got?.items ?? [] }));  // not a stale folder's
+      }, () => {}).finally(() => inFlight.current.delete(`find:${key}`));
+    }
+  }, [toolsHere, listsUsed, tools]);
+  useEffect(() => {
+    for (const r of roles) {
+      const key = suggestKey(r);
+      if (!tools[listKey(r)]?.length || (r.tools_off !== undefined && key in suggested) || inFlight.current.has(key)) continue;
+      inFlight.current.add(key);
+      Promise.resolve(toolsSuggest(r.kind ?? guessKind(r.name), r.agent, toolsHere, own(r))).then((ids) => {
+        if (here.current !== toolsHere) return;
+        setSuggested((s) => ({ ...s, [key]: ids ?? [] }));
+        setRoles((rs) => rs.map((x) => (suggestKey(x) === key && x.tools_off === undefined
+          ? { ...x, tools_off: ids ?? [], tools_new: true } : x)));
+      }, () => {}).finally(() => inFlight.current.delete(key));
+    }
+  }, [roles, tools, toolsHere, suggested]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every agent gets a role and a permission level here, shown in its Brief before Start.
   const fit = (rs: RoleDraft[]) =>
@@ -143,7 +185,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     const old = roles[i].name;
     const renamed = change.name !== undefined && change.name !== old;
     // Model names belong to one CLI: switching Claude Code / Codex goes back to that agent's defaults.
-    if (change.agent && change.agent !== roles[i].agent) change = { ...change, model: null, effort: null };
+    // Skills and servers too: the new kind has its own list, and gets its role's suggestion again.
+    if (change.agent && change.agent !== roles[i].agent) change = { ...change, model: null, effort: null, tools_off: undefined, tools_new: undefined };
     // Agents that report to a renamed one follow the new name: the form has no other way to fix their parent.
     setRoles(roles.map((r, j) => (j === i ? { ...r, ...change } : renamed && r.parent === old ? { ...r, parent: change.name! } : r)));
     setEdited(true);
@@ -417,6 +460,13 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                           {choiceLabel(r, models)}
                         </button>
                       )}
+                      {!!tools[listKey(r)]?.length && (() => {
+                        const sum = toolSummary(tools[listKey(r)]!, { tools_off: r.tools_off ?? [], tools_new: r.tools_new ?? true });
+                        return sum && (
+                          <button type="button" className="link tools-sum" aria-label={`Tools for ${r.name}: ${sum}`}
+                            onClick={() => setToolsOf(i)}>Tools <b>{sum}</b></button>
+                        );
+                      })()}
                       <button type="button" className="link" onClick={() => setBriefOf(briefOf === i ? null : i)}>Brief</button>
                       <button type="button" className="remove" aria-label="Remove agent" onClick={() => remove(i)}>×</button>
                     </div>
@@ -473,6 +523,13 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       <BriefEditor role={roles[briefOf]} roles={roles} project={project} installed={installed} kinds={kinds} table={perms}
         asker={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
         onCancel={() => setBriefOf(null)} onSave={(c) => { edit(briefOf, c); setBriefOf(null); }} />
+    )}
+    {toolsOf !== null && roles[toolsOf] && tools[listKey(roles[toolsOf])] && (
+      <ToolPicker items={tools[listKey(roles[toolsOf])]!} roleName={roles[toolsOf].name}
+        roleKind={roles[toolsOf].kind ?? guessKind(roles[toolsOf].name)} kindName={kindName(roles[toolsOf].agent)}
+        value={{ tools_off: roles[toolsOf].tools_off ?? [], tools_new: roles[toolsOf].tools_new ?? true }}
+        suggested={suggested[suggestKey(roles[toolsOf])] ?? []}
+        onClose={() => setToolsOf(null)} onDone={(v) => { edit(toolsOf, v); setToolsOf(null); }} />
     )}
     {folderSheet && <FolderSheet machine={machine || undefined} project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
     {installing && <InstallSheet agent={installing} start="install" status={setup.status} onClose={() => setInstalling(null)} />}

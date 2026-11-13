@@ -120,6 +120,13 @@
 .detail-fix-head { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; line-height: 18px; color: var(--quiet-needs-you-text); }
 .detail-fix-head .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--quiet-needs-you); }
 .detail-fix p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); overflow-wrap: anywhere; }
+/* Skills and servers (step 32), Paper "v2 — Tools: agent details, changed". */
+.detail-tools .link-btn { font-size: 13px; color: var(--quiet-ink); text-decoration: underline 1px; }
+.detail-tools-next { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--quiet-tip-tint);
+  border: 1px solid var(--quiet-tip-line); border-radius: var(--quiet-radius-inner); }
+.detail-tools-next p { margin: 0; font-size: 13px; line-height: 18px; color: var(--quiet-tip-text); }
+.detail-tools-next div { display: flex; gap: 8px; }
+.detail-tools-next button { padding: 7px 14px; font-size: 13px; }
 .meter-head { display: flex; justify-content: space-between; }
 .meter-head b { font-weight: 600; }
 .meter-head span.amber { color: var(--quiet-waste-text); }

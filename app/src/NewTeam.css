@@ -42,6 +42,8 @@
 .newteam .carried-note .carried-agents { color: var(--quiet-mute); font-family: var(--quiet-font-mono); font-size: 12px; line-height: 16px; }
 .newteam .chip.on { background: var(--quiet-ink); border-color: var(--quiet-ink); color: var(--quiet-on-ink); font-weight: 500; }
 .newteam .link { display: inline-flex; align-items: center; gap: 6px; color: var(--quiet-ink); font-size: 13px; font-weight: 500; }
+.newteam .link.tools-sum { flex-shrink: 0; gap: 4px; font-weight: 400; color: var(--quiet-slate); }
+.newteam .link.tools-sum b { font-weight: 600; color: var(--quiet-ink); }
 .newteam .agents { border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); display: flex; flex-direction: column; }
 .newteam .agent + .agent, .newteam .agents .add { border-top: 1px solid var(--quiet-line); }
 .newteam .agent .line { display: flex; align-items: center; gap: 14px; padding: 6px 14px; min-height: 26px; }

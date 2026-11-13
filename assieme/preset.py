@@ -36,9 +36,17 @@ class Role:
     worktree: str | None = None  # brought over (step 30): works in this existing folder instead of its own copy
     branch: str | None = None  # brought over: the branch it works on instead of assieme/<team>/<role>
     resume: str | None = None  # brought over: the agent's conversation to pick up on its first start
+    tools_off: list = field(default_factory=list)  # step 32: skill/plugin/server ids turned off for this agent
+    tools_new: bool = True  # newly installed ones are on
+    tools_known: list = field(default_factory=list)  # ids there when the choice was saved (only used when tools_new is off)
+    cont: bool = False  # never saved: this start picks up the agent's last conversation (Restart with these)
 
 
 SCRIPTS = ('setup', 'run', 'archive')
+
+
+def _ids(v):
+    return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
 
 
 @dataclass
@@ -187,7 +195,9 @@ def load(folder, practices=True):
                           [{'decision': x['decision'], 'program': list(x['program']), 'words': str(x.get('words', ''))}
                            for x in rules], container=raw.get('container') is True,
                           share_signin=raw.get('share_signin') is True, worktree=raw.get('worktree'),
-                          branch=raw.get('branch'), resume=raw.get('resume')))
+                          branch=raw.get('branch'), resume=raw.get('resume'),
+                          tools_off=_ids(raw.get('tools_off')), tools_new=raw.get('tools_new') is not False,
+                          tools_known=_ids(raw.get('tools_known'))))
     if not roles:
         raise PresetError(f'{path}: the team has no roles ([[role]] tables)')
     for r in roles:

@@ -216,6 +216,11 @@ class Tools:
         filled = []
         for r in roles:
             r = {k: v for k, v in r.items() if k not in ('worktree', 'branch', 'resume')}  # only a bring-over sets them
+            for key in ('tools_off', 'tools_known'):  # an assistant's ids are untrusted: keep only well-formed ones
+                if key in r:
+                    r[key] = [x for x in r[key] if isinstance(x, str) and newteam.TOOL_ID.match(x)] if isinstance(r[key], list) else []
+            if 'tools_new' in r and r['tools_new'] is not False:
+                r['tools_new'] = True
             kind = r.pop('kind', None)
             if kind in newteam.KINDS:
                 r.setdefault('checkout', newteam.KINDS[kind][1])

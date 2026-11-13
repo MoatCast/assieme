@@ -22,6 +22,8 @@ NAME = re.compile(r'^[a-z0-9-]+$')
 BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
 BRANCH = re.compile(r'^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$')  # a brought-over branch: plain git names only
 RESUME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9-]*$')  # an agent's session id, never an option
+TOOL_ID = re.compile(r'^(server|plugin|skill|extension):[^\x00-\x1f\x7f]{1,200}$')  # step 32: names may have spaces
+TOOL_KEYS = ('tools_off', 'tools_new', 'tools_known')
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
 TOO_LARGE = "This folder is very large. Choose the folder for just this project."
@@ -51,7 +53,9 @@ def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
             'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group, 'kind': r.kind,
             'owns': r.owns, 'level': r.level, 'rules': r.rules, 'container': r.container, 'share_signin': r.share_signin,
-            **{k: getattr(r, k) for k in ('worktree', 'branch', 'resume') if getattr(r, k)}}  # only brought-over roles
+            **{k: getattr(r, k) for k in ('worktree', 'branch', 'resume') if getattr(r, k)},  # only brought-over roles
+            **({'tools_off': r.tools_off} if r.tools_off else {}), **({} if r.tools_new else {'tools_new': False}),
+            **({'tools_known': r.tools_known} if r.tools_known else {})}  # only when chosen: older presets stay as they were
 
 
 def _as_preset(folder, id_, label=None):
@@ -169,6 +173,12 @@ def validate(roles):
             raise NewTeamError(field, f"{r['branch']!r} isn't a branch name Assieme can use.")
         if r.get('resume') and not RESUME.match(r['resume']):  # it goes on the agent's command line
             raise NewTeamError(field, "That conversation can't be picked up.")
+        for key in ('tools_off', 'tools_known'):
+            v = r.get(key)
+            if v is not None and not (isinstance(v, list) and all(isinstance(x, str) and TOOL_ID.match(x) for x in v)):
+                raise NewTeamError(field, "That list of skills and servers can't be used.")
+        if r.get('tools_new') not in (None, True, False):
+            raise NewTeamError(field, "That list of skills and servers can't be used.")
         if r.get('parent') and r['parent'] not in names:
             raise NewTeamError(field, f"Reports to {r['parent']!r}, which isn't in this team.")
         if not (r.get('brief') or '').strip():
@@ -202,6 +212,9 @@ def _role_toml(r):
     out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level', 'worktree', 'branch',
                                                 'resume') if r.get(key)]
     out += [f'{key} = true' for key in ('container', 'share_signin') if r.get(key) is True]
+    if r.get('tools_new') is False:
+        out.append('tools_new = false')
+    out += [f'{key} = {json.dumps(r[key], ensure_ascii=False)}' for key in ('tools_off', 'tools_known') if r.get(key)]
     if r.get('owns'):
         out.append(f'owns = {json.dumps(r["owns"], ensure_ascii=False)}')  # a JSON list of strings is a TOML array
     if r.get('rules'):
@@ -262,6 +275,14 @@ def roster(name, teams=None):
     return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
 
 
+def _known(r, project):
+    """Step 32: an agent that doesn't take newly installed tools remembers what was there, so a later one is told apart."""
+    if r.get('tools_new') is not False or r.get('tools_known'):
+        return r
+    from . import tools  # only needed for this choice
+    return {**r, 'tools_known': [i['id'] for i in tools.find(r['agent'], project)['items']]}
+
+
 def save(project, roles, practices, name, teams, scripts=None):
     """Write the team folder `preset.load` reads; TOML strings are written as JSON strings, which TOML accepts.
     `scripts`: setup, run and archive lines brought over from another tool (step 30)."""
@@ -269,6 +290,7 @@ def save(project, roles, practices, name, teams, scripts=None):
     unknown = set(scripts) - set(preset.SCRIPTS)
     if unknown:
         raise ValueError(f'Unknown script {", ".join(sorted(unknown))}.')
+    roles = [_known(r, project) for r in roles]
     folder = os.path.join(teams, name)
     if os.path.isdir(folder):
         shutil.rmtree(folder)
