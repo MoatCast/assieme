@@ -191,3 +191,27 @@ def skill_paths(kind, project=None, home=None):
         return {}
     _, skills = _codex_skills(_Reader(), project, home or os.path.expanduser('~'))
     return {f'skill:{n}': p for n, p in skills.items()}
+
+
+DEPLOY = ('deploy', 'publish', 'release', 'vercel', 'netlify', 'runpod', 'aws')
+BROWSER = ('browser', 'chrome', 'playwright', 'puppeteer', 'computer-use', 'computer use')
+_AVOID = {'reviewer': DEPLOY + BROWSER, 'planner': DEPLOY + BROWSER, 'builder': DEPLOY, 'tester': DEPLOY}
+
+
+def suggest(role_kind, items):
+    """Ids to turn off for a role (planner, builder, reviewer, tester; None for a custom role gets everything).
+    Only words in an item's name or description move it off: anything the rules can't place stays on."""
+    words = _AVOID.get(role_kind, ())
+    if not words:
+        return []
+    pattern = re.compile(r'(?<![a-z0-9])(' + '|'.join(re.escape(w) for w in words) + r')(?![a-z0-9])')  # whole words
+    return [i['id'] for i in items if not i['locked'] and pattern.search(f"{i['name']} {i['description']}".lower())]
+
+
+def off(role, items):
+    """What is off when this role starts: its saved choice, plus anything new when it doesn't take new ones."""
+    ids = {i['id'] for i in items if not i['locked']}
+    out = set(role.tools_off) & ids
+    if not role.tools_new:
+        out |= ids - set(role.tools_known)
+    return out
