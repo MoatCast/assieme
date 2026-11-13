@@ -144,6 +144,9 @@ class OpenCodeTest(Home):
         write(self.h('.config', 'opencode', 'opencode.jsonc'),
               '{\n  // comment\n  "mcp": {"web": {"type": "remote", "url": "https://x"}, "gone": {"type": "local", "command": ["x"], "enabled": false}}\n}\n')
         self.assertEqual(self.ids('opencode'), {'server:web'})
+        web = self.item('opencode', 'server:web')  # OpenCode drops a start setting that only turns a server off
+        self.assertTrue(web['locked'])
+        self.assertEqual(web['why'], tools.LOCKED[('opencode', 'server')])
 
 
 class CursorTest(Home):

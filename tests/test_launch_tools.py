@@ -90,11 +90,11 @@ class LaunchToolsTest(unittest.TestCase):
         g = json.load(open(os.path.join(self.cwd, '.gemini', 'settings.json')))
         self.assertNotIn('skills', g)
 
-    def test_opencode_config_has_enabled_false(self):
+    def test_opencode_servers_locked_config_untouched(self):  # Task 10: OpenCode 2 drops an "off only" entry
         a = self.argv('opencode', tools_off=['server:web'])
         env = dict(x.split('=', 1) for x in a if x.startswith('OPENCODE_CONFIG_CONTENT='))
         cfg = json.loads(env['OPENCODE_CONFIG_CONTENT'])
-        self.assertEqual(cfg['mcp']['web'], {'enabled': False})
+        self.assertEqual(set(cfg['mcp']), {'assieme'})
         self.assertTrue(cfg['mcp']['assieme']['enabled'])
 
     def test_cursor_own_copy_takes_servers_out(self):

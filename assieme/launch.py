@@ -243,8 +243,6 @@ def _opencode(role, cwd, py=None, trusted=False):
     """OpenCode reads a whole config from its environment; the status plugin calls our hook."""
     config = {'plugin': ['file://' + OPENCODE_PLUGIN],
               'mcp': {'assieme': {'type': 'local', 'command': [_mcp(py)['command'], *_mcp(py)['args']], 'enabled': True}}}
-    for n in _off(_limits(role, cwd), 'server'):
-        config['mcp'][n] = {'enabled': False}
     if role.checkout == 'read-only':
         config['permission'] = {'edit': 'deny'}
     perms = permissions.opencode(role, cwd, _test_command(cwd) if role.level else None)

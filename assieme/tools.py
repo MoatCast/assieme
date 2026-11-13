@@ -20,6 +20,8 @@ LOCKED = {
     ('cursor', 'server-home'): 'Cursor reads this server from your home folder, so every Cursor agent gets it.',
     ('cursor', 'server-shared'): 'Cursor reads its servers from the project folder, so every Cursor agent working '
                                  'there gets the same ones.',
+    ('opencode', 'server'): "OpenCode can't turn one server off for a single agent without being given that server's "
+                            'whole settings, so every OpenCode agent gets the same ones.',
     ('antigravity', 'all'): "Antigravity can't be given its own set of skills and servers yet: it gets everything "
                             'installed.',
 }
@@ -155,7 +157,7 @@ def _opencode(r, project, home, own_copy):
     for path in [os.path.join(home, '.config', 'opencode', f) for f in ('opencode.json', 'opencode.jsonc')] + \
             ([os.path.join(project, 'opencode.json')] if project else []):
         servers += _names(r.json(path).get('mcp'))
-    return [_item('server', n) for n in servers]
+    return [_item('server', n, why=LOCKED[('opencode', 'server')]) for n in servers]
 
 
 def _cursor(r, project, home, own_copy):
