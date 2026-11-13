@@ -124,5 +124,36 @@ class BandTest(unittest.TestCase):
         self.assertEqual(teammap.Brain.handlers(me)['team.band']('shop'), {'planner': {'musician': 'piano', 'palette': 0}})
 
 
+class SetMusicianTest(unittest.TestCase):
+
+    def setUp(self):
+        self.teams = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.teams)
+        newteam.save(self.teams, TEAM[:3], {}, 'shop', self.teams)
+
+    def test_picking_cello_saves_it(self):
+        self.assertEqual(newteam.set_musician('shop', 'builder-1', 'cello', self.teams), {'ok': True})
+        self.assertEqual(newteam.band('shop', self.teams)['builder-1']['musician'], 'cello')  # read from the file again
+        self.assertEqual(newteam.band('shop', self.teams)['builder-2']['musician'], 'cello')  # nobody else changed
+
+    def test_bad_value_refused(self):
+        with self.assertRaisesRegex(newteam.NewTeamError, "isn't one Assieme draws"):
+            newteam.set_musician('shop', 'builder-1', 'kazoo', self.teams)
+        self.assertEqual(newteam.band('shop', self.teams)['builder-1']['musician'], 'violin')
+
+    def test_unknown_role_or_team_refused(self):
+        with self.assertRaises(newteam.NewTeamError):
+            newteam.set_musician('shop', 'ghost', 'cello', self.teams)
+        with self.assertRaises(newteam.NewTeamError):
+            newteam.set_musician('nope', 'builder-1', 'cello', self.teams)
+
+    def test_handler(self):
+        from assieme import teammap
+        me = mock.MagicMock()
+        me.starter.teams = self.teams
+        teammap.Brain.handlers(me)['agent.set_musician']('shop', 'planner', 'trumpet')
+        self.assertEqual(newteam.band('shop', self.teams)['planner']['musician'], 'trumpet')
+
+
 if __name__ == '__main__':
     unittest.main()

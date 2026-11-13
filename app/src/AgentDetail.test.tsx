@@ -3,11 +3,12 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { AgentDetail as Detail } from "./bridge";
 
 const b = vi.hoisted(() => ({ agentDetail: vi.fn(), paneAct: vi.fn(), teamMap: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn(),
-  agentTools: vi.fn(), agentSetTools: vi.fn(), agentRestart: vi.fn() }));
+  agentTools: vi.fn(), agentSetTools: vi.fn(), agentRestart: vi.fn(), teamBand: vi.fn(), agentSetMusician: vi.fn() }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
 
 import AgentDetail from "./AgentDetail";
+import { forgetBand } from "./band";
 
 const D = (over: Partial<Detail> = {}): Detail => ({
   role: "builder-3", cli: "codex", job: "tests the backoff", state: "working", since_s: 40, detail: "", fix: null, reachable: true, command: null,
@@ -131,4 +132,30 @@ test("faces: the sheet shows the agent's musician at 3×", async () => { // step
   await open(D());
   const img = screen.getByRole("img", { name: "builder-3, bass, working" });
   expect(img.querySelector("svg")?.getAttribute("width")).toBe("48");
+});
+
+test("instrument: picking Cello saves it and the face changes; a refusal shows its message", async () => { // step 31
+  forgetBand();
+  b.teamBand.mockResolvedValue({ "builder-3": { musician: "bass", palette: 0 } });
+  b.agentSetMusician.mockResolvedValue({ ok: true });
+  await open(D());
+  const group = screen.getByRole("group", { name: "Instrument" });
+  expect(group.querySelector("[aria-pressed=true]")?.getAttribute("aria-label")).toBe("Bass");
+  b.teamBand.mockResolvedValue({ "builder-3": { musician: "cello", palette: 0 } });
+  fireEvent.click(screen.getByRole("button", { name: "Cello" }));
+  await act(async () => {});
+  expect(b.agentSetMusician).toHaveBeenCalledWith("shop", "builder-3", "cello");
+  expect(screen.getByRole("img", { name: "builder-3, cello, working" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Cello" }).getAttribute("aria-pressed")).toBe("true");
+  b.agentSetMusician.mockRejectedValue(new Error("That instrument isn't one Assieme draws."));
+  fireEvent.click(screen.getByRole("button", { name: "Flute" }));
+  await act(async () => {});
+  expect(screen.getByRole("alert").textContent).toContain("isn't one Assieme draws");
+});
+
+test("instrument: no saved team, no choice", async () => { // step 31
+  forgetBand();
+  b.teamBand.mockResolvedValue({});
+  await open(D());
+  expect(screen.queryByRole("group", { name: "Instrument" })).toBeNull();
 });

@@ -42,27 +42,48 @@ export function guessSeat(role: string): Seat {
 
 const cache = new Map<string, { band: Band; at: number }>();
 const FRESH_MS = 15000;
+const CHANGED = "assieme-band";
+const asking = new Map<string, Promise<Band>>(); // one question per team at a time, however many faces wait for it
+
+/** After an instrument changes: every face of that team (or of every team) asks again. */
+export function forgetBand(team?: string) {
+  if (team) cache.delete(team);
+  else cache.clear();
+  asking.clear();
+  window.dispatchEvent(new Event(CHANGED));
+}
 
 /** Each role's instrument for a team, asked of the brain at most every 15 seconds and shared by every place. */
 export function useBand(team: string | null | undefined): Band {
   const [band, setBand] = useState<Band>(() => (team && cache.get(team)?.band) || {});
+  const [asked, setAsked] = useState(0);
+  useEffect(() => {
+    const again = () => setAsked((n) => n + 1);
+    window.addEventListener(CHANGED, again);
+    return () => window.removeEventListener(CHANGED, again);
+  }, []);
   useEffect(() => {
     if (!team) return;
     const hit = cache.get(team);
     if (hit) setBand(hit.band);
     if (hit && Date.now() - hit.at < FRESH_MS) return;
     let live = true;
-    Promise.resolve()
-      .then(() => teamBand(team))
-      .then((got) => {
-        cache.set(team, { band: got ?? {}, at: Date.now() });
-        if (live) setBand(got ?? {});
-      })
-      .catch(() => {}); // no band: every face falls back to its name's guess
+    let q = asking.get(team);
+    if (!q) {
+      q = Promise.resolve()
+        .then(() => teamBand(team))
+        .then((got) => {
+          cache.set(team, { band: got ?? {}, at: Date.now() });
+          return got ?? {};
+        })
+        .finally(() => asking.delete(team));
+      asking.set(team, q);
+    }
+    q.then((got) => live && setBand(got)).catch(() => {}); // no band: every face falls back to its name's guess
     return () => {
       live = false;
     };
-  }, [team]);
+  }, [team, asked]);
   return band;
 }
 

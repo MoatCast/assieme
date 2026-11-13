@@ -288,6 +288,21 @@ def band(name, teams=None):
             for i, (r, m) in enumerate(zip(roles, musicians.assign(roles)))}
 
 
+def set_musician(name, role, musician, teams=None):
+    """Step 31: the instrument picked in Agent details, saved with the role. Only how it looks changes."""
+    if musician not in musicians.INSTRUMENTS:
+        raise NewTeamError('musician', "That instrument isn't one Assieme draws.")
+    folder = os.path.join(teams or teams_dir(), name)
+    try:
+        roles = preset.load(folder, practices=False).roles
+    except (preset.PresetError, OSError):
+        raise NewTeamError('musician', 'This team was started from the command line, so it has no saved instruments.') from None
+    if role not in {r.name for r in roles}:
+        raise NewTeamError('musician', f'{role} is not in this team.')
+    _rewrite_role(folder, role, musician=musician)
+    return {'ok': True}
+
+
 def _known(r, project):
     """Step 32: an agent that doesn't take newly installed tools remembers what was there, so a later one is told apart."""
     if r.get('tools_new') is not False or r.get('tools_known'):

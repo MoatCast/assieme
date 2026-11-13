@@ -29,3 +29,11 @@ test("a saved instrument wins over the guess", async () => {
   await act(async () => {});
   expect(screen.getByRole("img", { name: "builder-2, trumpet, working" })).toBeTruthy();
 });
+
+test("many faces of one team ask the brain once", async () => {
+  b.teamBand.mockClear();
+  b.teamBand.mockResolvedValue({});
+  render(<>{["a", "b", "c", "d"].map((r) => <AgentFace key={r} team="one-question" role={r} state="idle" />)}</>);
+  await act(async () => {});
+  expect(b.teamBand).toHaveBeenCalledTimes(1);
+});

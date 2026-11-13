@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { agentDetail, agentRestart, agentSetTools, agentTools, type AgentDetail as Detail, type AgentTools,
+import { agentDetail, agentRestart, agentSetMusician, agentSetTools, agentTools, type AgentDetail as Detail, type AgentTools,
   type ToolChoice } from "./bridge";
 import { kindName } from "./kinds";
 import { FixButtons } from "./Team";
 import ToolPicker, { toolLabel, toolSummary } from "./ToolPicker";
-import { AgentFace } from "./band";
+import { AgentFace, forgetBand, useBand } from "./band";
+import Musician from "./Musician";
+import type { Instrument } from "./musicians.gen";
 
 const HEADS: Record<string, string> = { asking: "Asking you", stuck: "Seems stuck", waiting: "Has work waiting" };
 const times = (n: number) => (n === 1 ? "once" : `${n} times`);
@@ -94,6 +96,41 @@ function ToolsSection({ team, role, onChanged }: { team: string; role: string; o
   );
 }
 
+const PLAYS: [Instrument, string][] = [["piano", "Piano"], ["reviewer", "Score"], ["violin", "Violin"], ["cello", "Cello"],
+  ["bass", "Bass"], ["timpani", "Timpani"], ["flute", "Flute"], ["clarinet", "Clarinet"], ["trumpet", "Trumpet"]];
+
+/** Step 31: the instrument this agent plays (Paper "v2 — Musicians: agent details, instrument"). Only how it looks changes. */
+function InstrumentSection({ team, role }: { team: string; role: string }) {
+  const seat = useBand(team)[role];
+  const [error, setError] = useState("");
+  if (!seat) return null; // a team started outside New team has no saved instruments
+  const pick = async (m: Instrument) => {
+    setError("");
+    try {
+      await agentSetMusician(team, role, m);
+      forgetBand(team);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const name = PLAYS.find(([m]) => m === seat.musician)?.[1] ?? seat.musician;
+  return (
+    <section className="detail-instrument">
+      <b>Instrument</b>
+      <div className="instrument-tiles" role="group" aria-label="Instrument">
+        {PLAYS.map(([m, label]) => (
+          <button key={m} type="button" aria-label={label} aria-pressed={seat.musician === m}
+            className={seat.musician === m ? "on" : ""} onClick={() => seat.musician !== m && pick(m)}>
+            <Musician instrument={m} palette={seat.palette} state="idle" role={role} size={2} />
+          </button>
+        ))}
+      </div>
+      <p className="fine">{`${name}. Changing it changes only how ${role} looks.`}</p>
+      {error && <p className="fine error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 /** One agent: what's wrong, how full its memory is, what it's been doing and who wakes it. */
 export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpenTerminal, onChanged }: {
   team: string;
@@ -154,6 +191,7 @@ export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpen
             <FixButtons team={team} pane={{ role, fix: d.fix, reachable: d.reachable }} onChanged={onChanged} onOpenTerminal={onOpenTerminal} />
           </div>
         )}
+        <InstrumentSection team={team} role={role} />
         <ToolsSection team={team} role={role} onChanged={onChanged} />
         {d?.memory && (
           <section>

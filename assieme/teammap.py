@@ -523,6 +523,7 @@ class Brain:
                 'agent.restart': lambda team, role: agenttools.restart(self.starter.teams, self.rt, team, role),
                 'agent.tools': lambda team, role: agenttools.for_agent(self.starter.teams, team, role),
                 'team.band': lambda team: newteam.band(team, self.starter.teams),
+                'agent.set_musician': lambda team, role, musician: newteam.set_musician(team, role, musician, self.starter.teams),
                 'tip.apply': lambda team, tip: self.tip(team, tip),
                 'team.add_agent': lambda team, role: self.starter.add_agent(team, role),
                 'team.stop': lambda team: self.stop(team),

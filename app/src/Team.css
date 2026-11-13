@@ -190,3 +190,10 @@
 /* Step 31: a face where the dot was. Off brings the dot back, styled by the rules above. */
 .card-head .musician, .group-chips .musician { margin-block: -2px; }
 .sheet-head > .musician { margin-top: -4px; }
+/* Step 31: Agent details › Instrument. Tiles hold the musician at 2×; the chosen one has the accent ring. */
+.detail-instrument { display: flex; flex-direction: column; gap: 10px; }
+.instrument-tiles { display: flex; gap: 6px; flex-wrap: wrap; }
+.instrument-tiles button { width: 36px; height: 42px; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 1px solid var(--quiet-line); border-radius: 8px; background: var(--quiet-surface); cursor: pointer; }
+.instrument-tiles button.on { border: 2px solid var(--quiet-accent); background: color-mix(in srgb, var(--quiet-accent) 8%, var(--quiet-surface)); }
+.instrument-tiles button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
