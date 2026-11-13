@@ -369,7 +369,7 @@ def scan(repos, sessions, procs, home=None, limit_s=LIMIT_S):
 # --- what the sheet shows, and the New team draft ---------------------------------------------------------------
 
 TOOLS = {'conductor': 'Conductor', 'vibe-kanban': 'Vibe Kanban', 'claude-squad': 'Claude Squad', 'herdr': 'herdr',
-         'other': 'Other agent work'}
+         'other': 'another tool'}
 LOOKED_FOR = ['Conductor', 'Vibe Kanban', 'Claude Squad', 'herdr']
 SCRIPT_WORDS = {'setup': 'runs in each new agent’s copy', 'run': 'becomes the live preview',
                 'archive': 'runs before a copy is archived'}

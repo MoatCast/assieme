@@ -90,6 +90,14 @@ test("what it becomes: ticks follow the person, builders renumber, scripts asked
   expect(onImported).toHaveBeenCalledWith({ ...DRAFT, allow_scripts: ["setup"] });
 });
 
+test("work from a tool Assieme doesn't know says where it was found, not a tool name", async () => {
+  b.bringOverWorkspaces.mockResolvedValue({ ...WORKSPACES, label: "billing-web", tool: "another tool" });
+  await open();
+  fireEvent.click(screen.getAllByText("Bring over")[3]);
+  await flush();
+  expect(screen.getByText(/^Found from its branches and agent history\..*nothing in the tool it came from changes\.$/)).toBeTruthy();
+});
+
 test("Back returns to the list, and nothing ticked can't be brought over", async () => {
   await open();
   fireEvent.click(screen.getAllByText("Bring over")[0]);

@@ -87,7 +87,9 @@ export default function BringOver({ onClose, onImported }: { onClose: () => void
           ref={ref} onKeyDown={onKeyDown}>
           <div className="modal-head">
             <h2>{`Bring over ${w.label}`}</h2>
-            <p className="big">{`From ${w.tool}. Each workspace becomes an agent on its own branch, in its folder as it is. Nothing is copied, and nothing in ${w.tool} changes.`}</p>
+            <p className="big">{w.tool === "another tool"
+              ? "Found from its branches and agent history. Each workspace becomes an agent on its own branch, in its folder as it is. Nothing is copied, and nothing in the tool it came from changes."
+              : `From ${w.tool}. Each workspace becomes an agent on its own branch, in its folder as it is. Nothing is copied, and nothing in ${w.tool} changes.`}</p>
           </div>
           <div className="bring-group">
             <p className="bring-heading">Workspaces</p>
