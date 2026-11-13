@@ -23,7 +23,7 @@ const CONFIRM: Record<AgentKind, { body: string; guide: string; guideName: strin
     guideName: "OpenAI’s install guide",
   },
   gemini: {
-    body: "This installs Google’s Gemini CLI with npm, which comes with Node.js. It works with a Google account, with daily limits on the free tier.",
+    body: "This installs Google’s Gemini CLI with npm, which comes with Node.js. Since June 2026 it needs a paid Gemini API key or a company Code Assist licence: a personal Google account can’t sign in to it.",
     guide: "https://github.com/google-gemini/gemini-cli",
     guideName: "Google’s install guide",
   },

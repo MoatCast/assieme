@@ -4,7 +4,7 @@ import type { AgentKind } from "./bridge";
 export const AGENT_KINDS: { id: AgentKind; name: string; maker: string }[] = [
   { id: "claude", name: "Claude Code", maker: "Anthropic" },
   { id: "codex", name: "Codex", maker: "OpenAI" },
-  { id: "gemini", name: "Gemini CLI", maker: "Google" },
+  { id: "gemini", name: "Gemini CLI", maker: "Google · paid key only" },  // personal accounts were cut off in June 2026
   { id: "opencode", name: "OpenCode", maker: "open source" },
   { id: "cursor", name: "Cursor", maker: "Anysphere" },
 ];
