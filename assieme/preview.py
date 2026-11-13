@@ -14,7 +14,7 @@ import subprocess
 import threading
 import time
 
-from . import quiet, runtime
+from . import quiet, runtime, scripts
 
 START_TIMEOUT_S = 90
 INSTALL_TIMEOUT_S = 300
@@ -170,6 +170,14 @@ class Previews:
     def commands(self):
         return self._load()['commands']
 
+    def remember(self, project, command):
+        """A run script brought over from another tool (step 30) as the project's start command, unless the person
+        has already given one. It is still shown before its first run, like any command they didn't type."""
+        with self.lock:
+            saved = self.commands()
+            if not saved.get(project):
+                self._save(saved | {project: scripts.rewrite(command)[0]})
+
     # --- processes
 
     def _ports(self, pgid):
@@ -281,7 +289,8 @@ class Previews:
         port = free_port()
         os.makedirs(self.logs, exist_ok=True)
         log = os.path.join(self.logs, f'{team}-{role}.log')
-        env = runtime.clean_env(os.environ) | LOCAL | {'PORT': str(port), 'BROWSER': 'none'}  # the app opens it
+        env = (runtime.clean_env(os.environ) | LOCAL | scripts.env(project)
+               | {'PORT': str(port), 'BROWSER': 'none'})  # the app opens it
         with open(log, 'wb') as out:
             try:
                 proc = self.popen(['/bin/sh', '-c', f'{first} && {cmd}' if first else cmd], cwd=path, env=env,

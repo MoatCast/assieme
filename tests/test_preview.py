@@ -297,5 +297,24 @@ class ReviewFixes(Helpers, Base):
         self.p.sweep()
 
 
+class BroughtOverRun(Helpers, Base):
+    """Step 30: a team's brought-over run script becomes the project's preview command, shown before it first runs."""
+
+    def test_preview_uses_team_run_script(self):
+        self.p.remember(self.repo, 'python3 -m http.server $CONDUCTOR_PORT --bind 127.0.0.1')
+        self.assertEqual(self.p.commands(), {self.repo: 'python3 -m http.server ${PORT} --bind 127.0.0.1'})
+        self.branch('builder-1', {'c.py': 'x'})
+        got = self.p.start('demo', 'builder-1')
+        self.assertEqual(got['state'], 'confirm')  # it came from another tool: the person sees it first
+        self.assertEqual(got['command'], 'python3 -m http.server ${PORT} --bind 127.0.0.1')
+        self.go('demo', 'builder-1')
+        wait_for(lambda: self.one('builder-1'), 'running')
+
+    def test_remember_keeps_a_command_the_person_typed(self):
+        self.p._save({self.repo: 'mine'})
+        self.p.remember(self.repo, 'theirs')
+        self.assertEqual(self.p.commands(), {self.repo: 'mine'})
+
+
 if __name__ == '__main__':
     unittest.main()

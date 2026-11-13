@@ -15,7 +15,7 @@ import time
 import tomllib
 import uuid
 
-from . import adapters, live, newteam, preset, runtime, status, tasks, team as team_mod, worktree
+from . import adapters, live, newteam, preset, runtime, scripts, status, tasks, team as team_mod, worktree
 
 MAX_DIFF = 2_000_000
 TESTS_TIMEOUT_S = 900
@@ -452,6 +452,7 @@ class Review:
             newteam.clear_worktree(os.path.join(self.teams, name), role)
             short = path.replace(os.path.expanduser('~'), '~', 1)
             return f"Its folder stays in {short}: {worktree.tool_name(path) or 'the tool it came from'} owns it."
+        self._archive_script(project, name, role, path)
         if worktree.is_clone(path):  # a container agent's copy: its commits are already in the project
             if self._dirty(path) and not force:
                 return "Its copy has uncommitted changes, so it was left in place."
@@ -462,6 +463,19 @@ class Review:
                 return f"Couldn't archive its worktree: {r.stderr.strip()}"
         r = self._git(project, 'branch', '-D', branch)
         return None if r.returncode == 0 else f"Couldn't delete its branch: {r.stderr.strip()}"
+
+    def _archive_script(self, project, name, role, path):
+        """The team's archive script (brought over, step 30) in the copy about to go, if the person said yes to it."""
+        try:
+            with open(os.path.join(self.teams, name, 'team.toml'), 'rb') as f:
+                line = tomllib.load(f).get('scripts', {}).get('archive')
+        except (OSError, tomllib.TOMLDecodeError):
+            return
+        if not line or not os.path.isdir(path) or not scripts.allowed(name, 'archive', line):
+            return
+        got = scripts.run(line, path, project)
+        live.record('archive-script', role, 'Ran the team archive script' if got['ok'] else "The archive script didn't finish",
+                    ok=got['ok'], detail=got['output'], team=name, by='assieme', log=self.log)
 
     def _checkout_of(self, project, branch):
         """The folder that has `branch` checked out, if any."""

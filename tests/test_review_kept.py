@@ -1,9 +1,10 @@
 """Step 30: Review, merge and discard for agents brought over in their own worktree. The other tool's folder and
 branch are never removed."""
+import json
 import os
 import unittest
 
-from assieme import preset
+from assieme import preset, scripts
 from tests.test_review import Base, git, write
 from tests.test_worktree_kept import tree_hash
 
@@ -64,6 +65,27 @@ class KeptReview(Base):
         self.assertEqual(git(self.repo, 'rev-parse', '--verify', 'feature/x'), self.tip())
         role = preset.load(f'{self.teams}/demo', practices=False).roles[0]
         self.assertIsNone(role.worktree)
+
+
+class ArchiveScript(Base):
+    """A team's archive script runs in an Assieme copy before Review archives it, once the person said yes."""
+
+    def setUp(self):
+        super().setUp()
+        self.line = 'echo "$PWD" > "$CONDUCTOR_ROOT_PATH/archived.txt"'
+        write(f'{self.teams}/demo/team.toml', f'name = "demo"\nproject = "{self.repo}"\n\n[scripts]\narchive = '
+                                              f'{json.dumps(self.line)}\n')
+
+    def test_archive_script_runs_when_allowed(self):
+        scripts.allow('demo', 'archive', self.line)
+        tip = self.branch('builder', {'n.py': 'n\n'})
+        self.r.merge('demo', 'builder', tip, force=True)
+        self.assertEqual(open(f'{self.repo}/archived.txt').read().strip(), self.wt('builder'))
+
+    def test_archive_script_skipped_without_consent(self):
+        tip = self.branch('builder', {'n.py': 'n\n'})
+        self.r.merge('demo', 'builder', tip, force=True)
+        self.assertFalse(os.path.exists(f'{self.repo}/archived.txt'))
 
 
 if __name__ == '__main__':

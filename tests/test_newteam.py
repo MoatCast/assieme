@@ -658,3 +658,48 @@ class ContainerRoleTest(unittest.TestCase):
         with mock.patch.object(newteam.container, 'problem', return_value='Docker is on this Mac but not running.'):
             with self.assertRaisesRegex(newteam.NewTeamError, 'x runs in a container. Docker is on this Mac but not running.'):
                 newteam._container_ready([preset.Role('x', 'gemini', '', '', container=True)])
+
+
+class SetupScriptTest(StarterTest):
+    """Step 30: a brought-over setup script runs in each new agent copy, once the person has said yes to it."""
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.dict(os.environ, {'XDG_STATE_HOME': os.path.join(self.d, 'state')})
+        p.start()
+        self.addCleanup(p.stop)
+        self.line = 'echo ran > setup-ran.txt'
+
+    def copy(self, name):
+        return os.path.join(self.repo, '.assieme', 'worktrees', name)
+
+    def test_setup_runs_only_in_new_copies(self):
+        from assieme import scripts
+        scripts.allow('repo', 'setup', self.line)
+        kept = os.path.join(self.d, 'kept')
+        subprocess.run(['git', '-C', self.repo, 'worktree', 'add', '-q', '-b', 'feature/x', kept], check=True)
+        roles = [role('builder'), role('reviewer', parent='builder', worktree=kept, branch='feature/x')]
+        s = self.starter()
+        s.start(self.repo, 'Go', roles, {}, scripts={'setup': self.line})
+        self.manual.run_all()
+        self.assertTrue(os.path.isfile(os.path.join(self.copy('builder'), 'setup-ran.txt')))
+        self.assertFalse(os.path.exists(os.path.join(kept, 'setup-ran.txt')))
+        self.assertIsNone(s.records()[0].get('ask_scripts'))
+
+    def test_setup_runs_once_per_copy(self):
+        from assieme import scripts
+        scripts.allow('repo', 'setup', self.line)
+        s = self.starter()
+        s.start(self.repo, 'Go', [role('builder')], {}, scripts={'setup': self.line})
+        self.manual.run_all()
+        os.remove(os.path.join(self.copy('builder'), 'setup-ran.txt'))
+        s.start(self.repo, 'Go', [role('builder')], {}, scripts={'setup': self.line})
+        self.manual.run_all()
+        self.assertFalse(os.path.exists(os.path.join(self.copy('builder'), 'setup-ran.txt')))  # copy was reused
+
+    def test_setup_needs_consent(self):
+        s = self.starter()
+        s.start(self.repo, 'Go', [role('builder')], {}, scripts={'setup': self.line})
+        self.manual.run_all()
+        self.assertFalse(os.path.exists(os.path.join(self.copy('builder'), 'setup-ran.txt')))
+        self.assertEqual(s.records()[0]['ask_scripts'], [{'which': 'setup', 'line': self.line}])

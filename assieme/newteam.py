@@ -10,7 +10,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, container, live, launch, permissions, preset, runtime, settings, setup, team, worktree
+from . import ask, container, live, launch, permissions, preset, runtime, scripts, settings, setup, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -302,7 +302,7 @@ class Starter:
         except (OSError, tomllib.TOMLDecodeError):
             return None  # started from the command line, or the folder is gone
 
-    def start(self, project, task, roles, practices, name=None):
+    def start(self, project, task, roles, practices, name=None, scripts=None):
         """`name` is a scheduled run's own team name; New team leaves it to the project's folder name."""
         validate(roles)
         project = os.path.expanduser(project)
@@ -328,7 +328,7 @@ class Starter:
                 raise NewTeamError('start', f'{name} is still running.')
             name = self.busy[project] = name or team_name(project, taken)
         try:
-            folder = save(project, roles, practices, name, self.teams)
+            folder = save(project, roles, practices, name, self.teams, scripts)
             try:
                 tm = preset.load(folder)
             except preset.PresetError as e:
@@ -338,6 +338,10 @@ class Starter:
                 raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then start again.')
             _container_ready(tm.roles)
             try:
+                # Copies made by this start get the team's setup script; brought-over folders are already set up.
+                fresh = {r.name: worktree.folder(tm, r) for r in tm.roles
+                         if r.checkout != 'read-only' and not (r.worktree and os.path.isdir(r.worktree))
+                         and not os.path.isdir(worktree.folder(tm, r))}
                 for r in tm.roles:  # every worktree now, so a dirty one is reported to the form, not the log
                     worktree.ensure(tm, r)
             except worktree.WorktreeError as e:
@@ -351,11 +355,26 @@ class Starter:
         with self.lock:
             self.busy.pop(project, None)
             self.recs.append(rec)
-        self.thread(target=lambda: self._run(rec, tm, task), daemon=True).start()
+        self.thread(target=lambda: self._run(rec, tm, task, fresh), daemon=True).start()
         return {'team': name}
 
-    def _run(self, rec, tm, task):
+    def _setup(self, rec, tm, fresh):
+        """The team's setup script in each copy this start made, when the person has said yes to it; otherwise the
+        record asks for that yes, and the agents start without it."""
+        line = tm.scripts.get('setup')
+        if not line or not fresh:
+            return
+        if not scripts.allowed(tm.name, 'setup', line):
+            rec['ask_scripts'] = [{'which': 'setup', 'line': line}]
+            return
+        for name, path in fresh.items():
+            got = scripts.run(line, path, tm.project)
+            live.record('setup', name, 'Ran the team setup in its copy' if got['ok'] else "The team setup didn't finish",
+                        ok=got['ok'], detail=got['output'], team=tm.name, by='assieme')
+
+    def _run(self, rec, tm, task, fresh=None):
         try:
+            self._setup(rec, tm, fresh or {})
             # Clicking Start in the app is the person's agreement to trust the folder.
             results = {s.role: s for s in team.start(tm, task, self.rt, ask=lambda q: True)}
             for r in tm.roles:  # a conversation brought over is picked up once; later starts begin fresh
