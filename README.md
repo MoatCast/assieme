@@ -81,8 +81,8 @@ is planned alongside the new runtime.
 
 ## What you can do today
 
-- **Create a team:** pick a project and mix Claude Code and Codex agents, each with its own role, model and thinking
-  effort. Presets cover the common shapes, and *Help me choose* asks a few questions and suggests a team, with a
+- **Create a team:** pick a project and mix Claude Code, Codex, Gemini CLI, OpenCode and Cursor agents, each with
+  its own role, model and thinking effort. Presets cover the common shapes, and *Help me choose* asks a few questions and suggests a team, with a
   model and thinking effort per role from the ones installed on your Mac.
 - **Get set up in the app:** install Claude Code or Codex (the vendor's install command is shown first, then run in a
   terminal) and sign in. Set up a folder for git, or create a new folder, without leaving the app. Folder setup
@@ -113,17 +113,28 @@ is planned alongside the new runtime.
 - **Check it all afterwards:** Activity lists everything Assieme did and why, with Undo where it can be undone.
 - **Light or dark:** every screen in both, or matching your Mac.
 
+- **Run agents on another machine:** over SSH, including through Tailscale, so a team keeps working when your laptop
+  sleeps. Pick a host from your SSH config, test the connection and set Assieme up there in one click. Assieme never
+  types a password or accepts a host key for you.
+- **Run an agent in a container:** with Docker, an agent can work in a container that sees only its own copy of the
+  project.
+- **Write each agent's brief and permissions:** a brief editor (role, job, the files it owns, who it reports to, and
+  "Improve this brief with Claude") and a permissions editor with Safe, Read only and Trusted levels. Rules written in
+  plain words become rules on the program run, shown before they're saved. Anything else asks you first, and pushing
+  stays blocked at every level. Each agent's own settings do the enforcing, so what is covered differs a little by
+  agent; the editor says where.
+- **Tune the team practices:** a switch per rule inside each practice group, and for bigger teams a steward agent that
+  settles routine stops and research pairs where a critic checks every claim.
+- **Improve a team started elsewhere:** compare it with the recommended setup and apply what's missing, each change
+  logged and undoable.
+
 **Coming next:**
 
-- Agents on another machine over SSH, including through Tailscale, so a team keeps working when your laptop sleeps.
-- Gemini CLI, OpenCode and Cursor next to Claude Code and Codex, and an option to run an agent in a container.
-- A full brief editor and a permissions editor with Safe, Read only and Trusted levels.
-- "Improve this team" for teams started outside Assieme, and a switch per rule inside each practice group.
 - Control your team from your phone, through Claude Code's and Codex's own remote control.
 - Bring your team over from Conductor, and later other orchestrators, in one screen.
 - Assieme's own runtime: a Rust fork of herdr-core, in `runtime/` and tested side by side with the original, that adds
   message timing, status pushed by the agents and blocking programs by name. The app doesn't use it yet.
-- The macOS download.
+- The macOS download, and an install with Homebrew.
 
 ## Safe by default
 
