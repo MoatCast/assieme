@@ -74,12 +74,15 @@ export default function PermissionsEditor({ role, roles, project, table, asker, 
   );
   const list = (keys: string[], decision: Rule["decision"]) => (
     <ul className="perm-list">
-      {keys.map((k) => (
-        <li key={k}>
-          <span className="grow">{item(k)}</span>
-          {table.items[k]?.note && <span className="perm-note">{table.items[k].note}</span>}
-        </li>
-      ))}
+      {keys.map((k) => {
+        const note = role.agent === "codex" ? table.items[k]?.codex_note ?? table.items[k]?.note : table.items[k]?.note;
+        return (
+          <li key={k}>
+            <span className="grow">{item(k)}</span>
+            {note && <span className="perm-note">{note}</span>}
+          </li>
+        );
+      })}
       {rules.filter((r) => r.decision === decision).map(ruleRow)}
     </ul>
   );
@@ -136,7 +139,7 @@ export default function PermissionsEditor({ role, roles, project, table, asker, 
             {error && <p className="editor-error">{error}</p>}
             <div className="perm-else">
               <span className="dot" aria-hidden="true" />
-              <span><b>Anything else asks you first.</b> <span className="soft">It shows up in “Needs you” with Allow once, Always allow and Block.</span></span>
+              <span><b>Anything else asks you first.</b> <span className="soft">It shows up in “Needs you” with Allow once, Always allow for this agent and Block.</span></span>
             </div>
           </div>
         </div>

@@ -117,11 +117,17 @@ def _review_hint(role):
     return f'{launch.NAMES.get(role.agent, role.agent)} wants you to review new hooks once. Open {role.name} in Terminals and choose.'
 
 
+def _codex_rules(tm, role, cwd):
+    """Codex reads every rules file in its folder: one file for all the team's Codex agents working there."""
+    there = [r for r in tm.roles if r.agent == 'codex' and (r is role or worktree.folder(tm, r) == cwd)]
+    if any(r.level for r in there):
+        worktree.exclude(tm.project, permissions.RULES_FILE)
+    permissions.write_codex_rules(cwd, there)
+
+
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
     if role.agent == 'codex':
-        if role.level:
-            worktree.exclude(tm.project, permissions.RULES_FILE)
-        permissions.write_codex_rules(cwd, role)
+        _codex_rules(tm, role, cwd)
     argv = launch.argv(role, block_push=tm.practices.get('safety') is not False, cwd=cwd)
     t = rt.start(argv, cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
     deadline = clock.monotonic() + FIRST_STATUS_S

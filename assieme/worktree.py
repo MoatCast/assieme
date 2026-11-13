@@ -35,10 +35,18 @@ def exclude(project, line='.assieme/'):
             f.write(('\n' if lines and lines[-1] else '') + line + '\n')
 
 
+_exclude = exclude  # step 23 still calls the old name; settled when the branches merge
+
+
+def folder(team, role):
+    """Where the role works."""
+    return os.path.join(team.project, '.assieme', 'worktrees', role.name)
+
+
 def ensure(team, role):
     """The role's worktree path: created on first use, reused while clean, never reset."""
     check_repo(team.project)
-    path = os.path.join(team.project, '.assieme', 'worktrees', role.name)
+    path = folder(team, role)
     branch = f'assieme/{team.name}/{role.name}'
     exclude(team.project)
     if os.path.isdir(path):

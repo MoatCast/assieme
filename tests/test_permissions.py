@@ -33,6 +33,21 @@ class RuleCheckTest(unittest.TestCase):
                 permissions.check_rule('allow', program)
         permissions.check_rule('block', ['git'])  # blocking more is always fine
 
+    def test_push_floor_by_any_git_path(self):
+        for program in (['/usr/bin/git'], ['/opt/homebrew/bin/git', 'push'], ['./git', 'tag']):
+            with self.assertRaisesRegex(ValueError, 'Pushing stays blocked'):
+                permissions.check_rule('allow', program)
+
+    def test_no_bare_interpreter_allow(self):
+        for program in (['python3'], ['python'], ['node'], ['npx'], ['uvx'], ['pnpm', 'dlx'], ['bunx'], ['deno'],
+                        ['perl'], ['ruby'], ['osascript'], ['make'], ['/usr/bin/python3'], ['python3', '-c'],
+                        ['uv', 'run'], ['npm', 'exec']):
+            with self.assertRaisesRegex(ValueError, 'anything', msg=program):
+                permissions.check_rule('allow', program)
+        self.assertEqual(permissions.check_rule('allow', ['python3', 'scripts/check.py']), ['python3', 'scripts/check.py'])
+        permissions.check_rule('allow', ['make', 'lint'])
+        permissions.check_rule('block', ['python3'])  # blocking is always fine
+
     def test_no_launcher_allow(self):
         with self.assertRaisesRegex(ValueError, 'anything run through it'):
             permissions.check_rule('allow', ['bash'])
@@ -73,6 +88,11 @@ class ClaudeTest(unittest.TestCase):
         self.assertIn('Bash(git push:*)', p['deny'])
         self.assertIn('Bash(npm install:*)', p['deny'])
         self.assertIn('Read(~/.ssh/**)', p['deny'])
+        # Full paths of git are denied too, and shell commands that name a secret path.
+        self.assertIn('Bash(/usr/bin/git push:*)', p['deny'])
+        self.assertIn('Bash(* ~/.ssh*)', p['deny'])
+        self.assertIn('Bash(* $HOME/.ssh*)', p['deny'])
+        self.assertIn(f'Bash(* {os.path.expanduser("~")}/.ssh*)', p['deny'])
         # The push block is on for every role with a level, whatever the practice switch said.
         self.assertEqual(a[0], '/usr/bin/env')
         self.assertIn('GIT_CONFIG_KEY_0=url.assieme-push-blocked://.pushInsteadOf', a)
@@ -121,25 +141,51 @@ class CodexTest(unittest.TestCase):
     def test_rules_file_written_and_removed(self):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d)
-        path = permissions.write_codex_rules(d, role('codex', rules=[BLOCK_RUN]))
+        path = permissions.write_codex_rules(d, [role('codex', rules=[BLOCK_RUN])])
         text = open(path).read()
         self.assertIn('prefix_rule(pattern=["git", "push"], decision="forbidden"', text)
         self.assertIn('prefix_rule(pattern=["./build/cloud/run.sh"], decision="forbidden"', text)
         self.assertIn('prefix_rule(pattern=["git", "commit"], decision="allow"', text)
-        permissions.write_codex_rules(d, role('codex', level=None))
+        permissions.write_codex_rules(d, [role('codex', level=None)])
         self.assertFalse(os.path.exists(path))
+
+    def test_agents_sharing_a_folder_share_one_merged_file(self):
+        # Codex loads every .rules file in the folder, so one file holds every block and only the allows all share.
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        a = role('codex', rules=[BLOCK_RUN, ALLOW_LINT])
+        b = Role('reviewer', 'codex', 'r.md', 'brief', None, 'read-only', level='read-only')
+        path = permissions.write_codex_rules(d, [a, b])
+        text = open(path).read()
+        self.assertEqual(os.listdir(os.path.dirname(path)), ['assieme.rules'])
+        self.assertIn('pattern=["build/cloud/run.sh"], decision="forbidden"', text)
+        self.assertIn('pattern=["git", "commit"], decision="forbidden"', text)  # the reviewer may not commit
+        self.assertNotIn('decision="allow"', text)  # neither its commit nor make lint widens the reviewer
+        self.assertEqual(open(permissions.write_codex_rules(d, [b, a])).read().count('forbidden'), text.count('forbidden'))
+        permissions.write_codex_rules(d, [a, role('codex', level=None)])  # a role without a level gets no allows
+        self.assertNotIn('decision="allow"', open(path).read())
+
+    def test_team_writes_rules_for_every_codex_agent_in_the_folder(self):
+        tm = preset.Team('shop', '/p', roles=[role('codex', rules=[BLOCK_RUN]), Role('r', 'claude', 'r.md', 'b', None),
+                                             Role('c2', 'codex', 'c.md', 'b', None, level='safe')])
+        with unittest.mock.patch('assieme.permissions.write_codex_rules') as w, \
+                unittest.mock.patch('assieme.worktree.exclude'), \
+                unittest.mock.patch('assieme.worktree.folder', side_effect=lambda t, r: '/p/w' if r.name != 'c2' else '/p/c2'):
+            team._codex_rules(tm, tm.roles[0], '/p/w')
+        w.assert_called_once_with('/p/w', [tm.roles[0]])
 
     @unittest.skipUnless(shutil.which('codex'), 'Codex is not installed')
     def test_codex_reads_the_rules(self):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d)
-        path = permissions.write_codex_rules(d, role('codex', rules=[BLOCK_RUN, ALLOW_LINT]))
+        path = permissions.write_codex_rules(d, [role('codex', rules=[BLOCK_RUN, ALLOW_LINT])])
 
         def decision(*cmd):
             r = subprocess.run(['codex', 'execpolicy', 'check', '--rules', path, '--', *cmd], capture_output=True,
                                text=True, timeout=30)
             return json.loads(r.stdout).get('decision')
         self.assertEqual(decision('git', 'push', 'origin', 'main'), 'forbidden')
+        self.assertEqual(decision('/usr/bin/git', 'push'), 'forbidden')
         self.assertEqual(decision('bash', 'build/cloud/run.sh', '--fast'), 'forbidden')
         self.assertEqual(decision('make', 'lint'), 'allow')
         self.assertIsNone(decision('grep', 'run.sh', 'notes.md'))  # mentioning it is not running it
@@ -228,15 +274,22 @@ class AskTest(unittest.TestCase):
             newteam.improve_brief('/p', {}, run=fake('{}'), which=self.which)
 
 
+class TableTest(unittest.TestCase):
+    def test_secrets_say_what_they_cover(self):
+        s = permissions.table()['items']['secrets']
+        self.assertIn('commands that name them', s['note'])
+        self.assertIn('keychain', s['codex_note'])
+
+
 class LabelsTest(unittest.TestCase):
     def test_codex_menu(self):
         items = [(1, 'Yes, proceed (y)'), (2, "Yes, and don't ask again for this command (a)"),
                  (3, 'No, and tell Codex what to do differently (esc)')]
-        self.assertEqual(prompts.permission_labels(items), {1: 'Allow once', 2: 'Always allow', 3: 'Block'})
+        self.assertEqual(prompts.permission_labels(items), {1: 'Allow once', 2: 'Always allow for this agent', 3: 'Block'})
 
     def test_claude_bash_menu(self):
         items = [(1, 'Yes'), (2, 'Yes, and don’t ask again for npm test com…'), (3, 'No')]
-        self.assertEqual(prompts.permission_labels(items), {1: 'Allow once', 2: 'Always allow', 3: 'Block'})
+        self.assertEqual(prompts.permission_labels(items), {1: 'Allow once', 2: 'Always allow for this agent', 3: 'Block'})
 
     def test_not_a_permission_menu(self):
         self.assertEqual(prompts.permission_labels([(1, 'Tabs'), (2, 'Spaces')]), {})

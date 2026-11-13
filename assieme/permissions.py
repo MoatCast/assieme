@@ -12,7 +12,11 @@ LEVELS = ('safe', 'read-only', 'trusted')
 DEFAULT_LEVEL = {'branch': 'safe', 'read-only': 'read-only'}
 RULES_FILE = os.path.join('.codex', 'rules', 'assieme.rules')
 
-PUSH = [['git', 'push'], ['git', 'tag'], ['git', 'merge']]
+GIT_PUSH = [['git', 'push'], ['git', 'tag'], ['git', 'merge']]
+# Where git usually lives on a Mac, so `/usr/bin/git push` is denied as well as `git push`.
+GIT_PATHS = ['/usr/bin/git', '/opt/homebrew/bin/git', '/usr/local/bin/git',
+             '/Library/Developer/CommandLineTools/usr/bin/git', '/Applications/Xcode.app/Contents/Developer/usr/bin/git']
+PUSH = GIT_PUSH + [[g, *p[1:]] for g in GIT_PATHS for p in GIT_PUSH]
 INSTALL = [['npm', 'install'], ['npm', 'i'], ['npm', 'add'], ['pnpm', 'add'], ['pnpm', 'install'], ['yarn', 'add'],
            ['pip', 'install'], ['pip3', 'install'], ['uv', 'add'], ['uv', 'pip', 'install'], ['poetry', 'add'],
            ['cargo', 'add'], ['cargo', 'install'], ['brew', 'install'], ['gem', 'install'], ['go', 'get']]
@@ -25,6 +29,10 @@ SECRET_PATHS = ['~/.ssh/**', '~/.aws/**', '~/.config/gcloud/**', '~/.azure/**', 
 SECRET_PROGRAMS = [['security']]
 # Allowing one of these would allow everything run through it.
 LAUNCHERS = {'bash', 'sh', 'zsh', 'fish', 'env', 'sudo', 'xargs', 'eval', 'exec', 'nohup', 'time', 'command'}
+# These run whatever they are given: allowed only with what they run (`python3 scripts/check.py`, `make lint`).
+RUNNERS = {'python', 'python3', 'node', 'npx', 'uvx', 'pnpm', 'bunx', 'bun', 'deno', 'perl', 'ruby', 'osascript', 'make',
+           'npm', 'yarn', 'uv'}
+RUNS_ANYTHING = {'dlx', 'exec', 'x', 'run'}  # `pnpm dlx`, `npm exec`, `uv run`: still nothing named
 
 # Each item: the words the editors show, and its programs (None: handled by the agent's own switches).
 ITEMS = {
@@ -37,7 +45,8 @@ ITEMS = {
     'push': {'words': 'Push, tags, merge', 'note': 'you merge in Review', 'programs': PUSH},
     'install': {'words': 'Install packages or new dependencies', 'programs': INSTALL},
     'download': {'words': 'Download models or datasets', 'programs': DOWNLOAD},
-    'secrets': {'words': 'Read secrets (~/.ssh, cloud keys, keychain)', 'programs': SECRET_PROGRAMS},
+    'secrets': {'words': 'Read secrets (~/.ssh, cloud keys, keychain)', 'programs': SECRET_PROGRAMS,
+                'note': 'its file tools and commands that name them', 'codex_note': 'only the keychain command, for now'},
     'network': {'words': 'Direct network calls', 'programs': NETWORK},
 }
 LEVEL_INFO = {
@@ -61,7 +70,8 @@ OWNED = re.compile(r'^[A-Za-z0-9._/*@+-][A-Za-z0-9._/*@+ -]*$')
 def table():
     """For the editors: the levels in order and the items' words."""
     return {'levels': [{'id': k, **v} for k, v in LEVEL_INFO.items()],
-            'items': {k: {'words': v['words'], 'note': v.get('note', '')} for k, v in ITEMS.items()}}
+            'items': {k: {'words': v['words'], 'note': v.get('note', ''), 'codex_note': v.get('codex_note', v.get('note', ''))}
+                      for k, v in ITEMS.items()}}
 
 
 def check_level(level):
@@ -89,12 +99,16 @@ def check_rule(decision, program):
     if not all(WORD.match(w) for w in words):
         raise ValueError('A rule names a program and its first words, without spaces, wildcards or shell symbols.')
     if decision == 'allow':
-        for floor in PUSH:
+        name, rest = os.path.basename(words[0]), words[1:]
+        for floor in GIT_PUSH:
             n = min(len(floor), len(words))
-            if floor[:n] == words[:n]:
+            if floor[:n] == [name, *rest][:n]:
                 raise ValueError('Pushing stays blocked at every level. You merge in Review.')
-        if os.path.basename(words[0]) in LAUNCHERS:
+        if name in LAUNCHERS:
             raise ValueError(f'Allowing {words[0]} would allow anything run through it. Name the program itself.')
+        if name in RUNNERS and all(w.startswith('-') or w in RUNS_ANYTHING for w in rest):
+            raise ValueError(f'Allowing {" ".join(words)} would allow anything it runs. Add what it runs, '
+                             f'like {name} lint or {name} scripts/check.py.')
     return words
 
 
@@ -125,6 +139,13 @@ def _bash(program):
     return f'Bash({" ".join(program)}:*)'
 
 
+def _secret_commands():
+    """Shell commands that name a secret path (`cat ~/.ssh/id_ed25519`, `cd ~/.aws`), however home is written.
+    shortcut: a path built another way (a variable, a glob) still gets through; step 16 checks every command."""
+    home = os.path.expanduser('~')
+    return [f'Bash(* {h}/{p[2:].removesuffix("/**")}*)' for p in SECRET_PATHS for h in ('~', '$HOME', home)]
+
+
 def _items(role):
     info = LEVEL_INFO[role.level]
     return info['allowed'], info['blocked']
@@ -146,7 +167,7 @@ def claude(role, cwd=None, test=None):
     for key in blocked:
         deny += [_bash(p) for p in ITEMS[key].get('programs') or []]
         if key == 'secrets':
-            deny += [f'Read({p})' for p in SECRET_PATHS]
+            deny += [f'Read({p})' for p in SECRET_PATHS] + _secret_commands()
     for r in role.rules:
         (allow if r['decision'] == 'allow' else deny).extend(_bash(v) for v in variants(r['program'], cwd))
     return allow, deny  # a deny always wins in Claude Code, so a block rule beats the level's allow
@@ -162,33 +183,47 @@ def codex_args(role):
     return a + ['-c', 'sandbox_workspace_write.network_access=true'] if role.level == 'trusted' else a
 
 
-def codex_rules(role, cwd=None):
-    """The text of Codex's program rules for this role, or None for a role without a level."""
+def _codex_lines(role, cwd):
+    """(forbidden, allowed) rule lines for one role; ([], []) for a role without a level."""
     if not role.level:
-        return None
+        return [], []
     allowed, blocked = _items(role)
-    out = [f'# Written by Assieme for {role.name} when it starts. Change it in Assieme, not here.']
+    forbid, allow = [], []
 
     def rule(program, decision, why):
-        out.append(f'prefix_rule(pattern={json.dumps(program)}, decision="{decision}", justification={json.dumps(why)})')
+        return f'prefix_rule(pattern={json.dumps(program)}, decision="{decision}", justification={json.dumps(why)})'
     for key in blocked:
-        for p in ITEMS[key].get('programs') or []:
-            rule(p, 'forbidden', ITEMS[key]['words'])
+        forbid += [rule(p, 'forbidden', ITEMS[key]['words']) for p in ITEMS[key].get('programs') or []]
     # Tests and reading run inside the sandbox; commits need .git, which the sandbox keeps read-only.
     for key in allowed:
         if key in ('commit', 'install', 'download', 'network'):
-            for p in ITEMS[key]['programs']:
-                rule(p, 'allow', ITEMS[key]['words'])
+            allow += [rule(p, 'allow', ITEMS[key]['words']) for p in ITEMS[key]['programs']]
     for r in role.rules:
         for v in variants(r['program'], cwd):
-            rule(v, 'forbidden' if r['decision'] == 'block' else 'allow', r.get('words') or 'your rule')
-    return '\n'.join(out) + '\n'
+            line = rule(v, 'forbidden' if r['decision'] == 'block' else 'allow', r.get('words') or 'your rule')
+            (forbid if r['decision'] == 'block' else allow).append(line)
+    return forbid, allow
 
 
-def write_codex_rules(cwd, role):
-    """Write (or, for a role without a level, remove) the rules file in the agent's worktree."""
+def codex_rules(roles, cwd=None):
+    """The program rules for the Codex agents that work in one folder, or None when none has a level.
+
+    Codex loads every .rules file in the folder, so each agent there gets all of them: one file holds every agent's
+    blocks and only the allows they all have, so no agent is widened by another's rules."""
+    if not any(r.level for r in roles):
+        return None
+    lines = [_codex_lines(r, cwd) for r in roles]
+    forbid = list(dict.fromkeys(x for f, _ in lines for x in f))
+    allow = [x for x in dict.fromkeys(lines[0][1]) if all(x in a for _, a in lines[1:])]
+    names = ', '.join(r.name for r in roles)
+    return '\n'.join([f'# Written by Assieme for {names} when it starts. Change it in Assieme, not here.',
+                      *forbid, *allow]) + '\n'
+
+
+def write_codex_rules(cwd, roles):
+    """Write (or, when no agent there has a level, remove) the rules file for the Codex agents in this folder."""
     path = os.path.join(cwd, RULES_FILE)
-    text = codex_rules(role, cwd)
+    text = codex_rules(roles, cwd)
     if text is None:
         if os.path.exists(path):
             os.remove(path)

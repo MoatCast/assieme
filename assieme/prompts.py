@@ -70,15 +70,19 @@ def menu(screen):
 ALWAYS = re.compile(r"^Yes, (and )?(don.t ask again|allow all|always)", re.I)
 
 
+ALWAYS_LABEL = 'Always allow for this agent'
+
+
 def permission_labels(items):
-    """{n: label} for an agent's permission menu, in Assieme's words: Allow once, Always allow, Block. The person's
-    click still presses the agent's own choice; anything else on the menu keeps its own label. {} for other menus."""
+    """{n: label} for an agent's permission menu, in Assieme's words: Allow once, Always allow for this agent, Block.
+    The person's click still presses the agent's own choice, which that agent alone keeps (Claude Code in its worktree's
+    local settings), so the label says so. Anything else on the menu keeps its own label. {} for other menus."""
     if not items or not items[0][1].startswith('Yes') or not any(l.startswith('No') for _, l in items[1:]):
         return {}
     out = {items[0][0]: 'Allow once'}
     for n, label in items[1:]:
-        if ALWAYS.match(label) and 'Always allow' not in out.values():
-            out[n] = 'Always allow'
+        if ALWAYS.match(label) and ALWAYS_LABEL not in out.values():
+            out[n] = ALWAYS_LABEL
         elif label.startswith('No') and 'Block' not in out.values():
             out[n] = 'Block'
     return out

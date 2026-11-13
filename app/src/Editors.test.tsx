@@ -107,6 +107,15 @@ test("the level's lists, with Safe recommended for a builder", () => {
   expect(screen.getByText("you merge in Review")).toBeTruthy();
 });
 
+test("an item's note says what it covers for this agent, and Always allow is this agent's own", () => {
+  perms();
+  expect(screen.getByText("claude note")).toBeTruthy();
+  expect(screen.getByText(/Allow once, Always allow for this agent and Block/)).toBeTruthy();
+  cleanup();
+  perms({ ...builder, agent: "codex" });
+  expect(screen.getByText("codex note")).toBeTruthy();
+});
+
 test("a rule in words is shown as the program rule before Add adds it", async () => {
   b.ruleDraft.mockResolvedValue({ decision: "block", program: ["build/cloud/run.sh"], words: "Don’t run the cloud launcher" });
   const onSave = perms();

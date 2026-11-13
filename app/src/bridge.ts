@@ -72,7 +72,7 @@ export type Level = "safe" | "read-only" | "trusted";
 export type Rule = { decision: "block" | "allow"; program: string[]; words: string };
 export type KindInfo = { brief: string; job: string; checkout: "branch" | "read-only" };
 export type PermissionLevel = { id: Level; title: string; about: string; summary: string; allowed: string[]; blocked: string[] };
-export type PermissionTable = { levels: PermissionLevel[]; items: Record<string, { words: string; note: string }> };
+export type PermissionTable = { levels: PermissionLevel[]; items: Record<string, { words: string; note: string; codex_note?: string }> };
 
 export type ModelChoice = { id: string; label: string; efforts: string[] };
 /** Per CLI: the models offered and the efforts offered when the model is left at Default. */
