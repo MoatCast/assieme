@@ -51,7 +51,7 @@ test("Apply gives the rules, then Undo takes them back through Activity", async 
 
 test("the main button applies every Apply and opens the first Review; a restart fix opens in New team", async () => {
   const onDraft = vi.fn();
-  b.herdrImport.mockResolvedValue({ id: "d1" });
+  b.herdrImport.mockResolvedValue({ id: "d1", roles: [] });
   await show(onDraft);
   fireEvent.click(screen.getByRole("button", { name: "Apply 1 and review 1" }));
   await flush();
@@ -60,7 +60,19 @@ test("the main button applies every Apply and opens the first Review; a restart 
   fireEvent.click(screen.getByRole("button", { name: "Open in New team" }));
   await flush();
   expect(b.herdrImport).toHaveBeenCalledWith("running:shop");
-  expect(onDraft).toHaveBeenCalledWith({ id: "d1" });
+  expect(onDraft).toHaveBeenCalledWith({ id: "d1", roles: [] });
+});
+
+test("opening a reviewer's fix in New team starts that reviewer read-only", async () => {
+  const onDraft = vi.fn();
+  b.teamImprove.mockResolvedValue({ team: "shop", found: true, in_place: [],
+    findings: [finding("reviewer:rev", "review", { restart: true, draft: "running:shop" })] });
+  b.herdrImport.mockResolvedValue({ id: "d1", roles: [{ name: "rev", checkout: "branch" }, { name: "b", checkout: "branch" }] });
+  await show(onDraft);
+  fireEvent.click(screen.getByRole("button", { name: "Review" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open in New team" }));
+  await flush();
+  expect(onDraft.mock.calls[0][0].roles).toEqual([{ name: "rev", checkout: "read-only" }, { name: "b", checkout: "branch" }]);
 });
 
 test("rules to paste for an agent Assieme can't reach", async () => {

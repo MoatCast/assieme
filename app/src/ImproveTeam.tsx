@@ -17,7 +17,7 @@ function InPlace({ items }: { items: string[] }) {
 }
 
 /** What Review shows under a finding: why it isn't applied here, and the one thing to do instead. */
-function ReviewBox({ f, onOpen }: { f: Finding; onOpen: (source: string) => void }) {
+function ReviewBox({ f, onOpen }: { f: Finding; onOpen: (f: Finding) => void }) {
   const [copied, setCopied] = useState(false);
   if (f.copy)
     return (
@@ -34,7 +34,7 @@ function ReviewBox({ f, onOpen }: { f: Finding; onOpen: (source: string) => void
         {f.draft ? (
           <>
             <p>{RESTART} Open the same agents in New team, each on its own branch and with the practices you have on. Yours keep running until you stop them.</p>
-            <div><button type="button" className="btn-small primary" onClick={() => onOpen(f.draft!)}>Open in New team</button></div>
+            <div><button type="button" className="btn-small primary" onClick={() => onOpen(f)}>Open in New team</button></div>
           </>
         ) : <p>{RESTART} When they’re done, start the team again from New team: each agent gets its own branch and the practices you have on.</p>}
       </div>
@@ -84,9 +84,12 @@ export default function ImproveTeam({ onClose, onDraft }: { onClose: () => void;
     if (r.ok) setApplied(({ [id]: _, ...rest }) => rest);
     setError(r.ok ? "" : r.detail);
   };
-  const openDraft = async (source: string) => {
+  const openDraft = async (f: Finding) => {
     try {
-      onDraft(await herdrImport(source));
+      const d = await herdrImport(f.draft!);
+      // The fix this finding asks for: its reviewer starts read-only. The rest is the import as it is.
+      const reviewer = f.id.startsWith("reviewer:") ? f.id.slice("reviewer:".length) : null;
+      onDraft({ ...d, roles: d.roles.map((r) => (r.name === reviewer ? { ...r, checkout: "read-only" } : r)) });
     } catch (e) {
       setError(String(e));
     }
@@ -173,7 +176,7 @@ export default function ImproveTeam({ onClose, onDraft }: { onClose: () => void;
             <div className="grow">
               <b>{f.title}</b>
               <span>{f.detail}</span>
-              {open.includes(f.id) && <ReviewBox f={f} onOpen={(s) => void openDraft(s)} />}
+              {open.includes(f.id) && <ReviewBox f={f} onOpen={(x) => void openDraft(x)} />}
             </div>
             {applied[f.id] ? (
               <span className="improve-applied">

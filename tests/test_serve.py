@@ -2,6 +2,7 @@
 import datetime as dt
 import json
 import os
+import re
 import shutil
 import socket
 import tempfile
@@ -179,6 +180,17 @@ class HerdrAddressTest(unittest.TestCase):
         a = agent('builder', '/p')
         status._apply_herdr([a], [{'cwd': '/p', 'state': 'live', 'address': 't9', 'status': {'state': 'idle'}}])
         self.assertEqual(a.herdr_address, 't9')
+
+    def test_a_folder_reached_through_a_symlink_is_the_same_agent(self):
+        import tempfile
+        from assieme import status
+        with tempfile.TemporaryDirectory() as d:
+            real = os.path.join(os.path.realpath(d), 'proj')
+            os.makedirs(real)
+            os.symlink(real, os.path.join(d, 'link'))
+            a = status.Agent('proj', 'claude-code', f"/logs/{re.sub(r'[^A-Za-z0-9]', '-', real)}/s.jsonl")  # Claude Code's resolved name
+            status._apply_herdr([a], [{'cwd': os.path.join(d, 'link'), 'state': 'live', 'address': 't9', 'status': {'state': 'idle'}}])
+            self.assertEqual(a.herdr_address, 't9')
 
     def test_snapshot_passes_herdr_address(self):
         a = agent('builder', '/p')
