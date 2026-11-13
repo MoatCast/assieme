@@ -60,6 +60,18 @@ class LaunchTest(unittest.TestCase):
         self.assertEqual(argv[argv.index('--mode') + 1], 'plan')
         self.assertEqual(settings_of(argv)['trustedWorkspaces'], [d])
 
+    def test_its_own_team_tools_never_ask_even_without_a_level(self):
+        for level in ('safe', None):
+            s = settings_of(launch.BUILDERS['antigravity'](role(level), repo())[0])
+            self.assertIn('mcp(assieme_assieme/*)', s['permissions']['allow'])
+
+    def test_a_level_keeps_it_out_of_auto_mode(self):  # "anything else asks you", as Claude Code's default mode
+        s = settings_of(launch.BUILDERS['antigravity'](role(), repo())[0])
+        self.assertEqual(s['agentMode'], '')
+
+    def test_no_feedback_survey_in_an_agents_terminal(self):  # it covers the screen and waits for a key
+        self.assertIs(settings_of(launch.BUILDERS['antigravity'](role(None), repo())[0])['showFeedbackSurvey'], False)
+
     def test_model_flag(self):
         argv, _ = launch.BUILDERS['antigravity'](role(level=None, model='gemini-4'), repo())
         self.assertEqual(argv[argv.index('--model') + 1], 'gemini-4')

@@ -237,16 +237,23 @@ def _cursor(role, cwd, py=None, trusted=False):
     return a, {}
 
 
+AGY_SERVER = 'assieme_assieme'
+
+
 def _antigravity(role, cwd, py=None, trusted=False):
     """Antigravity: hooks from the agent's own folder (`.agents/hooks.json`); its level, the person's rules and a trusted
     folder in settings for this session only, never saved. Its team tools come from Assieme's plugin (`antigravity`)."""
     hook = lambda state: [{'type': 'command', 'command': hook_command(state, py)}]
     _merge(cwd, os.path.join('.agents', 'hooks.json'),
            {'assieme': {'SessionStart': hook('idle'), 'PreInvocation': hook('working'), 'Stop': hook('idle')}})
-    session = {'toolPermission': 'request-review'}  # anything not named asks the person
-    perms = permissions.antigravity(role, cwd, _test_command(cwd) if role.level else None)
-    if perms:
-        session['permissions'] = perms
+    session = {'toolPermission': 'request-review', 'showFeedbackSurvey': False}  # anything not named asks the person
+    perms = permissions.antigravity(role, cwd, _test_command(cwd) if role.level else None) or {'allow': []}
+    # Its own team's tools, as for Claude Code: asking the person about each message would defeat them. The plugin's
+    # server is named "<plugin>_<server>".
+    perms['allow'] = [f'mcp({AGY_SERVER}/*)', *perms['allow']]
+    session['permissions'] = perms
+    if role.level:  # not the person's auto mode: anything a rule doesn't name asks them
+        session['agentMode'] = ''
     if trusted:
         session['trustedWorkspaces'] = [cwd]
     a = ['agy', '--settings', json.dumps(session)] + (['--model', role.model] if role.model else [])
