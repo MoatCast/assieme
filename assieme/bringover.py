@@ -12,7 +12,11 @@ import os
 import sqlite3
 import subprocess
 import time
+import tomllib
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+
+from . import herdr, launch, newteam, scripts
 
 LIMIT_S = 5  # per repository: a slow or broken one is listed as unreadable and skipped
 DAYS = 30
@@ -235,7 +239,7 @@ VK_NEEDS = {'projects': {'id', 'name'},
             'workspaces': {'id', 'task_id', 'container_ref', 'branch', 'archived', 'worktree_deleted'},
             'workspace_repos': {'workspace_id', 'repo_id'},
             'sessions': {'id', 'workspace_id', 'executor'}}
-VK_STATUS = {'todo': 'todo', 'inprogress': 'doing', 'inreview': 'review', 'done': 'done'}  # cancelled: left out
+VK_STATUS = {'todo': 'todo', 'inprogress': 'doing', 'inreview': 'review', 'done': 'done', 'cancelled': 'cancelled'}
 VK_AGENTS = {'CLAUDE_CODE': 'claude', 'CODEX': 'codex', 'GEMINI': 'gemini', 'OPENCODE': 'opencode',
              'CURSOR_AGENT': 'cursor', 'CURSOR': 'cursor'}
 VK_UNSUPPORTED = "This Vibe Kanban version isn't supported yet. Its worktrees are still listed under Other agent work."
@@ -361,3 +365,232 @@ def scan(repos, sessions, procs, home=None, limit_s=LIMIT_S):
             continue
         found += mine
     return found, unreadable
+
+
+# --- what the sheet shows, and the New team draft ---------------------------------------------------------------
+
+TOOLS = {'conductor': 'Conductor', 'vibe-kanban': 'Vibe Kanban', 'claude-squad': 'Claude Squad', 'herdr': 'herdr',
+         'other': 'Other agent work'}
+LOOKED_FOR = ['Conductor', 'Vibe Kanban', 'Claude Squad', 'herdr']
+SCRIPT_WORDS = {'setup': 'runs in each new agent’s copy', 'run': 'becomes the live preview',
+                'archive': 'runs before a copy is archived'}
+RESUMES = ('claude', 'codex')  # the kinds whose conversation Assieme picks up again (launch.argv)
+ORDER = ('conductor', 'vibe-kanban', 'claude-squad', 'other')
+_last = {}  # id → group, from the latest find: the sheet's next steps use what it showed
+
+
+def _adopted(teams):
+    """Folders saved teams already work in: brought over before, so not listed again."""
+    out = set()
+    for path in glob.glob(os.path.join(teams, '*', 'team.toml')):
+        try:
+            with open(path, 'rb') as f:
+                out |= {os.path.realpath(r['worktree']) for r in tomllib.load(f).get('role', []) if r.get('worktree')}
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def _fill(f, base_of):
+    """Work counts for a reader's workspace, from git; a folder now on another branch uses that branch."""
+    try:
+        if f.folder:
+            now = _branch(f.folder)
+            if now and now != f.branch:
+                f.notes.append(f'{f.name} was on {f.branch}; its folder is on {now} now, so that branch is used.')
+                f.branch = now
+            f.dirty = bool(subprocess.run(['git', '-C', f.folder, 'status', '--porcelain'], capture_output=True,
+                                          text=True, timeout=LIMIT_S).stdout.strip())
+        base = base_of(f.project)
+        if base and f.branch:
+            r = subprocess.run(['git', '-C', f.project, 'rev-list', '--count', f'{base}..{f.branch}'],
+                               capture_output=True, text=True, timeout=LIMIT_S)
+            f.ahead = int(r.stdout.strip() or 0) if r.returncode == 0 else 0
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        pass
+
+
+def _summary(items):
+    n, kinds = len(items), []
+    for f in items:
+        name = launch.NAMES.get(f.kind) if f.kind else None
+        if name and name not in kinds:
+            kinds.append(name)
+    unmerged = sum(1 for f in items if f.ahead)
+    noun = 'session' if items[0].tool == 'claude-squad' else 'workspace'
+    parts = [f'{n} {noun}{"s" if n != 1 else ""}'] + ([', '.join(kinds)] if kinds else [])
+    return ' · '.join(parts + ([f'{unmerged} with unmerged work'] if unmerged else []))
+
+
+def find(home=None, folder=None, teams=None, now=None, sessions=None, procs=None, herdr_teams=None):
+    """{projects, unreadable, problems, looked_for}: what the sheet lists, one row per tool and project.
+    `folder`: a project the person chose, looked in even when no agent history points at it."""
+    home = os.path.realpath(home or os.path.expanduser('~'))
+    if sessions is None:
+        sessions = history(os.path.join(home, '.claude', 'projects'), os.path.join(home, '.codex', 'sessions'),
+                           now or datetime.now(timezone.utc))
+    procs = running_agents() if procs is None else procs
+    squad, squad_problem = read_claude_squad(home)
+    vibe, tasks, vibe_scripts, vibe_problem = read_vibe_kanban(home)
+    cond, cond_scripts, cond_problem = read_conductor(home)
+    readers = squad + vibe + cond
+    repos = repos_from_history(sessions) + [f.project for f in readers]
+    if folder:
+        repos.append(_project_of(folder) or folder)
+    repos = list(dict.fromkeys(os.path.realpath(r) for r in repos))
+    scanned, unreadable = scan(repos, sessions, procs, home)
+    by_folder = {f.folder: f for f in scanned if f.folder}
+    bases = {}
+    base_of = lambda p: bases[p] if p in bases else bases.setdefault(p, _base(p, time.monotonic() + LIMIT_S))
+    for f in readers:
+        s = by_folder.pop(f.folder, None) if f.folder else None
+        _fill(f, base_of)
+        if s:
+            f.kind, f.model, f.session = f.kind or s.kind, f.model or s.model, f.session or s.session
+            f.running_elsewhere = f.running_elsewhere or s.running_elsewhere
+    skip = _adopted(teams or newteam.teams_dir())
+    groups = {}
+    for f in readers + list(by_folder.values()):
+        if not (f.folder and f.folder in skip):
+            groups.setdefault((f.tool, f.project), []).append(f)
+    _last.clear()
+    projects = []
+    for (tool, project), its in sorted(groups.items(), key=lambda kv: (ORDER.index(kv[0][0]), kv[0][1])):
+        its.sort(key=lambda f: (-f.ahead, not f.dirty, f.name))  # the most work first
+        id_ = f'{tool}:{project}'
+        given = {'conductor': cond_scripts, 'vibe-kanban': vibe_scripts}.get(tool, {}).get(project, {})
+        _last[id_] = {'tool': tool, 'project': project, 'items': its, 'scripts': given,
+                      'tasks': tasks.get(project, []) if tool == 'vibe-kanban' else []}
+        where = TOOLS[tool] if tool != 'other' else 'another tool'
+        projects.append({'id': id_, 'tool': tool, 'label': os.path.basename(project), 'summary': _summary(its),
+                         'running': f'Still running in {where}: stop it there first.'
+                         if any(f.running_elsewhere for f in its) else None})
+    try:
+        herdr_found = herdr.find() if herdr_teams is None else {'teams': herdr_teams}
+    except Exception:  # herdr's own reader: one broken source must not hide the others
+        herdr_found = {'teams': []}
+    for t in herdr_found.get('teams', []):
+        projects.append({'id': f'herdr:{t["id"]}', 'tool': 'herdr', 'label': t['label'],
+                         'summary': f'{t["where"]} · {t["agents"]} agent{"s" if t["agents"] != 1 else ""}',
+                         'running': 'Still running in herdr: stop it there first.' if t.get('running') else None})
+    problems = [p for p in (squad_problem, vibe_problem, cond_problem) if p]
+    return {'projects': projects, 'unreadable': unreadable, 'problems': problems, 'looked_for': LOOKED_FOR}
+
+
+def _group(id_):
+    g = _last.get(id_)
+    if not g:
+        raise ValueError("That project isn't in the list any more. Look again.")
+    return g
+
+
+def _becomes(f, n):
+    who = ', '.join(x for x in (launch.NAMES.get(f.kind or 'claude'), f.model) if x)
+    work = (f'{f.ahead} commit{"s" if f.ahead != 1 else ""} not merged' if f.ahead
+            else 'uncommitted changes' if f.dirty else 'nothing new yet')
+    return f'Becomes builder-{n} · {who} · {work}'
+
+
+def workspaces(id_):
+    """{label, tool, rows, scripts}: the "What it becomes" step for one project."""
+    g = _group(id_)
+    rows, n = [], 0
+    for f in g['items']:
+        ticked = bool(f.ahead or f.dirty)
+        n += ticked
+        rows.append({'name': f.name, 'branch': f.branch, 'ticked': ticked, 'becomes': _becomes(f, n) if ticked else '',
+                     'note': '' if ticked else 'Left out: nothing new on its branch. Tick it to bring it anyway.'})
+    lines = [{'which': k, 'line': scripts.rewrite(v)[0], 'becomes': SCRIPT_WORDS[k]} for k, v in g['scripts'].items()
+             if k in SCRIPT_WORDS]
+    return {'label': os.path.basename(g['project']), 'tool': TOOLS[g['tool']], 'rows': rows, 'scripts': lines}
+
+
+def draft(id_, ticked):
+    """The New team draft: one agent per ticked workspace, working in that folder on that branch."""
+    if id_.startswith('herdr:'):
+        return herdr.draft(id_.removeprefix('herdr:')) | {'from': 'herdr'}
+    g = _group(id_)
+    by_name = {f.name: f for f in g['items']}
+    chosen = [by_name[t] for t in dict.fromkeys(ticked or []) if t in by_name]  # in the order the sheet lists them
+    if not chosen:
+        raise ValueError('Tick at least one workspace to bring over.')
+    tool, notes = TOOLS[g['tool']], {}
+
+    def note(text, agent=None):
+        notes.setdefault(text, []).extend([agent] if agent else [])
+    tasks = {t['branch']: t for t in g['tasks'] if t.get('branch')}
+    roles, by_branch = [], {}
+    for n, f in enumerate(chosen, 1):
+        name = f'builder-{n}'
+        agent = f.kind if f.kind in launch.CLIS else 'claude'
+        if f.kind is None:
+            note("Which agent worked here isn't recorded, so they start with Claude Code. Change it if needed.", name)
+        elif f.kind not in launch.CLIS:
+            note("They ran an agent Assieme doesn't start yet, so they start with Claude Code.", name)
+        task = tasks.get(f.branch)
+        brief = f"{task['title']}\n\n{task['description']}".strip() if task else ''
+        if not brief:
+            brief = newteam.kind_brief('builder')
+            note('No brief was found, so they get the standard builder brief. Check it before you start.', name)
+        role = {'name': name, 'agent': agent, 'job': f.name, 'checkout': 'branch', 'parent': None, 'brief': brief,
+                'kind': 'builder', 'branch': f.branch}
+        if f.model and not launch.check_model_effort(agent, f.model, None):
+            role['model'] = f.model
+        if f.folder:
+            role['worktree'] = f.folder
+        else:
+            note('Their folder is gone, so each gets a fresh copy of its branch.', name)
+        if f.session and agent in RESUMES and f.kind == agent:
+            role['resume'] = f.session
+        elif f.folder:
+            note('No conversation was found to pick up, so they start a new one with their brief.', name)
+        if f.running_elsewhere:
+            note(f'Still running in {tool}: stop them there first, or they are skipped at Start.', name)
+        for text in f.notes:
+            note(text, name)
+        roles.append(role)
+        by_branch[f.branch] = name
+    note(f"They start with Assieme's safe permissions: each works in its own folder and can't push. Wider permissions "
+         f'set in {tool} are not carried over.')
+    cards = [{'title': t['title'], 'status': t['status'], 'role': by_branch.get(t.get('branch'))}
+             for t in g['tasks'] if t['status'] != 'cancelled']
+    cancelled = len(g['tasks']) - len(cards)
+    if cancelled:
+        note(f'{cancelled} cancelled task{"s were" if cancelled != 1 else " was"} left off the board.')
+    unknown = sorted({u for v in g['scripts'].values() for u in scripts.rewrite(v)[1]})
+    if unknown:
+        note(f"Its scripts use {', '.join(unknown)}, which Assieme doesn't set.")
+    return {'project': g['project'], 'task': '', 'roles': roles, 'cards': cards,
+            'scripts': {k: scripts.rewrite(v)[0] for k, v in g['scripts'].items() if k in SCRIPT_WORDS},
+            'notes': [{'text': t, 'agents': a} for t, a in notes.items()],
+            'running': next((f'Still running in {tool}: stop it there first.' for f in chosen if f.running_elsewhere), None),
+            'from': 'bringover', 'tool': tool, 'label': os.path.basename(g['project'])}
+
+
+# --- at Start ------------------------------------------------------------------------------------------------------
+
+def not_running(roles, tool, procs=None):
+    """(roles to start, skipped): an agent still running in the other tool's folder isn't started beside it."""
+    procs = running_agents() if procs is None else procs
+    kept, skipped = [], []
+    for r in roles:
+        if r.get('worktree') and any(p.get('cwd') and _inside(p['cwd'], r['worktree']) for p in procs):
+            skipped.append({'role': r['name'], 'reason': f'Still running in {tool}: stop it there first.'})
+        else:
+            kept.append(r)
+    return kept, skipped
+
+
+def started(team, project, roles, cards, scripts_, origin, remember):
+    """After a brought-over team is saved and starting: its tasks on the board, its run script as the preview
+    command, and one Activity row that Undo turns back."""
+    from . import live, tasks
+    for c in cards:
+        card = tasks.add(team, c['title'], c.get('role'), by='assieme')
+        if c.get('status') and c['status'] != 'todo':
+            tasks.move(team, card['id'], c['status'])
+    if scripts_.get('run'):
+        remember(project, scripts_['run'])
+    live.record('bringover', None, f"Its agents work in the folders they had in {origin['tool']}.", team=team,
+                title=f"Brought over {origin['label']} from {origin['tool']}",
+                adopted=[r['worktree'] for r in roles if r.get('worktree')])

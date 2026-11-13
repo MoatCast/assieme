@@ -5,8 +5,9 @@ Another step adds its own by putting an entry in UNDO; the brain checks the time
 """
 
 import os
+import shutil
 
-from . import live, newteam, preset, quiet, settings, status, team
+from . import launch, live, newteam, permissions, preset, quiet, settings, status, team
 
 UNDO_S = 24 * 3600
 MAX_ROWS = 500
@@ -78,7 +79,24 @@ def _undo_improve(e, rt):
 
 
 # action -> (fn(entry, rt), button label, seconds it stays available or None for as long as it applies)
+OWN_FILES = (permissions.RULES_FILE, permissions.GEMINI_POLICY, launch.CURSOR_OURS)  # files Assieme wrote whole
+
+
+def _undo_bringover(e, rt):
+    """Step 30: stop the team, forget it, and take back the files Assieme wrote into the brought-over folders.
+    Branches, commits, folders and the other tool's own files stay as they are."""
+    team.stop(rt, e['team'])
+    shutil.rmtree(os.path.join(newteam.teams_dir(), e['team']), ignore_errors=True)
+    for folder in e.get('adopted') or []:
+        for rel in OWN_FILES:
+            try:
+                os.remove(os.path.join(folder, rel))
+            except OSError:
+                pass
+
+
 UNDO = {'quiet': (_undo_quiet, 'Stop', None),
+        'bringover': (_undo_bringover, 'Undo', UNDO_S),
         'fix_mode': (_undo_fix, 'Undo', UNDO_S),
         'practice': (_undo_practice, 'Undo', UNDO_S),
         'improve': (_undo_improve, 'Undo', UNDO_S),
@@ -98,7 +116,8 @@ def register_merge(review):
 # action -> whether it still applies right now: a pair removed in Settings has nothing left to stop.
 APPLIES = {'quiet': lambda e: bool(e.get('pair')) and quiet.is_quiet(e['pair'][0], e['pair'][1])}
 LOGS_ITS_OWN_UNDO = ('merge',)
-CONFIRM = {'add_agent': "This ends {agent} and anything it's doing right now. Its branch and files stay."}  # never kill without asking
+CONFIRM = {'add_agent': "This ends {agent} and anything it's doing right now. Its branch and files stay.",
+           'bringover': "Stop this team's agents and forget the team? Branches and folders stay."}  # never kill without asking
 
 
 def _still_applies(e):

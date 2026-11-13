@@ -302,7 +302,11 @@ class Starter:
         except (OSError, tomllib.TOMLDecodeError):
             return None  # started from the command line, or the folder is gone
 
-    def start(self, project, task, roles, practices, name=None, scripts=None):
+    def start(self, project, task, roles, practices, name=None, scripts=None, allow_scripts=()):
+        """`allow_scripts`: the brought-over scripts the person said yes to in New team, for this team's name."""
+        return self._start(project, task, roles, practices, name, scripts, allow_scripts)
+
+    def _start(self, project, task, roles, practices, name, scripts_, allow_scripts):
         """`name` is a scheduled run's own team name; New team leaves it to the project's folder name."""
         validate(roles)
         project = os.path.expanduser(project)
@@ -328,11 +332,14 @@ class Starter:
                 raise NewTeamError('start', f'{name} is still running.')
             name = self.busy[project] = name or team_name(project, taken)
         try:
-            folder = save(project, roles, practices, name, self.teams, scripts)
+            folder = save(project, roles, practices, name, self.teams, scripts_)
             try:
                 tm = preset.load(folder)
             except preset.PresetError as e:
                 raise NewTeamError('start', str(e)) from None
+            for which in allow_scripts or ():
+                if tm.scripts.get(which):
+                    scripts.allow(name, which, tm.scripts[which])
             missing = launch.missing_clis(tm.roles, which=self.which)
             if missing:
                 raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then start again.')

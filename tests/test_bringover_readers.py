@@ -105,7 +105,8 @@ class VibeKanban(Home):
         self.assertEqual((f.tool, f.project, f.name, f.folder, f.branch, f.kind, f.session),
                          ('vibe-kanban', self.repo, 'Retry with backoff', folder, 'vk/a1b2-retry', 'claude', 'new-id'))
         self.assertEqual(sorted((t['title'], t['status'], t['branch']) for t in tasks[self.repo]),
-                         [('Retry with backoff', 'doing', 'vk/a1b2-retry'), ('Write docs', 'todo', None)])
+                         [('Old idea', 'cancelled', None), ('Retry with backoff', 'doing', 'vk/a1b2-retry'),
+                          ('Write docs', 'todo', None)])
         self.assertEqual(scripts, {self.repo: {'setup': 'npm ci', 'run': 'npm run dev', 'archive': './x.sh'}})
 
     def test_vibe_opens_read_only(self):
