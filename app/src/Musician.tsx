@@ -35,7 +35,7 @@ function useReducedMotion() {
 }
 
 /** One rect per run of the same letter in a row, in that letter's colour token. */
-function Frame({ grid, colour, className }: { grid: string[]; colour: (k: string) => string; className?: string }) {
+export function Frame({ grid, colour, className }: { grid: string[]; colour: (k: string) => string; className?: string }) {
   const rects = [];
   for (let y = 0; y < grid.length; y++) {
     const row = grid[y];

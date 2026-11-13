@@ -197,3 +197,7 @@
   border: 1px solid var(--quiet-line); border-radius: 8px; background: var(--quiet-surface); cursor: pointer; }
 .instrument-tiles button.on { border: 2px solid var(--quiet-accent); background: color-mix(in srgb, var(--quiet-accent) 8%, var(--quiet-surface)); }
 .instrument-tiles button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
+/* Step 31: the stage toggle after the heading; shown, the stage sits to its right and the heading keeps its height. */
+.team-title { position: relative; }
+.team-title .title-row { display: flex; align-items: center; gap: 12px; }
+.team-title.with-stage { min-height: 118px; padding-right: 396px; }

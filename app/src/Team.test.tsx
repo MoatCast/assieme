@@ -331,3 +331,12 @@ test("faces: a map node and a card show the agent's musician, and keep their wor
   expect(within(screen.getByTestId("card-a")).getByRole("img", { name: "a, flute, needs you" })).toBeTruthy();
   expect(within(screen.getByTestId("card-a")).getByText(/seems stuck/)).toBeTruthy();
 });
+
+test("stage: hidden by default; the button after the heading shows it", async () => { // step 31
+  localStorage.clear();
+  await open(MAP({ nodes: [node("planner", "asking"), node("builder-1")] }));
+  expect(screen.queryByRole("img", { name: /^The band/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Show the stage" }));
+  expect(screen.getByRole("img", { name: /^The band: 2 agents/ })).toBeTruthy();
+  localStorage.clear();
+});

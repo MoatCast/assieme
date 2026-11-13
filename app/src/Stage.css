@@ -1,0 +1,15 @@
+/* Step 31: the stage beside the Team heading (Paper "v2 — Musicians: Team, stage shown"). Fixed size, absolutely placed. */
+.stage { position: absolute; top: 0; right: 0; flex-shrink: 0; }
+.stage > div { position: relative; width: 100%; height: 100%; }
+.stage-floor { position: absolute; left: 0; right: 0; bottom: 6px; height: 1px; background: var(--quiet-line); }
+.stage-riser { position: absolute; height: 2px; background: var(--quiet-line); }
+.stage-player, .stage-you { position: absolute; }
+.stage-count { position: absolute; left: 50px; bottom: 4px; font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.stage-count.needs { color: var(--quiet-needs-you-text); }
+
+.stage-toggle { width: 30px; height: 30px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control);
+  background: var(--quiet-surface); color: var(--quiet-slate); cursor: pointer; }
+.stage-toggle.on { border-color: var(--quiet-accent); color: var(--quiet-accent);
+  background: color-mix(in srgb, var(--quiet-accent) 8%, var(--quiet-surface)); }
+.stage-toggle:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
