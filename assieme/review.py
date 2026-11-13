@@ -461,6 +461,8 @@ class Review:
             r = self._git(project, 'worktree', 'remove', *(['--force'] if force else []), path)
             if r.returncode != 0:
                 return f"Couldn't archive its worktree: {r.stderr.strip()}"
+        if not branch.startswith(f'assieme/{name}/'):  # brought over, its folder gone meanwhile: never theirs
+            return f"Its branch {branch} isn't Assieme's, so it was left as it is."
         r = self._git(project, 'branch', '-D', branch)
         return None if r.returncode == 0 else f"Couldn't delete its branch: {r.stderr.strip()}"
 

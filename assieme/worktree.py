@@ -91,6 +91,10 @@ def ensure(team, role):
     if kept:
         if not _same_repo(team.project, kept):
             raise WorktreeError(f"{kept} isn't a copy of this project. Bring it over again from its own project.")
+        now = _git(kept, 'branch', '--show-current').stdout.strip()
+        if role.branch and now != role.branch:  # Review would follow the old branch and miss the agent's commits
+            raise WorktreeError(f'{os.path.basename(kept)} is on {now or "no branch"} now, not {role.branch}. '
+                                'Switch it back, or bring it over again.')
         return kept
     path = folder(team, role)
     branch = f'assieme/{team.name}/{role.name}'

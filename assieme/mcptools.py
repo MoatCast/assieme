@@ -215,7 +215,7 @@ class Tools:
             raise newteam.NewTeamError('project', check['reason'])
         filled = []
         for r in roles:
-            r = dict(r)
+            r = {k: v for k, v in r.items() if k not in ('worktree', 'branch', 'resume')}  # only a bring-over sets them
             kind = r.pop('kind', None)
             if kind in newteam.KINDS:
                 r.setdefault('checkout', newteam.KINDS[kind][1])

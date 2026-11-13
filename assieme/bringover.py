@@ -124,8 +124,7 @@ def _main_checkout(folder, deadline):
 def repos_from_history(sessions):
     """The main checkout of each repository the sessions ran in, once each, in the order first seen."""
     out = []
-    for s in sessions:
-        cwd = s.get('cwd')
+    for cwd in dict.fromkeys(s.get('cwd') for s in sessions):  # one git call per folder, however many sessions
         if not cwd or not os.path.isdir(cwd):
             continue
         try:
@@ -444,7 +443,8 @@ def find(home=None, folder=None, teams=None, now=None, sessions=None, procs=None
     base_of = lambda p: bases[p] if p in bases else bases.setdefault(p, _base(p, time.monotonic() + LIMIT_S))
     for f in readers:
         s = by_folder.pop(f.folder, None) if f.folder else None
-        _fill(f, base_of)
+        if f.project not in unreadable:  # a repository that hung once isn't asked again
+            _fill(f, base_of)
         if s:
             f.kind, f.model, f.session = f.kind or s.kind, f.model or s.model, f.session or s.session
             f.running_elsewhere = f.running_elsewhere or s.running_elsewhere
@@ -457,6 +457,10 @@ def find(home=None, folder=None, teams=None, now=None, sessions=None, procs=None
     projects = []
     for (tool, project), its in sorted(groups.items(), key=lambda kv: (ORDER.index(kv[0][0]), kv[0][1])):
         its.sort(key=lambda f: (-f.ahead, not f.dirty, f.name))  # the most work first
+        names = [f.name for f in its]
+        for f in its:  # several attempts at one task share its title: each keeps its own row
+            if names.count(f.name) > 1:
+                f.name = f'{f.name} ({f.branch})'
         id_ = f'{tool}:{project}'
         given = {'conductor': cond_scripts, 'vibe-kanban': vibe_scripts}.get(tool, {}).get(project, {})
         _last[id_] = {'tool': tool, 'project': project, 'items': its, 'scripts': given,
@@ -534,7 +538,7 @@ def draft(id_, ticked):
             brief = newteam.kind_brief('builder')
             note('No brief was found, so they get the standard builder brief. Check it before you start.', name)
         role = {'name': name, 'agent': agent, 'job': f.name, 'checkout': 'branch', 'parent': None, 'brief': brief,
-                'kind': 'builder', 'branch': f.branch}
+                'kind': 'builder', 'branch': f.branch, 'level': 'safe'}
         if f.model and not launch.check_model_effort(agent, f.model, None):
             role['model'] = f.model
         if f.folder:

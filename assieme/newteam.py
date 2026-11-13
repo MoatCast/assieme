@@ -21,6 +21,7 @@ KINDS = {'planner': ('planner.md', 'read-only'), 'builder': ('builder.md', 'bran
 NAME = re.compile(r'^[a-z0-9-]+$')
 BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
 BRANCH = re.compile(r'^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$')  # a brought-over branch: plain git names only
+RESUME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9-]*$')  # an agent's session id, never an option
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
 TOO_LARGE = "This folder is very large. Choose the folder for just this project."
@@ -166,6 +167,8 @@ def validate(roles):
             raise NewTeamError(field, 'Its folder needs a full path.')
         if r.get('branch') and not BRANCH.match(r['branch']):
             raise NewTeamError(field, f"{r['branch']!r} isn't a branch name Assieme can use.")
+        if r.get('resume') and not RESUME.match(r['resume']):  # it goes on the agent's command line
+            raise NewTeamError(field, "That conversation can't be picked up.")
         if r.get('parent') and r['parent'] not in names:
             raise NewTeamError(field, f"Reports to {r['parent']!r}, which isn't in this team.")
         if not (r.get('brief') or '').strip():
@@ -232,6 +235,12 @@ def _rewrite_role(folder, name, **changes):
     if name in by_name:
         by_name[name].update(changes)
     save(tm.project, [by_name[n] for n in order], tm.practices, tm.name, os.path.dirname(folder), tm.scripts)
+
+
+def gone_notes(roles):
+    """What the start record says about brought-over agents whose folder has gone: they get a new copy."""
+    return [f"{os.path.basename(r.worktree.rstrip('/'))}'s folder isn't there any more. Its branch {r.branch} is kept: "
+            'start gives it a new copy.' for r in roles if r.worktree and not os.path.isdir(r.worktree) and r.branch]
 
 
 def clear_resume(folder, name):
@@ -358,7 +367,8 @@ class Starter:
                 self.busy.pop(project, None)
             raise
         rec = {'team': name, 'project': project, 'done': False, 'error': None, 'done_at': None,
-               'roles': [{'role': r.name, 'state': 'starting', 'detail': ''} for r in tm.roles]}  # with preset-added roles
+               'roles': [{'role': r.name, 'state': 'starting', 'detail': ''} for r in tm.roles],  # with preset-added roles
+               **({'notes': gone_notes(tm.roles)} if gone_notes(tm.roles) else {})}
         with self.lock:
             self.busy.pop(project, None)
             self.recs.append(rec)

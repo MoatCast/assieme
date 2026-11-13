@@ -88,6 +88,8 @@ def _undo_bringover(e, rt):
     team.stop(rt, e['team'])
     shutil.rmtree(os.path.join(newteam.teams_dir(), e['team']), ignore_errors=True)
     for folder in e.get('adopted') or []:
+        if os.path.isdir(folder):
+            launch.unmerge(folder)  # Assieme's hooks and server out of the folder's shared settings files
         for rel in OWN_FILES:
             try:
                 os.remove(os.path.join(folder, rel))
