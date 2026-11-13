@@ -39,6 +39,7 @@ class Role:
     tools_off: list = field(default_factory=list)  # step 32: skill/plugin/server ids turned off for this agent
     tools_new: bool = True  # newly installed ones are on
     tools_known: list = field(default_factory=list)  # ids there when the choice was saved (only used when tools_new is off)
+    cont: bool = False  # never saved: this start picks up the agent's last conversation (Restart with these)
 
 
 SCRIPTS = ('setup', 'run', 'archive')

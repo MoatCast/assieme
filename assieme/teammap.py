@@ -508,13 +508,19 @@ class Brain:
         return run_automatic(views, st, self.rt, now=now) if auto else []
 
     def handlers(self):
-        from . import improve  # it reads teams through this module
+        from . import agenttools, improve  # they read teams through this module
         return {'team.improve': lambda team: improve.check(self, team),
                 'team.improve_apply': lambda team, ids: improve.apply(self, team, ids),
                 'team.view': lambda team: self.view(team),
                 'team.map': lambda team: self.map(team),
                 'pane.act': self.act,
                 'agent.detail': lambda team, role: self.detail(team, role),
+                'tools.find': lambda kind, project=None, own_copy=True: agenttools.find(kind, project, own_copy),
+                'tools.suggest': lambda role_kind, kind, project=None, own_copy=True:
+                    agenttools.suggest(role_kind, kind, project, own_copy),
+                'agent.set_tools': lambda team, role, tools_off, tools_new:
+                    {'ok': True, 'id': agenttools.set_tools(self.starter.teams, team, role, tools_off, tools_new)['id']},
+                'agent.restart': lambda team, role: agenttools.restart(self.starter.teams, self.rt, team, role),
                 'tip.apply': lambda team, tip: self.tip(team, tip),
                 'team.add_agent': lambda team, role: self.starter.add_agent(team, role),
                 'team.stop': lambda team: self.stop(team),

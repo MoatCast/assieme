@@ -97,7 +97,13 @@ def _undo_bringover(e, rt):
                 pass
 
 
+def _undo_tools(e, rt):
+    from . import agenttools  # it starts agents through team, which this module's importers load first
+    agenttools.undo(e)
+
+
 UNDO = {'quiet': (_undo_quiet, 'Stop', None),
+        'tools': (_undo_tools, 'Undo', UNDO_S),
         'bringover': (_undo_bringover, 'Undo', UNDO_S),
         'fix_mode': (_undo_fix, 'Undo', UNDO_S),
         'practice': (_undo_practice, 'Undo', UNDO_S),

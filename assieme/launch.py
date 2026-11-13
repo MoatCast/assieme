@@ -90,6 +90,8 @@ def _claude(role, cwd=None, py=None):
         a += ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit']
     if _resume(role):  # brought over (step 30): its first start picks up the conversation it had
         a += ['--resume', role.resume]
+    elif role.cont:  # restarted from its details: its last conversation in this folder
+        a.append('--continue')
     if 'skill:*' in off:  # Claude Code turns skills off only all together
         a.append('--disable-slash-commands')
     return a
@@ -116,7 +118,7 @@ def _toml_key(name):
 
 
 def _codex(role, py=None, cwd=None):
-    a = ['codex', *(['resume', role.resume] if _resume(role) else []),  # brought over (step 30): its conversation
+    a = ['codex', *(['resume', role.resume] if _resume(role) else ['resume', '--last'] if role.cont else []),
          '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
     # Its sandbox keeps .git read-only, so each commit is a request to step outside it: the person answers, in Assieme.
     a += ['-c', 'approval_policy="on-request"', '-c', 'approvals_reviewer="user"']
