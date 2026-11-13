@@ -451,7 +451,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                 {roles.map((r, i) => (
                   <div className="agent" key={i}>
                     <div className="line">
-                      <Musician instrument={seats[i].musician} palette={seats[i].palette} state="idle" role={r.name} size={1} />
+                      <Musician instrument={seats[i].musician} palette={seats[i].palette} state="idle" role={r.name} size={1} noDot />
                       <input className="name" aria-label="Agent name" value={r.name}
                         onChange={(e) => edit(i, { name: e.target.value })} />
                       <AgentMenu look="pill" value={r.agent} container={!!r.container} installed={clis ?? {}}

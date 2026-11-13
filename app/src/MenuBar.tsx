@@ -17,7 +17,7 @@ function Item({ team, item, press }: { team: string; item: MenuItem; press: (t: 
     return (
       <div className="mb-ask">
         <div className="mb-ask-text">
-          <AgentFace team={team} role={item.role} state={item.state} /> <span className="mb-role">{item.role}</span> <span className="mb-says">asks:</span> “{item.text}”
+          <AgentFace team={team} role={item.role} state={item.state} noDot /> <span className="mb-role">{item.role}</span> <span className="mb-says">asks:</span> “{item.text}”
         </div>
         <div className="mb-buttons">
           {buttons.map((b, i) => (

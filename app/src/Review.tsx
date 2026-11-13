@@ -61,7 +61,7 @@ function NoteCard({ note, role, away, busy, onAct }: {
   return (
     <div className="note">
       <div className="note-head">
-        <AgentFace role={note.author} state="idle" /><span className="mono">{note.author}</span> on line {note.line}{away ? ", which isn't in this diff any more" : ""}
+        <AgentFace role={note.author} state="idle" noDot /><span className="mono">{note.author}</span> on line {note.line}{away ? ", which isn't in this diff any more" : ""}
       </div>
       <div className="note-text">{note.text}</div>
       <div className="note-actions">

@@ -120,3 +120,14 @@ test("two quick clicks add one agent", async () => {
   await act(async () => {});
   expect(b.addAgent).toHaveBeenCalledTimes(1);
 });
+
+test("after an agent is added, every face of the team asks for its instrument again", async () => { // step 31, final review
+  const heard = vi.fn();
+  window.addEventListener("assieme-band", heard);
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Add agent" }));
+  await act(async () => {});
+  expect(b.addAgent).toHaveBeenCalled();
+  expect(heard).toHaveBeenCalled();
+  window.removeEventListener("assieme-band", heard);
+});

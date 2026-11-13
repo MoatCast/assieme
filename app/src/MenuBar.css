@@ -28,4 +28,4 @@ html.menu-window, html.menu-window body { background: transparent; overflow: hid
 .mb-foot { padding: 7px 10px; color: var(--quiet-mute); }
 /* Step 31: the face of an agent that needs you; with Musicians off, its dot. */
 .mb-ask-text .musician { display: inline-flex; vertical-align: -4px; }
-.mb-row > .dot, .mb-ask-text .dot { display: inline-block; width: 7px; height: 7px; flex-shrink: 0; border-radius: 4px; background: var(--quiet-needs-you); }
+.mb-row > .dot { display: inline-block; width: 7px; height: 7px; flex-shrink: 0; border-radius: 4px; background: var(--quiet-needs-you); }

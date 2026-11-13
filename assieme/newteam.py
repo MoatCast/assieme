@@ -473,7 +473,7 @@ class Starter:
         tm = preset.load(folder, practices=False)
         have = [_role_dict(r) for r in tm.roles]
         role['musician'] = musicians.assign(have + [role])[-1]  # the next by the rule; nobody else's changes
-        kind = role.pop('kind', None)
+        kind = role.get('kind')  # kept in team.toml: later instruments and colours count by it
         if kind in KINDS:
             role.setdefault('checkout', KINDS[kind][1])
             if not (role.get('brief') or '').strip():

@@ -159,3 +159,13 @@ test("instrument: no saved team, no choice", async () => { // step 31
   await open(D());
   expect(screen.queryByRole("group", { name: "Instrument" })).toBeNull();
 });
+
+test("Musicians Off: no instrument choice and no picture in the sheet, as before", async () => { // step 31, final review
+  forgetBand();
+  localStorage.setItem("assieme.musicians", "off");
+  b.teamBand.mockResolvedValue({ "builder-3": { musician: "bass", palette: 0 } });
+  await open(D({ state: "stuck" }));
+  expect(screen.queryByRole("group", { name: "Instrument" })).toBeNull();
+  expect(screen.queryByRole("img", { name: /^builder-3, / })).toBeNull();
+  localStorage.clear();
+});

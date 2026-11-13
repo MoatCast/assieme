@@ -6,6 +6,7 @@ import { FixButtons } from "./Team";
 import ToolPicker, { toolLabel, toolSummary } from "./ToolPicker";
 import { AgentFace, forgetBand, useBand } from "./band";
 import Musician from "./Musician";
+import { useMusicianMode } from "./musicianMode";
 import type { Instrument } from "./musicians.gen";
 
 const HEADS: Record<string, string> = { asking: "Asking you", stuck: "Seems stuck", waiting: "Has work waiting" };
@@ -102,8 +103,9 @@ const PLAYS: [Instrument, string][] = [["piano", "Piano"], ["reviewer", "Score"]
 /** Step 31: the instrument this agent plays (Paper "v2 — Musicians: agent details, instrument"). Only how it looks changes. */
 function InstrumentSection({ team, role }: { team: string; role: string }) {
   const seat = useBand(team)[role];
+  const mode = useMusicianMode();
   const [error, setError] = useState("");
-  if (!seat) return null; // a team started outside New team has no saved instruments
+  if (!seat || mode === "off") return null; // no saved instruments, or no musicians at all
   const pick = async (m: Instrument) => {
     setError("");
     try {
@@ -172,7 +174,7 @@ export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpen
       <div className="dim" onClick={onClose} />
       <div className="sheet" role="dialog" aria-label={`Agent ${role}`}>
         <div className="sheet-head">
-          {d && <AgentFace team={team} role={role} state={d.state} size={3} />}
+          {d && <AgentFace team={team} role={role} state={d.state} size={3} noDot />}
           <div className="sheet-who">
             <h2 className="mono">{role}</h2>
             {d && <p>{[kindName(d.cli), d.job].filter(Boolean).join(" · ")}</p>}

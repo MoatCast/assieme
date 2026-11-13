@@ -88,8 +88,9 @@ export function useBand(team: string | null | undefined): Band {
 }
 
 /** One agent's face wherever it appears: its saved instrument, else the guess from its name. */
-export function AgentFace({ team, role, state, size = 1 }: { team?: string | null; role: string; state: string; size?: 1 | 2 | 3 }) {
+export function AgentFace({ team, role, state, size = 1, noDot = false }:
+  { team?: string | null; role: string; state: string; size?: 1 | 2 | 3; noDot?: boolean }) {
   const band = useBand(team);
   const seat = band[role] ?? guessSeat(role);
-  return <Musician instrument={seat.musician} palette={seat.palette} state={state} role={role} size={size} />;
+  return <Musician instrument={seat.musician} palette={seat.palette} state={state} role={role} size={size} noDot={noDot} />;
 }

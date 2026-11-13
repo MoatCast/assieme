@@ -50,3 +50,12 @@ test("a change in this window applies at once", () => {
   act(() => setMusicianMode("still"));
   expect(screen.getByRole("img").className).not.toContain("playing");
 });
+
+test("Off colours the dot by state, and a place that had no dot shows none", () => { // final review
+  setMusicianMode("off");
+  const { container } = render(<Musician instrument="violin" state="stuck" role="b" />);
+  expect(container.querySelector(".dot")?.className).toContain("state-stuck");
+  cleanup();
+  const none = render(<Musician instrument="violin" state="stuck" role="b" noDot />).container;
+  expect(none.innerHTML).toBe("");
+});

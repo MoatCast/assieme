@@ -50,14 +50,15 @@ export function Frame({ grid, colour, className }: { grid: string[]; colour: (k:
   return <g className={className}>{rects}</g>;
 }
 
-type Props = { instrument: Instrument; state: string; role: string; size?: 1 | 2 | 3; palette?: 0 | 1 };
+/** `noDot`: a place that showed no dot before musicians shows nothing with Musicians off. */
+type Props = { instrument: Instrument; state: string; role: string; size?: 1 | 2 | 3; palette?: 0 | 1; noDot?: boolean };
 
 /** Step 31: an agent as its musician (Paper "Musicians (step 31)"). Drawn on whole pixels at 1×, 2× or 3×, never smoothed. */
-export default function Musician({ instrument, state, role, size = 2, palette = 0 }: Props) {
+export default function Musician({ instrument, state, role, size = 2, palette = 0, noDot = false }: Props) {
   const reduced = useReducedMotion();
   const mode = useMusicianMode();
   const label = musicianLabel(role, instrument, state);
-  if (mode === "off") return <span className="dot" role="img" aria-label={label} />; // the dot each place drew before
+  if (mode === "off") return noDot ? null : <span className={`dot state-${state}`} role="img" aria-label={label} />; // as before
   const sprite = SPRITES[instrument] ?? SPRITES.violin;
   const pose = poseFor(state);
   const swap: Record<string, string> = palette === 1 ? { M: "C", C: "M" } : {};
