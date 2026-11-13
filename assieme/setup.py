@@ -6,6 +6,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -22,7 +23,7 @@ _login_cache = {}  # login_path function -> (read at, value)
 def git_ready(which=shutil.which, run=subprocess.run):
     """Git works. /usr/bin/git is Apple's stub, which opens an installer dialog if run, so it is only asked about."""
     found = which('git')
-    if found and found != '/usr/bin/git':
+    if found and (found != '/usr/bin/git' or sys.platform != 'darwin'):  # Linux's /usr/bin/git is git itself
         return True
     try:
         return run(['xcode-select', '-p'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=TIMEOUT_S).returncode == 0

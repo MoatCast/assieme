@@ -26,6 +26,9 @@ export type TeamRow = {
   status: string | null;
   briefed: boolean;
   cwd?: string | null;
+  /** A team on another machine (step 15); reachable is false while its line is down. */
+  machine?: string;
+  reachable?: boolean;
 };
 
 export type Snapshot = {
@@ -230,6 +233,8 @@ export type TeamMap = {
   team: string;
   found: boolean;
   stopped: boolean;
+  /** Its machine can't be reached: this is the last view from there (step 15). */
+  unreachable?: import("./remote").Machine;
   title: string;
   subtitle: string;
   panes: Pane[];

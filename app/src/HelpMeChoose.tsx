@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fieldOf, suggestTeam, type Suggestion } from "./bridge";
+import { suggestTeamOn } from "./remote";
 
 type Q = { key: "size" | "review" | "budget"; label: string; options: [string, string][] };
 const QUESTIONS: Q[] = [
@@ -9,7 +10,9 @@ const QUESTIONS: Q[] = [
 ];
 
 /** Help me choose: three questions, then the person's own agent suggests a team. */
-export default function HelpMeChoose({ project, agent, onDone, onCancel }: {
+export default function HelpMeChoose({ project, agent, onDone, onCancel, machine }: {
+  /** Another machine (step 15): its own agent reads the project there. */
+  machine?: string;
   project: string;
   agent: "Claude Code" | "Codex";
   onDone: (s: Suggestion) => void;
@@ -29,7 +32,7 @@ export default function HelpMeChoose({ project, agent, onDone, onCancel }: {
     setAsking(true);
     setError("");
     try {
-      const s = await suggestTeam({ project, ...answers });
+      const s = await (machine ? suggestTeamOn({ project, ...answers }, machine) : suggestTeam({ project, ...answers }));
       if (!gone.current) onDone(s);
     } catch (e) {
       if (!gone.current) setError(fieldOf(e).message);

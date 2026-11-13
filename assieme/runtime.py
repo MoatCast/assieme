@@ -34,6 +34,8 @@ def clean_env(env):
 
 
 def socket_path():
+    if os.environ.get('ASSIEME_HC_SOCKET'):  # a brain on a remote machine, started inside that machine's core
+        return os.environ['ASSIEME_HC_SOCKET']
     base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
     return os.path.join(base, 'assieme', 'hc.sock')
 
@@ -125,4 +127,5 @@ class Runtime:
         self.call('terminal.kill', terminal=t)
 
     def list(self, labels, all=False):
-        return self.call('terminal.list', labels=labels, all=all)['terminals']
+        """This machine's terminals. Another machine's (`gpu-box/t7`) belong to the brain there."""
+        return [t for t in self.call('terminal.list', labels=labels, all=all)['terminals'] if '/' not in t['address']]
