@@ -7,7 +7,7 @@ import re
 import time
 from dataclasses import dataclass
 
-from . import brief, launch, prompts, runtime, worktree
+from . import brief, launch, preset, prompts, runtime, worktree
 
 TEAM, ROLE, BRIEFED = 'assieme.team', 'assieme.role', 'assieme.briefed'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
@@ -78,7 +78,7 @@ def _brief(rt, t, role, task, tm, clock=time):
     shared = brief.text(tm.name, goal=False)
     if shared:
         parts.append(shared)
-    kids = [r for r in tm.roles if r.parent == role.name]
+    kids = [r for r in tm.roles if r.parent == role.name and r.name != preset.STEWARD]  # it waits for stops, not work
     if kids:
         parts.append(REPORT_TO_YOU.format(agents='\n'.join(
             f'- {r.name}' for r in kids)))
@@ -115,7 +115,7 @@ def _review_hint(role):
 
 
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
-    t = rt.start(launch.argv(role, block_push=tm.practices.get('safety') is not False), cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
+    t = rt.start(launch.argv(role, block_push=preset.rule_on(tm.practices, 'no-push')), cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
     deadline = clock.monotonic() + FIRST_STATUS_S
     while True:
         info = rt.get(t)

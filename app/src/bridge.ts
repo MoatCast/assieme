@@ -68,8 +68,12 @@ export type ModelChoice = { id: string; label: string; efforts: string[] };
 export type ModelOptions = Record<AgentKind, { models: ModelChoice[]; efforts: string[] }>;
 
 export type Preset = { id: string; label: string; roles: RoleDraft[] };
-export type PracticeGroup = { id: string; title: string; summary: string; rules: string[] };
-export type Practices = { groups: PracticeGroup[]; basics: { title: string; detail: string }[] };
+/** One rule of a practice group: `text` is what agents are told. Its `id` is its switch's key. */
+export type PracticeRule = { id: string; title: string; detail: string; note?: string; text: string };
+export type PracticeGroup = { id: string; title: string; summary: string; detail: string; rules: PracticeRule[] };
+/** A preset for bigger teams: off unless its key is true. */
+export type BiggerPreset = { id: string; title: string; summary: string; detail: string };
+export type Practices = { groups: PracticeGroup[]; basics: { title: string; detail: string }[]; bigger: BiggerPreset[] };
 export type Starting = {
   team: string;
   project: string;
@@ -301,6 +305,13 @@ export const stopTeam = (team: string) => brain<{ stopped: number }>("team.stop"
 export const listTeams = () => brain<{ teams: TeamListing[]; found_agents: FoundAgent[] }>("teams.list");
 export const activityList = (team: string | null, filter: "all" | "you" | "auto") =>
   brain<{ rows: ActivityRow[] }>("activity.list", { team, filter });
+/** Improve this team: Apply findings give rules with the agents' next turn; Review ones change nothing. `draft` is the
+ *  herdr source that opens the same agents in New team; `copy` the rules to paste for an agent Assieme can't reach. */
+export type Finding = { id: string; kind: "apply" | "review"; title: string; detail: string; restart: boolean; copy: string | null; draft: string | null; to: string[] };
+export type Improvement = { team: string; found: boolean; findings: Finding[]; in_place: string[] };
+export const teamImprove = (team: string) => invoke<Improvement>("brain_call", { method: "team.improve", params: { team }, timeoutS: 60 });
+export const teamImproveApply = (team: string, ids: string[]) =>
+  brain<{ ok: boolean; applied: { id: string; entry: string }[] }>("team.improve_apply", { team, ids });
 export const activityUndo = (id: string) => brain<{ ok: boolean; detail: string }>("activity.undo", { id });
 export const getSettings = () => brain<Settings>("settings.get");
 export const setSetting = (key: string, value: unknown) => brain<Settings>("settings.set", { key, value });

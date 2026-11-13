@@ -250,7 +250,8 @@ def control_server():
         Start; this never starts agents. `project`: a git repository's full path. Each role: `name` (lower-case letters,
         digits, dashes), `agent` (claude or codex), `kind` (planner, builder, reviewer or tester: fills in the brief and
         checkout), `job` (one line), `parent` (who it reports to), and optional `brief`, `model`, `effort`. Team practices
-        stay on unless `practices` turns one off. `why`: one sentence the person sees."""
+        stay on unless `practices` turns a group or rule off by id; `steward` and `research-pairs` set to true add agents
+        for bigger teams. `why`: one sentence the person sees."""
         got = call('mcp.draft_save', project=project, roles=roles, task=task, why=why, practices=practices)
         where = 'It is open in Assieme' if got['opened'] else 'Open the Assieme app to see it'
         return f"{where}, in New team. The person reviews it and clicks Start."

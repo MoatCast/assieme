@@ -468,12 +468,13 @@ def _work_waiting(agents, now, alias):
 def _by_cwd(agents, cwd):
     if not cwd:
         return None
-    key = re.sub(r'[^A-Za-z0-9]', '-', cwd)
+    paths = {cwd, os.path.realpath(cwd)}  # Claude Code names a folder by its resolved path: /tmp is /private/tmp
+    keys = {re.sub(r'[^A-Za-z0-9]', '-', p) for p in paths}
     for a in agents:
-        if a.source == 'claude-code' and os.path.basename(os.path.dirname(a.path)) == key:
+        if a.source == 'claude-code' and os.path.basename(os.path.dirname(a.path)) in keys:
             return a
     for a in agents:
-        if getattr(a, 'cwd', None) == cwd:
+        if getattr(a, 'cwd', None) in paths:
             return a
     return None
 

@@ -1,5 +1,6 @@
 """Team presets: a folder with team.toml and one Markdown brief per role (briefs use hc's template format)."""
 import os
+import re
 import tomllib
 
 from . import launch
@@ -66,16 +67,64 @@ def _parents_first(roles):
 def practices(path=PRACTICES):
     with open(path, 'rb') as f:
         data = tomllib.load(f)
-    return {'groups': data.get('group', []), 'basics': data.get('basic', [])}
+    groups = [{k: v for k, v in g.items() if k != 'rule'} | {'rules': g.get('rule', [])} for g in data.get('group', [])]
+    return {'groups': groups, 'basics': data.get('basic', []), 'bigger': data.get('bigger', [])}
 
 
-def _groups():  # `load`'s `practices` argument hides the function inside it
-    return practices()['groups']
+def _all():  # `load`'s `practices` argument hides the function inside it
+    return practices()
+
+
+def keys():
+    """Every key a choice may hold: group, rule and bigger-team ids."""
+    p = _all()
+    return {g['id'] for g in p['groups']} | {r['id'] for g in p['groups'] for r in g['rules']} | {b['id'] for b in p['bigger']}
+
+
+def rules_on(chosen):
+    """The rules agents get: a rule is on when its group and itself are both on."""
+    return [r for g in _all()['groups'] if chosen.get(g['id']) is not False for r in g['rules'] if chosen.get(r['id']) is not False]
+
+
+def rule_on(chosen, rule_id):
+    return any(r['id'] == rule_id for r in rules_on(chosen))
 
 
 def _practice_rules(chosen):
-    lines = [f'- {rule}' for g in _groups() if chosen.get(g['id'], True) is not False for rule in g['rules']]
+    lines = [f"- {r['text']}" for r in rules_on(chosen)]
     return '\n\n## Team practices\n\n' + '\n'.join(lines) + '\n' if lines else ''
+
+
+STEWARD = 'steward'
+RESEARCHER = re.compile(r'^(research|investigat)', re.I)  # the role's name, never its job's wording; the app's agentCount matches it
+STEWARD_LINE = ('When you would stop, or need a decision only the person could make, send it to steward with '
+                'message_agent first. Call report only when steward tells you it needs the person.')
+
+
+def _brief_file(name):
+    with open(os.path.join(os.path.dirname(__file__), 'presets', 'briefs', name)) as f:
+        return f.read()
+
+
+def _bigger(roles, chosen):
+    """Roles the presets for bigger teams add, and lines for the briefs of the rest. Parents come first."""
+    names = {r.name for r in roles}
+    added = []
+    if chosen.get('research-pairs') is True:
+        for r in list(roles):
+            critic = f'{r.name}-critic'
+            if RESEARCHER.match(r.name) and critic not in names:
+                r.brief = r.brief.rstrip('\n') + (f'\n\nBefore you report a finding, send it with its sources to {critic} '
+                                                  'and wait for its check. Report only what it confirmed, and say what it could not.\n')
+                added.append(Role(critic, r.agent, '', _brief_file('critic.md'), r.model, 'read-only', r.name,
+                                  f'Checks every claim of {r.name} at the source', r.effort, r.group))
+    if chosen.get('steward') is True and STEWARD not in names:
+        top = next((r for r in roles if not r.parent), roles[0])
+        for r in roles + added:
+            r.brief = r.brief.rstrip('\n') + '\n\n' + STEWARD_LINE + '\n'
+        added.append(Role(STEWARD, top.agent, '', _brief_file('steward.md'), top.model, 'read-only', top.name,
+                          'Settles routine stops, so only real decisions reach you', top.effort))
+    return roles + added
 
 
 def load(folder, practices=True):
@@ -122,10 +171,11 @@ def load(folder, practices=True):
         if r.parent and r.parent not in names:
             raise PresetError(f'role {r.name!r}: parent {r.parent!r} is not a role in this team')
     chosen = dict(data.get('practices', {}))
-    unknown = set(chosen) - {g['id'] for g in _groups()}
+    unknown = set(chosen) - keys()
     if unknown:
         raise PresetError(f'{path}: unknown practice {", ".join(sorted(unknown))}')
     if practices:
+        roles = _bigger(roles, chosen)
         extra = _practice_rules(chosen)
         for r in roles:
             r.brief = r.brief.rstrip('\n') + extra

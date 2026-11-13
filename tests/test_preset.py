@@ -102,7 +102,7 @@ class PracticesTest(_Folder):
         self.write(TEAM.format(project=self.d))
         tm = preset.load(self.d)
         for g in preset.practices()['groups']:
-            self.assertIn(g['rules'][0], tm.roles[0].brief)
+            self.assertIn(g['rules'][0]['text'], tm.roles[0].brief)
         self.assertIn('Team practices', tm.roles[0].brief)
 
     def test_practice_off(self):
@@ -111,8 +111,8 @@ class PracticesTest(_Folder):
         groups = {g['id']: g for g in preset.practices()['groups']}
         for r in tm.roles:
             for rule in groups['reviews']['rules']:
-                self.assertNotIn(rule, r.brief)
-            self.assertIn(groups['safety']['rules'][0], r.brief)
+                self.assertNotIn(rule['text'], r.brief)
+            self.assertIn(groups['safety']['rules'][0]['text'], r.brief)
 
     def test_load_without_practices(self):
         self.write(TEAM.format(project=self.d))
@@ -121,13 +121,96 @@ class PracticesTest(_Folder):
     def test_practices_list_shape(self):
         p = preset.practices()
         self.assertEqual([g['id'] for g in p['groups']], ['messages', 'safety', 'reviews', 'stopping', 'machine'])
-        self.assertTrue(all(g['title'] and g['summary'] and g['rules'] for g in p['groups']))
-        self.assertTrue(p['basics'])
+        self.assertTrue(all(g['title'] and g['summary'] and g['detail'] and g['rules'] for g in p['groups']))
+        rules = [r for g in p['groups'] for r in g['rules']]
+        self.assertTrue(all(r['id'] and r['title'] and r['detail'] and r['text'] for r in rules))
+        ids = [r['id'] for r in rules] + [g['id'] for g in p['groups']] + [b['id'] for b in p['bigger']]
+        self.assertEqual(len(ids), len(set(ids)))  # one flat key per switch
+        self.assertEqual(len(p['basics']), 10)
+        self.assertEqual([b['id'] for b in p['bigger']], ['steward', 'research-pairs'])
+
+    def test_one_rule_off_keeps_the_rest_of_its_group(self):
+        self.write(TEAM.format(project=self.d) + '\n[practices]\nreport-line = false\n')
+        brief = preset.load(self.d).roles[0].brief
+        texts = {r['id']: r['text'] for g in preset.practices()['groups'] for r in g['rules']}
+        self.assertNotIn(texts['report-line'], brief)
+        self.assertIn(texts['brief-file'], brief)
+
+    def test_a_rule_on_in_a_group_that_is_off_stays_off(self):
+        self.assertFalse(preset.rule_on({'safety': False, 'no-push': True}, 'no-push'))
+        self.assertTrue(preset.rule_on({}, 'no-push'))
+        self.assertFalse(preset.rule_on({'no-push': False}, 'no-push'))
 
     def test_unknown_practice_id_rejected(self):
         self.write(TEAM.format(project=self.d) + '\n[practices]\ntypo = false\n')
         with self.assertRaisesRegex(preset.PresetError, 'typo'):
             preset.load(self.d)
+
+
+RESEARCH = '''name = "demo"
+project = "{project}"
+
+[[role]]
+name = "lead"
+agent = "claude"
+brief = "coordinator.md"
+checkout = "read-only"
+
+[[role]]
+name = "researcher-1"
+agent = "codex"
+brief = "builder.md"
+parent = "lead"
+'''
+
+
+class BiggerTeamsTest(_Folder):
+    def roles(self, practices=''):
+        self.write(RESEARCH.format(project=self.d) + practices)
+        return {r.name: r for r in preset.load(self.d).roles}
+
+    def test_off_by_default(self):
+        self.assertEqual(set(self.roles()), {'lead', 'researcher-1'})
+
+    def test_steward_waits_on_the_top_agent_and_everyone_sends_it_stops(self):
+        roles = self.roles('\n[practices]\nsteward = true\n')
+        s = roles['steward']
+        self.assertEqual((s.agent, s.checkout, s.parent), ('claude', 'read-only', 'lead'))
+        self.assertIn('steward', s.brief.lower())
+        self.assertIn('Team practices', s.brief)
+        for name in ('lead', 'researcher-1'):
+            self.assertIn(preset.STEWARD_LINE, roles[name].brief)
+
+    def test_research_pairs_add_a_critic_per_researcher(self):
+        roles = self.roles('\n[practices]\nresearch-pairs = true\n')
+        c = roles['researcher-1-critic']
+        self.assertEqual((c.agent, c.checkout, c.parent), ('codex', 'read-only', 'researcher-1'))
+        self.assertIn('researcher-1-critic', roles['researcher-1'].brief)
+        self.assertNotIn('lead-critic', roles)
+
+    def test_both_together_and_parents_come_first(self):
+        self.write(RESEARCH.format(project=self.d) + '\n[practices]\nsteward = true\nresearch-pairs = true\n')
+        order = [r.name for r in preset.load(self.d).roles]
+        self.assertEqual(set(order), {'lead', 'researcher-1', 'researcher-1-critic', 'steward'})
+        self.assertLess(order.index('researcher-1'), order.index('researcher-1-critic'))
+        self.assertIn(preset.STEWARD_LINE, {r.name: r for r in preset.load(self.d).roles}['researcher-1-critic'].brief)
+
+    def test_a_job_that_mentions_investigating_is_not_a_researcher(self):
+        team = RESEARCH.replace('name = "researcher-1"', 'name = "builder-1"\njob = "Investigate and fix the flaky test"')
+        self.write(team.format(project=self.d) + '\n[practices]\nresearch-pairs = true\n')
+        self.assertEqual({r.name for r in preset.load(self.d).roles}, {'lead', 'builder-1'})
+
+    def test_an_investigator_by_name_gets_a_critic(self):
+        self.write(RESEARCH.replace('researcher-1', 'investigator').format(project=self.d) + '\n[practices]\nresearch-pairs = true\n')
+        self.assertIn('investigator-critic', {r.name for r in preset.load(self.d).roles})
+
+    def test_a_team_without_researchers_is_unchanged(self):
+        self.write(TEAM.format(project=self.d) + '\n[practices]\nresearch-pairs = true\n')
+        self.assertEqual({r.name for r in preset.load(self.d).roles}, {'builder-1', 'coordinator'})
+
+    def test_never_while_editing_the_saved_team(self):
+        self.write(RESEARCH.format(project=self.d) + '\n[practices]\nsteward = true\n')
+        self.assertEqual({r.name for r in preset.load(self.d, practices=False).roles}, {'lead', 'researcher-1'})
 
 
 class ModelEffortPresetTest(_Folder):

@@ -227,7 +227,7 @@ class Tools:
             filled.append(r)
         newteam.validate(filled)
         chosen = settings.load()['practices'] | (practices or {})
-        unknown = set(chosen) - {g['id'] for g in preset.practices()['groups']}
+        unknown = set(chosen) - preset.keys()
         if unknown:
             raise ValueError(f'Unknown practice: {", ".join(sorted(unknown))}.')
         id_ = uuid.uuid4().hex[:12]

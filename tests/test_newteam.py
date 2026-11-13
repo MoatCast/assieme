@@ -306,6 +306,12 @@ class StarterTest(unittest.TestCase):
         self.assertEqual([(r['role'], r['state']) for r in rec['roles']], [('builder', 'running'), ('reviewer', 'running')])
         self.assertEqual(self.calls, [('repo', 'Fix login', True)])
 
+    def test_a_steward_chosen_in_new_team_starts_with_the_team(self):
+        s = self.starter()
+        s.start(self.repo, 'Fix login', ROLES, {'steward': True})
+        self.assertEqual([r['role'] for r in s.records()[0]['roles']], ['builder', 'reviewer', 'steward'])
+        self.assertIn('steward', newteam.roster('repo', self.teams))
+
     def test_early_errors_raise(self):
         plain = os.path.join(self.d, 'plain')
         os.makedirs(plain)

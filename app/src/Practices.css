@@ -1,0 +1,38 @@
+/* Practice groups, rules and the presets for bigger teams: Paper "v2 — Practices: group detail",
+   "v2 — New team: recommended setup" and "v2 — Settings: team practices, bigger teams". */
+.pswitch { appearance: none; flex-shrink: 0; width: 34px; height: 20px; margin: 0; position: relative; border-radius: var(--quiet-radius-control); background: var(--quiet-control); cursor: pointer; }
+.pswitch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 8px; background: var(--quiet-knob); box-shadow: 0 1px 2px color-mix(in srgb, var(--quiet-shade) 15%, transparent); }
+.pswitch:checked { background: var(--quiet-ink); }
+.pswitch:checked::after { background: var(--quiet-on-ink); transform: translateX(14px); box-shadow: none; }
+.pswitch:disabled { opacity: 0.45; cursor: default; }
+.pchevron { display: flex; flex-shrink: 0; padding: 4px; margin: -4px; background: none; border: 0; border-radius: 6px; cursor: pointer; }
+
+.pcard { display: flex; flex-direction: column; max-height: calc(100vh - 96px); overflow: auto; box-sizing: border-box; background: var(--quiet-surface);
+  border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-panel); box-shadow: 0 8px 30px color-mix(in srgb, var(--quiet-shade) 8%, transparent); outline: none; }
+.pcard.group-sheet { width: 600px; max-width: calc(100% - 32px); }
+.pcard.always-on { width: 500px; max-width: calc(100% - 32px); }
+.pcard-head { display: flex; flex-direction: column; gap: 4px; padding: 22px 24px 14px; }
+.pcard-head p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.pkicker { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.pcard-title { display: flex; align-items: center; gap: 10px; }
+.pcard-title h2 { flex: 1; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; line-height: 24px; color: var(--quiet-ink); }
+.pcard-title.start { gap: 8px; }
+.prules { display: flex; flex-direction: column; margin: 0 24px 20px; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); }
+.prule { display: flex; gap: 14px; padding: 14px 16px; }
+.prule + .prule { border-top: 1px solid var(--quiet-line); }
+.prule .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.prule b { font-size: 14px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
+.prule span { font-size: 13px; line-height: 19px; color: var(--quiet-slate); }
+.prule small { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.pbasics { list-style: none; margin: 0; padding: 6px 24px 22px; display: flex; flex-direction: column; gap: 9px; font-size: 13px; line-height: 18px; color: var(--quiet-ink); }
+.pbasics li { display: flex; gap: 10px; }
+.pbasics li span { width: 18px; flex-shrink: 0; color: var(--quiet-mute); }
+
+.bigger { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.bigger-label { font-size: 13px; line-height: 16px; color: var(--quiet-mute); }
+.bigger-label b { font-weight: 600; }
+.bigger-cards { display: flex; gap: 10px; }
+.bigger-card { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--quiet-line); border-radius: 14px; cursor: pointer; }
+.bigger-card .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bigger-card b { font-size: 14px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
+.bigger-card small { font-size: 12px; line-height: 16px; color: var(--quiet-slate); }

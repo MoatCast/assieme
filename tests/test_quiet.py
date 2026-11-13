@@ -107,6 +107,45 @@ class DeliverTest(QuietTestCase):
         self.assertIn('suite done', send[2])
         self.assertEqual(quiet.held(), {})
 
+    def test_a_note_follows_its_agent_restarted_in_the_same_folder(self):
+        quiet.hold_note('t7', RECEIVER, 'for the builder', None, None)  # held, then the agent came back as t9
+        calls = []
+
+        def hc(cmd, **kw):
+            calls.append(cmd[1:])
+            if cmd[1] == 'get':
+                return subprocess.CompletedProcess(cmd, 1, '', 'no terminal t7')
+            if cmd[1] == 'ls':
+                return subprocess.CompletedProcess(cmd, 0, json.dumps({'terminals': [
+                    {'address': 't9', 'cwd': RECEIVER, 'state': 'live'}, {'address': 't3', 'cwd': '/w/other', 'state': 'live'}]}), '')
+            return subprocess.CompletedProcess(cmd, 0, '{}', '')
+        self.assertEqual(quiet.deliver([Receiver('working')], run=hc), [('t9', 1, 'busy')])
+        [send] = [c for c in calls if c[0] == 'send']
+        self.assertEqual(send[1], 't9')
+        self.assertEqual(quiet.held(), {})
+
+    def test_a_restarted_agent_is_not_guessed_among_several_in_its_folder(self):
+        quiet.hold_note('t7', RECEIVER, 'for the builder', None, None)
+
+        def hc(cmd, **kw):
+            if cmd[1] == 'get':
+                return subprocess.CompletedProcess(cmd, 1, '', '')
+            if cmd[1] == 'ls':
+                return subprocess.CompletedProcess(cmd, 0, json.dumps({'terminals': [
+                    {'address': 't8', 'cwd': RECEIVER, 'state': 'live'}, {'address': 't9', 'cwd': RECEIVER, 'state': 'live'}]}), '')
+            raise AssertionError('nothing is sent')
+        self.assertEqual(quiet.deliver([Receiver('working')], run=hc), [])
+        self.assertEqual(len(quiet.held()[RECEIVER]), 1)
+
+    def test_agents_sharing_a_folder_each_get_their_own_notes(self):
+        quiet.hold_note('coord', RECEIVER, 'for coord', None, None)
+        quiet.hold_note('coord-2', RECEIVER, 'for coord-2', None, None)
+        hc = FakeHC(cwd=RECEIVER)
+        self.assertEqual(sorted(quiet.deliver([Receiver('working')], run=hc)), [('coord', 1, 'busy'), ('coord-2', 1, 'busy')])
+        sends = dict((c[1], c[2]) for c in hc.sends)
+        self.assertIn('for coord-2', sends['coord-2'])
+        self.assertNotIn('for coord-2', sends['coord'])
+
     def test_idle_receiver_waits_then_gets_it_anyway(self):
         self.hold(5)
         self.assertEqual(quiet.deliver([Receiver('idle')], run=FakeHC()), [])

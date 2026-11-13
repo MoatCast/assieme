@@ -32,9 +32,11 @@ const PRESETS: Preset[] = [
 export const PRACTICES = {
   groups: ["messages", "safety", "reviews", "stopping", "machine"].map((id) => ({
     id, title: { messages: "Fewer, cheaper messages", safety: "Safe by default", reviews: "Careful reviews",
-      stopping: "Know when to stop", machine: "Easy on your Mac" }[id]!, summary: `${id} summary`, rules: ["a", "b"],
+      stopping: "Know when to stop", machine: "Easy on your Mac" }[id]!, summary: `${id} summary`, detail: `${id} detail`,
+    rules: ["a", "b"].map((x) => ({ id: `${id}-${x}`, title: `${id} rule ${x}`, detail: "d", text: "t" })),
   })),
   basics: [1, 2, 3, 4, 5].map((i) => ({ title: `Basic ${i}`, detail: "d" })),
+  bigger: [{ id: "steward", title: "Steward agent", summary: "s", detail: "d" }, { id: "research-pairs", title: "Research pairs", summary: "r", detail: "d" }],
 };
 
 const LEVELS = ["low", "medium", "high", "xhigh", "max"];
@@ -104,8 +106,9 @@ test("the footer says can’t git push with Safe by default on, and can git push
   await fillProjectAndTask();
   screen.getByText("Agents work on their own copy and can git push.");
   fireEvent.click(screen.getByText("Customise"));
-  screen.getByText("Agents work on their own copy and can git push.");
+  screen.getByText("You can change these any time in Settings.");
   fireEvent.click(screen.getByRole("switch", { name: "Safe by default" }));
+  fireEvent.click(screen.getByText("Back"));
   screen.getByText("Agents work on their own copy and can’t git push. They’re told not to deploy.");
 });
 
@@ -121,8 +124,7 @@ test("Start with recommended starts the team without step 2", async () => {
   fireEvent.click(go);
   await flush();
   expect(b.startTeam).toHaveBeenCalledWith({
-    project: "/Users/me/shop", task: "Fix login", roles: PRESETS[0].roles,
-    practices: { messages: true, safety: true, reviews: true, stopping: true, machine: true },
+    project: "/Users/me/shop", task: "Fix login", roles: PRESETS[0].roles, practices: {},
   });
   expect(onStarted).toHaveBeenCalled();
   expect(onClose).toHaveBeenCalled();
@@ -135,7 +137,7 @@ test("Start with recommended keeps the Settings defaults, and shows what went wr
   await fillProjectAndTask();
   fireEvent.click(screen.getByText("Start with recommended"));
   await flush();
-  expect(b.startTeam.mock.calls[0][0].practices).toMatchObject({ reviews: false, safety: true });
+  expect(b.startTeam.mock.calls[0][0].practices).toEqual({ reviews: false });
   screen.getByText("not installed: codex. Install it, then start again.");
   expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(false);
 });
@@ -476,27 +478,52 @@ test("groups are on and switch off", async () => {
   await toSetup();
   expect(screen.getByText("Recommended setup")).toBeTruthy();
   const switches = screen.getAllByRole("switch") as HTMLInputElement[];
-  expect(switches.map((s) => s.checked)).toEqual([true, true, true, true, true]);
+  expect(switches.map((s) => s.checked)).toEqual([true, true, true, true, true, false, false]);  // then the two for bigger teams
   fireEvent.click(screen.getByRole("switch", { name: "Careful reviews" }));
   fireEvent.click(screen.getByText("Start 2 agents"));
   await flush();
-  expect(b.startTeam).toHaveBeenCalledWith({
-    project: "/Users/me/shop", task: "Fix login", roles: PRESETS[1].roles,
-    practices: { messages: true, safety: true, reviews: false, stopping: true, machine: true },
-  });
+  expect(b.startTeam).toHaveBeenCalledWith({ project: "/Users/me/shop", task: "Fix login", roles: PRESETS[1].roles, practices: { reviews: false } });
+});
+
+test("a group's chevron opens its rules, each with a switch that follows the group", async () => {
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await toSetup();
+  fireEvent.click(screen.getByRole("button", { name: "Careful reviews: each rule" }));
+  const rule = screen.getByRole("switch", { name: "reviews rule a" }) as HTMLInputElement;
+  expect(rule.checked).toBe(true);
+  fireEvent.click(rule);
+  const sheet = screen.getByRole("dialog", { name: "Careful reviews" });
+  fireEvent.click(sheet.querySelector<HTMLInputElement>("input[aria-label='Careful reviews']")!);
+  expect((screen.getByRole("switch", { name: "reviews rule b" }) as HTMLInputElement).disabled).toBe(true);
+  fireEvent.keyDown(sheet, { key: "Escape" });
+  fireEvent.click(screen.getByText("Start 2 agents"));
+  await flush();
+  expect(b.startTeam.mock.calls[0][0].practices).toEqual({ "reviews-a": false, reviews: false });
+});
+
+test("a steward adds one agent to the count, and reaches Start", async () => {
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await toSetup();
+  const label = () => document.querySelector(".bigger-label")!.textContent;
+  expect(label()).toBe("For bigger teams · off");
+  fireEvent.click(screen.getByRole("switch", { name: "Steward agent" }));
+  expect(label()).toBe("For bigger teams · on");
+  fireEvent.click(screen.getByText("Start 3 agents"));
+  await flush();
+  expect(b.startTeam.mock.calls[0][0].practices).toEqual({ steward: true });
 });
 
 test("basics count comes from the list", async () => {
   await toSetup();
   expect(screen.getByText("5 basics that are always on").closest(".basics")?.textContent).toMatch(/^Plus 5 basics that are always on/);
   fireEvent.click(screen.getByText("See all"));
-  expect(screen.getByText("Basic 3")).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "Always on" }).textContent).toContain("3Basic 3");
 });
 
 test("start button counts agents and shows the trust line", async () => {
   await toSetup();
   expect(screen.getByText("Start 2 agents")).toBeTruthy();
-  expect(screen.getByText("Agents work on their own copy and can’t git push. They’re told not to deploy.")).toBeTruthy();
+  expect(screen.getByText("You can change these any time in Settings.")).toBeTruthy();
   expect(screen.getAllByText("2 rules").length).toBe(5);
 });
 

@@ -102,10 +102,19 @@ class StartTest(unittest.TestCase):
         self.assertEqual(rt.started[1]['parent'], 't1')
 
     def test_the_safety_practice_decides_whether_pushes_are_blocked(self):
-        for practices, blocked in (({}, True), ({'safety': True}, True), ({'safety': False}, False)):
+        for practices, blocked in (({}, True), ({'safety': True}, True), ({'safety': False}, False), ({'no-push': False}, False)):
             rt = FakeRuntime()
             self.start(rt, Team('demo', '/p', practices, [COORD]))
             self.assertEqual('GIT_CONFIG_COUNT=1' in rt.started[0]['argv'], blocked, practices)
+
+    def test_the_steward_waits_for_stops_and_is_not_listed_as_waiting_for_work(self):
+        rt = FakeRuntime()
+        steward = Role('steward', 'claude', '', 'You are the steward.', checkout='read-only', parent='coordinator')
+        self.start(rt, demo(COORD, BUILDER, steward), task='fix bug')
+        top = rt.sent[0][1]
+        self.assertIn('- builder-1', top)
+        self.assertNotIn('- steward', top)
+        self.assertIn(team.WAIT_FOR_PARENT.format(parent='coordinator'), rt.sent[2][1])
 
     def test_labels_and_cwd(self):
         rt = FakeRuntime()
