@@ -107,6 +107,15 @@ class DeliverTest(QuietTestCase):
         self.assertIn('suite done', send[2])
         self.assertEqual(quiet.held(), {})
 
+    def test_agents_sharing_a_folder_each_get_their_own_notes(self):
+        quiet.hold_note('coord', RECEIVER, 'for coord', None, None)
+        quiet.hold_note('coord-2', RECEIVER, 'for coord-2', None, None)
+        hc = FakeHC(cwd=RECEIVER)
+        self.assertEqual(sorted(quiet.deliver([Receiver('working')], run=hc)), [('coord', 1, 'busy'), ('coord-2', 1, 'busy')])
+        sends = dict((c[1], c[2]) for c in hc.sends)
+        self.assertIn('for coord-2', sends['coord-2'])
+        self.assertNotIn('for coord-2', sends['coord'])
+
     def test_idle_receiver_waits_then_gets_it_anyway(self):
         self.hold(5)
         self.assertEqual(quiet.deliver([Receiver('idle')], run=FakeHC()), [])

@@ -214,7 +214,7 @@ def deliver(agents, now=None, run=subprocess.run, on_batch=None, on_give_up=None
         gone = a is not None and a.state == 'exited'
         batches = {}
         for n in all_notes:
-            batches.setdefault(n.get('session'), []).append(n)
+            batches.setdefault((n.get('session'), n['to']), []).append(n)  # agents sharing a folder each get theirs
         for notes in batches.values():
             overdue = now - min(n['at'] for n in notes) >= MAX_HOLD
             if not hc or not (busy or overdue):

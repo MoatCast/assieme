@@ -17,7 +17,7 @@ def found_row(role, cwd=None, address=None):
 
 
 def terminal(role, *argv, cwd=None):
-    return {'address': f'h-{role}', 'argv': list(argv), 'cwd': cwd or f'{ROOT}/{role}', 'agent': argv[0]}
+    return {'address': f'h-{role}', 'name': role, 'argv': list(argv), 'cwd': cwd or f'{ROOT}/{role}', 'agent': argv[0]}
 
 
 class Brain:
@@ -40,7 +40,7 @@ class ImproveCase(unittest.TestCase):
         self.tmp.cleanup()
 
     def check(self, brain, terminals=None):
-        return improve.check(brain, 'shop', NOW, self.log, terminals or {})
+        return improve.check(brain, 'shop', NOW, self.log, terminals or [])
 
     def ids(self, got):
         return {f['id']: f for f in got['findings']}
@@ -52,8 +52,8 @@ class FindingsTest(ImproveCase):
 
     def test_restart_findings_are_review_only(self):
         rows = [found_row('builder-1', cwd=ROOT), found_row('builder-2', cwd=ROOT), found_row('reviewer')]
-        terms = {'h-builder-1': terminal('builder-1', 'claude', '--dangerously-skip-permissions', cwd=ROOT),
-                 'h-builder-2': terminal('builder-2', 'claude', cwd=ROOT), 'h-reviewer': terminal('reviewer', 'codex')}
+        terms = [terminal('builder-1', 'claude', '--dangerously-skip-permissions', cwd=ROOT),
+                 terminal('builder-2', 'claude', cwd=ROOT), terminal('reviewer', 'codex')]
         got = self.ids(self.check(Brain(rows), terms))
         self.assertIn('builder-1 and builder-2 work in the same folder', got['folder:builder-1']['detail'])
         self.assertIn('permission checks skipped', got['permissions:builder-1']['detail'])
@@ -63,7 +63,7 @@ class FindingsTest(ImproveCase):
 
     def test_what_passed_is_in_place_and_nothing_is_claimed_without_data(self):
         rows = [found_row('planner'), found_row('builder')]
-        terms = {'h-planner': terminal('planner', 'claude', '--permission-mode', 'plan'), 'h-builder': terminal('builder', 'claude')}
+        terms = [terminal('planner', 'claude', '--permission-mode', 'plan'), terminal('builder', 'claude')]
         got = self.check(Brain(rows), terms)
         self.assertEqual(got['in_place'], ['each agent has its own folder', 'safe permissions', 'read-only reviewers'])
         self.assertEqual(self.check(Brain(rows))['in_place'], ['each agent has its own folder'])
@@ -107,7 +107,7 @@ class FindingsTest(ImproveCase):
 class ApplyTest(ImproveCase):
     def test_apply_holds_one_note_per_agent_and_logs_one_undoable_row(self):
         brain = Brain([found_row('a'), found_row('b', address='log:b')])
-        got = improve.apply(brain, 'shop', ['practices'], NOW, self.log, {})
+        got = improve.apply(brain, 'shop', ['practices'], NOW, self.log, [])
         self.assertEqual(len(got['applied']), 1)
         held = quiet.held()
         self.assertEqual(list(held), [os.path.realpath(f'{ROOT}/a')])
@@ -122,22 +122,31 @@ class ApplyTest(ImproveCase):
 
     def test_undo_takes_back_a_note_still_held(self):
         brain = Brain([found_row('a')])
-        [d] = improve.apply(brain, 'shop', ['practices'], NOW, self.log, {})['applied']
+        [d] = improve.apply(brain, 'shop', ['practices'], NOW, self.log, [])['applied']
         self.assertEqual(activity.undo(d['entry'], None, path=self.log, now=NOW), {'ok': True, 'detail': ''})
         self.assertEqual(quiet.held(), {})
         self.assertIn('practices', self.ids(self.check(brain)))
 
     def test_undo_after_delivery_sends_a_note_that_it_no_longer_applies(self):
         brain = Brain([found_row('a')])
-        [d] = improve.apply(brain, 'shop', ['practices'], NOW, self.log, {})['applied']
+        [d] = improve.apply(brain, 'shop', ['practices'], NOW, self.log, [])['applied']
         quiet._drop([n for ns in quiet.held().values() for n in ns])  # delivered
         activity.undo(d['entry'], None, path=self.log, now=NOW)
         [n] = quiet.held()[os.path.realpath(f'{ROOT}/a')]
         self.assertIn('no longer need to follow them: “Fewer, cheaper messages”', n['text'])
 
+    def test_agents_sharing_a_folder_have_one_log_but_each_gets_its_note(self):
+        rows = [found_row('proj', cwd=ROOT, address='h-b1')]  # Claude Code keeps one log per folder
+        terms = [terminal('b1', 'claude', cwd=ROOT), terminal('b2', 'claude', cwd=ROOT)]
+        got = self.ids(self.check(Brain(rows), terms))
+        self.assertIn('b1 and b2 work in the same folder', got['folder:b1']['detail'])
+        self.assertEqual(got['practices']['to'], ['b1', 'b2'])
+        improve.apply(Brain(rows), 'shop', ['practices'], NOW, self.log, terms)
+        self.assertEqual(sorted(n['to'] for n in quiet.held()[os.path.realpath(ROOT)]), ['h-b1', 'h-b2'])
+
     def test_review_findings_are_never_applied(self):
         rows = [found_row('x', cwd=ROOT), found_row('y', cwd=ROOT)]
-        got = improve.apply(Brain(rows), 'shop', ['folder:x'], NOW, self.log, {})
+        got = improve.apply(Brain(rows), 'shop', ['folder:x'], NOW, self.log, [])
         self.assertEqual(got['applied'], [])
         self.assertEqual(quiet.held(), {})
 

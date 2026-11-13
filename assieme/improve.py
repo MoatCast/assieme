@@ -47,31 +47,38 @@ def delivered(team_name, log=None):
 
 
 def _herdr_terminals(addresses):
-    """(the step 21 import source of this team, {address: terminal}) for its agents running in herdr."""
+    """(the step 21 import source of this team, its herdr terminals): every agent terminal of the herdr team that holds
+    one of these addresses, so agents sharing a folder (one log, one row) are each seen."""
     teams, _ = herdr._running()
     for key, ts in teams.items():
-        mine = {t['address']: t for t in ts if t.get('address') in addresses}
-        if mine:
-            return f'running:{key}', mine
-    return None, {}
+        if any(t.get('address') in addresses for t in ts):
+            return f'running:{key}', ts
+    return None, []
 
 
-def _command_lines(rows, terminals):
-    """{role: (checkout, [wide permissions])} for agents whose command line herdr shows."""
-    out = {}
+def _members(rows, terminals):
+    """{name: {address, cwd, row}}: each herdr terminal by its herdr name, then each log-only agent by its role."""
+    out, by_address = {}, {r['address']: r for r in rows}
+    for t in terminals:
+        r = by_address.get(t.get('address'))
+        name = t.get('name') or (r['labels'][team.ROLE] if r else t.get('address'))
+        out[name] = {'address': t.get('address'), 'cwd': t.get('cwd'), 'row': r, 'terminal': t}
+    seen = {m['address'] for m in out.values()}
     for r in rows:
-        t = terminals.get(r['address'])
-        if not t:
-            continue
-        prog, args, env = herdr._split(t.get('argv') or [])
-        if prog not in ('claude', 'codex'):
-            prog = t.get('agent') or prog
-        if prog not in ('claude', 'codex'):
-            continue
-        role = r['labels'][team.ROLE]
-        got, notes = herdr.agent_role(role, prog, args, env)
-        out[role] = (got['checkout'], [d for kind, _, d in notes if kind == 'wide'])
+        if r['address'] not in seen:
+            out[r['labels'][team.ROLE]] = {'address': r['address'], 'cwd': r.get('cwd'), 'row': r, 'terminal': None}
     return out
+
+
+def _command_line(name, t):
+    """(checkout, [wide permissions]) from the command line herdr shows, or None for another program."""
+    prog, args, env = herdr._split(t.get('argv') or [])
+    if prog not in ('claude', 'codex'):
+        prog = t.get('agent') or prog
+    if prog not in ('claude', 'codex'):
+        return None
+    got, notes = herdr.agent_role(name, prog, args, env)
+    return got['checkout'], [d for kind, _, d in notes if kind == 'wide']
 
 
 def _finding(id_, title, detail, *, kind='apply', group=None, to=(), restart=False):
@@ -79,74 +86,82 @@ def _finding(id_, title, detail, *, kind='apply', group=None, to=(), restart=Fal
             'restart': restart, 'copy': None, 'draft': None}
 
 
+def _team(brain, team_name, now, terminals):
+    """(rows, agents, members, import source) of a found team, or None for a team started in Assieme."""
+    rows, agents, found, _ = brain._resolve(team_name, now)
+    rows = [r for r in rows if r.get('state') == 'live']
+    if not found or not rows:
+        return None
+    source, terms = (None, terminals) if terminals is not None else _herdr_terminals({r['address'] for r in rows})
+    return rows, agents, _members(rows, terms), source
+
+
 def check(brain, team_name, now=None, log=None, terminals=None):
     """{team, found, findings, in_place}. `terminals`: herdr's terminals for this team, read when None."""
     now = now or status.now_utc()
-    rows, agents, found, _ = brain._resolve(team_name, now)
-    out = {'team': team_name, 'found': found, 'findings': [], 'in_place': []}
-    rows = [r for r in rows if r.get('state') == 'live']
-    if not found or not rows:
+    got = _team(brain, team_name, now, terminals)
+    out = {'team': team_name, 'found': got is not None, 'findings': [], 'in_place': []}
+    if not got:
         return out
-    by_role = {r['labels'][team.ROLE]: r for r in rows}
-    roles = list(by_role)
-    reach = {role for role, r in by_role.items() if not r['address'].startswith('log:')}
-    source, terms = (None, terminals) if terminals is not None else _herdr_terminals({r['address'] for r in rows})
+    rows, agents, members, source = got
+    reach = {n for n, m in members.items() if not m['address'].startswith('log:')}
+    # A log row stands for every terminal in its folder: what its log shows is about all of them.
+    in_folder = {}
+    for n, m in members.items():
+        in_folder.setdefault(_real(m['cwd']), []).append(n)
+    names_of = {r['labels'][team.ROLE]: in_folder.get(_real(r.get('cwd')), [r['labels'][team.ROLE]]) for r in rows}
     findings, in_place = out['findings'], out['in_place']
 
     # Each agent its own folder (rule 2): needs a restart.
-    by_cwd = {}
-    for role, r in by_role.items():
-        if r.get('cwd'):
-            by_cwd.setdefault(_real(r['cwd']), []).append(role)
-    shared = [rs for rs in by_cwd.values() if len(rs) > 1]
-    for rs in shared:
-        findings.append(_finding(f'folder:{rs[0]}', 'Agents share one folder',
-                                 f'{_names(rs)} work in the same folder, so they can edit the same files. '
+    shared = [ns for cwd, ns in in_folder.items() if cwd and len(ns) > 1]
+    for ns in shared:
+        findings.append(_finding(f'folder:{ns[0]}', 'Agents share one folder',
+                                 f'{_names(ns)} work in the same folder, so they can edit the same files. '
                                  'Give each its own branch.', kind='review', restart=True))
-    if len(by_cwd) > 1 and not shared:
+    if len(in_folder) > 1 and not shared:
         in_place.append('each agent has its own folder')
 
     # Safe permissions (16) and read-only reviewers (14), from the command lines herdr shows: need a restart.
-    lines = _command_lines(rows, terms)
-    for role, (checkout, wide) in lines.items():
+    lines = {n: line for n, m in members.items() if m['terminal'] and (line := _command_line(n, m['terminal']))}
+    for n, (checkout, wide) in lines.items():
         if wide:
-            findings.append(_finding(f'permissions:{role}', 'An agent runs with wide permissions',
-                                     f'{role} runs with {", ".join(wide)}. Start it again with safe permissions: its '
+            findings.append(_finding(f'permissions:{n}', 'An agent runs with wide permissions',
+                                     f'{n} runs with {", ".join(wide)}. Start it again with safe permissions: its '
                                      'own copy, and no pushes.', kind='review', restart=True))
-        if herdr._kind_of(role) in ('reviewer', 'planner') and checkout != 'read-only':
-            findings.append(_finding(f'reviewer:{role}', 'A reviewer can edit files',
-                                     f'{role} reviews or plans but can edit files. Start it again read-only.',
+        if herdr._kind_of(n) in ('reviewer', 'planner') and checkout != 'read-only':
+            findings.append(_finding(f'reviewer:{n}', 'A reviewer can edit files',
+                                     f'{n} reviews or plans but can edit files. Start it again read-only.',
                                      kind='review', restart=True))
     if lines and not any(w for _, w in lines.values()):
         in_place.append('safe permissions')
-    readers = [c for role, (c, _) in lines.items() if herdr._kind_of(role) in ('reviewer', 'planner')]
+    readers = [c for n, (c, _) in lines.items() if herdr._kind_of(n) in ('reviewer', 'planner')]
     if readers and all(c == 'read-only' for c in readers):
         in_place.append('read-only reviewers')
 
     # What today's sessions show: wake-ups for nothing, loops, review rounds, heavy runs, refusals.
     rep = teammap._team_report(rows, brain.today, now)
-    names = set(roles)
-    talk = [e for e in rep['edges'] if e['from'] in names and e['to'] in names and e['from'] != e['to']]
-    wasted = [x for x in rep['send_less'] if x['from'] in names and x['to'] in names]
+    roles = set(names_of)
+    talk = [e for e in rep['edges'] if e['from'] in roles and e['to'] in roles and e['from'] != e['to']]
+    wasted = [x for x in rep['send_less'] if x['from'] in roles and x['to'] in roles]
     for x in wasted:
         findings.append(_finding(f"messages:{x['from']}", 'Agents wake each other for nothing',
                                  f"{x['from']} woke {x['to']} {x['wakes']} times today and {x['empty']} of those did no "
                                  f"work ({round(x['share'] * 100)}% of today’s tokens). Give {x['from']} the rules for "
-                                 'fewer, cheaper messages.', group='messages', to=[x['from']]))
+                                 'fewer, cheaper messages.', group='messages', to=names_of[x['from']]))
     if talk and not wasted:
         in_place.append('no wasted wake-ups')
     seen = set()
-    for f in rep['findings'] + detect.live_findings([a for a in agents if a.name in names], now):
+    for f in rep['findings'] + detect.live_findings([a for a in agents if a.name in roles], now):
         group = {'loop': 'stopping', 'review': 'stopping', 'repeats': 'machine', 'overlap': 'machine'}.get(f['kind'])
         who = f.get('agent')
-        if not group or who not in names or (group, who) in seen:
+        if not group or who not in roles or (group, who) in seen:
             continue
         seen.add((group, who))
         title, fix = (('No stop rules', 'Add the two-attempt limit and a notification when it stops.') if group == 'stopping'
                       else ('Heavy test runs', 'Give it the rules that keep your Mac usable.'))
-        findings.append(_finding(f'{group}:{who}', title, f"{f['what']}. {fix}", group=group, to=[who]))
+        findings.append(_finding(f'{group}:{who}', title, f"{f['what']}. {fix}", group=group, to=names_of[who]))
     for x in rep['refusals']:
-        if x['agent'] in names and x['count'] >= report.REPEATED_REFUSALS:
+        if x['agent'] in roles and x['count'] >= report.REPEATED_REFUSALS:
             advice = x['advice'][:1].upper() + x['advice'][1:] + '.' if x['advice'] else 'Change the rule or the brief.'
             findings.append(_finding(f"refused:{x['agent']}:{x['command']}", 'A command keeps being refused',
                                      f"{x['agent']} tried `{x['command']}` {x['count']} times and {x['why']} refused it "
@@ -155,7 +170,7 @@ def check(brain, team_name, now=None, log=None, terminals=None):
     # The practices themselves: a team started outside Assieme was given none, unless Improve gave them.
     on = _group_rules(settings.load()['practices'])
     given = delivered(team_name, log)
-    lacking = [role for role in roles if any((role, g) not in given for g in on)]
+    lacking = [n for n in members if any((n, g) not in given for g in on)]
     if on and lacking:
         findings.append(_finding('practices', 'Agents don’t have the team practices',
                                  f'{_names(lacking)} started outside Assieme, so {"it doesn’t" if len(lacking) == 1 else "they don’t"} '
@@ -167,10 +182,10 @@ def check(brain, team_name, now=None, log=None, terminals=None):
     for f in findings:
         if f['kind'] == 'apply':
             groups = list(on) if f['group'] == '*' else [f['group']] if f['group'] in on else []
-            f['to'] = [r for r in f['to'] if any((r, g) not in given for g in groups)]
+            f['to'] = [n for n in f['to'] if any((n, g) not in given for g in groups)]
             f['groups'] = groups
             if set(f['to']) & reach:
-                f['to'] = [r for r in f['to'] if r in reach]
+                f['to'] = [n for n in f['to'] if n in reach]
             elif f['to']:  # outside herdr: nothing reaches it, so the person pastes it
                 f['kind'], f['copy'] = 'review', note_text([on[g] for g in groups])
                 f['detail'] += f" Assieme can’t reach {_names(f['to'])}: it isn’t running in herdr, so paste these rules into its next message."
@@ -182,8 +197,9 @@ def check(brain, team_name, now=None, log=None, terminals=None):
 
 def apply(brain, team_name, ids, now=None, log=None, terminals=None):
     """Give each chosen finding's rules to its agents with their next turn. One action log row per finding."""
+    now = now or status.now_utc()
     got = check(brain, team_name, now, log, terminals)
-    rows = {r['labels'][team.ROLE]: r for r in brain._resolve(team_name, now or status.now_utc())[0] if r.get('state') == 'live'}
+    members = (_team(brain, team_name, now, terminals) or (None, None, {}, None))[2]
     on = _group_rules(settings.load()['practices'])
     given = delivered(team_name, log)
     done = []
@@ -192,14 +208,14 @@ def apply(brain, team_name, ids, now=None, log=None, terminals=None):
             continue
         sent, notes = [], []
         for role in f['to']:
-            r = rows.get(role)
-            if not r or r['address'].startswith('log:') or not r.get('cwd'):
+            m = members.get(role)
+            if not m or m['address'].startswith('log:') or not m.get('cwd'):
                 continue
             mine = [g for g in f['groups'] if (role, g) not in given]
             text = note_text([on[g] for g in mine])
-            quiet.hold_note(r['address'], r['cwd'], text, None, None)
-            notes.append([r['address'], _real(r['cwd']), text])
-            sent += [[role, r['address'], _real(r['cwd']), g] for g in mine]
+            quiet.hold_note(m['address'], m['cwd'], text, None, None)
+            notes.append([m['address'], _real(m['cwd']), text])
+            sent += [[role, m['address'], _real(m['cwd']), g] for g in mine]
             given |= {(role, g) for g in mine}
         if not sent:
             continue
