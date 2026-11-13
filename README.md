@@ -82,7 +82,8 @@ is planned alongside the new runtime.
 ## What you can do today
 
 - **Create a team:** pick a project and mix Claude Code and Codex agents, each with its own role, model and thinking
-  effort. Presets and *Help me choose* cover the common shapes.
+  effort. Presets cover the common shapes, and *Help me choose* asks a few questions and suggests a team, with a
+  model and thinking effort per role from the ones installed on your Mac.
 - **Get set up in the app:** install Claude Code or Codex (the vendor's install command is shown first, then run in a
   terminal) and sign in. Set up a folder for git, or create a new folder, without leaving the app. Folder setup
   leaves common secrets and dependency folders out of the saved version by name only, so a file like `customers.csv`
@@ -96,17 +97,39 @@ is planned alongside the new runtime.
   and Undo after a merge.
 - **Answer from anywhere:** a menu bar badge counts what needs you, with answer buttons in its panel. Mac notifications
   carry the same answers.
+- **Follow the work:** a task board shows the planner's split as cards moving from to do to done, with status
+  reported by the agents themselves. "Review changes" on a card opens that branch's review.
+- **Keep the team on the same page:** one shared brief every agent reads, holding the goal, decisions and rules. Your
+  answers to agents' questions are added to it, so the same question isn't asked twice.
+- **Set a budget:** a daily token limit per team and per agent, counted from each agent's own log. At the limit the
+  agent pauses and asks you; nothing is killed.
+- **Schedule runs:** recurring jobs such as "every night, run the tests and fix what breaks", each starting a small
+  team from a preset, even with the app closed. Each run reports in Activity and sends a notification when it ends.
+- **Preview before merging:** start an agent's dev server in its own copy of the project and open it, to check UI
+  changes. It asks before running the project's scripts, and shows any script that changed since you last allowed it.
+- **Move over from herdr:** pick up an existing herdr team or launch script as a New team preset.
 - **Keep your existing agents:** Assieme finds agents already running in plain terminals or herdr and shows them, with
   fewer actions available.
 - **Check it all afterwards:** Activity lists everything Assieme did and why, with Undo where it can be undone.
+- **Light or dark:** every screen in both, or matching your Mac.
 
-**Coming next:** the macOS download, a task board, budgets with "pause and ask me", remote machines over SSH, a shared
-team brief, scheduled runs, a live preview per agent, more agent CLIs, and dark mode. A Rust runtime, forked from
-herdr-core, is in `runtime/` and tested side by side with the original, but the app doesn't use it yet.
+**Coming next:**
+
+- Agents on another machine over SSH, including through Tailscale, so a team keeps working when your laptop sleeps.
+- Gemini CLI, OpenCode and Cursor next to Claude Code and Codex, and an option to run an agent in a container.
+- A full brief editor and a permissions editor with Safe, Read only and Trusted levels.
+- "Improve this team" for teams started outside Assieme, and a switch per rule inside each practice group.
+- Control your team from your phone, through Claude Code's and Codex's own remote control.
+- Bring your team over from Conductor, and later other orchestrators, in one screen.
+- Assieme's own runtime: a Rust fork of herdr-core, in `runtime/` and tested side by side with the original, that adds
+  message timing, status pushed by the agents and blocking programs by name. The app doesn't use it yet.
+- The macOS download.
 
 ## Safe by default
 
 - It never kills an agent without asking, never widens permission rules and never answers a permission prompt for you.
+- A scheduled run is the one thing that starts agents without a click at the time: you set it up, and it says which
+  agents and models will run unattended. A live preview asks before running the project's scripts.
 - Fixes ask first until you choose otherwise, and an agent's work stays on its own branch until you merge it. Agents
   can't `git push` while Safe by default is on, though this is a guard rail and not a security boundary.
 - It runs on your Mac with no telemetry. It talks only to what you use: your agents, your git remote when you push or

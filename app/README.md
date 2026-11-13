@@ -1,7 +1,4 @@
-# Tauri + React + Typescript
+# Assieme app
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
-
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+The desktop app: Tauri 2 with a thin Rust layer, and React 19 with TypeScript for the screens. Screens talk to the
+background service only through `src/bridge.ts`. Build and test steps are in the [main README](../README.md).

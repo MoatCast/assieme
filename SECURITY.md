@@ -21,5 +21,8 @@ Assieme is a work in progress with no stable release yet, so fixes go to the `ma
   agent tokens.
 - Asking you first happens in the MCP server. A program already running as your user, including an agent with shell
   access, could reach Assieme's local service directly.
+- A scheduled run starts its team at the set time without asking again, with the agents, models and practices you
+  chose when you set it up. A live preview runs the project's own dev script, after asking you, so it runs that
+  project's code on your Mac.
 - Agents' output, and anything they read, can be untrusted. Treat what they say with the same care as any input from the
   web.

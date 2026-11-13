@@ -224,7 +224,7 @@ class ReviewFixes(Helpers, Base):
         write(f"{self.wt('builder-1')}/package.json", json.dumps({'scripts': {'dev': 'rm -rf ~'}}))
         self.assertEqual(self.p.start('demo', 'builder-1')['state'], 'confirm')  # it changed: asked again
 
-    def test_every_changed_script_that_runs_is_shown_with_its_content(self):  # owner's fix to the sheet
+    def test_every_changed_script_that_runs_is_shown_with_its_content(self):
         base = {'scripts': {'dev': 'vite', 'predev': 'echo hi'}, 'devDependencies': {'vite': '6'}}
         write(f'{self.repo}/package.json', json.dumps(base))
         write(f'{self.repo}/manage.py', 'print(1)\n')
