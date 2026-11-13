@@ -42,7 +42,7 @@ export default function Unreachable({ line, onRetried }: { line: Machine; onRetr
         </svg>
       )}
       <b>{login ? `${line.name} wants you to log in again` : `Reconnecting to ${line.name}…`}</b>
-      <p>{login ? "Its agents keep working. Log in in Terminal and Assieme reconnects right after."
+      <p>{login ? "Its agents keep working. Open Terminal to log in, and Assieme reconnects right after."
         : "Assieme tries again on its own, and at once when your Mac wakes. Buttons that change something there wait until it’s back."}</p>
       {note && <p className="rm-error">{note}</p>}
       <button type="button" className={login ? "btn-primary" : "btn-secondary"} disabled={busy} onClick={act}>
