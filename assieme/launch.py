@@ -199,8 +199,10 @@ def _gemini(role, cwd, py=None, trusted=False):
     ours = {'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
                       'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
             'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}}  # its own team tools, without asking each time
-    if _off(off, 'skill'):  # only ever its own copy: in a shared folder skills are locked, never in `off`
-        ours['skills'] = {'disabled': sorted(set(_gemini_disabled(cwd)) | set(_off(off, 'skill')))}
+    if _own(role):  # skills off: the project's own list (as committed) plus this agent's, so one turned back on returns
+        want = sorted(set(_committed(cwd, '.gemini/settings.json', 'skills', 'disabled')) | set(_off(off, 'skill')))
+        if want != sorted(_gemini_disabled(cwd)):
+            ours['skills'] = {'disabled': want}
     _merge(cwd, '.gemini/settings.json', ours)
     a = ['gemini'] + (['-m', role.model] if role.model else [])
     if role.checkout == 'read-only' or role.level == 'read-only':
@@ -209,12 +211,30 @@ def _gemini(role, cwd, py=None, trusted=False):
     if policy:  # its level and the person's rules; the workspace policy folder isn't read yet, so it is named here
         worktree.exclude(cwd, '/' + permissions.GEMINI_POLICY)
         a += ['--policy', policy]
-    if _off(off, 'server'):  # these take lists, so they go last
+    if _off(off, 'server'):  # these take lists, so they go last; an extension's own servers stay allowed with it
+        kept = [s for ext, names in tools.extension_servers().items() if f'extension:{ext}' not in off for s in names]
         a += ['--allowed-mcp-server-names', *[i['name'] for i in items
-                                               if i['type'] == 'server' and i['id'] not in off], 'assieme']
+                                               if i['type'] == 'server' and i['id'] not in off], *kept, 'assieme']
     if _off(off, 'extension'):
         a += ['-e', *([i['name'] for i in items if i['type'] == 'extension' and i['id'] not in off] or ['none'])]
     return a, ({'GEMINI_CLI_TRUST_WORKSPACE': 'true'} if trusted else {})
+
+
+def _own(role):
+    """The agent works in its own copy, so settings files in its folder are its alone."""
+    return role.checkout == 'branch' and not role.worktree
+
+
+def _committed(cwd, rel, *keys):
+    """A value from the project's own version of a settings file (as committed), or [] / {}: never Assieme's edits."""
+    got = worktree._git(cwd, 'show', f'HEAD:{rel}')
+    try:
+        data = json.loads(got.stdout) if got.returncode == 0 else {}
+        for k in keys:
+            data = data.get(k) or {}
+        return data or ([] if keys and keys[-1] == 'disabled' else {})
+    except (ValueError, AttributeError):
+        return {}
 
 
 def _gemini_disabled(cwd):
@@ -364,12 +384,17 @@ def _cursor(role, cwd, py=None, trusted=False):
     # Cursor hands MCP servers none of the terminal's variables: these say which agent this is (as Codex's env_vars).
     passed = {n: '${env:%s}' % n for n in ('HC_SESSION', 'HC_TERMINAL_ID', 'XDG_STATE_HOME', 'ASSIEME_BRIDGE', 'PYTHONPATH')}
     mcp = _merge(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py) | {'env': passed}}})
-    gone = [n for n in _off(_limits(role, cwd), 'server') if mcp and n in (mcp.get('mcpServers') or {})]
-    if gone:  # its own copy only (shared-folder servers are locked): the file is already kept out of git by _merge
-        for n in gone:
-            del mcp['mcpServers'][n]
-        with open(os.path.join(cwd, '.cursor', 'mcp.json'), 'w') as f:
-            json.dump(mcp, f, indent=2)
+    if mcp is not None and _own(role):  # its own copy only: shared-folder servers are locked
+        off = _off(_limits(role, cwd), 'server')
+        servers, before = mcp.setdefault('mcpServers', {}), set(mcp.get('mcpServers') or {})
+        for n, v in _committed(cwd, '.cursor/mcp.json', 'mcpServers').items():  # one turned back on returns
+            if n not in servers and n not in off:
+                servers[n] = v
+        for n in off:
+            servers.pop(n, None)
+        if set(servers) != before:  # the file is already kept out of git by _merge
+            with open(os.path.join(cwd, '.cursor', 'mcp.json'), 'w') as f:
+                json.dump(mcp, f, indent=2)
     ours = permissions.cursor(role, cwd, _test_command(cwd) if role.level else None) or {'allow': [], 'deny': []}
     ours['allow'] = ['Mcp(assieme:*)', *ours['allow']]  # its own team's tools: asking about each would defeat them
     _cursor_permissions(cwd, ours)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { agentDetail, agentRestart, agentSetTools, agentTools, type AgentDetail as Detail, type AgentTools,
   type ToolChoice } from "./bridge";
 import { kindName } from "./kinds";
@@ -34,6 +34,8 @@ function ToolsSection({ team, role, onChanged }: { team: string; role: string; o
   const [picking, setPicking] = useState(false);
   const [changed, setChanged] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const restarting = useRef(false);
   useEffect(() => {
     Promise.resolve(agentTools(team, role)).then((got) => setT(got ?? null), () => setT(null));
   }, [team, role]);
@@ -54,12 +56,18 @@ function ToolsSection({ team, role, onChanged }: { team: string; role: string; o
     }
   };
   const restart = async () => {
+    if (restarting.current) return;  // a second click must not start the agent twice
+    restarting.current = true;
+    setBusy(true);
     try {
       await agentRestart(team, role);
       setChanged(false);
       onChanged();
     } catch (e) {
       fail(e);
+    } finally {
+      restarting.current = false;
+      setBusy(false);
     }
   };
   return (
@@ -71,7 +79,7 @@ function ToolsSection({ team, role, onChanged }: { team: string; role: string; o
         <div className="detail-tools-next">
           <p>{`This applies when ${role} next starts. Restarting now stops what it is doing and picks up its conversation.`}</p>
           <div>
-            <button type="button" className="btn-primary" onClick={restart}>Restart with these</button>
+            <button type="button" className="btn-primary" disabled={busy} onClick={restart}>Restart with these</button>
             <button type="button" className="btn-secondary" onClick={() => setChanged(false)}>Later</button>
           </div>
         </div>

@@ -103,6 +103,22 @@ test("skills and servers: change them, then restart with them or later", async (
   expect(screen.queryByText(/This applies when builder-3 next starts/)).toBeNull();
 });
 
+test("a double click on Restart with these restarts once", async () => {
+  const items = [{ id: "server:a", type: "server" as const, name: "a", description: "", locked: false, why: "" }];
+  b.agentTools.mockResolvedValue({ items, notices: [], value: { tools_off: [], tools_new: true }, suggested: [], role_kind: null, agent: "claude" });
+  b.agentSetTools.mockResolvedValue({ ok: true, id: "x" });
+  b.agentRestart.mockReturnValue(new Promise(() => {}));
+  await open(D());
+  fireEvent.click(screen.getByText("Change…"));
+  fireEvent.click(screen.getByRole("checkbox", { name: "a" }));
+  fireEvent.click(screen.getByText("Done"));
+  await act(async () => {});
+  const button = screen.getByText("Restart with these");
+  fireEvent.click(button);
+  fireEvent.click(button);
+  expect(b.agentRestart).toHaveBeenCalledTimes(1);
+});
+
 test("no tools section when the brain has none for this agent", async () => {
   b.agentTools.mockResolvedValue({ items: [], notices: ["Antigravity can't be given its own set of skills and servers yet: it gets everything installed."],
     value: { tools_off: [], tools_new: true }, suggested: [], role_kind: null, agent: "antigravity" });

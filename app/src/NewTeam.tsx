@@ -75,32 +75,44 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const starting = useRef(false); // a second click before React re-renders must not start a second team
   // Step 32: what each agent kind has installed on this Mac, and which agent's picker is open. Each agent without a
   // choice of its own gets its role's suggestion once its kind's list is in.
-  const [tools, setTools] = useState<Partial<Record<AgentKind, ToolItem[]>>>({});
+  // Lists are read per kind and per where the agent works: a read-only agent shares the project folder, where some
+  // kinds can't be limited, and its list says so.
+  const [tools, setTools] = useState<Record<string, ToolItem[]>>({});  // "kind|own" → items
   const [toolsOf, setToolsOf] = useState<number | null>(null);
-  const suggesting = useRef(new Set<string>());
-  const [suggested, setSuggested] = useState<Record<string, string[]>>({});  // "name|kind" → its role's suggestion
+  const [suggested, setSuggested] = useState<Record<string, string[]>>({});  // suggestKey → its role's suggestion
+  const inFlight = useRef(new Set<string>());
   const toolsHere = machine === null && project ? project : "";
-  const kindsUsed = [...new Set(roles.map((r) => r.agent))].join(",");
-  useEffect(() => { setTools({}); suggesting.current.clear(); }, [toolsHere]);
+  const here = useRef(toolsHere);
+  here.current = toolsHere;
+  const own = (r: RoleDraft) => r.checkout === "branch" && !r.worktree;
+  const listKey = (r: RoleDraft) => `${r.agent}|${own(r)}`;
+  const suggestKey = (r: RoleDraft) => `${r.name}|${r.agent}|${r.kind ?? guessKind(r.name)}|${own(r)}`;
+  const listsUsed = [...new Set(roles.map(listKey))].join(",");
+  useEffect(() => { setTools({}); setSuggested({}); inFlight.current.clear(); }, [toolsHere]);
   useEffect(() => {
     if (!toolsHere) return;
-    for (const kind of kindsUsed.split(",").filter(Boolean) as AgentKind[]) {
-      if (tools[kind]) continue;
-      Promise.resolve(toolsFind(kind, toolsHere)).then((got) => setTools((t) => ({ ...t, [kind]: got?.items ?? [] })), () => {});
+    for (const key of listsUsed.split(",").filter(Boolean)) {
+      if (tools[key] || inFlight.current.has(`find:${key}`)) continue;
+      inFlight.current.add(`find:${key}`);
+      const [kind, mine] = key.split("|");
+      Promise.resolve(toolsFind(kind as AgentKind, toolsHere, mine === "true")).then((got) => {
+        if (here.current === toolsHere) setTools((t) => ({ ...t, [key]: got?.items ?? [] }));  // not a stale folder's
+      }, () => {}).finally(() => inFlight.current.delete(`find:${key}`));
     }
-  }, [toolsHere, kindsUsed, tools]);
+  }, [toolsHere, listsUsed, tools]);
   useEffect(() => {
     for (const r of roles) {
-      const key = `${toolsHere}|${r.name}|${r.agent}`;
-      if (!tools[r.agent]?.length || suggesting.current.has(key)) continue;
-      suggesting.current.add(key);
-      Promise.resolve(toolsSuggest(r.kind ?? guessKind(r.name), r.agent, toolsHere, r.checkout === "branch")).then((ids) => {
-        setSuggested((s) => ({ ...s, [`${r.name}|${r.agent}`]: ids ?? [] }));
-        setRoles((rs) => rs.map((x) => (x.name === r.name && x.agent === r.agent && x.tools_off === undefined
+      const key = suggestKey(r);
+      if (!tools[listKey(r)]?.length || (r.tools_off !== undefined && key in suggested) || inFlight.current.has(key)) continue;
+      inFlight.current.add(key);
+      Promise.resolve(toolsSuggest(r.kind ?? guessKind(r.name), r.agent, toolsHere, own(r))).then((ids) => {
+        if (here.current !== toolsHere) return;
+        setSuggested((s) => ({ ...s, [key]: ids ?? [] }));
+        setRoles((rs) => rs.map((x) => (suggestKey(x) === key && x.tools_off === undefined
           ? { ...x, tools_off: ids ?? [], tools_new: true } : x)));
-      }, () => {});
+      }, () => {}).finally(() => inFlight.current.delete(key));
     }
-  }, [roles, tools, toolsHere]);
+  }, [roles, tools, toolsHere, suggested]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every agent gets a role and a permission level here, shown in its Brief before Start.
   const fit = (rs: RoleDraft[]) =>
@@ -448,8 +460,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                           {choiceLabel(r, models)}
                         </button>
                       )}
-                      {!!tools[r.agent]?.length && (() => {
-                        const sum = toolSummary(tools[r.agent]!, { tools_off: r.tools_off ?? [], tools_new: r.tools_new ?? true });
+                      {!!tools[listKey(r)]?.length && (() => {
+                        const sum = toolSummary(tools[listKey(r)]!, { tools_off: r.tools_off ?? [], tools_new: r.tools_new ?? true });
                         return sum && (
                           <button type="button" className="link tools-sum" aria-label={`Tools for ${r.name}: ${sum}`}
                             onClick={() => setToolsOf(i)}>Tools <b>{sum}</b></button>
@@ -512,11 +524,11 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
         asker={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
         onCancel={() => setBriefOf(null)} onSave={(c) => { edit(briefOf, c); setBriefOf(null); }} />
     )}
-    {toolsOf !== null && roles[toolsOf] && tools[roles[toolsOf].agent] && (
-      <ToolPicker items={tools[roles[toolsOf].agent]!} roleName={roles[toolsOf].name}
+    {toolsOf !== null && roles[toolsOf] && tools[listKey(roles[toolsOf])] && (
+      <ToolPicker items={tools[listKey(roles[toolsOf])]!} roleName={roles[toolsOf].name}
         roleKind={roles[toolsOf].kind ?? guessKind(roles[toolsOf].name)} kindName={kindName(roles[toolsOf].agent)}
         value={{ tools_off: roles[toolsOf].tools_off ?? [], tools_new: roles[toolsOf].tools_new ?? true }}
-        suggested={suggested[`${roles[toolsOf].name}|${roles[toolsOf].agent}`] ?? []}
+        suggested={suggested[suggestKey(roles[toolsOf])] ?? []}
         onClose={() => setToolsOf(null)} onDone={(v) => { edit(toolsOf, v); setToolsOf(null); }} />
     )}
     {folderSheet && <FolderSheet machine={machine || undefined} project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}

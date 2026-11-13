@@ -12,6 +12,7 @@ import tomllib
 
 SELF = ('assieme', 'assieme_assieme')  # Assieme's own team server: always on, the app shows its own chip
 FIELDS = ('id', 'type', 'name', 'description', 'locked', 'why')
+USABLE = re.compile(r'^(server|plugin|skill|extension):[^\x00-\x1f\x7f]{1,200}$')  # as newteam.TOOL_ID
 
 LOCKED = {
     ('claude', 'skill'): 'Claude Code can turn skills off only all together, with "All skills".',
@@ -22,8 +23,8 @@ LOCKED = {
                                  'there gets the same ones.',
     ('opencode', 'server'): "OpenCode can't turn one server off for a single agent without being given that server's "
                             'whole settings, so every OpenCode agent gets the same ones.',
-    ('antigravity', 'all'): "Antigravity can't be given its own set of skills and servers yet: it gets everything "
-                            'installed.',
+    ('antigravity', 'all'): "Antigravity can't be given its own set of skills and servers yet: it gets all installed "
+                            'skills and servers.',
 }
 
 
@@ -183,8 +184,20 @@ def find(kind, project=None, home=None, own_copy=True):
     if not reader:
         return {'items': [], 'notices': []}
     r = _Reader()
-    items = _dedupe(reader(r, project and os.path.abspath(project), home, own_copy))
+    # A name Assieme can't save, or that would read as an option on a command line, isn't offered: it stays on.
+    items = [i for i in _dedupe(reader(r, project and os.path.abspath(project), home, own_copy))
+             if USABLE.match(i['id']) and not i['name'].startswith('-')]
     return {'items': [{k: i[k] for k in FIELDS} for i in items], 'notices': r.notices}
+
+
+def extension_servers(home=None):
+    """{extension name: [server names]} for Gemini CLI: names only, so its allow-list keeps them."""
+    out, r = {}, _Reader()
+    for manifest in sorted(glob.glob(os.path.join(home or os.path.expanduser('~'), '.gemini', 'extensions', '*',
+                                                  'gemini-extension.json'))):
+        m = r.json(manifest)
+        out[str(m.get('name') or os.path.basename(os.path.dirname(manifest)))] = _names(m.get('mcpServers'))
+    return out
 
 
 def skill_paths(kind, project=None, home=None):

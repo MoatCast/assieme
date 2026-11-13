@@ -119,5 +119,40 @@ class LaunchToolsTest(unittest.TestCase):
         self.assertEqual(self.settings(a)['deniedMcpServers'], [{'serverName': 'paper'}])
 
 
+class StartAgainTest(LaunchToolsTest):
+    def commit(self, *paths):
+        subprocess.run(['git', '-C', self.cwd, 'add', *paths], check=True)
+        subprocess.run(['git', '-C', self.cwd, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '-m', 'p'], check=True)
+
+    def test_i3_gemini_skill_comes_back_on(self):
+        self.argv('gemini', tools_off=['skill:pdf'])
+        self.argv('gemini', tools_off=['server:paper'])  # pdf back on
+        g = json.load(open(os.path.join(self.cwd, '.gemini', 'settings.json')))
+        self.assertEqual((g.get('skills') or {}).get('disabled', []), [])
+
+    def test_i3_gemini_project_list_kept(self):
+        write(os.path.join(self.cwd, '.gemini', 'settings.json'), json.dumps({'skills': {'disabled': ['legacy']}}))
+        self.commit('.gemini/settings.json')
+        self.argv('gemini', tools_off=['skill:pdf'])
+        self.argv('gemini', tools_off=['server:paper'])
+        g = json.load(open(os.path.join(self.cwd, '.gemini', 'settings.json')))
+        self.assertEqual(g['skills']['disabled'], ['legacy'])
+
+    def test_i4_cursor_server_comes_back_on(self):
+        self.commit('.cursor/mcp.json')
+        self.argv('cursor', tools_off=['server:proj-docs'])
+        self.argv('cursor', tools_off=['server:proj-db'])
+        servers = set(json.load(open(os.path.join(self.cwd, '.cursor', 'mcp.json')))['mcpServers'])
+        self.assertEqual(servers, {'proj-docs', 'assieme'})
+
+    def test_i8_gemini_keeps_extension_servers_allowed(self):
+        write(os.path.join(self.home, '.gemini', 'extensions', 'kit', 'gemini-extension.json'),
+              json.dumps({'name': 'kit', 'mcpServers': {'kit-server': {'command': 'x', 'args': [SECRET]}}}))
+        a = self.argv('gemini', tools_off=['server:paper'])
+        i = a.index('--allowed-mcp-server-names')
+        self.assertIn('kit-server', a[i + 1:])
+        self.assertNotIn('SECRET123', ' '.join(a))
+
+
 if __name__ == '__main__':
     unittest.main()

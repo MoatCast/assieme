@@ -855,6 +855,25 @@ test("each agent shows its tools, suggested for its role, and Start sends the ch
   expect(roles[0].tools_off).toEqual([]);
 });
 
+test("switching kind away and back suggests again; a read-only agent's list is read as shared", async () => {
+  b.toolsFind.mockImplementation(async () => ({ items: [{ id: "server:browser", type: "server", name: "browser",
+    description: "", locked: false, why: "" }], notices: [] }));
+  b.toolsSuggest.mockResolvedValue(["server:browser"]);
+  await open();
+  fireEvent.click(screen.getByText("Builder + reviewer"));
+  await fillProjectAndTask();
+  await flush();
+  expect(b.toolsFind).toHaveBeenCalledWith("claude", "/Users/me/shop", false);  // the read-only reviewer
+  expect(screen.getByRole("button", { name: "Tools for builder: 0 of 1" })).toBeTruthy();
+  fireEvent.click(screen.getAllByRole("button", { name: "Agent: Claude Code" })[0]);
+  fireEvent.click(screen.getByRole("menuitemradio", { name: /Codex/ }));
+  await flush();
+  fireEvent.click(screen.getAllByRole("button", { name: "Agent: Codex" })[0]);
+  fireEvent.click(screen.getByRole("menuitemradio", { name: /Claude Code/ }));
+  await flush();
+  expect(screen.getByRole("button", { name: "Tools for builder: 0 of 1" })).toBeTruthy();
+});
+
 test("changing an agent's kind picks its tools again", async () => {
   b.toolsFind.mockImplementation(async (kind: string) => ({ items: [{ id: `server:${kind}-only`, type: "server", name: `${kind}-only`,
     description: "", locked: false, why: "" }], notices: [] }));

@@ -113,5 +113,49 @@ class ContinueFlagTest(unittest.TestCase):
         self.assertNotIn('--continue', self.argv('opencode'))
 
 
+class FinalReviewFixesTest(Base):
+    def setUp(self):
+        super().setUp()
+        self.folder = newteam.save(self.proj, [
+            {'name': 'builder', 'agent': 'claude', 'job': '', 'brief': 'b', 'checkout': 'branch', 'kind': 'builder'},
+            {'name': 'reviewer', 'agent': 'claude', 'job': '', 'brief': 'b', 'checkout': 'read-only', 'kind': 'reviewer',
+             'parent': 'builder'}], {}, 'shop', self.teams)
+
+    def role_named(self, name):
+        return next(r for r in preset.load(self.folder, practices=False).roles if r.name == name)
+
+    def test_c1_change_works_for_an_agent_with_a_parent(self):
+        agenttools.set_tools(self.teams, 'shop', 'reviewer', ['server:browser-mcp'], True)
+        self.assertEqual(self.role_named('reviewer').tools_off, ['server:browser-mcp'])
+
+    def test_i2_known_keeps_what_was_there_before(self):
+        agenttools.set_tools(self.teams, 'shop', 'reviewer', [], False)
+        with open(os.path.join(self.home, '.claude.json'), 'w') as f:  # browser-mcp uninstalled
+            json.dump({'mcpServers': {'context7': {}}}, f)
+        agenttools.set_tools(self.teams, 'shop', 'reviewer', ['server:context7'], False)
+        self.assertIn('server:browser-mcp', self.role_named('reviewer').tools_known)
+
+    def test_i7_restart_and_for_agent_load_the_team_with_practices(self):
+        seen = []
+        real = preset.load
+
+        def spy(folder, practices=True):
+            seen.append(practices)
+            return real(folder, practices)
+        rt = SimpleNamespace(kill=lambda a: None, list=lambda *a, **k: [])
+        with mock.patch('assieme.agenttools.preset.load', spy), mock.patch('assieme.team.start', lambda *a, **k: []):
+            agenttools.for_agent(self.teams, 'shop', 'reviewer')
+            agenttools.restart(self.teams, rt, 'shop', 'reviewer', thread=lambda target, daemon: SimpleNamespace(start=target))
+        self.assertEqual(seen, [True, True])
+
+
+class ToolIdTest(unittest.TestCase):
+    def test_i1_names_with_spaces_are_fine_control_characters_are_not(self):
+        base = {'name': 'b', 'agent': 'claude', 'job': '', 'brief': 'b', 'checkout': 'branch'}
+        newteam.validate([base | {'tools_off': ['skill:My Skill'], 'tools_known': ['skill:My Skill']}])
+        with self.assertRaises(newteam.NewTeamError):
+            newteam.validate([base | {'tools_off': ['skill:bad\x07']}])
+
+
 if __name__ == '__main__':
     unittest.main()
