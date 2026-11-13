@@ -100,10 +100,10 @@ export default function NewUserChecklist({ status: got, statusError: gotError, o
     }
   };
 
-  const installed = status ? AGENTS.filter(([id]) => status.agents[id].installed) : [];
+  const installed = status ? AGENTS.filter(([id]) => status.agents[id]?.installed) : [];
   // Developer tools don't block starting: New team stops at its project check with the same fix.
   // A status that can't be read doesn't lock anyone out either.
-  const ready = status ? installed.some(([id]) => status.agents[id].signed_in) : !!statusError;
+  const ready = status ? installed.some(([id]) => status.agents[id]?.signed_in) : !!statusError;
   const why = offline ? "" : status ? (installed.length ? "after you’ve signed in" : "after you’ve added an agent") : "checking…";
 
   return (
@@ -130,7 +130,7 @@ export default function NewUserChecklist({ status: got, statusError: gotError, o
               </Todo>
             )}
             {installed.map(([id, name]) =>
-              status.agents[id].signed_in ? (
+              status.agents[id]?.signed_in ? (
                 <Done key={id} name={name} note="Installed" />
               ) : (
                 <div className="check-row" key={id}>

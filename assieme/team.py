@@ -7,9 +7,9 @@ import re
 import time
 from dataclasses import dataclass
 
-from . import brief, launch, permissions, preset, prompts, runtime, worktree
+from . import bridge, brief, container, launch, permissions, preset, prompts, runtime, worktree
 
-TEAM, ROLE, BRIEFED = 'assieme.team', 'assieme.role', 'assieme.briefed'
+TEAM, ROLE, BRIEFED, KIND = 'assieme.team', 'assieme.role', 'assieme.briefed', 'assieme.kind'
 FIRST_STATUS_S = 60   # after start, and again after answering a trust prompt
 BRIEF_WAIT_S = 60     # for a screen that is still settling when the first status arrives
 TAIL_LINES = 8
@@ -50,6 +50,7 @@ def stop(rt, name):
     live = [r for r in status(rt, name) if r['state'] == 'live']
     for r in live:
         rt.kill(r['address'])
+    bridge.revoke([r['address'] for r in live])
     return len(live)
 
 
@@ -125,11 +126,24 @@ def _codex_rules(tm, role, cwd):
     permissions.write_codex_rules(cwd, there)
 
 
+def _trust_question(tm, role):
+    return f'Trust {tm.project} so {role.agent} agents can read, edit and run files there?'
+
+
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
+    if role.agent in launch.ASKS_TRUST and tm.project not in trusted:  # they never ask on screen: Assieme asks first
+        if not ask(_trust_question(tm, role)):
+            return Started(role.name, None, 'exited', 'folder not trusted')
+        trusted.add(tm.project)
     if role.agent == 'codex':
         _codex_rules(tm, role, cwd)
-    argv = launch.argv(role, block_push=preset.rule_on(tm.practices, 'no-push'), cwd=cwd)
-    t = rt.start(argv, cwd, {TEAM: tm.name, ROLE: role.name}, name=terminal_name(tm.name, role.name), parent=parent)
+    name = terminal_name(tm.name, role.name)
+    ticket, port = (bridge.issue(), bridge.port()) if role.container else (None, None)
+    t = rt.start(launch.argv(role, block_push=preset.rule_on(tm.practices, 'no-push'), cwd=cwd, terminal=name,
+                             bridge=f'{port}/{ticket}' if port else None, trusted=tm.project in trusted),
+                 cwd, {TEAM: tm.name, ROLE: role.name, KIND: role.agent}, name=name, parent=parent)
+    if ticket:
+        bridge.bind(ticket, t)
     deadline = clock.monotonic() + FIRST_STATUS_S
     while True:
         info = rt.get(t)
@@ -142,7 +156,7 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
         keys = prompts.trust_keys(screen)
         if keys:
             if tm.project not in trusted:
-                if not ask(f'Trust {tm.project} so {role.agent} agents can read, edit and run files there?'):
+                if not ask(_trust_question(tm, role)):
                     rt.kill(t)
                     return Started(role.name, t, 'exited', 'folder not trusted')
                 trusted.add(tm.project)
@@ -164,6 +178,10 @@ def start(tm, task, rt, ask, only=None, clock=time):
     missing = launch.missing_clis(roles)
     if missing:
         raise TeamError(f'not installed: {", ".join(missing)}. Install it, then start the team again.')
+    for r in roles:
+        problem = r.container and container.problem(r.agent)
+        if problem:
+            raise TeamError(f'{r.name} runs in a container. {problem}')
     worktree.check_repo(tm.project)
     if task and not only:
         brief.save(tm.name, goal=task)  # what the whole team is for; rules and decisions stay

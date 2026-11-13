@@ -690,7 +690,7 @@ def running_cwds():
     except (OSError, subprocess.SubprocessError):
         return None
     pids = [line.split(None, 1)[0] for line in ps.splitlines()
-            if re.search(r'(^|/)(claude|codex)(\s|$)', (line.strip().split(None, 1) + [''])[1])]
+            if re.search(r'(^|/)(claude|codex|gemini|opencode|cursor-agent)(\s|$)', (line.strip().split(None, 1) + [''])[1])]
     if not pids:
         return set()
     if os.path.isdir('/proc'):  # Linux

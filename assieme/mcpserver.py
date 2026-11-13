@@ -31,16 +31,31 @@ GUIDE = os.path.join(os.path.dirname(__file__), 'guide')
 CALL_TIMEOUT_S = 130  # starting a team creates worktrees first
 
 
+def _bridge(env=None):
+    """(host, port, ticket) inside a container, from ASSIEME_BRIDGE=host:port/ticket; else None."""
+    value = (os.environ if env is None else env).get('ASSIEME_BRIDGE') or ''
+    where, _, ticket = value.partition('/')
+    host, _, port = where.rpartition(':')
+    return (host, int(port), ticket) if host and port.isdigit() and ticket else None
+
+
 def call(method, **params):
-    s = socket.socket(socket.AF_UNIX)
-    s.settimeout(CALL_TIMEOUT_S)
+    request = {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}
+    inside = _bridge()
     try:
-        s.connect(serve.brain_socket_path())
+        if inside:
+            s = socket.create_connection(inside[:2], timeout=CALL_TIMEOUT_S)
+            request['ticket'] = inside[2]
+        else:
+            s = socket.socket(socket.AF_UNIX)
+            s.settimeout(CALL_TIMEOUT_S)
+            s.connect(serve.brain_socket_path())
     except OSError:
-        s.close()
+        if not inside:
+            s.close()
         raise ToolError(NOT_RUNNING) from None
     with s, s.makefile('rwb') as f:
-        f.write((json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}) + '\n').encode())
+        f.write((json.dumps(request) + '\n').encode())
         f.flush()
         line = f.readline()
     if not line:
@@ -54,6 +69,8 @@ def call(method, **params):
 def agent_address(env=None):
     """This terminal's address when we run inside an Assieme team, else None."""
     env = os.environ if env is None else env
+    if _bridge(env):
+        return 'bridge'  # the brain knows which agent this is from its ticket
     return env.get('HC_TERMINAL_ID') if env.get('HC_SESSION') == runtime.Runtime().session else None
 
 
@@ -228,7 +245,7 @@ def control_server():
         return await _with_yes(ctx, f'Start {team} again?' + (f'\n\nTask: {task}' if task else ''), 'mcp.start_saved', team=team, task=task)
 
     @m.tool(annotations=ACT)
-    async def add_agent(team: str, name: str, agent: Literal['claude', 'codex'], kind: Literal['builder', 'reviewer', 'tester', 'planner'],
+    async def add_agent(team: str, name: str, agent: Literal['claude', 'codex', 'gemini', 'opencode', 'cursor'], kind: Literal['builder', 'reviewer', 'tester', 'planner'],
                         ctx: Context, job: str = '', parent: str | None = None, brief: str = '') -> Acted:
         """Add an agent to a running team, once the person agrees. It works from the kind's brief unless you give one."""
         role = {'name': name, 'agent': agent, 'kind': kind, 'job': job, 'parent': parent, 'brief': brief}

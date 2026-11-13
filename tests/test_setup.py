@@ -94,8 +94,17 @@ class Status(unittest.TestCase):
 
     def test_status_says_not_signed_in_when_the_command_says_so(self):
         got = self.status(lambda argv, **k: Done(returncode=1 if argv[0] == '/x/codex' else 0))
-        self.assertEqual(got, {'git': True, 'agents': {'claude': {'installed': True, 'signed_in': True},
-                                                       'codex': {'installed': True, 'signed_in': False}}})
+        self.assertEqual(got['agents']['claude'], {'installed': True, 'signed_in': True})
+        self.assertEqual(got['agents']['codex'], {'installed': True, 'signed_in': False})
+        self.assertEqual(set(got['agents']), {'claude', 'codex', 'gemini', 'opencode', 'cursor'})
+
+    def test_opencode_and_cursor_are_read_from_their_words(self):
+        said = {'/x/opencode': '0 credentials', '/x/cursor-agent': 'Logged in as someone'}
+        got = self.status(lambda argv, **k: Done(returncode=0, stdout=said[argv[0]], stderr=''),
+                          installed=('opencode', 'cursor-agent'))['agents']
+        self.assertFalse(got['opencode']['signed_in'])
+        self.assertTrue(got['cursor']['signed_in'])
+        self.assertTrue(got['cursor']['installed'])
 
     def test_the_right_command_runs_by_absolute_path(self):
         calls = []
@@ -147,7 +156,7 @@ class InstallTools(unittest.TestCase):
         self.assertEqual(calls, [['xcode-select', '--install']])
 
     def test_handlers_carry_both_methods(self):
-        self.assertEqual(sorted(setup.handlers(None)), ['setup.commands', 'setup.folder_create', 'setup.folder_preview',
+        self.assertEqual(sorted(setup.handlers(None)), ['container.build', 'container.open', 'container.status', 'setup.commands', 'setup.folder_create', 'setup.folder_preview',
                                                         'setup.folder_save', 'setup.install_agent', 'setup.install_stop',
                                                         'setup.install_tools', 'setup.signin_agent', 'setup.status',
                                                         'setup.terminal_state'])

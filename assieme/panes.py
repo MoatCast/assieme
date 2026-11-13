@@ -7,7 +7,9 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import adapters, brief, budget, live, prompts, reports, status, team
+from . import adapters, brief, budget, launch, live, prompts, reports, status, team
+
+KIND_OF = {program: kind for kind, program in launch.CLIS.items()}
 
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
@@ -131,7 +133,8 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         if report:
             state = 'asking' if report['state'] == 'need_decision' else 'stuck'
         argv0 = _program(r.get('argv'))
-        p = {'role': role, 'agent': 'codex' if argv0 == 'codex' else 'claude', 'address': r['address'],
+        kind = (r.get('labels') or {}).get(team.KIND) or KIND_OF.get(argv0, 'claude')  # a container runs `docker`
+        p = {'role': role, 'agent': kind, 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
              'command': None, 'memory_full': _memory_full(a),
              'busy': (r.get('status') or {}).get('state') == 'working'}  # mid-turn by its own hook, whatever the logs suggest

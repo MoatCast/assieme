@@ -28,7 +28,7 @@ def ask_agent(prompt, cwd, timeout_s, run=subprocess.run, which=setup.agent_path
 
     tools=False: a pure text answer. Use it whenever the prompt quotes text an agent printed, which may carry
     instructions from what that agent read (Codex's read-only sandbox already has no network)."""
-    have = installed(which)
+    have = [a for a in installed(which) if a in ('claude', 'codex')]  # the only two that answer one-off questions here
     if not have:
         raise AskError('Install Claude Code or Codex, then reopen New team.', missing=True)
     if have[0] == 'claude':

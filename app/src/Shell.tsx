@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { onOpen, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
+import { installedOf } from "./kinds";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
 import Appearance from "./Appearance";
@@ -207,12 +208,12 @@ export default function Shell() {
       )}
       {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
       {creating && (
-        <NewTeam key={draft?.id ?? "new"} clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null} draft={draft}
+        <NewTeam key={draft?.id ?? "new"} clis={installedOf(snap?.clis)} draft={draft}
           onClose={() => { setCreating(false); setDraft(null); }} />
       )}
       {adding && team && (
         <AddAgent team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}
-          clis={{ claude: !!snap?.clis.claude, codex: !!snap?.clis.codex }} onClose={() => setAdding(false)} />
+          clis={installedOf(snap?.clis)} onClose={() => setAdding(false)} />
       )}
       {briefing && team && <TeamBrief team={team} onClose={() => setBriefing(false)} />}
       {tasking && team && (

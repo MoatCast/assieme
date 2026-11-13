@@ -1,0 +1,70 @@
+/* The agent picker and container line: Paper "v2 — Add agent: choosing which agent", "v2 — New team: five kinds, one in
+   a container", "v2 — Container: states". Menu looks follow the appearance menu. */
+.agent-menu-box { position: relative; flex-shrink: 0; }
+.agent-menu-box button { font: inherit; cursor: pointer; }
+:is(.newteam, .sheet, body) .agent-pill { width: 151px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 4px 9px 4px 11px;
+  background: none; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control);
+  font-size: 12px !important; line-height: 16px; font-weight: 500; color: var(--quiet-ink); text-align: left; }
+:is(.newteam, .sheet, body) .agent-pill:has(svg[role="img"]), :is(.newteam, .sheet, body) .agent-pill[aria-expanded="true"] { border: 1.5px solid var(--quiet-ink); padding: 3.5px 8.5px 3.5px 10.5px; }
+:is(.newteam, .sheet, body) .agent-pill-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(.newteam, .sheet, body) .agent-field { width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--quiet-surface); border: 1px solid var(--quiet-control); border-radius: 10px;
+  font-size: 13px; line-height: 18px; color: var(--quiet-ink); text-align: left; }
+:is(.newteam, .sheet, body) .agent-field[aria-expanded="true"] { border: 1.5px solid var(--quiet-ink); padding: 7.5px 11.5px; }
+:is(.newteam, .sheet, body) .agent-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 9; width: 300px; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 2px; padding: 5px; background: var(--quiet-surface);
+  border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-inner);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--quiet-shade) 15%, transparent); }
+.agent-menu-box.pill .agent-menu { top: auto; bottom: calc(100% + 4px); } /* New team's rows sit low: it opens upward */
+:is(.newteam, .sheet, body) .agent-menu > button { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0; border-radius: 8px;
+  background: none; font-size: 13px; line-height: 16px; color: var(--quiet-ink); text-align: left; }
+:is(.newteam, .sheet, body) .agent-menu > button.tall { align-items: flex-start; }
+:is(.newteam, .sheet, body) .agent-menu > button:hover, :is(.newteam, .sheet, body) .agent-menu > button:focus-visible, :is(.newteam, .sheet, body) .agent-menu > button[aria-checked="true"][role="menuitemradio"] { background: var(--quiet-fog); }
+:is(.newteam, .sheet, body) .agent-menu > button[aria-checked="true"] .what { font-weight: 500; }
+:is(.newteam, .sheet, body) .agent-menu .slot { width: 14px; flex-shrink: 0; display: flex; }
+:is(.newteam, .sheet, body) .agent-menu .what { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+:is(.newteam, .sheet, body) .agent-menu .what small { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--quiet-mute); }
+:is(.newteam, .sheet, body) .agent-menu .side { width: 96px; flex-shrink: 0; text-align: right; font-size: 12px; color: var(--quiet-mute); }
+:is(.newteam, .sheet, body) .agent-menu .side.install { color: var(--quiet-accent); font-weight: 500; }
+:is(.newteam, .sheet, body) .agent-menu .absent .what { color: var(--quiet-slate); }
+:is(.newteam, .sheet, body) .agent-menu .sep { height: 1px; margin: 4px 6px; background: var(--quiet-line); }
+:is(.newteam, .sheet, body) .agent-menu .group-label { padding: 4px 10px 2px 32px; font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+
+.container-line { display: flex; flex-direction: column; gap: 8px; }
+.cl-row { display: flex; align-items: center; gap: 8px; }
+.cl-row.top { align-items: flex-start; }
+.cl-dot { width: 14px; height: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.cl-dot::after { content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--quiet-control); }
+.cl-dot.waste::after { background: var(--quiet-waste); }
+.cl-dot.working::after { background: var(--quiet-working); }
+.cl-tick { flex-shrink: 0; }
+.cl-text { flex: 1; font-size: 12px; line-height: 16px; color: var(--quiet-slate); display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+:is(.newteam, .sheet, body) .cl-button { flex-shrink: 0; padding: 4px 11px; background: none; border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-control);
+  font: inherit; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--quiet-ink); cursor: pointer; }
+:is(.newteam, .sheet, body) .cl-link { padding: 0; background: none; border: 0; font: inherit; font-size: 12px; font-weight: 500; color: var(--quiet-accent); cursor: pointer; }
+
+/* Add agent's "Where it works", Paper "v2 — Add agent: Gemini CLI in a container". */
+.field.where { gap: 8px; }
+:is(.newteam, .sheet, body) .where-choices { display: flex; gap: 8px; }
+:is(.newteam, .sheet, body) .where-choices button { flex: 1; display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: none;
+  border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-inner); text-align: left; font: inherit; cursor: pointer; }
+:is(.newteam, .sheet, body) .where-choices button[aria-checked="true"] { border: 1.5px solid var(--quiet-ink); padding: 9.5px 11.5px; }
+:is(.newteam, .sheet, body) .where-choices .radio { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; box-sizing: border-box; border-radius: 999px;
+  border: 1.5px solid var(--quiet-control); }
+:is(.newteam, .sheet, body) .where-choices button[aria-checked="true"] .radio { border: 4.5px solid var(--quiet-ink); }
+:is(.newteam, .sheet, body) .where-choices button > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+:is(.newteam, .sheet, body) .where-choices b { font-weight: 400; font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
+:is(.newteam, .sheet, body) .where-choices small, :is(.newteam, .sheet, body) .share small { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.where-more { display: flex; flex-direction: column; gap: 8px; padding: 2px 2px 0; }
+.share { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 16px; color: var(--quiet-ink); cursor: pointer; }
+.share input { width: 14px; height: 14px; margin: 1px 0 0; flex-shrink: 0; accent-color: var(--quiet-ink); }
+.share > span { display: flex; flex-direction: column; gap: 2px; }
+
+/* Add agent's dropdowns, the same 36 px fields as Paper's, like the schedule sheet's. */
+.add-agent .select { position: relative; display: flex; }
+.add-agent .select select { flex: 1; min-width: 0; width: 100%; appearance: none; -webkit-appearance: none; padding: 8px 32px 8px 12px;
+  border: 1px solid var(--quiet-control); border-radius: 10px; background: var(--quiet-surface); color: var(--quiet-ink);
+  font: inherit; font-size: 13px; line-height: 18px; text-overflow: ellipsis; }
+.add-agent .select select.mono { font-family: var(--quiet-font-mono); }
+.add-agent .select select:disabled { opacity: 0.55; }
+.add-agent .select svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }

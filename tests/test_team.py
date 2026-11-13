@@ -116,10 +116,26 @@ class StartTest(unittest.TestCase):
         self.assertNotIn('- steward', top)
         self.assertIn(team.WAIT_FOR_PARENT.format(parent='coordinator'), rt.sent[2][1])
 
+    def test_gemini_and_cursor_start_only_after_the_person_trusts_the_project(self):
+        d = tempfile.mkdtemp()
+        with mock.patch('assieme.team.worktree.ensure', side_effect=lambda tm, r: d):
+            asked = []
+            rt = FakeRuntime()
+            got = self.start(rt, Team('demo', '/p', {}, [Role('g', 'gemini', 'b.md', 'brief')]),
+                             ask=lambda q: asked.append(q) or False)
+            self.assertEqual((got[0].state, got[0].note), ('exited', 'folder not trusted'))
+            self.assertEqual(rt.started, [])
+            self.assertEqual(asked, ['Trust /p so gemini agents can read, edit and run files there?'])
+            rt = FakeRuntime()
+            self.start(rt, Team('demo', '/p', {}, [Role('g', 'gemini', 'b.md', 'brief'), Role('c', 'cursor', 'b.md', 'brief')]))
+            self.assertIn('GEMINI_CLI_TRUST_WORKSPACE=true', rt.started[0]['argv'])
+            self.assertIn('--trust', rt.started[1]['argv'])
+
     def test_labels_and_cwd(self):
         rt = FakeRuntime()
         self.start(rt, demo(COORD))
-        self.assertEqual(rt.started[0]['labels'], {'assieme.team': 'demo', 'assieme.role': 'coordinator'})
+        self.assertEqual(rt.started[0]['labels'], {'assieme.team': 'demo', 'assieme.role': 'coordinator',
+                                                       'assieme.kind': 'claude'})
         self.assertEqual(rt.started[0]['cwd'], '/p/.assieme/worktrees/coordinator')
 
     def test_brief_sent_only_after_first_status(self):

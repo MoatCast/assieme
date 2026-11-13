@@ -1,22 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import AgentMenu, { ContainerLine } from "./AgentMenu";
+import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, type AgentKind, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
 import BriefEditor, { guessKind } from "./BriefEditor";
+import { AGENT_KINDS } from "./kinds";
 import { defaultLevel } from "./PermissionsEditor";
 import FolderSheet from "./FolderSheet";
 import HelpMeChoose from "./HelpMeChoose";
 import HerdrImport from "./HerdrImport";
+import InstallSheet from "./InstallSheet";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
 import Offline from "./Offline";
 import { pushesBlocked } from "./Practices";
 import RecommendedSetup, { footerNote } from "./RecommendedSetup";
 import RemoteMachine, { RemoteProject } from "./RemoteMachine";
 import { checkProjectOn, startTeamOn } from "./remote";
+import { useSetupStatus } from "./NewUserChecklist";
 import "./NewTeam.css";
 
-type Clis = { claude: boolean; codex: boolean };
+type Clis = Partial<Record<AgentKind, boolean>>;
 const NAME = /^[a-z0-9-]+$/;
 const BAD_NAME = "Names use lower-case letters, digits and dashes, and must differ.";
-const AGENTS = [["claude", "Claude Code"], ["codex", "Codex"]] as const;
 const shortPath = (p: string) => p.replace(/^\/Users\/[^/]+/, "~");
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const changes = (n: number) =>
@@ -33,7 +36,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [machine, setMachine] = useState<string | null>(null); // null: this Mac; "": a remote machine, none chosen yet
   const [there, setThere] = useState<Clis | null>(null); // the agents on that machine, once it is ready
   const have = machine === null ? clis : there;
-  const installed = AGENTS.filter(([id]) => have?.[id]);
+  const installed = AGENT_KINDS.filter((k) => have?.[k.id]).map((k) => [k.id, k.name] as const);
+  const [installing, setInstalling] = useState<AgentKind | null>(null);
+  const setup = useSetupStatus(installing !== null);
+  const [notReady, setNotReady] = useState<Record<AgentKind, boolean>>({} as Record<AgentKind, boolean>);
   const [offline, setOffline] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [practices, setPractices] = useState<Practices | null>(null);
@@ -279,6 +285,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     : !task.trim() ? "Say what the team should work on to continue."
     : have && !installed.length ? "Install Claude Code or Codex to continue."
     : installed.length && !roles.length ? "Add an agent to continue."
+    : roles.some((r) => r.container && notReady[r.agent]) ? "Get the container ready to continue."
     : "";
   const ready = !missing && installed.length > 0;
 
@@ -378,7 +385,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
           <div className="field">
             <div className="row">
               <div className="label">Agents</div>
-              {installed.length > 1 && <div className="muted small">Mix Claude Code and Codex however you like</div>}
+              {installed.length > 1 && <div className="muted small">Mix any agents on this Mac. The box icon means it runs in a container.</div>}
             </div>
             {why && <p className="muted">{why}</p>}
             {installed.length === 0 ? (
@@ -392,12 +399,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                     <div className="line">
                       <input className="name" aria-label="Agent name" value={r.name}
                         onChange={(e) => edit(i, { name: e.target.value })} />
-                      <div className="switch">
-                        {installed.map(([id, label]) => (
-                          <button key={id} type="button" className={r.agent === id ? "on" : ""}
-                            aria-pressed={r.agent === id} onClick={() => edit(i, { agent: id })}>{label}</button>
-                        ))}
-                      </div>
+                      <AgentMenu look="pill" value={r.agent} container={!!r.container} installed={clis ?? {}}
+                        team={project ? project.split("/").filter(Boolean).pop() : undefined}
+                        onChange={(c) => edit(i, c)} onInstall={setInstalling} />
                       <span className="job">{r.job}</span>
                       {models && (
                         <button type="button" className="choice" aria-label={`Model and effort for ${r.name}`}
@@ -409,6 +413,11 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                       <button type="button" className="remove" aria-label="Remove agent" onClick={() => remove(i)}>×</button>
                     </div>
                     {roleErrors[i] && <p className="error">{roleErrors[i]}</p>}
+                    {r.container && roles.findIndex((x) => x.container && x.agent === r.agent) === i && (
+                      <div className="container-row">
+                        <ContainerLine agent={r.agent} onReady={(ok) => setNotReady((n) => ({ ...n, [r.agent]: !ok }))} />
+                      </div>
+                    )}
                     {modelOf === i && models && (
                       <ModelMenu role={r} options={models} onChange={(c) => edit(i, c)} />
                     )}
@@ -457,6 +466,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
         onCancel={() => setBriefOf(null)} onSave={(c) => { edit(briefOf, c); setBriefOf(null); }} />
     )}
     {folderSheet && <FolderSheet machine={machine || undefined} project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
+    {installing && <InstallSheet agent={installing} start="install" status={setup.status} onClose={() => setInstalling(null)} />}
     {importing && (
       <HerdrImport onClose={() => setImporting(false)} onImported={async (d) => {
         setImporting(false);

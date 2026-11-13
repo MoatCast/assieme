@@ -6,7 +6,7 @@ import tomllib
 from . import launch, permissions
 from dataclasses import dataclass, field
 
-AGENTS = ('claude', 'codex')
+AGENTS = tuple(launch.CLIS)
 PRACTICES = os.path.join(os.path.dirname(__file__), 'practices.toml')
 CHECKOUTS = ('branch', 'read-only')
 
@@ -31,6 +31,8 @@ class Role:
     owns: list = field(default_factory=list)  # paths in the project only this agent edits
     level: str | None = None  # safe, read-only or trusted; None: started as before levels existed
     rules: list = field(default_factory=list)  # the person's own: {decision, program, words}
+    container: bool = False  # runs in a container that sees only its own copy
+    share_signin: bool = False  # that container may use this kind's sign-in file from the Mac
 
 
 @dataclass
@@ -176,7 +178,8 @@ def load(folder, practices=True):
         roles.append(Role(r, agent, brief_path, brief, raw.get('model'), checkout, raw.get('parent'), raw.get('job', ''),
                           raw.get('effort'), raw.get('group'), raw.get('kind'), list(owns), level,
                           [{'decision': x['decision'], 'program': list(x['program']), 'words': str(x.get('words', ''))}
-                           for x in rules]))
+                           for x in rules], container=raw.get('container') is True,
+                          share_signin=raw.get('share_signin') is True))
     if not roles:
         raise PresetError(f'{path}: the team has no roles ([[role]] tables)')
     for r in roles:

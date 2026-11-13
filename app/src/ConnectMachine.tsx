@@ -1,3 +1,4 @@
+import { AGENT_KINDS, kindName } from "./kinds";
 import { useEffect, useState } from "react";
 import InstallSheet from "./InstallSheet";
 import {
@@ -14,7 +15,6 @@ export function shortName(target: string) {
   const host = target.replace(/^.*@/, "").replace(/:\d+$/, "");
   return /^[\d.]+$/.test(host) || host.includes(":") ? host : host.split(".")[0] || target;
 }
-const NAMES: Record<AgentKind, string> = { claude: "Claude Code", codex: "Codex" };
 
 export function Tick() {
   return (
@@ -41,8 +41,9 @@ export function AgentChecks({ agents, onInstall }: {
   agents: Record<AgentKind, { installed: boolean; signed_in: boolean }>;
   onInstall: (agent: AgentKind, start: "install" | "signin") => void;
 }) {
-  const kinds = Object.keys(NAMES) as AgentKind[];
-  const todo = kinds.find((k) => !agents[k]?.installed || !agents[k]?.signed_in);
+  // Claude Code and Codex always, as in Paper; any other kind once it is installed there.
+  const kinds = AGENT_KINDS.map((k) => k.id).filter((k) => k === "claude" || k === "codex" || agents[k]?.installed);
+  const todo = (["claude", "codex"] as AgentKind[]).find((k) => !agents[k]?.installed || !agents[k]?.signed_in);
   return (
     <>
       {kinds.map((k) => {
@@ -52,14 +53,14 @@ export function AgentChecks({ agents, onInstall }: {
           <span key={k} className="rm-check">
             {ok ? <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3L9.5 3.8" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" strokeLinecap="round" /></svg>
               : <i className="rm-dot" />}
-            {NAMES[k]} {ok ? "signed in" : a.installed ? "not signed in" : "not installed"}
+            {kindName(k)} {ok ? "signed in" : a.installed ? "not signed in" : "not installed"}
           </span>
         );
       })}
       <span className="rm-grow" />
       {todo && (
         <button type="button" className="rm-act" onClick={() => onInstall(todo, agents[todo]?.installed ? "signin" : "install")}>
-          {agents[todo]?.installed ? `Sign in to ${NAMES[todo]}` : `Install ${NAMES[todo]}`}
+          {agents[todo]?.installed ? `Sign in to ${kindName(todo)}` : `Install ${kindName(todo)}`}
         </button>
       )}
     </>

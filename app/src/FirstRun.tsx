@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { snapshot, type Agent, type AgentKind, type Snapshot, type TeamDraft } from "./bridge";
+import { installedOf } from "./kinds";
 import ChangeGroups from "./ChangeGroups";
 import HerdrImport from "./HerdrImport";
 import NewTeam from "./NewTeam";
@@ -92,8 +93,11 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   const clis = [
     { key: "claude", name: "Claude Code", found: !!snap?.clis.claude, note: plural(count("claude-code")) },
     { key: "codex", name: "Codex", found: !!snap?.clis.codex, note: plural(count("codex")) },
+    { key: "gemini", name: "Gemini CLI", found: !!snap?.clis.gemini, note: count("gemini") ? plural(count("gemini")) : "installed" },
+    { key: "opencode", name: "OpenCode", found: !!snap?.clis.opencode, note: count("opencode") ? plural(count("opencode")) : "installed" },
+    { key: "cursor", name: "Cursor", found: !!snap?.clis.cursor, note: "installed" },
     { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected ·" },
-  ].filter((c) => c.key !== "herdr" || snap?.clis.herdr); // herdr gets a row only once it is found
+  ].filter((c) => ["claude", "codex"].includes(c.key) || c.found); // the others get a row only once they are found
 
   // A team shows here while it starts, if its start failed, or while an agent needs you or didn't come up.
   const settled = ["running", "already-running"];
@@ -111,7 +115,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   return (
     <div className="first-run">
       {creating && (
-        <NewTeam key={imported?.id ?? "new"} clis={snap ? { claude: !!snap.clis.claude, codex: !!snap.clis.codex } : null}
+        <NewTeam key={imported?.id ?? "new"} clis={installedOf(snap?.clis)}
           draft={imported} onClose={() => { setCreating(false); setImported(null); }}
           onStarted={creating === "first" ? onOpenTeam : undefined} />
       )}

@@ -10,7 +10,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, live, launch, permissions, preset, runtime, settings, setup, team, worktree
+from . import ask, container, live, launch, permissions, preset, runtime, settings, setup, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -48,7 +48,7 @@ def kind_brief(kind):
 def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
             'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group, 'kind': r.kind,
-            'owns': r.owns, 'level': r.level, 'rules': r.rules}
+            'owns': r.owns, 'level': r.level, 'rules': r.rules, 'container': r.container, 'share_signin': r.share_signin}
 
 
 def _as_preset(folder, id_, label=None):
@@ -103,7 +103,8 @@ def model_options(codex_cache=None):
     common = [e for e in launch.EFFORTS['codex'] if codex and all(e in m['efforts'] for m in codex)]
     return {'claude': {'models': [{'id': i, 'label': n, 'efforts': claude} for i, n in CLAUDE_MODELS],
                        'efforts': claude},
-            'codex': {'models': codex, 'efforts': common}}
+            'codex': {'models': codex, 'efforts': common},
+            **{k: {'models': [], 'efforts': []} for k in ('gemini', 'opencode', 'cursor')}}  # their own default only
 
 
 def project_check(path):
@@ -138,6 +139,13 @@ def project_check(path):
     return {'ok': True, 'uncommitted': n} if n else {'ok': True}
 
 
+def _container_ready(roles):
+    for r in roles:
+        problem = r.container and container.problem(r.agent)
+        if problem:
+            raise NewTeamError('start', f'{r.name} runs in a container. {problem}')
+
+
 def validate(roles):
     if not roles:
         raise NewTeamError('roles', 'Add at least one agent.')
@@ -147,7 +155,9 @@ def validate(roles):
         if not NAME.match(names[i]) or names[i] in names[:i]:
             raise NewTeamError(field, BAD_NAME)
         if r.get('agent') not in preset.AGENTS:
-            raise NewTeamError(field, 'Choose Claude Code or Codex for this agent.')
+            raise NewTeamError(field, 'Choose which agent runs this.')
+        if any(r.get(k) not in (None, True, False) for k in ('container', 'share_signin')):
+            raise NewTeamError(field, 'Choose where this agent works.')
         if r.get('checkout', 'branch') not in preset.CHECKOUTS:
             raise NewTeamError(field, f"Unknown checkout {r.get('checkout')!r}.")
         if r.get('parent') and r['parent'] not in names:
@@ -181,6 +191,7 @@ def _role_toml(r):
     out = ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
            f'checkout = {q(r.get("checkout", "branch"))}']
     out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level') if r.get(key)]
+    out += [f'{key} = true' for key in ('container', 'share_signin') if r.get(key) is True]
     if r.get('owns'):
         out.append(f'owns = {json.dumps(r["owns"], ensure_ascii=False)}')  # a JSON list of strings is a TOML array
     if r.get('rules'):
@@ -290,6 +301,7 @@ class Starter:
             missing = launch.missing_clis(tm.roles, which=self.which)
             if missing:
                 raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then start again.')
+            _container_ready(tm.roles)
             try:
                 for r in tm.roles:  # every worktree now, so a dirty one is reported to the form, not the log
                     worktree.ensure(tm, r)
@@ -342,9 +354,11 @@ class Starter:
         tm = preset.load(folder, practices=False)
         have = [_role_dict(r) for r in tm.roles]
         validate(have + [role])
-        missing = launch.missing_clis([preset.Role(role['name'], role['agent'], '', '')], which=self.which)
+        new = preset.Role(role['name'], role['agent'], '', '', container=role.get('container') is True)
+        missing = launch.missing_clis([new], which=self.which)
         if missing:
             raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then try again.')
+        _container_ready([new])
         name = role['name']
         with open(os.path.join(folder, f'{name}.md'), 'w') as f:
             f.write(role['brief'].rstrip('\n') + '\n')
@@ -401,7 +415,7 @@ _KIND_JOBS = {'planner': 'reads the project, splits the task and hands out piece
 def _models_text(agents, models):
     out = []
     for a in agents:
-        ms = models[a]['models']
+        ms = models.get(a, {'models': []})['models']
         if a == 'claude':
             out.append(f'- claude models, strongest and most expensive first: {", ".join(m["id"] for m in ms)}. '
                        f'Efforts: {", ".join(models[a]["efforts"])}')
@@ -419,7 +433,7 @@ def _prompt(size, review, budget, agents, models):
             f'The change is {_WORDS["size"].get(size, size)}. The person wants to review '
             f'{_WORDS["review"].get(review, review)}. Budget: {_WORDS["budget"].get(budget, budget)}.\n\n'
             f'Role kinds you can use:\n{kinds}\n\n'
-            f'Use 1 to {MAX_ROLES} agents. Each agent is "claude" or "codex"; only these are installed: '
+            f'Use 1 to {MAX_ROLES} agents. Each agent is one of these, the ones installed: '
             f'{", ".join(agents)}. Names use lower-case letters, digits and dashes, and differ.\n\n'
             'Also choose each agent\'s model and thinking effort. Think harder where mistakes cost most (a reviewer '
             'usually thinks harder than a builder); on a lean budget prefer cheaper models and lower effort. Leave '
@@ -454,7 +468,7 @@ def _team_from(text, installed, models):
             raise ValueError(f'unknown role kind {kind!r}.')
         if r.get('agent') not in installed:
             raise ValueError(f"it chose {r.get('agent')}, which is not installed.")
-        model, effort = _model_effort(r, models[r['agent']])
+        model, effort = _model_effort(r, models.get(r['agent'], {'models': [], 'efforts': []}))
         roles.append({'name': str(r.get('name', '')), 'agent': r['agent'], 'job': str(r.get('job', '')),
                       'checkout': KINDS[kind][1], 'parent': planner if kind != 'planner' else None,
                       'brief': kind_brief(kind), 'model': model, 'effort': effort})

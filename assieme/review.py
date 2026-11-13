@@ -119,7 +119,8 @@ class Review:
         self.on_archive = lambda team, role: None  # the brain stops the agent's preview before its folder goes
 
     def _git(self, cwd, *args, **kw):
-        return self.run(['git', '-C', cwd, *args], capture_output=True, encoding='utf-8', errors='replace', **kw)
+        safe = worktree.SAFE if worktree.is_clone(cwd) else ()  # a container agent's copy
+        return self.run(['git', *safe, '-C', cwd, *args], capture_output=True, encoding='utf-8', errors='replace', **kw)
 
     def _rows(self, name=None):
         try:
@@ -189,6 +190,7 @@ class Review:
         for name, project in self._known_teams().items():
             projects.setdefault(project, set()).add(name)
         for project, names in projects.items():  # the app asks every few seconds: as few git calls as possible
+            worktree.sync(project)  # container agents' commits; nothing to do without one
             prefix = 'refs/heads/assieme/'
             refs = self._git(project, 'for-each-ref', '--format=%(objectname) %(committerdate:unix) %(refname) %(contents:subject)', prefix).stdout.splitlines()
             if not refs:
@@ -220,6 +222,7 @@ class Review:
             raise ReviewError(f'{role!r} is not an agent name.')
         project = self._project(name)
         branch = f'assieme/{name}/{role}'
+        worktree.sync(project)
         if not self._has_branch(project, branch):
             raise ReviewError(f"{role} has no branch to review. It may have been merged or discarded.")
         return project, self._base(project), branch, os.path.join(project, '.assieme', 'worktrees', role)
@@ -413,7 +416,11 @@ class Review:
                 self.rt.kill(address)
             except runtime.RuntimeError_ as e:
                 return f"Couldn't stop {role}: {e}"
-        if os.path.isdir(path):
+        if worktree.is_clone(path):  # a container agent's copy: its commits are already in the project
+            if self._dirty(path) and not force:
+                return "Its copy has uncommitted changes, so it was left in place."
+            shutil.rmtree(path, ignore_errors=True)
+        elif os.path.isdir(path):
             r = self._git(project, 'worktree', 'remove', *(['--force'] if force else []), path)
             if r.returncode != 0:
                 return f"Couldn't archive its worktree: {r.stderr.strip()}"
@@ -471,6 +478,7 @@ class Review:
             if not force and self._agent(team, role)['working']:
                 raise ReviewError(f'{role} is still working.')
             notes = {n['id'] for n in self._notes(project, role, branch)}
+            clone = worktree.is_clone(path)
             old, new = self._do_merge(project, base, branch, role)
             try:
                 self._set_ignored(project, self._ignored(project) | notes)
@@ -481,7 +489,7 @@ class Review:
             uid = uuid.uuid4().hex
             self.undos[uid] = {'team': team, 'role': role, 'project': project, 'base': base, 'branch': branch,
                                'path': path, 'tip': tip, 'old': old, 'new': new, 'notes': sorted(notes),
-                               'archived': problem is None}
+                               'archived': problem is None, 'clone': clone}
             self._write_log({'id': uid, 'team': team, 'agent': role, 'action': 'merge', 'undo': True,
                              'title': f"Merged {role} into {base}", 'reason': problem or 'Its worktree is archived.',
                              'restore': self.undos[uid]})
@@ -510,7 +518,7 @@ class Review:
                                   'Commit or set them aside, then undo again.')
             if not self._has_branch(project, branch):
                 self._git(project, 'branch', branch, rec['tip'])
-            if not os.path.isdir(path):
+            if not os.path.isdir(path) and not rec.get('clone'):  # a container's copy is cloned again when it starts
                 r = self._git(project, 'worktree', 'add', path, branch)
                 if r.returncode != 0:
                     raise ReviewError(f"The merge is undone, but its worktree didn't come back: {r.stderr.strip()}")

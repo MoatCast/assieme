@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { agentDetail, type AgentDetail as Detail } from "./bridge";
+import { kindName } from "./kinds";
 import { FixButtons } from "./Team";
 
-const CLI = { claude: "Claude Code", codex: "Codex" };
 const HEADS: Record<string, string> = { asking: "Asking you", stuck: "Seems stuck", waiting: "Has work waiting" };
 const times = (n: number) => (n === 1 ? "once" : `${n} times`);
 
@@ -62,7 +62,7 @@ export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpen
         <div className="sheet-head">
           <div>
             <h2 className="mono">{role}</h2>
-            {d && <p>{[CLI[d.cli], d.job].filter(Boolean).join(" · ")}</p>}
+            {d && <p>{[kindName(d.cli), d.job].filter(Boolean).join(" · ")}</p>}
           </div>
           <button type="button" className="sheet-close" aria-label="Close" onClick={onClose}>
             <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">

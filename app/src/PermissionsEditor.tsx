@@ -1,9 +1,9 @@
+import { kindName } from "./kinds";
 import { useState } from "react";
 import { fieldOf, ruleDraft, type Level, type PermissionTable, type RoleDraft, type Rule } from "./bridge";
 import useModal from "./useModal";
 import "./Editors.css";
 
-const AGENT_NAMES = { claude: "Claude Code", codex: "Codex" } as const;
 export const defaultLevel = (r: Pick<RoleDraft, "checkout">): Level => (r.checkout === "read-only" ? "read-only" : "safe");
 const same = (a: Rule, b: Rule) => a.decision === b.decision && a.program.join(" ") === b.program.join(" ");
 
@@ -93,7 +93,7 @@ export default function PermissionsEditor({ role, roles, project, table, asker, 
         ref={ref} onKeyDown={onKeyDown}>
         <div className="editor-head stacked">
           <div className="editor-title">
-            <span className="editor-where">{projectName} · {role.name} · {AGENT_NAMES[role.agent]}</span>
+            <span className="editor-where">{projectName} · {role.name} · {kindName(role.agent)}</span>
             <h2>What <code>{role.name}</code> may do</h2>
           </div>
           <div className="levels" role="radiogroup" aria-label="Permission level">

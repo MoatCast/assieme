@@ -75,7 +75,7 @@ class PresetTest(_Folder):
     def test_rejects(self):
         base = TEAM.format(project=self.d)
         cases = [
-            (base.replace('agent = "codex"', 'agent = "gemini"'), 'agent'),
+            (base.replace('agent = "codex"', 'agent = "aider"'), 'use one of claude, codex, gemini, opencode, cursor'),
             (base.replace('name = "builder-1"', 'name = "coordinator"').replace('parent = "coordinator"\n', ''), 'duplicate'),
             (base.replace('parent = "coordinator"', 'parent = "nobody"'), 'parent'),
             (base.replace('brief = "builder.md"', 'brief = "missing.md"'), 'brief'),

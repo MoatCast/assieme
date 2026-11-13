@@ -13,7 +13,7 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
+from . import activity, adapters, answers, bridge, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
 
 
 def main(argv=None):
@@ -93,6 +93,10 @@ def main(argv=None):
                                          cwd_rules=rules.running_settings(), extra_rules=extra)
     if os.path.isdir(args.codex_dir):
         sessions += adapters.codex(args.codex_dir, since, args.show_text)
+    if os.path.isdir(os.path.expanduser('~/.gemini/tmp')):
+        sessions += adapters.gemini(os.path.expanduser('~/.gemini'), since, args.show_text)
+    if os.path.isfile(os.path.expanduser('~/.local/share/opencode/opencode.db')):
+        sessions += adapters.opencode(os.path.expanduser('~/.local/share/opencode/opencode.db'), since, args.show_text)
     for path in args.generic:
         sessions += adapters.generic(path, since, args.show_text)
 
@@ -144,6 +148,13 @@ def _service(switch):
     return 0
 
 
+def _prune_tickets(rt):
+    try:
+        bridge.prune({r['address'] for r in team.status(rt) if r['state'] == 'live'})
+    except runtime.RuntimeError_:
+        pass  # no core: nothing is running, and nothing is pruned until one answers
+
+
 def _serve():
     claude, codex = os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions')
     rt = runtime.Runtime()
@@ -175,7 +186,8 @@ def _serve():
                      lambda: machine.tick(status.now_utc()),
                      sched.tick,
                      previews.sweep,
-                     lambda: remotes.tick(watching=menu.app_watching())):
+                     lambda: remotes.tick(watching=menu.app_watching()),
+                     lambda: _prune_tickets(rt)):
             try:
                 step()
             except Exception:  # one failing step must not stop notifications, delivery or the others

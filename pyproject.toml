@@ -22,7 +22,7 @@ assieme = "assieme.cli:main"
 packages = ["assieme"]
 
 [tool.setuptools.package-data]
-assieme = ["practices.toml", "presets/*/*", "presets/briefs/*", "guide/*"]
+assieme = ["practices.toml", "presets/*/*", "presets/briefs/*", "guide/*", "opencode_status.js", "container/Dockerfile"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
