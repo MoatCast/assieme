@@ -1,4 +1,4 @@
-# One image per agent kind: assieme-agent-<kind>:1. Built on this Mac by Assieme, on the owner's click.
+# One image per agent kind: assieme-agent-<kind>:1. Built on this Mac by Assieme, on the person's click.
 FROM node:22-bookworm-slim
 ARG KIND
 ARG MCP_VERSION
