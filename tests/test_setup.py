@@ -156,7 +156,7 @@ class InstallTools(unittest.TestCase):
         self.assertEqual(calls, [['xcode-select', '--install']])
 
     def test_handlers_carry_both_methods(self):
-        self.assertEqual(sorted(setup.handlers(None)), ['setup.commands', 'setup.folder_create', 'setup.folder_preview',
+        self.assertEqual(sorted(setup.handlers(None)), ['container.build', 'container.open', 'container.status', 'setup.commands', 'setup.folder_create', 'setup.folder_preview',
                                                         'setup.folder_save', 'setup.install_agent', 'setup.install_stop',
                                                         'setup.install_tools', 'setup.signin_agent', 'setup.status',
                                                         'setup.terminal_state'])

@@ -9,7 +9,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, live, launch, preset, runtime, settings, setup, team, worktree
+from . import ask, container, live, launch, preset, runtime, settings, setup, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -45,7 +45,8 @@ def kind_brief(kind):
 
 def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
-            'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group}
+            'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group, 'container': r.container,
+            'share_signin': r.share_signin}
 
 
 def _as_preset(folder, id_, label=None):
@@ -133,6 +134,13 @@ def project_check(path):
     return {'ok': True, 'uncommitted': n} if n else {'ok': True}
 
 
+def _container_ready(roles):
+    for r in roles:
+        problem = r.container and container.problem(r.agent)
+        if problem:
+            raise NewTeamError('start', f'{r.name} runs in a container. {problem}')
+
+
 def validate(roles):
     if not roles:
         raise NewTeamError('roles', 'Add at least one agent.')
@@ -143,6 +151,8 @@ def validate(roles):
             raise NewTeamError(field, BAD_NAME)
         if r.get('agent') not in preset.AGENTS:
             raise NewTeamError(field, 'Choose which agent runs this.')
+        if any(r.get(k) not in (None, True, False) for k in ('container', 'share_signin')):
+            raise NewTeamError(field, 'Choose where this agent works.')
         if r.get('checkout', 'branch') not in preset.CHECKOUTS:
             raise NewTeamError(field, f"Unknown checkout {r.get('checkout')!r}.")
         if r.get('parent') and r['parent'] not in names:
@@ -275,6 +285,7 @@ class Starter:
             missing = launch.missing_clis(tm.roles, which=self.which)
             if missing:
                 raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then start again.')
+            _container_ready(tm.roles)
             try:
                 for r in tm.roles:  # every worktree now, so a dirty one is reported to the form, not the log
                     worktree.ensure(tm, r)
@@ -327,9 +338,11 @@ class Starter:
         tm = preset.load(folder, practices=False)
         have = [_role_dict(r) for r in tm.roles]
         validate(have + [role])
-        missing = launch.missing_clis([preset.Role(role['name'], role['agent'], '', '')], which=self.which)
+        new = preset.Role(role['name'], role['agent'], '', '', container=role.get('container') is True)
+        missing = launch.missing_clis([new], which=self.which)
         if missing:
             raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then try again.')
+        _container_ready([new])
         name = role['name']
         with open(os.path.join(folder, f'{name}.md'), 'w') as f:
             f.write(role['brief'].rstrip('\n') + '\n')

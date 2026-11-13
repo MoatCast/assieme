@@ -45,7 +45,8 @@ class PresetsTest(unittest.TestCase):
         self.assertEqual([r['name'] for r in full],
                          ['planner', 'builder-1', 'builder-2', 'builder-3', 'reviewer', 'tester'])
         self.assertTrue(all(r['job'] and r['brief'] and 'Team practices' not in r['brief'] for r in full))
-        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief', 'model', 'effort', 'group'})
+        self.assertEqual(set(full[0]), {'name', 'agent', 'job', 'checkout', 'parent', 'brief', 'model', 'effort', 'group',
+                                        'container', 'share_signin'})
         self.assertIsNone(full[0]['parent'])
         self.assertEqual(full[4]['checkout'], 'read-only')
         self.assertEqual([g['id'] for g in p['practices']['groups']][0], 'messages')
@@ -627,3 +628,21 @@ class AddAgentTest(unittest.TestCase):
     def test_practice_defaults_reach_presets(self):
         settings.set_value('practices.reviews', False)
         self.assertEqual(newteam.presets(self.teams)['practice_defaults'], {'reviews': False})
+
+
+class ContainerRoleTest(unittest.TestCase):
+    def test_a_container_role_round_trips_through_its_saved_folder(self):
+        project, teams = tempfile.mkdtemp(), tempfile.mkdtemp()
+        newteam.save(project, [{'name': 'x', 'agent': 'gemini', 'brief': 'b', 'container': True, 'share_signin': True}],
+                     {}, 'g', teams)
+        r = preset.load(os.path.join(teams, 'g')).roles[0]
+        self.assertEqual((r.agent, r.container, r.share_signin), ('gemini', True, True))
+
+    def test_where_it_works_must_be_a_yes_or_no(self):
+        with self.assertRaisesRegex(newteam.NewTeamError, 'where this agent works'):
+            newteam.validate([{'name': 'x', 'agent': 'gemini', 'brief': 'b', 'container': 'yes'}])
+
+    def test_start_refuses_when_docker_is_not_running(self):
+        with mock.patch.object(newteam.container, 'problem', return_value='Docker is on this Mac but not running.'):
+            with self.assertRaisesRegex(newteam.NewTeamError, 'x runs in a container. Docker is on this Mac but not running.'):
+                newteam._container_ready([preset.Role('x', 'gemini', '', '', container=True)])

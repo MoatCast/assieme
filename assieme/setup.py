@@ -373,4 +373,28 @@ def handlers(rt):
             'setup.terminal_state': lambda address: terminal_state(rt, address),
             'setup.install_stop': lambda address: install_stop(rt, address),
             'setup.status': status, 'setup.install_tools': install_tools, 'setup.folder_preview': folder_preview,
-            'setup.folder_save': folder_save, 'setup.folder_create': folder_create}
+            'setup.folder_save': folder_save, 'setup.folder_create': folder_create,
+            'container.status': container_status, 'container.build': lambda agent: container_build(rt, agent),
+            'container.open': container_open}
+
+
+def container_status(agent):
+    from . import container
+    _known(agent)
+    return container.state(agent)
+
+
+def container_build(rt, agent):
+    """Download and build: in a setup terminal, like an install, so it can be watched and survives the app."""
+    from . import container
+    _known(agent)
+    try:
+        return _start(rt, agent, 'container', container.build_command(agent))
+    except container.ContainerError as e:
+        raise SetupError(str(e)) from None
+
+
+def container_open(run=subprocess.run):
+    """Open Docker Desktop, which starts its engine. Never installs anything."""
+    run(['open', '-a', 'Docker'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=TIMEOUT_S)
+    return {'ok': True}
