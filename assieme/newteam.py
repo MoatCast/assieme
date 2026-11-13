@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import tomllib
@@ -23,6 +24,7 @@ KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
 TOO_LARGE = "This folder is very large. Choose the folder for just this project."
 NO_TOOLS = "This needs Apple's developer tools first."
+NO_GIT = "This machine needs git. Install it there, then choose the folder again."
 
 
 class NewTeamError(ValueError):
@@ -104,6 +106,8 @@ def model_options(codex_cache=None):
 
 def project_check(path):
     if not setup.git_ready():
+        if sys.platform != 'darwin' or os.environ.get('ASSIEME_HC_SOCKET'):  # a remote machine: nothing to click here
+            return {'ok': False, 'reason': NO_GIT}
         return {'ok': False, 'reason': NO_TOOLS, 'tools': True}
     path = os.path.expanduser(path)
     if not os.path.isdir(path):

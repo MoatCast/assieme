@@ -165,6 +165,17 @@ class RoutingTest(unittest.TestCase):
         rows = self.h['activity.list']()['rows']
         self.assertEqual([(r['id'], r.get('machine')) for r in rows], [('devbox/r1', 'devbox'), ('h1', None)])
 
+    def test_a_team_view_there_is_kept_and_shown_while_its_machine_is_away(self):
+        self.rt.answers['team.view'] = {'team': 'api', 'panes': [{'address': 't2'}]}
+        self.assertNotIn('unreachable', self.h['team.view'](team='api'))
+        self.rt.state = 'unreachable'
+        self.rx.raw_at = None
+        away = self.h['team.view'](team='api')
+        self.assertEqual((away['panes'], away['unreachable']['name'], away['unreachable']['state']),
+                         ([{'address': 'devbox/t2'}], 'devbox', 'unreachable'))
+        with self.assertRaises(remote.RemoteError):  # never seen: nothing to show from before
+            self.h['team.view'](team='api', role='x')
+
     def test_an_unreachable_machine_never_breaks_a_local_list(self):
         self.rt.state = 'unreachable'
         self.assertEqual(self.h['activity.list']()['rows'][0]['id'], 'h1')

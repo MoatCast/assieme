@@ -157,10 +157,11 @@ test("Customise opens Recommended setup", async () => {
   expect(b.startTeam).not.toHaveBeenCalled();
 });
 
-test("Where should the agents run is gone", async () => {
+test("Where should the agents run starts on this Mac, with nothing to set up", async () => {
   await open();
-  expect(screen.queryByText("Where should the agents run?")).toBeNull();
-  expect(screen.queryByRole("radio")).toBeNull();
+  screen.getByText("Where should the agents run?");
+  expect(screen.getByRole("radio", { name: /This Mac/ }).getAttribute("aria-checked")).toBe("true");
+  expect(screen.queryByLabelText("Machine")).toBeNull();
 });
 
 test("Mix Claude Code and Codex shows only when both are installed", async () => {

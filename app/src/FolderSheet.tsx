@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { folderPreview, folderSave, type FolderPreview } from "./bridge";
+import { folderPreviewOn, folderSaveOn } from "./remote";
 import useModal from "./useModal";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -11,7 +12,7 @@ const leftOut = (names: string[]) => names.slice(0, NAMES).join(", ") + more(nam
 
 /** Set up this folder (a first saved version) and Save them first (a new one): one sheet, since `folderSave`
  *  picks the right commit from the repository's state. Copy is from Paper "New team: set up folder" and the spec (section 2). */
-export default function FolderSheet({ project, onClose, onSaved }: { project: string; onClose: () => void; onSaved: () => void }) {
+export default function FolderSheet({ project, onClose, onSaved, machine }: { project: string; onClose: () => void; onSaved: () => void; machine?: string }) {
   const [preview, setPreview] = useState<FolderPreview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,7 +20,7 @@ export default function FolderSheet({ project, onClose, onSaved }: { project: st
 
   const load = () => {
     setError("");
-    folderPreview(project).then(setPreview, (e) => setError(message(e)));
+    (machine ? folderPreviewOn(project, machine) : folderPreview(project)).then(setPreview, (e) => setError(message(e)));
   };
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -27,7 +28,7 @@ export default function FolderSheet({ project, onClose, onSaved }: { project: st
     setBusy(true);
     setError("");
     try {
-      await folderSave(project);
+      await (machine ? folderSaveOn(project, machine) : folderSave(project));
       onSaved();
     } catch (e) {
       setError(message(e));

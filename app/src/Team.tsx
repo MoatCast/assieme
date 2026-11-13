@@ -6,6 +6,7 @@ import DailyLimits from "./DailyLimits";
 import Offline from "./Offline";
 import { AgentsMap, GroupsMap } from "./TeamMap";
 import { ago } from "./Terminals";
+import Unreachable, { awayTitle } from "./Unreachable";
 import "./Team.css";
 
 export const SAYS: Partial<Record<Pane["state"], string>> = {
@@ -196,13 +197,15 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
     refresh.current();
   };
   const here = starting.filter((s) => s.team === team);
+  const away = map.unreachable; // its machine can't be reached: the last view from there, greyed
+  const heading = away ? awayTitle(away) : null;
 
   return (
-    <div className="team">
+    <div className={away ? "team away" : "team"}>
       <div className="team-left">
         <div className="team-title">
-          <h1>{group ? `${group.name}: ${map.title.charAt(0).toLowerCase()}${map.title.slice(1)}` : map.title}</h1>
-          <p>{group ? `${group.roles.length} of ${map.nodes.length} agents.` : map.subtitle}</p>
+          <h1>{heading ? heading.title : group ? `${group.name}: ${map.title.charAt(0).toLowerCase()}${map.title.slice(1)}` : map.title}</h1>
+          <p>{heading ? heading.subtitle : group ? `${group.roles.length} of ${map.nodes.length} agents.` : map.subtitle}</p>
           {offline && <Offline team />}
           {here.flatMap((s, i) => {
             if (s.error) return [<p key={i} className="start-error">Couldn’t add the agent: {s.error}</p>];
@@ -239,7 +242,8 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
         </div>
       </div>
       <div className="team-right">
-        {cards.length === 0 && (
+        {away && <Unreachable line={away} onRetried={() => refresh.current()} />}
+        {cards.length === 0 && !away && (
           <div className="nothing">
             <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" strokeLinecap="round">
               <circle cx="11" cy="11" r="9" /><path d="M7 11.5l3 3 5-6" />

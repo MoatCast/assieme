@@ -51,6 +51,8 @@ export default function Shell() {
   const { names, neediest } = liveTeams(snap);
   const team = picked && names.includes(picked) ? picked : neediest; // a pick sticks until that team stops
   const started = (snap?.teams ?? []).some((t) => t.team === team && t.state === "live");
+  const row = (snap?.teams ?? []).find((t) => t.team === team); // a team on another machine says which (step 15)
+  const away = row?.reachable === false;
   // Until the first snapshot answers, nothing decides: First run is what a new person should see.
   const shown: Tab = tab ?? (snap?.first_run_done ? "team" : "first-run");
 
@@ -108,7 +110,7 @@ export default function Shell() {
                 {names.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             )}
-            {names.length > 0 && <span className="where">· This Mac</span>}
+            {names.length > 0 && <span className="where">· {row?.machine ?? "This Mac"}</span>}
           </div>
           <div className="tabs" role="tablist">
             {TABS.map(([id, label]) => (
@@ -123,7 +125,7 @@ export default function Shell() {
             ))}
           </div>
           <div className="shell-right" data-tauri-drag-region>
-            {started && <button type="button" className="add-agent" onClick={() => setBriefing(true)}>Team brief</button>}
+            {started && <button type="button" className="add-agent" disabled={away} onClick={() => setBriefing(true)}>Team brief</button>}
             {team && shown === "board" && (
               <button type="button" className="add-agent" onClick={() => setTasking(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -133,7 +135,7 @@ export default function Shell() {
               </button>
             )}
             {started && shown !== "board" && (
-              <button type="button" className="add-agent" onClick={() => setAdding(true)}>
+              <button type="button" className="add-agent" disabled={away} onClick={() => setAdding(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                   <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>

@@ -3,6 +3,7 @@ import {
   installAgent, installStop, openLink, setupCommands, setupStatus, signinAgent, terminalState,
   type AgentKind, type SetupCommands, type SetupStatus,
 } from "./bridge";
+import { installAgentOn, setupStatusOn, signinAgentOn } from "./remote";
 import Terminal from "./Terminal";
 import useModal from "./useModal";
 
@@ -25,13 +26,19 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** The sheet that installs an agent, or signs in to one, in a terminal the person can see.
  *  status: the checklist's poll, which tells when the sign-in worked. */
-export default function InstallSheet({ agent, start, status, onClose, pollMs = 2000 }: {
+export default function InstallSheet({ agent, start, status, onClose, pollMs = 2000, machine }: {
   agent: AgentKind;
   start: "install" | "signin";
   status: SetupStatus | null;
   onClose: () => void;
   pollMs?: number;
+  /** Another machine (step 15): it installs there, in a terminal on that machine. */
+  machine?: string;
 }) {
+  const install = machine ? (a: AgentKind) => installAgentOn(a, machine) : installAgent;
+  const signin = machine ? (a: AgentKind) => signinAgentOn(a, machine) : signinAgent;
+  const statusNow = machine ? () => setupStatusOn(machine) : setupStatus;
+  const [there, setThere] = useState<SetupStatus | null>(null); // a machine's own sign-in check: nobody else polls it
   const [step, setStep] = useState<Step>(start === "install" ? "confirm" : "signin");
   const [address, setAddress] = useState<string | null>(null);
   const [commands, setCommands] = useState<SetupCommands | null>(null);
@@ -49,7 +56,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
       setAddress(null);
     }
     try {
-      const { address: a } = await (kind === "install" ? installAgent : signinAgent)(agent);
+      const { address: a } = await (kind === "install" ? install : signin)(agent);
       setAddress(a);
       if (kind === "install") setStep("installing");
     } catch (e) {
@@ -75,7 +82,7 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
     const poll = async () => {
       try {
         if ((await terminalState(address)) === "finished") {
-          const found = (await setupStatus()).agents[agent];
+          const found = (await statusNow()).agents[agent];
           if (stopped) return;
           setError("");
           if (!found.installed) return setStep("failed");
@@ -108,7 +115,12 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
   // Escape does what Cancel or Skip for now does.
   const { ref: dialog, onKeyDown } = useModal(() => void (step === "installing" || step === "signin" ? stopAndClose() : onClose()), [step, !!commands]);
 
-  const signedIn = !!status?.agents[agent].signed_in;
+  useEffect(() => {
+    if (!machine || step !== "signin") return;
+    const timer = setInterval(() => void statusNow().then(setThere, () => {}), pollMs);
+    return () => clearInterval(timer);
+  }, [machine, step, pollMs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const signedIn = !!(status ?? there)?.agents[agent].signed_in;
   const terminal = address && (
     <div className="sheet-terminal">
       <Terminal key={address} session="assieme" address={address} typing />
@@ -146,7 +158,8 @@ export default function InstallSheet({ agent, start, status, onClose, pollMs = 2
   const heading = {
     installing: [`Installing ${name}`, "This can take a minute. It may look still while it downloads. You can ignore any setup notes: Assieme will find it."],
     failed: [`${name} didn’t install`, "Check your internet, then try again. The details are below."],
-    signin: [`Sign in to ${name}`, "A browser window will open. Sign in, then come back here. If it shows a code, paste it below."],
+    signin: [`Sign in to ${name}`, machine ? `Open the link it shows below, sign in, then paste the code here. It signs ${name} in on ${machine}.`
+      : "A browser window will open. Sign in, then come back here. If it shows a code, paste it below."],
   }[step];
 
   return (

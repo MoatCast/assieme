@@ -106,6 +106,12 @@ class CheckSaveTest(unittest.TestCase):
         self.assertEqual((got['ok'], got['tools']), (False, True))
         self.assertEqual(got['reason'], "This needs Apple's developer tools first.")
 
+    def test_on_a_remote_machine_missing_git_is_said_plainly(self):
+        with mock.patch.object(newteam.setup, 'git_ready', return_value=False), \
+                mock.patch.dict(os.environ, {'ASSIEME_HC_SOCKET': '/tmp/x.sock'}):
+            got = newteam.project_check(os.path.join(self.d, 'nope'))
+        self.assertEqual(got, {'ok': False, 'reason': 'This machine needs git. Install it there, then choose the folder again.'})
+
     def test_home_is_refused_however_it_is_written(self):
         link = os.path.join(self.d, 'homelink')
         os.symlink(self.repo, link)

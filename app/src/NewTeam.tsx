@@ -6,6 +6,8 @@ import HerdrImport from "./HerdrImport";
 import ModelMenu, { choiceLabel } from "./ModelMenu";
 import Offline from "./Offline";
 import RecommendedSetup, { footerNote } from "./RecommendedSetup";
+import RemoteMachine, { RemoteProject } from "./RemoteMachine";
+import { checkProjectOn, startTeamOn } from "./remote";
 import "./NewTeam.css";
 
 type Clis = { claude: boolean; codex: boolean };
@@ -25,7 +27,10 @@ export function badName(roles: RoleDraft[]): number {
 /** New team, step 1: project, task, starting team and agents. Step 2 is Recommended setup. */
 /** clis: null until the service has said which are installed. */
 export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000, onClose, onStarted }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; recheckMs?: number; onClose: () => void; onStarted?: () => void }) {
-  const installed = AGENTS.filter(([id]) => clis?.[id]);
+  const [machine, setMachine] = useState<string | null>(null); // null: this Mac; "": a remote machine, none chosen yet
+  const [there, setThere] = useState<Clis | null>(null); // the agents on that machine, once it is ready
+  const have = machine === null ? clis : there;
+  const installed = AGENTS.filter(([id]) => have?.[id]);
   const [offline, setOffline] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [practices, setPractices] = useState<Practices | null>(null);
@@ -56,7 +61,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const starting = useRef(false); // a second click before React re-renders must not start a second team
 
   const fit = (rs: RoleDraft[]) =>
-    rs.map((r) => (clis?.[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }));
+    rs.map((r) => (have?.[r.agent] || !installed.length ? r : { ...r, agent: installed[0][0] }));
 
   useEffect(() => {
     let stopped = false;
@@ -86,6 +91,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       clearTimeout(timer);
     };
   }, []);
+
+  // Another machine has its own agents: each role uses one that is there.
+  useEffect(() => { if (have) setRoles((rs) => fit(rs)); }, [have]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** An assistant's draft, or an import from herdr: the whole form, which the person checks before Start. */
   function apply(d: TeamDraft) {
@@ -147,7 +155,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setCheckError("");
     if (!keep) setCheck(null);
     try {
-      const c = await checkProject(p);
+      const c = await (machine ? checkProjectOn(p, machine) : checkProject(p));
       if (id === latest.current) setCheck(c);
     } catch (e) {
       if (id === latest.current) setCheckError(message(e));
@@ -231,7 +239,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setPending(true);
     setStartError("");
     try {
-      await startTeam({ project, task: task.trim(), roles, practices: practiceOn });
+      const form = { project, task: task.trim(), roles, practices: practiceOn };
+      await (machine ? startTeamOn(form, machine) : startTeam(form));
       onStarted?.();
       onClose();
     } catch (e) {
@@ -251,13 +260,15 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
 
   // The first thing still missing, or nothing once Next can be pressed.
   const missing = offline ? "Waiting for Assieme’s service."
+    : machine === "" ? "Connect a machine to continue."
+    : machine && !there ? `Waiting for ${machine} to be ready.`
     : !project ? "Choose a project folder to continue."
     : !check ? (checkError ? "Couldn’t check this folder. Choose it again to continue." : "Checking this folder…")
     : check.tools ? "Install developer tools to continue."
     : check.setup ? "Set up this folder to continue."
     : projectError || !check.ok ? "Choose a different folder to continue."
     : !task.trim() ? "Say what the team should work on to continue."
-    : clis && !installed.length ? "Install Claude Code or Codex to continue."
+    : have && !installed.length ? "Install Claude Code or Codex to continue."
     : installed.length && !roles.length ? "Add an agent to continue."
     : "";
   const ready = !missing && installed.length > 0;
@@ -269,7 +280,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     );
 
   const warn = !!check?.ok && !!check.uncommitted;
-  const button = check?.tools ? { label: "Install developer tools", act: installDevTools }
+  const button = check?.tools && !machine ? { label: "Install developer tools", act: installDevTools }
     : check?.setup ? { label: "Set up this folder", act: () => setFolderSheet(true) }
     : warn ? { label: "Save them first", act: () => setFolderSheet(true) } : null;
   const plainError = (check && !check.ok && !check.tools && !check.setup && !check.too_large && check.reason) || projectError;
@@ -296,10 +307,11 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
               <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2 4.5h4l1.5 1.5H14v6.5H2z" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" />
               </svg>
+              {machine ? <RemoteProject machine={machine} value={project} onChange={setProject} onDone={use} /> : <>
               <span className="grow">{project ? shortPath(project) : "No folder chosen"}</span>
               <button type="button" className="pick" onClick={newFolder}>New folder…</button>
               <span className="muted" aria-hidden="true">·</span>
-              <button type="button" className="pick" onClick={chooseFolder}>Choose…</button>
+              <button type="button" className="pick" onClick={chooseFolder}>Choose…</button></>}
             </div>
             {plainError && <p className="error">{plainError}</p>}
             {checkError && <p className="error">{checkError}</p>}
@@ -311,6 +323,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
               </div>
             )}
           </div>
+
+          <RemoteMachine machine={machine} onAgents={setThere}
+            onMachine={(m) => { setMachine(m); setProject(""); setCheck(null); setProjectError(""); }} />
 
           <label className="field">
             <span className="label">What should the team work on?</span>
@@ -338,7 +353,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                 onClick={() => setImporting(true)}>From herdr…</button>
             </div>
             {helping && (
-              <HelpMeChoose project={project} agent={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
+              <HelpMeChoose machine={machine || undefined} project={project} agent={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
                 onCancel={() => setHelping(false)}
                 onDone={(s) => {
                   setRoles(fit(s.roles));
@@ -358,8 +373,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
             </div>
             {why && <p className="muted">{why}</p>}
             {installed.length === 0 ? (
-              offline ? null : clis ? (
-                <p className="error">Install Claude Code or Codex, then reopen New team.</p>
+              offline ? null : have ? (
+                <p className="error">{machine ? `Install Claude Code or Codex on ${machine}, above.` : "Install Claude Code or Codex, then reopen New team."}</p>
               ) : <p className="muted">Checking which agents are installed…</p>
             ) : (
               <div className="agents">
@@ -434,7 +449,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
         </footer>
       </div>
     </div>
-    {folderSheet && <FolderSheet project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
+    {folderSheet && <FolderSheet machine={machine || undefined} project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
     {importing && (
       <HerdrImport onClose={() => setImporting(false)} onImported={async (d) => {
         setImporting(false);

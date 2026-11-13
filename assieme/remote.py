@@ -32,7 +32,8 @@ HOME_DIR = '.local/share/assieme'         # from the home folder there
 CALL_S = 18                               # under the app's own 20 s, so its error is ours, not a timeout
 SLOW_S = {'team.start': 115, 'team.add_agent': 115, 'team.suggest': 175, 'review.get': 55, 'review.merge': 55,
           'review.undo': 55, 'review.discard': 55, 'review.pull_request': 255, 'review.ask': 85, 'review.note': 85}
-LIST_S = 8                                # a remote that lists slower than this is shown from its last answer
+KEPT = ('team.map', 'team.view', 'agent.detail', 'board.get', 'brief.get')  # shown from their last answer while away
+LIST_S = 8                               # a remote that lists slower than this is shown from its last answer
 BRAIN_WAIT_S = 30
 WOKE_S = 60                               # a longer gap between ticks: the Mac slept
 TAILSCALE_APP = '/Applications/Tailscale.app/Contents/MacOS/Tailscale'
@@ -367,7 +368,17 @@ class Remotes:
                     params['name'] = newteam.team_name(params.get('project') or 'team', taken)
                 with self.lock:
                     self.starts.add(m)  # its progress shows from that brain's records
-            return self.call(m, name, params)
+            key = (m, name, json.dumps(params, sort_keys=True))
+            try:
+                got = self.call(m, name, params)
+            except RemoteError:
+                if key not in self.last:
+                    raise
+                line = next((x for x in self.machines() if x['name'] == m), {'name': m, 'state': 'unreachable'})
+                return self.last[key] | {'unreachable': line}  # what the team was doing when it was last seen
+            if name in KEPT and isinstance(got, dict):
+                self.last[key] = got
+            return got
         return handler
 
     def _merges(self):
