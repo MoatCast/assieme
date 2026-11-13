@@ -76,7 +76,16 @@ export type RoleDraft = {
   worktree?: string;
   branch?: string;
   resume?: string;
+  /** Step 32: skill, plugin, extension and server ids turned off for this agent; whether new ones are on. */
+  tools_off?: string[];
+  tools_new?: boolean;
+  tools_known?: string[];
 };
+
+/** Step 32: one skill, plugin, extension or MCP server an agent kind has installed. Names only, never its settings. */
+export type ToolItem = { id: string; type: "server" | "plugin" | "skill" | "extension"; name: string; description: string;
+  locked: boolean; why: string };
+export type ToolChoice = { tools_off: string[]; tools_new: boolean };
 
 export type Level = "safe" | "read-only" | "trusted";
 /** A rule on the program run: its first words, matched as a prefix. `words` is how the person wrote it. */
@@ -347,6 +356,13 @@ export type FoundAgent = { name: string; cwd: string; group: string };
 
 export const teamMap = (team: string) => brain<TeamMap>("team.map", { team });
 export const agentDetail = (team: string, role: string) => brain<AgentDetail | null>("agent.detail", { team, role });
+export const toolsFind = (kind: AgentKind, project: string | null, own_copy = true) =>
+  brain<{ items: ToolItem[]; notices: string[] }>("tools.find", { kind, project, own_copy });
+export const toolsSuggest = (role_kind: string | null, kind: AgentKind, project: string | null, own_copy = true) =>
+  brain<string[]>("tools.suggest", { role_kind, kind, project, own_copy });
+export const agentSetTools = (team: string, role: string, choice: ToolChoice) =>
+  brain<{ ok: boolean; id: string }>("agent.set_tools", { team, role, ...choice });
+export const agentRestart = (team: string, role: string) => brain<{ ok: boolean; detail: string }>("agent.restart", { team, role });
 export const tipApply = (team: string, tip: string) => brain<{ ok: boolean; detail: string }>("tip.apply", { team, tip });
 /** Creating a worktree can take a while on a large repository. */
 export const addAgent = (team: string, role: Partial<RoleDraft> & { kind: string }) =>

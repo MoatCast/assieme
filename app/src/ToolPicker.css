@@ -1,0 +1,42 @@
+/* Skills and servers per agent (step 32), from Paper "v2 — Tools: picker for a reviewer" and its dark frame.
+   Colours only from tokens.css, so dark mode follows. */
+.modal.tools { width: 560px; max-height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 18px; }
+.modal.tools p { margin: 0; }
+.modal.tools .tools-note { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 13px; line-height: 18px;
+  color: var(--quiet-tip-text); background: var(--quiet-tip-tint); border: 1px solid var(--quiet-tip-line);
+  border-radius: var(--quiet-radius-inner); }
+.modal.tools .tools-note span { flex: 1; }
+.modal.tools .tools-note .link-btn { color: var(--quiet-tip-text); }
+.modal.tools .tools-search { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.modal.tools .tools-field { flex: 1; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+  color: var(--quiet-control); border: 1px solid var(--quiet-line-strong); border-radius: 999px; }
+.modal.tools .tools-field input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 13px;
+  color: var(--quiet-ink); }
+.modal.tools .tools-count { width: 64px; flex-shrink: 0; text-align: right; font-weight: 600; color: var(--quiet-ink); }
+.modal.tools .tools-groups { display: flex; flex-direction: column; gap: 18px; overflow-y: auto; min-height: 0; }
+.modal.tools .tools-group { display: flex; flex-direction: column; gap: 8px; }
+.modal.tools .tools-heading { font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.modal.tools .tools-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.modal.tools .tools-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font: inherit; font-size: 13px;
+  line-height: 16px; border-radius: 999px; border: 1px solid transparent; background: none; cursor: pointer; }
+.modal.tools .tools-chip.on { padding-left: 10px; font-weight: 500; color: var(--quiet-ink); border-color: var(--quiet-accent);
+  background: color-mix(in srgb, var(--quiet-accent) 8%, transparent); }
+.modal.tools .tools-chip.on svg { color: var(--quiet-accent); }
+.modal.tools .tools-chip.off { color: var(--quiet-mute); border-color: var(--quiet-line-strong); }
+.modal.tools .tools-chip.locked { padding-left: 10px; color: var(--quiet-slate); background: var(--quiet-fog); cursor: default; }
+.modal.tools .tools-chip.locked svg, .modal.tools .tools-locked svg { color: var(--quiet-control); flex-shrink: 0; }
+.modal.tools .tools-chip:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
+.modal.tools .tools-locked { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; line-height: 18px;
+  color: var(--quiet-slate); }
+.modal.tools .tools-locked svg { margin-top: 3px; }
+.modal.tools .tools-match { font-size: 13px; line-height: 18px; color: var(--quiet-mute); }
+.modal.tools .tools-new { display: flex; align-items: center; gap: 12px; padding-top: 14px; border-top: 1px solid var(--quiet-line); }
+.modal.tools .tools-new div { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.modal.tools .tools-new strong { font-size: 14px; font-weight: 500; line-height: 18px; color: var(--quiet-ink); }
+.modal.tools .tools-new span { font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.modal.tools .tools-switch { flex-shrink: 0; width: 36px; height: 22px; padding: 2px; display: flex; align-items: center;
+  border: 0; border-radius: 999px; background: var(--quiet-line-strong); cursor: pointer; }
+.modal.tools .tools-switch span { width: 18px; height: 18px; border-radius: 999px; background: var(--quiet-surface); }
+.modal.tools .tools-switch.on { justify-content: flex-end; background: var(--quiet-accent); }
+.modal.tools .tools-switch:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
+.modal.tools .sheet-actions { justify-content: flex-end; }
