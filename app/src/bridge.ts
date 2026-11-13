@@ -362,7 +362,10 @@ export const toolsSuggest = (role_kind: string | null, kind: AgentKind, project:
   brain<string[]>("tools.suggest", { role_kind, kind, project, own_copy });
 export const agentSetTools = (team: string, role: string, choice: ToolChoice) =>
   brain<{ ok: boolean; id: string }>("agent.set_tools", { team, role, ...choice });
-export const agentRestart = (team: string, role: string) => brain<{ ok: boolean; detail: string }>("agent.restart", { team, role });
+export type AgentTools = { items: ToolItem[]; notices: string[]; value: ToolChoice; suggested: string[];
+  role_kind: string | null; agent: AgentKind };
+export const agentTools = (team: string, role: string) => brain<AgentTools>("agent.tools", { team, role });
+export const agentRestart =(team: string, role: string) => brain<{ ok: boolean; detail: string }>("agent.restart", { team, role });
 export const tipApply = (team: string, tip: string) => brain<{ ok: boolean; detail: string }>("tip.apply", { team, tip });
 /** Creating a worktree can take a while on a large repository. */
 export const addAgent = (team: string, role: Partial<RoleDraft> & { kind: string }) =>

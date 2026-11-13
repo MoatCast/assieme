@@ -521,6 +521,7 @@ class Brain:
                 'agent.set_tools': lambda team, role, tools_off, tools_new:
                     {'ok': True, 'id': agenttools.set_tools(self.starter.teams, team, role, tools_off, tools_new)['id']},
                 'agent.restart': lambda team, role: agenttools.restart(self.starter.teams, self.rt, team, role),
+                'agent.tools': lambda team, role: agenttools.for_agent(self.starter.teams, team, role),
                 'tip.apply': lambda team, tip: self.tip(team, tip),
                 'team.add_agent': lambda team, role: self.starter.add_agent(team, role),
                 'team.stop': lambda team: self.stop(team),

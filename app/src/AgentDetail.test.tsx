@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { AgentDetail as Detail } from "./bridge";
 
-const b = vi.hoisted(() => ({ agentDetail: vi.fn(), paneAct: vi.fn(), teamMap: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn() }));
+const b = vi.hoisted(() => ({ agentDetail: vi.fn(), paneAct: vi.fn(), teamMap: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn(),
+  agentTools: vi.fn(), agentSetTools: vi.fn(), agentRestart: vi.fn() }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
 
@@ -77,4 +78,35 @@ test("a fix button acts, and Open terminal works", async () => {
   expect(calls.changed).toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Open terminal" }));
   expect(calls.term).toHaveBeenCalledWith("builder-3");
+});
+
+test("skills and servers: change them, then restart with them or later", async () => {
+  const items = ["skill:gsap-core", "skill:gsap-timeline", "server:context7"].map((id) => ({
+    id, type: id.split(":")[0] as "skill" | "server", name: id.split(":")[1], description: "", locked: false, why: "" }));
+  b.agentTools.mockResolvedValue({ items, notices: [], value: { tools_off: [], tools_new: true }, suggested: [],
+    role_kind: "builder", agent: "codex" });
+  b.agentSetTools.mockResolvedValue({ ok: true, id: "x" });
+  b.agentRestart.mockResolvedValue({ ok: true, detail: "" });
+  const calls = await open(D());
+  expect(screen.getByText("3 of 3 on.")).toBeTruthy();
+  fireEvent.click(screen.getByText("Change…"));
+  fireEvent.click(screen.getByRole("checkbox", { name: "gsap-timeline" }));
+  fireEvent.click(screen.getByText("Done"));
+  await act(async () => {});
+  expect(b.agentSetTools).toHaveBeenCalledWith("shop", "builder-3", { tools_off: ["skill:gsap-timeline"], tools_new: true });
+  expect(screen.getByText("2 of 3 on. You turned off gsap-timeline.")).toBeTruthy();
+  expect(screen.getByText(/This applies when builder-3 next starts/)).toBeTruthy();
+  fireEvent.click(screen.getByText("Restart with these"));
+  await act(async () => {});
+  expect(b.agentRestart).toHaveBeenCalledWith("shop", "builder-3");
+  expect(calls.changed).toHaveBeenCalled();
+  expect(screen.queryByText(/This applies when builder-3 next starts/)).toBeNull();
+});
+
+test("no tools section when the brain has none for this agent", async () => {
+  b.agentTools.mockResolvedValue({ items: [], notices: ["Antigravity can't be given its own set of skills and servers yet: it gets everything installed."],
+    value: { tools_off: [], tools_new: true }, suggested: [], role_kind: null, agent: "antigravity" });
+  await open(D());
+  expect(screen.getByText(/Antigravity can't be given its own set/)).toBeTruthy();
+  expect(screen.queryByText("Change…")).toBeNull();
 });

@@ -57,6 +57,24 @@ class SetToolsTest(Base):
         self.assertEqual(agenttools.suggest('reviewer', 'claude', self.proj), ['server:browser-mcp'])
 
 
+class ForAgentTest(Base):
+    def test_everything_the_picker_needs(self):
+        agenttools.set_tools(self.teams, 'shop', 'reviewer', ['server:context7'], True)
+        got = agenttools.for_agent(self.teams, 'shop', 'reviewer')
+        self.assertEqual({i['id'] for i in got['items']}, {'server:context7', 'server:browser-mcp'})
+        self.assertEqual(got['value'], {'tools_off': ['server:context7'], 'tools_new': True})
+        self.assertEqual(got['suggested'], ['server:browser-mcp'])
+        self.assertEqual((got['role_kind'], got['agent']), ('reviewer', 'claude'))
+
+
+class SaveKnownTest(Base):
+    def test_new_team_with_new_ones_off_records_what_is_installed(self):
+        folder = newteam.save(self.proj, [{'name': 'b', 'agent': 'claude', 'job': '', 'brief': 'b', 'checkout': 'branch',
+                                           'tools_off': [], 'tools_new': False}], {}, 'other', self.teams)
+        r = preset.load(folder, practices=False).roles[0]
+        self.assertEqual(set(r.tools_known), {'server:context7', 'server:browser-mcp'})
+
+
 class RestartTest(Base):
     def test_restart_stops_then_starts_with_continue(self):
         rt = SimpleNamespace(killed=[], kill=lambda a: rt.killed.append(a),

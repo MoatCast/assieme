@@ -43,6 +43,12 @@ class SavedChoiceTest(unittest.TestCase):
         folder = self.save(role())
         self.assertNotIn('tools_', open(os.path.join(folder, 'team.toml')).read())
 
+    def test_preset_from_a_saved_team_keeps_the_choice(self):
+        self.save(role(tools_off=['server:context7']))
+        roles = [r for p in [*newteam.presets(teams=self.teams)['presets'], newteam.presets(teams=self.teams).get('last') or {}]
+                 for r in (p.get('roles') or [])]
+        self.assertIn(['server:context7'], [r.get('tools_off') for r in roles])
+
     def test_bad_id_refused(self):
         with self.assertRaises(newteam.NewTeamError) as e:
             newteam.validate([role(tools_off=['rm -rf /'])])

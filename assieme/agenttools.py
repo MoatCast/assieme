@@ -24,6 +24,15 @@ def _role(teams, team_name, role_name):
     return folder, tm, r
 
 
+def for_agent(teams, team_name, role_name):
+    """What Agent details' picker needs: this agent's kind's items, its saved choice and its role's suggestion."""
+    _, tm, r = _role(teams, team_name, role_name)
+    own = r.checkout == 'branch' and not r.worktree
+    found = tools.find(r.agent, tm.project, own_copy=own)
+    return {**found, 'value': {'tools_off': r.tools_off, 'tools_new': r.tools_new},
+            'suggested': tools.suggest(r.kind, found['items']), 'role_kind': r.kind, 'agent': r.agent}
+
+
 def set_tools(teams, team_name, role_name, tools_off, tools_new):
     """Save one agent's choice. It applies the next time the agent starts. Logged with an Undo."""
     folder, tm, r = _role(teams, team_name, role_name)

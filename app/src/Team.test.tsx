@@ -4,6 +4,7 @@ import type { Pane, TeamMap } from "./bridge";
 
 const b = vi.hoisted(() => ({
   teamMap: vi.fn(), reviewWaiting: vi.fn(), budgetSet: vi.fn(), paneAct: vi.fn(), tipApply: vi.fn(), activityUndo: vi.fn(), agentDetail: vi.fn(),
+  agentTools: vi.fn(),
 }));
 vi.mock("./bridge", () => b);
 vi.mock("./Terminal", () => ({ default: () => <div /> }));

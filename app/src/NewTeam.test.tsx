@@ -23,6 +23,8 @@ const b = vi.hoisted(() => ({
   containerStatus: vi.fn(),
   containerBuild: vi.fn(),
   containerOpen: vi.fn(),
+  toolsFind: vi.fn(),
+  toolsSuggest: vi.fn(),
 }));
 vi.mock("./bridge", async (orig) => ({ ...(await orig<typeof import("./bridge")>()), ...b }));
 
@@ -828,4 +830,42 @@ test("a team brought over from Conductor starts with its scripts, the ones said 
     origin: { tool: "Conductor", label: "shop" },
     roles: [expect.objectContaining({ worktree: "/Users/me/conductor/workspaces/shop/tokyo", branch: "feature/retry", resume: "abc" })],
   }));
+});
+
+test("each agent shows its tools, suggested for its role, and Start sends the choice", async () => {
+  const items = ["server:context7", "server:browser-mcp", "plugin:planban@planban"].map((id) => ({
+    id, type: id.split(":")[0] as "server" | "plugin", name: id.split(":")[1], description: "", locked: false, why: "" }));
+  b.toolsFind.mockResolvedValue({ items, notices: [] });
+  b.toolsSuggest.mockImplementation(async (kind: string | null) => (kind === "reviewer" ? ["server:browser-mcp"] : []));
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await open();
+  fireEvent.click(screen.getByText("Builder + reviewer"));
+  await fillProjectAndTask();
+  await flush();
+  expect(screen.getByRole("button", { name: "Tools for builder: 3 of 3" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Tools for reviewer: 2 of 3" }));
+  expect(screen.getByText("Suggested for a reviewer: browser and deploy tools are off.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("checkbox", { name: "planban@planban" }));
+  fireEvent.click(screen.getByText("Done"));
+  expect(screen.getByRole("button", { name: "Tools for reviewer: 1 of 3" })).toBeTruthy();
+  fireEvent.click(screen.getByText("Start team".replace("team", "with recommended")));
+  await flush();
+  const roles = b.startTeam.mock.calls[0][0].roles as RoleDraft[];
+  expect(roles[1].tools_off).toEqual(["server:browser-mcp", "plugin:planban@planban"]);
+  expect(roles[0].tools_off).toEqual([]);
+});
+
+test("changing an agent's kind picks its tools again", async () => {
+  b.toolsFind.mockImplementation(async (kind: string) => ({ items: [{ id: `server:${kind}-only`, type: "server", name: `${kind}-only`,
+    description: "", locked: false, why: "" }], notices: [] }));
+  b.toolsSuggest.mockResolvedValue([]);
+  await open();
+  await fillProjectAndTask();
+  await flush();
+  expect(screen.getByRole("button", { name: "Tools for builder: 1 of 1" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: /Codex/ }));
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Tools for builder: 1 of 1" }));
+  expect(screen.getByRole("checkbox", { name: "codex-only" })).toBeTruthy();
 });

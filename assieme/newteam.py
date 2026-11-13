@@ -275,6 +275,14 @@ def roster(name, teams=None):
     return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
 
 
+def _known(r, project):
+    """Step 32: an agent that doesn't take newly installed tools remembers what was there, so a later one is told apart."""
+    if r.get('tools_new') is not False or r.get('tools_known'):
+        return r
+    from . import tools  # only needed for this choice
+    return {**r, 'tools_known': [i['id'] for i in tools.find(r['agent'], project)['items']]}
+
+
 def save(project, roles, practices, name, teams, scripts=None):
     """Write the team folder `preset.load` reads; TOML strings are written as JSON strings, which TOML accepts.
     `scripts`: setup, run and archive lines brought over from another tool (step 30)."""
@@ -282,6 +290,7 @@ def save(project, roles, practices, name, teams, scripts=None):
     unknown = set(scripts) - set(preset.SCRIPTS)
     if unknown:
         raise ValueError(f'Unknown script {", ".join(sorted(unknown))}.')
+    roles = [_known(r, project) for r in roles]
     folder = os.path.join(teams, name)
     if os.path.isdir(folder):
         shutil.rmtree(folder)
