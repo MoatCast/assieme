@@ -70,6 +70,8 @@ def _claude(role, cwd=None, py=None):
         a += ['--permission-mode', 'default']
     if role.checkout == 'read-only' or role.level == 'read-only':
         a += ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit']
+    if role.resume:  # brought over (step 30): its first start picks up the conversation it had
+        a += ['--resume', role.resume]
     return a
 
 
@@ -84,7 +86,8 @@ def codex_hook_hash(event, command):
 
 
 def _codex(role, py=None):
-    a = ['codex', '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
+    a = ['codex', *(['resume', role.resume] if role.resume else []),  # brought over (step 30): its conversation
+         '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
     # Its sandbox keeps .git read-only, so each commit is a request to step outside it: the person answers, in Assieme.
     a += ['-c', 'approval_policy="on-request"', '-c', 'approvals_reviewer="user"']
     trust = []

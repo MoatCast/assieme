@@ -358,6 +358,9 @@ class Starter:
         try:
             # Clicking Start in the app is the person's agreement to trust the folder.
             results = {s.role: s for s in team.start(tm, task, self.rt, ask=lambda q: True)}
+            for r in tm.roles:  # a conversation brought over is picked up once; later starts begin fresh
+                if r.resume and results.get(r.name) and results[r.name].address:
+                    clear_resume(os.path.join(self.teams, tm.name), r.name)
             with self.lock:
                 for r in rec['roles']:
                     s = results.get(r['role'])
