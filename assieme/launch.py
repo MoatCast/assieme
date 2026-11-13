@@ -97,33 +97,37 @@ def _codex(role, py=None):
     return a
 
 
-def _state_file(kind, cwd, suffix):
-    """A per-agent settings file under Assieme's state folder, named by the agent's folder."""
-    base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
-    path = os.path.join(base, 'assieme', kind, hashlib.sha256(cwd.encode()).hexdigest()[:16] + suffix)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    return path
+def _write_once(cwd, rel, data):
+    """A settings file in the agent's own folder, only when the project has none there, and kept out of git."""
+    path = os.path.join(cwd, rel)
+    if not os.path.exists(path):  # never over a project's own file
+        worktree._exclude(cwd, '/' + rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
 
 
-def _gemini(role, cwd, py=None):
-    """Gemini CLI takes no settings on its command line: a system settings file, named in its environment."""
+# Kinds that read their settings from the agent's folder only when told it is trusted: Assieme asks the person first.
+ASKS_TRUST = ('gemini', 'cursor')
+
+
+def _gemini(role, cwd, py=None, trusted=False):
+    """Gemini CLI takes system settings only from files root owns: these go in the agent's own folder."""
     hook = lambda state: [{'hooks': [{'type': 'command', 'command': hook_command(state, py)}]}]
-    settings = {'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
-                          'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
-                'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}}  # its own team tools, without asking each time
-    path = _state_file('gemini', cwd, '.json')
-    with open(path, 'w') as f:
-        json.dump(settings, f)
+    _write_once(cwd, '.gemini/settings.json', {
+        'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
+                  'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
+        'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}})  # its own team tools, without asking each time
     a = ['gemini'] + (['-m', role.model] if role.model else [])
     if role.checkout == 'read-only':
         a += ['--approval-mode', 'plan']
-    return a, {'GEMINI_CLI_SYSTEM_SETTINGS_PATH': path}
+    return a, ({'GEMINI_CLI_TRUST_WORKSPACE': 'true'} if trusted else {})
 
 
 OPENCODE_PLUGIN = os.path.join(os.path.dirname(__file__), 'opencode_status.js')
 
 
-def _opencode(role, cwd, py=None):
+def _opencode(role, cwd, py=None, trusted=False):
     """OpenCode reads a whole config from its environment; the status plugin calls our hook."""
     config = {'plugin': ['file://' + OPENCODE_PLUGIN],
               'mcp': {'assieme': {'type': 'local', 'command': [_mcp(py)['command'], *_mcp(py)['args']], 'enabled': True}}}
@@ -134,30 +138,21 @@ def _opencode(role, cwd, py=None):
     return a, {'OPENCODE_CONFIG_CONTENT': json.dumps(config), 'ASSIEME_HOOK': json.dumps(hook)}
 
 
-CURSOR_FILES = ('.cursor/hooks.json', '.cursor/mcp.json')
-
-
-def _cursor(role, cwd, py=None):
+def _cursor(role, cwd, py=None, trusted=False):
     """Cursor reads hooks and MCP servers only from files: written into the agent's own folder when it has none,
     and kept out of git there."""
     hook = lambda state: [{'command': hook_command(state, py)}]
-    files = {CURSOR_FILES[0]: {'version': 1, 'hooks': {'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'),
-                                                       'stop': hook('idle')}},
-             CURSOR_FILES[1]: {'mcpServers': {'assieme': _mcp(py)}}}
-    for rel, data in files.items():
-        path = os.path.join(cwd, rel)
-        if not os.path.exists(path):  # never over a project's own file
-            worktree._exclude(cwd, '/' + rel)
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, 'w') as f:
-                json.dump(data, f, indent=2)
-    a = ['cursor-agent', '--approve-mcps'] + (['--model', role.model] if role.model else [])
+    _write_once(cwd, '.cursor/hooks.json', {'version': 1, 'hooks': {
+        'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'), 'stop': hook('idle')}})
+    _write_once(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py)}})
+    a = ['cursor-agent', '--approve-mcps'] + (['--trust'] if trusted else []) + (['--model', role.model] if role.model else [])
     if role.checkout == 'read-only':
         a += ['--mode', 'plan']
     return a, {}
 
 
-BUILDERS = {'claude': lambda role, cwd, py=None: (_claude(role, py), {}), 'codex': lambda role, cwd, py=None: (_codex(role, py), {}),
+BUILDERS = {'claude': lambda role, cwd, py=None, trusted=False: (_claude(role, py), {}),
+            'codex': lambda role, cwd, py=None, trusted=False: (_codex(role, py), {}),
             'gemini': _gemini, 'opencode': _opencode, 'cursor': _cursor}
 
 
@@ -165,16 +160,17 @@ BUILDERS = {'claude': lambda role, cwd, py=None: (_claude(role, py), {}), 'codex
 BLOCK_PUSH = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'url.assieme-push-blocked://.pushInsteadOf', 'GIT_CONFIG_VALUE_0': ''}
 
 
-def argv(role, block_push=True, which=setup.agent_path, cwd=None, terminal=None, bridge=None):
+def argv(role, block_push=True, which=setup.agent_path, cwd=None, terminal=None, bridge=None, trusted=False):
     """The command line. The agent is started by full path, so the PATH the person's shell has isn't relied on.
     cwd: the agent's folder, for the kinds that read their settings from files. A container role runs inside
-    `docker run`; terminal names the container, bridge is the port its team tools reach the brain on."""
+    `docker run`; terminal names the container, bridge is the port its team tools reach the brain on.
+    trusted: the person said yes to this project, for the kinds in ASKS_TRUST."""
     cwd = cwd or os.getcwd()
     if role.container:
-        a, extra = BUILDERS[role.agent](role, cwd, 'python3')
+        a, extra = BUILDERS[role.agent](role, cwd, 'python3', trusted)
         return container.run_argv(role, a, {**(BLOCK_PUSH if block_push else {}), **extra}, cwd, terminal or role.name,
                                   bridge, which)
-    a, extra = BUILDERS[role.agent](role, cwd)
+    a, extra = BUILDERS[role.agent](role, cwd, None, trusted)
     a[0] = which(a[0]) or a[0]
     env = {**(BLOCK_PUSH if block_push else {}), **extra}
     if os.path.isabs(a[0]):

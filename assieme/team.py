@@ -114,11 +114,19 @@ def _review_hint(role):
     return f'{launch.NAMES.get(role.agent, role.agent)} wants you to review new hooks once. Open {role.name} in Terminals and choose.'
 
 
+def _trust_question(tm, role):
+    return f'Trust {tm.project} so {role.agent} agents can read, edit and run files there?'
+
+
 def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
+    if role.agent in launch.ASKS_TRUST and tm.project not in trusted:  # they never ask on screen: Assieme asks first
+        if not ask(_trust_question(tm, role)):
+            return Started(role.name, None, 'exited', 'folder not trusted')
+        trusted.add(tm.project)
     name = terminal_name(tm.name, role.name)
     ticket, port = (bridge.issue(), bridge.port()) if role.container else (None, None)
     t = rt.start(launch.argv(role, block_push=tm.practices.get('safety') is not False, cwd=cwd, terminal=name,
-                             bridge=f'{port}/{ticket}' if port else None),
+                             bridge=f'{port}/{ticket}' if port else None, trusted=tm.project in trusted),
                  cwd, {TEAM: tm.name, ROLE: role.name, KIND: role.agent}, name=name, parent=parent)
     if ticket:
         bridge.bind(ticket, t)
@@ -134,7 +142,7 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
         keys = prompts.trust_keys(screen)
         if keys:
             if tm.project not in trusted:
-                if not ask(f'Trust {tm.project} so {role.agent} agents can read, edit and run files there?'):
+                if not ask(_trust_question(tm, role)):
                     rt.kill(t)
                     return Started(role.name, t, 'exited', 'folder not trusted')
                 trusted.add(tm.project)

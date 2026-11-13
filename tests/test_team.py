@@ -107,6 +107,21 @@ class StartTest(unittest.TestCase):
             self.start(rt, Team('demo', '/p', practices, [COORD]))
             self.assertEqual('GIT_CONFIG_COUNT=1' in rt.started[0]['argv'], blocked, practices)
 
+    def test_gemini_and_cursor_start_only_after_the_person_trusts_the_project(self):
+        d = tempfile.mkdtemp()
+        with mock.patch('assieme.team.worktree.ensure', side_effect=lambda tm, r: d):
+            asked = []
+            rt = FakeRuntime()
+            got = self.start(rt, Team('demo', '/p', {}, [Role('g', 'gemini', 'b.md', 'brief')]),
+                             ask=lambda q: asked.append(q) or False)
+            self.assertEqual((got[0].state, got[0].note), ('exited', 'folder not trusted'))
+            self.assertEqual(rt.started, [])
+            self.assertEqual(asked, ['Trust /p so gemini agents can read, edit and run files there?'])
+            rt = FakeRuntime()
+            self.start(rt, Team('demo', '/p', {}, [Role('g', 'gemini', 'b.md', 'brief'), Role('c', 'cursor', 'b.md', 'brief')]))
+            self.assertIn('GEMINI_CLI_TRUST_WORKSPACE=true', rt.started[0]['argv'])
+            self.assertIn('--trust', rt.started[1]['argv'])
+
     def test_labels_and_cwd(self):
         rt = FakeRuntime()
         self.start(rt, demo(COORD))

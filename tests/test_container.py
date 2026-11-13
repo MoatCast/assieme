@@ -69,7 +69,7 @@ class RunArgvTest(unittest.TestCase):
         self.assertIn('assieme-agent-gemini:1', a)
         inner = a[a.index('assieme-agent-gemini:1') + 1:]
         self.assertEqual(inner, ['gemini'])  # its own program, by name, inside the image
-        settings = json.load(open(env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']))
+        settings = json.load(open(os.path.join(self.cwd, '.gemini', 'settings.json')))
         self.assertTrue(settings['hooks']['AfterAgent'][0]['hooks'][0]['command'].startswith('python3 -P -m assieme.hook'))
 
     def test_share_signin_mounts_only_that_kinds_folder(self):

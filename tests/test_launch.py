@@ -221,12 +221,11 @@ class NewKindsTest(unittest.TestCase):
     def argv(self, r):
         return launch.argv(r, block_push=False, which=lambda n: None, cwd=self.cwd)
 
-    def test_gemini_reads_hooks_and_team_tools_from_a_settings_file(self):
+    def test_gemini_reads_hooks_and_team_tools_from_its_folder_kept_out_of_git(self):
         env, words = env_of(self.argv(role('gemini', model='gemini-2.5-pro', checkout='read-only')))
         self.assertEqual(words, ['gemini', '-m', 'gemini-2.5-pro', '--approval-mode', 'plan'])
-        path = env['GEMINI_CLI_SYSTEM_SETTINGS_PATH']
-        self.assertTrue(path.startswith(self.state))
-        s = json.load(open(path))
+        self.assertNotIn('GEMINI_CLI_TRUST_WORKSPACE', env)  # only once the person said yes
+        s = json.load(open(os.path.join(self.cwd, '.gemini', 'settings.json')))
         cmd = lambda e: s['hooks'][e][0]['hooks'][0]['command']
         self.assertTrue(cmd('BeforeAgent').endswith('assieme.hook working'))
         self.assertTrue(cmd('AfterAgent').endswith('assieme.hook idle'))
@@ -234,6 +233,14 @@ class NewKindsTest(unittest.TestCase):
         self.assertEqual(s['hooks']['Notification'][0]['matcher'], 'ToolPermission')
         self.assertTrue(cmd('Notification').endswith('assieme.hook blocked'))
         self.assertEqual(s['mcpServers']['assieme']['args'], ['-P', '-m', 'assieme', 'mcp'])
+        st = subprocess.run(['git', '-C', self.cwd, 'status', '--porcelain'], capture_output=True, text=True).stdout
+        self.assertEqual(st, '')
+
+    def test_trusted_gemini_and_cursor_are_told_so(self):
+        env, _ = env_of(launch.argv(role('gemini'), block_push=False, which=lambda n: None, cwd=self.cwd, trusted=True))
+        self.assertEqual(env['GEMINI_CLI_TRUST_WORKSPACE'], 'true')
+        _, words = env_of(launch.argv(role('cursor'), block_push=False, which=lambda n: None, cwd=self.cwd, trusted=True))
+        self.assertIn('--trust', words)
 
     def test_opencode_gets_its_config_and_the_status_plugin_from_its_environment(self):
         env, words = env_of(self.argv(role('opencode', model='anthropic/claude-sonnet-4', checkout='read-only')))

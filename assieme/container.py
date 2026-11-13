@@ -88,10 +88,6 @@ def run_argv(role, inner, env, path, terminal, bridge=None, which=setup.agent_pa
     a = [prog, 'run', '--rm', '-it', '--init', '--name', f'assieme-{terminal}',
          '-v', f'{path}:{path}', '-w', path, '-v', f'{PACKAGE}:{PACKAGE}:ro',
          '-v', f'assieme-home-{role.agent}:{HOME}']
-    state_dir = os.path.join(os.environ.get('XDG_STATE_HOME') or os.path.join(home, '.local', 'state'), 'assieme',
-                             role.agent)
-    if os.path.isdir(state_dir):  # Gemini's settings file lives here
-        a += ['-v', f'{state_dir}:{state_dir}:ro']
     if role.share_signin and role.agent in SIGNIN:
         mine = os.path.join(home, SIGNIN[role.agent])
         os.makedirs(mine, exist_ok=True)
