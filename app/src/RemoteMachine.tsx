@@ -43,7 +43,8 @@ export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5
         setCheck(c);
         setError("");
         // Every kind there, so another kind of agent only widens the type.
-        onAgents(c.ready && c.agents ? Object.fromEntries(Object.entries(c.agents).map(([k, a]) => [k, !!a?.installed])) as Clis : null);
+        // signed out there stops at its sign-in screen, so it counts as not ready (its row offers Sign in)
+        onAgents(c.ready && c.agents ? Object.fromEntries(Object.entries(c.agents).map(([k, a]) => [k, !!a?.installed && !!a?.signed_in])) as Clis : null);
         if (!c.ready) timer = setTimeout(ask, pollMs);
       } catch (e) {
         if (stopped) return;

@@ -75,7 +75,7 @@ export default function PermissionsEditor({ role, roles, project, table, asker, 
   const list = (keys: string[], decision: Rule["decision"]) => (
     <ul className="perm-list">
       {keys.map((k) => {
-        const note = role.agent === "codex" ? table.items[k]?.codex_note ?? table.items[k]?.note : table.items[k]?.note;
+        const note = table.items[k]?.notes?.[role.agent] ?? table.items[k]?.note;
         return (
           <li key={k}>
             <span className="grow">{item(k)}</span>

@@ -1,7 +1,9 @@
 """What each agent may do: three levels and the person's own rules, written as each agent's own settings.
 
 Claude Code gets allow and deny rules in the `--settings` it starts with; Codex gets its sandbox and program rules in
-`<worktree>/.codex/rules/assieme.rules`. No enforcement of our own. Rules match the program run (its first words),
+`<worktree>/.codex/rules/assieme.rules`; OpenCode gets `permission` rules in the config it starts with; Gemini CLI
+gets a policy file it is pointed at; Cursor gets `permissions` in `<worktree>/.cursor/cli.json`. No enforcement of
+our own. Rules match the program run (its first words),
 never text that mentions it. Pushing stays blocked at every level.
 """
 import json
@@ -46,7 +48,9 @@ ITEMS = {
     'install': {'words': 'Install packages or new dependencies', 'programs': INSTALL},
     'download': {'words': 'Download models or datasets', 'programs': DOWNLOAD},
     'secrets': {'words': 'Read secrets (~/.ssh, cloud keys, keychain)', 'programs': SECRET_PROGRAMS,
-                'note': 'its file tools and commands that name them', 'codex_note': 'only the keychain command, for now'},
+                'note': 'its file tools and commands that name them',
+                'notes': {'codex': 'only the keychain command, for now', 'gemini': 'its file tools only, for now',
+                          'opencode': 'its file tools only, for now', 'cursor': 'its file tools only, for now'}},
     'network': {'words': 'Direct network calls', 'programs': NETWORK},
 }
 LEVEL_INFO = {
@@ -70,8 +74,8 @@ OWNED = re.compile(r'^[A-Za-z0-9._/*@+-][A-Za-z0-9._/*@+ -]*$')
 def table():
     """For the editors: the levels in order and the items' words."""
     return {'levels': [{'id': k, **v} for k, v in LEVEL_INFO.items()],
-            'items': {k: {'words': v['words'], 'note': v.get('note', ''), 'codex_note': v.get('codex_note', v.get('note', ''))}
-                      for k, v in ITEMS.items()}}
+            'items': {k: {'words': v['words'], 'note': v.get('note', ''), 'notes': v.get('notes', {})}
+                      for k, v in ITEMS.items()}}  # notes: where an agent kind covers less than the note says
 
 
 def check_level(level):
@@ -232,3 +236,97 @@ def write_codex_rules(cwd, roles):
     with open(path, 'w') as f:
         f.write(text)
     return path
+
+
+def _program_lists(role, cwd=None, test=None):
+    """(allow, deny, allowed items, blocked items): the level's programs, then the person's rules, for the kinds whose
+    rules are plain command prefixes."""
+    allowed, blocked = _items(role)
+    allow = [p for k in allowed for p in ITEMS[k].get('programs') or []] + ([test] if test and 'tests' in allowed else [])
+    deny = [p for k in blocked for p in ITEMS[k].get('programs') or []]
+    for r in role.rules:
+        (allow if r['decision'] == 'allow' else deny).extend(variants(r['program'], cwd))
+    return allow, deny, allowed, blocked
+
+
+def _secret_dirs():
+    home = os.path.expanduser('~')
+    return [f'{home}/{p[2:].removesuffix("/**")}' for p in SECRET_PATHS]
+
+
+def opencode(role, cwd=None, test=None):
+    """OpenCode's `permission` rules, or None for a role without a level. Anything not named asks the person."""
+    if not role.level:
+        return None
+    allow, deny, allowed, blocked = _program_lists(role, cwd, test)
+    bash = {'*': 'ask'}
+    for decision, programs in (('allow', allow), ('deny', deny)):  # denies last: the last matching pattern wins
+        for p in programs:
+            for pattern in (' '.join(p), ' '.join(p) + ' *'):
+                bash.pop(pattern, None)
+                bash[pattern] = decision
+    out = {'bash': bash, 'edit': 'deny' if 'read' in allowed else 'allow',
+           'webfetch': 'allow' if 'network' in allowed else 'deny', 'external_directory': 'ask'}
+    if 'secrets' in blocked:
+        out['read'] = {'*': 'allow', **{p: 'deny' for p in SECRET_PATHS}}
+    return out
+
+
+GEMINI_POLICY = os.path.join('.gemini', 'policies', 'assieme.toml')
+
+
+def gemini_policy(role, cwd=None, test=None):
+    """Gemini CLI's policy rules (TOML), or None for a role without a level. A deny outranks any allow; anything not
+    named asks the person. Read only runs in Gemini's plan mode, which never edits."""
+    if not role.level:
+        return None
+    allow, deny, allowed, blocked = _program_lists(role, cwd, test)
+    out = [f'# Written by Assieme for {role.name} when it starts. Change it in Assieme, not here.', '']
+
+    def rule(decision, priority, **fields):
+        out.extend(['[[rule]]', *(f'{k} = {json.dumps(v)}' for k, v in fields.items()),
+                    f'decision = "{decision}"', f'priority = {priority}', ''])
+    for p in allow:
+        rule('allow', 500, toolName='run_shell_command', commandPrefix=' '.join(p))
+    for p in deny:
+        rule('deny', 900, toolName='run_shell_command', commandPrefix=' '.join(p))
+    if 'network' in blocked:
+        rule('deny', 900, toolName='web_fetch')
+    if 'secrets' in blocked:
+        for d in _secret_dirs():  # its file tools, by the path in their arguments
+            rule('deny', 900, toolName='*', argsPattern=re.escape(d))
+    return '\n'.join(out)
+
+
+def write_gemini_policy(cwd, role, test=None):
+    """The policy file in the agent's own folder, kept out of git; its path, or None (and no file) without a level."""
+    path = os.path.join(cwd, GEMINI_POLICY)
+    text = gemini_policy(role, cwd, test)
+    if text is None:
+        if os.path.exists(path):
+            os.remove(path)
+        return None
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as f:
+        f.write(text)
+    return path
+
+
+def _cursor_shell(program):
+    """Cursor matches a command by its first word, and its arguments after a colon."""
+    return f'Shell({program[0]})' if len(program) == 1 else f'Shell({program[0]}:{" ".join(program[1:])}*)'
+
+
+def cursor(role, cwd=None, test=None):
+    """Cursor's `permissions` {allow, deny}, or None for a role without a level. A deny always wins in Cursor."""
+    if not role.level:
+        return None
+    allow, deny, allowed, blocked = _program_lists(role, cwd, test)
+    out = {'allow': [_cursor_shell(p) for p in allow], 'deny': [_cursor_shell(p) for p in deny]}
+    if 'network' in blocked:
+        out['deny'].append('WebFetch(*)')
+    if 'secrets' in blocked:
+        out['deny'] += [f"Read({os.path.expanduser('~')}/{p[2:]})" for p in SECRET_PATHS]
+    if 'read' in allowed:  # Read only
+        out['deny'].append('Write(**)')
+    return {k: list(dict.fromkeys(v)) for k, v in out.items()}

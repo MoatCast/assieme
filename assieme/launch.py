@@ -154,8 +154,12 @@ def _gemini(role, cwd, py=None, trusted=False):
                   'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
         'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}})  # its own team tools, without asking each time
     a = ['gemini'] + (['-m', role.model] if role.model else [])
-    if role.checkout == 'read-only':
+    if role.checkout == 'read-only' or role.level == 'read-only':
         a += ['--approval-mode', 'plan']
+    policy = permissions.write_gemini_policy(cwd, role, _test_command(cwd) if role.level else None)
+    if policy:  # its level and the person's rules; the workspace policy folder isn't read yet, so it is named here
+        worktree.exclude(cwd, '/' + permissions.GEMINI_POLICY)
+        a += ['--policy', policy]
     return a, ({'GEMINI_CLI_TRUST_WORKSPACE': 'true'} if trusted else {})
 
 
@@ -168,9 +172,52 @@ def _opencode(role, cwd, py=None, trusted=False):
               'mcp': {'assieme': {'type': 'local', 'command': [_mcp(py)['command'], *_mcp(py)['args']], 'enabled': True}}}
     if role.checkout == 'read-only':
         config['permission'] = {'edit': 'deny'}
+    perms = permissions.opencode(role, cwd, _test_command(cwd) if role.level else None)
+    if perms:
+        config['permission'] = perms | ({'edit': 'deny'} if role.checkout == 'read-only' else {})
     a = ['opencode'] + (['-m', role.model] if role.model else [])
     hook = shlex.split(hook_command('idle', py))[:-1]
     return a, {'OPENCODE_CONFIG_CONTENT': json.dumps(config), 'ASSIEME_HOOK': json.dumps(hook)}
+
+
+CURSOR_CLI, CURSOR_OURS = os.path.join('.cursor', 'cli.json'), os.path.join('.cursor', 'assieme-permissions.json')
+
+
+def _cursor_permissions(cwd, ours):
+    """Our rules into the project's `.cursor/cli.json`, beside its own: last time's are taken out first (kept in a side
+    file), so a rule the person removed doesn't linger. Both files stay out of the agent's commits."""
+    path, side = os.path.join(cwd, CURSOR_CLI), os.path.join(cwd, CURSOR_OURS)
+    try:
+        with open(side) as f:
+            before = json.load(f)
+    except (OSError, ValueError):
+        before = {}
+    if not ours and not before:
+        return
+    data = {}
+    if os.path.exists(path):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            return  # not plain JSON: left alone
+        if not isinstance(data, dict) or not isinstance(data.get('permissions', {}), dict):
+            return
+    perms = data.setdefault('permissions', {})
+    for key in ('allow', 'deny'):
+        kept = [x for x in perms.get(key) or [] if x not in (before.get(key) or [])]
+        perms[key] = list(dict.fromkeys(kept + ((ours or {}).get(key) or [])))
+    tracked = worktree._git(cwd, 'ls-files', '--error-unmatch', CURSOR_CLI).returncode == 0
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
+    with open(side, 'w') as f:
+        json.dump(ours or {}, f)
+    worktree.exclude(cwd, '/' + CURSOR_OURS)
+    if tracked:
+        worktree._git(cwd, 'update-index', '--skip-worktree', CURSOR_CLI)
+    else:
+        worktree.exclude(cwd, '/' + CURSOR_CLI)
 
 
 def _cursor(role, cwd, py=None, trusted=False):
@@ -179,6 +226,7 @@ def _cursor(role, cwd, py=None, trusted=False):
     _merge(cwd, '.cursor/hooks.json', {'version': 1, 'hooks': {
         'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'), 'stop': hook('idle')}})
     mcp = _merge(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py)}})
+    _cursor_permissions(cwd, permissions.cursor(role, cwd, _test_command(cwd) if role.level else None))
     # Approving MCP servers approves them all: only when Assieme's is the only one there.
     alone = mcp is not None and set(mcp.get('mcpServers') or {}) == {'assieme'}
     a = ['cursor-agent'] + (['--approve-mcps'] if alone else []) + (['--trust'] if trusted else []) + (['--model', role.model] if role.model else [])

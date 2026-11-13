@@ -390,7 +390,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
             {why && <p className="muted">{why}</p>}
             {installed.length === 0 ? (
               offline ? null : have ? (
-                <p className="error">{machine ? `Install Claude Code or Codex on ${machine}, above.` : "Install Claude Code or Codex, then reopen New team."}</p>
+                <p className="error">{machine ? `Install or sign in to an agent on ${machine}, above.` : "Install Claude Code or Codex, then reopen New team."}</p>
               ) : <p className="muted">Checking which agents are installed…</p>
             ) : (
               <div className="agents">

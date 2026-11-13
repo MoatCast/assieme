@@ -220,3 +220,15 @@ test("every kind of agent on the machine is passed on, not only Claude Code and 
   await flush();
   expect(onAgents).toHaveBeenLastCalledWith({ claude: true, codex: false, gemini: true });
 });
+
+test("an agent installed there but signed out isn't ready: Start waits and Sign in is offered", async () => {
+  r.remoteCheck.mockResolvedValue({ ...READY, agents: { claude: { installed: true, signed_in: false }, codex: { installed: false, signed_in: false } } });
+  render(<NewTeam clis={{ claude: true, codex: true }} onClose={() => {}} />);
+  await flush();
+  fireEvent.click(screen.getByRole("radio", { name: /A remote machine/ }));
+  await flush();
+  await flush();
+  screen.getByRole("button", { name: "Sign in to Claude Code" });
+  screen.getByText("Install or sign in to an agent on gpu-box, above.");
+  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(true);
+});

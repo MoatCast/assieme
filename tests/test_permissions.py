@@ -278,7 +278,9 @@ class TableTest(unittest.TestCase):
     def test_secrets_say_what_they_cover(self):
         s = permissions.table()['items']['secrets']
         self.assertIn('commands that name them', s['note'])
-        self.assertIn('keychain', s['codex_note'])
+        self.assertIn('keychain', s['notes']['codex'])
+        for kind in ('gemini', 'opencode', 'cursor'):
+            self.assertIn('file tools', s['notes'][kind])
 
 
 class LabelsTest(unittest.TestCase):
@@ -297,3 +299,99 @@ class LabelsTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class OpenCodeTest(unittest.TestCase):
+    def test_safe_asks_by_default_allows_commits_blocks_push_installs_and_secrets(self):
+        p = permissions.opencode(role('opencode'), '/w')
+        self.assertEqual(p['bash']['*'], 'ask')
+        self.assertEqual(p['bash']['git commit *'], 'allow')
+        for cmd in ('git push *', '/usr/bin/git push *', 'npm install *', 'curl *', 'security *'):
+            self.assertEqual(p['bash'][cmd], 'deny', cmd)
+        self.assertEqual(p['edit'], 'allow')
+        self.assertEqual(p['webfetch'], 'deny')
+        self.assertEqual(p['read']['~/.ssh/**'], 'deny')
+        self.assertEqual(p['external_directory'], 'ask')
+
+    def test_denies_come_after_allows(self):  # OpenCode lets the last matching pattern win
+        bash = list(permissions.opencode(role('opencode', rules=[BLOCK_RUN, ALLOW_LINT]), '/w')['bash'].items())
+        last_allow = max(i for i, (_, v) in enumerate(bash) if v == 'allow')
+        self.assertTrue(all(v == 'deny' for _, v in bash[last_allow + 1:]))
+        self.assertIn(('build/cloud/run.sh *', 'deny'), bash)
+        self.assertIn(('make lint *', 'allow'), bash)
+
+    def test_read_only_never_edits_and_trusted_goes_online(self):
+        self.assertEqual(permissions.opencode(role('opencode', 'read-only'), '/w')['edit'], 'deny')
+        t = permissions.opencode(role('opencode', 'trusted'), '/w')
+        self.assertEqual(t['webfetch'], 'allow')
+        self.assertEqual(t['bash']['npm install *'], 'allow')
+        self.assertEqual(t['bash']['git push *'], 'deny')
+
+    def test_no_level_no_rules(self):
+        self.assertIsNone(permissions.opencode(role('opencode', None), '/w'))
+
+    def test_the_agent_starts_with_them(self):
+        argv, env = launch.BUILDERS['opencode'](role('opencode'), tempfile.mkdtemp())
+        self.assertEqual(json.loads(env['OPENCODE_CONFIG_CONTENT'])['permission']['bash']['git push *'], 'deny')
+
+
+class GeminiTest(unittest.TestCase):
+    def test_policy_is_toml_with_denies_above_allows(self):
+        import tomllib
+        rules = tomllib.loads(permissions.gemini_policy(role('gemini', rules=[BLOCK_RUN]), '/w'))['rule']
+        by = {(r.get('commandPrefix'), r.get('toolName')): r for r in rules}
+        push = by[('git push', 'run_shell_command')]
+        commit = by[('git commit', 'run_shell_command')]
+        self.assertEqual((push['decision'], commit['decision']), ('deny', 'allow'))
+        self.assertGreater(push['priority'], commit['priority'])
+        self.assertEqual(by[('build/cloud/run.sh', 'run_shell_command')]['decision'], 'deny')
+        self.assertTrue(any(r.get('toolName') == 'web_fetch' and r['decision'] == 'deny' for r in rules))
+        home = os.path.expanduser('~')
+        self.assertTrue(any(r['decision'] == 'deny' and '.ssh' in r.get('argsPattern', '') and home in r['argsPattern']
+                            for r in rules))
+
+    def test_trusted_may_go_online_but_never_push(self):
+        import tomllib
+        rules = tomllib.loads(permissions.gemini_policy(role('gemini', 'trusted'), '/w'))['rule']
+        self.assertFalse(any(r.get('toolName') == 'web_fetch' and r['decision'] == 'deny' for r in rules))
+        self.assertTrue(any(r.get('commandPrefix') == 'git push' and r['decision'] == 'deny' for r in rules))
+
+    def test_the_agent_starts_with_its_policy_file_kept_out_of_git(self):
+        d = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', d], check=True)
+        argv, _ = launch.BUILDERS['gemini'](role('gemini'), d)
+        path = argv[argv.index('--policy') + 1]
+        self.assertTrue(path.startswith(d) and os.path.exists(path))
+        self.assertEqual(subprocess.run(['git', '-C', d, 'status', '--porcelain', '--untracked-files=all'],
+                                        capture_output=True, text=True).stdout.count('assieme.toml'), 0)
+
+    def test_no_level_no_policy(self):
+        self.assertIsNone(permissions.gemini_policy(role('gemini', None), '/w'))
+        argv, _ = launch.BUILDERS['gemini'](role('gemini', None), tempfile.mkdtemp())
+        self.assertNotIn('--policy', argv)
+
+
+class CursorTest(unittest.TestCase):
+    def test_programs_and_secret_paths(self):
+        p = permissions.cursor(role('cursor', rules=[BLOCK_RUN]), '/w')
+        for rule in ('Shell(git:push*)', 'Shell(curl)', 'Shell(npm:install*)', 'Shell(build/cloud/run.sh)', 'WebFetch(*)'):
+            self.assertIn(rule, p['deny'])
+        self.assertIn('Shell(git:commit*)', p['allow'])
+        self.assertIn(f"Read({os.path.expanduser('~')}/.ssh/**)", p['deny'])
+
+    def test_the_agent_starts_with_them_and_keeps_the_projects_own(self):
+        d = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', d], check=True)
+        os.makedirs(os.path.join(d, '.cursor'))
+        with open(os.path.join(d, '.cursor', 'cli.json'), 'w') as f:
+            json.dump({'permissions': {'deny': ['Shell(rm)'], 'allow': ['Shell(ls)']}, 'other': 1}, f)
+        launch.BUILDERS['cursor'](role('cursor'), d)
+        with open(os.path.join(d, '.cursor', 'cli.json')) as f:
+            got = json.load(f)
+        self.assertIn('Shell(rm)', got['permissions']['deny'])
+        self.assertIn('Shell(git:push*)', got['permissions']['deny'])
+        self.assertIn('Shell(ls)', got['permissions']['allow'])
+        self.assertEqual(got['other'], 1)
+        launch.BUILDERS['cursor'](role('cursor'), d)  # again: nothing doubled
+        with open(os.path.join(d, '.cursor', 'cli.json')) as f:
+            self.assertEqual(json.load(f)['permissions']['deny'].count('Shell(git:push*)'), 1)

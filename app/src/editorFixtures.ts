@@ -7,7 +7,7 @@ export const TABLE = {
   ],
   items: {
     ...Object.fromEntries(["edit_owned", "tests", "commit", "message", "read", "edit", "push", "install"].map((k) => [k, { words: `${k} words`, note: k === "push" ? "you merge in Review" : "" }])),
-    secrets: { words: "secrets words", note: "claude note", codex_note: "codex note" },
+    secrets: { words: "secrets words", note: "claude note", notes: { codex: "codex note" } },
   },
 };
 export const KINDS = {

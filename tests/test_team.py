@@ -198,6 +198,15 @@ class StartTest(unittest.TestCase):
         self.assertIn('/p', asked[0])
         self.assertEqual(rt.keyed, [('t1', ['down', 'enter']), ('t2', ['down', 'enter'])])
 
+    def test_claude_first_run_screens_are_passed_then_it_starts(self):
+        theme = 'Choose the text style that looks best with your terminal\n ❯ ✔ Dark mode'
+        notes = 'Security notes:\n 1. Claude can make mistakes\nPress Enter to continue…'
+        rt = FakeRuntime(screens={'coordinator': [theme, notes, IDLE]},
+                         statuses={'coordinator': [None, None, None, {'state': 'idle'}]})
+        out = self.start(rt, demo(COORD), task='fix bug')
+        self.assertEqual(rt.keyed, [('t1', ['enter']), ('t1', ['enter'])])
+        self.assertEqual(out[0].state, 'running')
+
     def test_codex_trust_is_enter(self):
         rt = FakeRuntime(screens={'builder-1': [TRUST_CODEX, IDLE]}, statuses={'builder-1': [None, None, {'state': 'idle'}]})
         self.start(rt, demo(Role('builder-1', 'codex', 'b.md', 'x')))

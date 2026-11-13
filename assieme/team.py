@@ -162,6 +162,9 @@ def _start_role(tm, role, task, rt, ask, trusted, parent, cwd, clock):
                 trusted.add(tm.project)
             rt.keys(t, keys)
             deadline = clock.monotonic() + FIRST_STATUS_S
+        elif first := prompts.first_run_keys(screen):  # a new machine's look and safety notes: not a permission
+            rt.keys(t, first)
+            deadline = clock.monotonic() + FIRST_STATUS_S
         elif prompts.hook_review(screen):
             return Started(role.name, t, 'needs-you', _review_hint(role))
         if clock.monotonic() >= deadline:

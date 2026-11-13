@@ -121,3 +121,33 @@ class StatusLinesTest(unittest.TestCase):
                   '✻ Brewed for 3s · done 8:31 PM\n\n● full  $0.25  last $0.25  4s\n\n' + '─' * 40 +
                   '\n❯\xa0\n' + '─' * 40 + '\n  ⏵⏵ auto mode on (shift+tab to cycle)\n')
         self.assertEqual(prompts.question(screen), 'Should the file be named hello.txt or greeting.txt?')
+
+
+# Claude Code's first run, as read from its terminal (v2.1.323; the theme screen captured in a fresh home folder).
+THEME = """Welcome to Claude Code v2.1.323
+Let's get started.
+Choose the text style that looks best with your terminal
+To change this later, run /theme
+ Auto (match terminal)
+ ❯ ✔ Dark mode
+   Light mode"""
+SECURITY = """Security notes:
+ 1. Claude can make mistakes
+ 2. Due to prompt injection risks, only use it with code you trust
+Press Enter to continue…"""
+LOGIN = """Select login method:
+ ❯ 1. Claude account with subscription · Individual, Team, or Enterprise
+   2. Anthropic Console account · API usage billing"""
+
+
+class FirstRunTest(unittest.TestCase):
+    def test_the_theme_and_security_screens_are_passed_with_enter(self):
+        self.assertEqual(prompts.first_run_keys(THEME), ['enter'])
+        self.assertEqual(prompts.first_run_keys(SECURITY), ['enter'])
+
+    def test_spaces_lost_in_a_screen_read_still_match(self):
+        self.assertEqual(prompts.first_run_keys(THEME.replace(' ', '')), ['enter'])
+
+    def test_sign_in_and_anything_else_are_left_to_the_person(self):
+        for screen in (LOGIN, CLAUDE_TRUST, CLAUDE_IDLE, 'Press Enter to continue'):
+            self.assertIsNone(prompts.first_run_keys(screen), screen)
