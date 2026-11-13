@@ -82,7 +82,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
   return (
     <>
       <div className="dim" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-label="Add agent" style={{ gap: 20 }}>
+      <div className="sheet add-agent" role="dialog" aria-label="Add agent" style={{ gap: 20 }}>
         <div className="sheet-head">
           <div>
             <h2>Add agent</h2>
@@ -114,26 +114,26 @@ export default function AddAgent({ team, roles, clis, onClose }: {
           </div>
           <label className="field">
             <span>Reports to</span>
-            <select className="mono" value={parent} onChange={(e) => setParent(e.target.value)}>
+            <span className="select"><select className="mono" value={parent} onChange={(e) => setParent(e.target.value)}>
               <option value="">Nobody</option>
               {roles.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
+            </select><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" strokeLinecap="round" /></svg></span>
           </label>
         </div>
         <div className="two-fields">
           <label className="field">
             <span>Model</span>
-            <select value={model} onChange={(e) => { setModel(e.target.value); setEffort(""); }}>
+            <span className="select"><select value={model} onChange={(e) => { setModel(e.target.value); setEffort(""); }}>
               <option value="">Default</option>
               {cli?.models.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
+            </select><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" strokeLinecap="round" /></svg></span>
           </label>
           <label className="field">
             <span>Thinking</span>
-            <select value={effort} disabled={!efforts.length} onChange={(e) => setEffort(e.target.value)}>
+            <span className="select"><select value={effort} disabled={!efforts.length} onChange={(e) => setEffort(e.target.value)}>
               <option value="">Default</option>
               {efforts.map((e) => <option key={e} value={e}>{e}</option>)}
-            </select>
+            </select><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" strokeLinecap="round" /></svg></span>
           </label>
         </div>
         <div className="field where">
