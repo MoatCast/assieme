@@ -8,7 +8,11 @@ const GROUPS: [ToolItem["type"], string][] = [["server", "MCP servers"], ["plugi
 const AVOIDS: Record<string, string> = { reviewer: "browser and deploy tools are off.", planner: "browser and deploy tools are off.",
   builder: "deploy tools are off.", tester: "deploy tools are off." };
 
-const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+/** What a chip says: "All skills", a plugin without its marketplace ("planban", not "planban@planban"), else its name. */
+export const toolLabel = (i: ToolItem) =>
+  i.id === "skill:*" ? "All skills" : i.type === "plugin" ? i.name.split("@")[0] : i.name;
+
+const sameSet =(a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 const counted = (items: ToolItem[]) => items.filter((i) => !i.locked);
 
 /** "6 of 8": what is on, of what this agent's kind lets Assieme choose. Empty when there is nothing to choose. */
@@ -88,11 +92,11 @@ export default function ToolPicker({ items, value, suggested, roleName, roleKind
                 <p className="tools-heading">{heading}</p>
                 <div className="tools-chips">
                   {chips.map((i) => i.locked ? (
-                    <span key={i.id} className="tools-chip locked" aria-disabled="true" title={i.why}><Lock />{i.name}</span>
+                    <span key={i.id} className="tools-chip locked" aria-disabled="true" title={i.why}><Lock />{toolLabel(i)}</span>
                   ) : (
                     <button key={i.id} type="button" role="checkbox" aria-checked={!off.includes(i.id)} title={i.description || undefined}
                       className={`tools-chip ${off.includes(i.id) ? "off" : "on"}`} onClick={() => toggle(i.id)}>
-                      {!off.includes(i.id) && <Check />}{i.id === "skill:*" ? "All skills" : i.name}
+                      {!off.includes(i.id) && <Check />}{toolLabel(i)}
                     </button>
                   ))}
                   {type === "server" && <span className="tools-chip locked"><Lock />Assieme’s team tools: always on</span>}

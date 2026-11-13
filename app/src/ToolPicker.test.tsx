@@ -95,6 +95,12 @@ test("120 items render and search finds the last one", () => {  // Review Focus 
   expect(within(screen.getByRole("dialog")).getByRole("checkbox", { name: "skill-119" })).toBeTruthy();
 });
 
+test("a plugin shows its own name, without the marketplace after @", () => {
+  open();
+  expect(chip("planban")).toBeTruthy();
+  expect(screen.queryByText("planban@planban")).toBeNull();
+});
+
 test("toolSummary", () => {
   expect(toolSummary(ITEMS, VALUE)).toBe("6 of 8");
   expect(toolSummary(ITEMS, { tools_off: [], tools_new: true })).toBe("8 of 8");

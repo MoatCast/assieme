@@ -3,7 +3,7 @@ import { agentDetail, agentRestart, agentSetTools, agentTools, type AgentDetail 
   type ToolChoice } from "./bridge";
 import { kindName } from "./kinds";
 import { FixButtons } from "./Team";
-import ToolPicker, { toolSummary } from "./ToolPicker";
+import ToolPicker, { toolLabel, toolSummary } from "./ToolPicker";
 
 const HEADS: Record<string, string> = { asking: "Asking you", stuck: "Seems stuck", waiting: "Has work waiting" };
 const times = (n: number) => (n === 1 ? "once" : `${n} times`);
@@ -23,7 +23,7 @@ function Recent({ text }: { text: string }) {
 
 /** "2 of 3 on. You turned off gsap-timeline and 6 more." from Paper "v2 — Tools: agent details, changed". */
 function toolsLine(t: AgentTools, v: ToolChoice) {
-  const off = t.items.filter((i) => !i.locked && v.tools_off.includes(i.id)).map((i) => (i.id === "skill:*" ? "all skills" : i.name));
+  const off = t.items.filter((i) => !i.locked && v.tools_off.includes(i.id)).map((i) => (i.id === "skill:*" ? "all skills" : toolLabel(i)));
   const more = off.length > 1 ? ` and ${off.length - 1} more` : "";
   return `${toolSummary(t.items, v)} on.${off.length ? ` You turned off ${off[0]}${more}.` : ""}`;
 }

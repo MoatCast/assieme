@@ -845,7 +845,7 @@ test("each agent shows its tools, suggested for its role, and Start sends the ch
   expect(screen.getByRole("button", { name: "Tools for builder: 3 of 3" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Tools for reviewer: 2 of 3" }));
   expect(screen.getByText("Suggested for a reviewer: browser and deploy tools are off.")).toBeTruthy();
-  fireEvent.click(screen.getByRole("checkbox", { name: "planban@planban" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "planban" }));
   fireEvent.click(screen.getByText("Done"));
   expect(screen.getByRole("button", { name: "Tools for reviewer: 1 of 3" })).toBeTruthy();
   fireEvent.click(screen.getByText("Start team".replace("team", "with recommended")));
