@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { HEIGHT, LETTERS, SPRITES, WIDTH, type Instrument } from "./musicians.gen";
+import { useMusicianMode } from "./musicianMode";
 import "./Musician.css";
 
 export type Pose = "play" | "rest" | "hand" | "grey";
@@ -54,13 +55,16 @@ type Props = { instrument: Instrument; state: string; role: string; size?: 1 | 2
 /** Step 31: an agent as its musician (Paper "Musicians (step 31)"). Drawn on whole pixels at 1×, 2× or 3×, never smoothed. */
 export default function Musician({ instrument, state, role, size = 2, palette = 0 }: Props) {
   const reduced = useReducedMotion();
+  const mode = useMusicianMode();
+  const label = musicianLabel(role, instrument, state);
+  if (mode === "off") return <span className="dot" role="img" aria-label={label} />; // the dot each place drew before
   const sprite = SPRITES[instrument] ?? SPRITES.violin;
   const pose = poseFor(state);
   const swap: Record<string, string> = palette === 1 ? { M: "C", C: "M" } : {};
   const colour = pose === "grey" ? () => "var(--quiet-musician-grey)" : (k: string) => `var(${LETTERS[swap[k] ?? k]})`;
-  const playing = pose === "play" && !reduced;
+  const playing = pose === "play" && !reduced && mode === "animated"; // Still, or Reduce Motion: first frame
   return (
-    <span className={`musician${playing ? " playing" : ""}`} role="img" aria-label={musicianLabel(role, instrument, state)}>
+    <span className={`musician${playing ? " playing" : ""}`} role="img" aria-label={label}>
       <svg width={WIDTH * size} height={HEIGHT * size} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} shapeRendering="crispEdges"
         aria-hidden="true">
         {pose === "play" ? (
