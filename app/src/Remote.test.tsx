@@ -15,6 +15,7 @@ vi.mock("./remote", async (orig) => ({ ...(await orig<typeof import("./remote")>
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
 
 import ConnectMachine from "./ConnectMachine";
+import RemoteMachine from "./RemoteMachine";
 import NewTeam from "./NewTeam";
 import Unreachable, { awayTitle } from "./Unreachable";
 
@@ -198,4 +199,24 @@ test("the team view while its machine is away: reconnecting, or a login in Termi
   fireEvent.click(screen.getByRole("button", { name: "Open Terminal" }));
   await flush();
   expect(r.remoteTerminal).toHaveBeenCalledWith({ machine: "gpu-box" });
+});
+
+test("a machine check that fails is asked again, not left on Checking…", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  r.remoteCheck.mockRejectedValueOnce(new Error("Can't reach gpu-box: timed out")).mockResolvedValue(READY);
+  render(<RemoteMachine machine="gpu-box" onMachine={() => {}} onAgents={() => {}} pollMs={50} />);
+  await flush();
+  await act(async () => { await vi.advanceTimersByTimeAsync(60); });
+  await flush();
+  expect(r.remoteCheck).toHaveBeenCalledTimes(2);
+  screen.getByText("Claude Code signed in");
+  vi.useRealTimers();
+});
+
+test("every kind of agent on the machine is passed on, not only Claude Code and Codex", async () => {
+  const onAgents = vi.fn();
+  r.remoteCheck.mockResolvedValue({ ...READY, agents: { ...READY.agents, gemini: { installed: true, signed_in: true } } });
+  render(<RemoteMachine machine="gpu-box" onMachine={() => {}} onAgents={onAgents} />);
+  await flush();
+  expect(onAgents).toHaveBeenLastCalledWith({ claude: true, codex: false, gemini: true });
 });

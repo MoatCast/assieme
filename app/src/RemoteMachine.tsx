@@ -42,10 +42,13 @@ export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5
         if (stopped) return;
         setCheck(c);
         setError("");
-        onAgents(c.ready && c.agents ? { claude: !!c.agents.claude?.installed, codex: !!c.agents.codex?.installed } : null);
+        // Every kind there, so another kind of agent only widens the type.
+        onAgents(c.ready && c.agents ? Object.fromEntries(Object.entries(c.agents).map(([k, a]) => [k, !!a?.installed])) as Clis : null);
         if (!c.ready) timer = setTimeout(ask, pollMs);
       } catch (e) {
-        if (!stopped) setError(message(e));
+        if (stopped) return;
+        setError(message(e));
+        timer = setTimeout(ask, pollMs); // a failed check is asked again, never left on Checking…
       }
     };
     setCheck(null);

@@ -159,7 +159,7 @@ class RoutingTest(unittest.TestCase):
                          [('api', 'devbox/t2', 'devbox', True)])
         self.assertEqual([m['name'] for m in snap['machines']], ['devbox'])
         self.rt.state = 'unreachable'
-        self.rx.raw_at = None
+        self.rx._fresh()
         snap = self.h['brain.snapshot']()
         self.assertEqual([(r['team'], r['reachable']) for r in snap['teams']], [('api', False)])
         listed = self.h['teams.list']()['teams']
@@ -178,7 +178,7 @@ class RoutingTest(unittest.TestCase):
         self.rt.answers['team.view'] = {'team': 'api', 'panes': [{'address': 't2'}]}
         self.assertNotIn('unreachable', self.h['team.view'](team='api'))
         self.rt.state = 'unreachable'
-        self.rx.raw_at = None
+        self.rx._fresh()
         away = self.h['team.view'](team='api')
         self.assertEqual((away['panes'], away['unreachable']['name'], away['unreachable']['state']),
                          ([{'address': 'devbox/t2'}], 'devbox', 'unreachable'))
@@ -255,9 +255,99 @@ class TickTest(unittest.TestCase):
         self.assertTrue(any(m == 'machine.connect' for m, _ in rt.calls))
         rx.set_up.add('devbox')
         rt.there = [t for t in rt.there if (t['labels'] or {}).get(remote.SERVICE) != remote.BRAIN]
-        rx.raw_at = None
+        rx._fresh()
         rx.tick()
         self.assertEqual(started, ['devbox'])
+
+
+class ReviewFixesTest(unittest.TestCase):
+    """The code review of 13 November: the tick never waits on a remote, routing stays cheap and correct."""
+
+    def setUp(self):
+        self.rt = StubRt()
+        self.now = [1000.0]
+        self.rx = remote.Remotes(self.rt, store=os.path.join(tempfile.mkdtemp(), 'r.json'), clock=lambda: self.now[0])
+
+    def test_a_brain_that_wont_come_up_never_holds_the_tick_and_is_retried_later(self):
+        release, tries = threading.Event(), []
+
+        def stuck(m, restart=False):
+            tries.append(m)
+            release.wait(5)
+            raise remote.RemoteError('no answer')
+        self.rx.start_brain = stuck
+        self.rx.set_up.add('devbox')
+        self.rt.there = [t for t in self.rt.there if (t['labels'] or {}).get(remote.SERVICE) != remote.BRAIN]
+        t0 = time.monotonic()
+        self.rx.tick()
+        self.rx.tick()  # the first try is still running: no second one
+        self.assertLess(time.monotonic() - t0, 1)
+        release.set()
+        deadline = time.monotonic() + 5
+        while self.rx.reviving and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.now[0] += 20
+        self.rx._fresh()
+        self.rx.tick()  # it failed a moment ago: wait before trying again
+        time.sleep(0.05)
+        self.assertEqual(tries, ['devbox'])
+        self.now[0] += remote.REVIVE_S + 1
+        self.rx._fresh()
+        self.rx.tick()
+        deadline = time.monotonic() + 5
+        while len(tries) < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(tries, ['devbox', 'devbox'])
+
+    def test_a_local_team_with_a_remote_teams_name_stays_here(self):
+        self.rt.local = [{'address': 't1', 'state': 'live', 'labels': {team.TEAM: 'api', team.ROLE: 'builder'}}]
+        h = self.rx.wrap({'team.view': lambda team: {'here': team}})
+        self.assertEqual(h['team.view'](team='api'), {'here': 'api'})
+
+    def test_a_team_started_here_takes_a_name_no_machine_uses(self):
+        got = {}
+        h = self.rx.wrap({'team.start': lambda project, task, roles, practices, name=None: got.setdefault('name', name) and {'team': name}})
+        h['team.start'](project='/w/api', task='', roles=[], practices={})
+        self.assertEqual(got['name'], 'api-2')  # `api` runs on devbox
+
+    def test_with_the_app_closed_a_remote_is_polled_when_its_teams_change_not_every_tick(self):
+        polls = []
+        self.rt.answers['menu.poll'] = lambda p: polls.append(1) or {'count': 0, 'panel': {'count': 0, 'teams': []}, 'events': []}
+        self.rx.start_brain = lambda m, restart=False: None
+        for _ in range(3):
+            self.now[0] += 15
+            self.rx._fresh()
+            self.rx.tick(watching=False)
+        self.assertEqual(len(polls), 1)
+        self.rt.there[0]['status'] = {'state': 'blocked'}
+        self.now[0] += 15
+        self.rx._fresh()
+        self.rx.tick(watching=False)
+        self.assertEqual(len(polls), 2)
+
+    def test_the_package_digest_is_worked_out_once(self):
+        remote.package_digest.cache_clear()
+        with mock.patch.object(remote, 'package_tar', wraps=remote.package_tar) as tar:
+            remote.package_digest()
+            remote.package_digest()
+        self.assertEqual(tar.call_count, 1)
+
+    def test_routing_reads_the_machine_list_at_most_once_a_second(self):
+        h = self.rx.wrap({'settings.get': lambda: {}})
+        for _ in range(5):
+            h['settings.get']()
+        self.assertEqual(sum(m == 'machine.list' for m, _ in self.rt.calls), 1)
+
+    def test_with_no_machine_routing_lists_no_terminals(self):
+        self.rt.call = lambda method, **p: {'machines': []} if method == 'machine.list' else self.fail(method)
+        h = self.rx.wrap({'team.view': lambda team: {'here': team}})
+        self.assertEqual(h['team.view'](team='api'), {'here': 'api'})
+
+    def test_remote_rows_are_saved_under_the_lock(self):
+        held = []
+        self.rx._save = lambda: held.append(self.rx.lock.locked())
+        self.rx.remote_rows()
+        self.assertEqual(held, [True])
 
 
 @unittest.skipUnless(shutil.which('hc'), 'needs hc')
@@ -337,7 +427,7 @@ exec env -i HOME=$R PATH=$R/.local/bin:/usr/bin:/bin XDG_STATE_HOME=$R/state XDG
         # An agent of a team there: listed from here as devbox's, never as this Mac's.
         self.rt.call('terminal.run', on='devbox', argv=['sleep', '300'], wait=False,
                      labels={team.TEAM: 'api', team.ROLE: 'builder'}, cwd=self.there)
-        self.rx.raw_at = None
+        self.rx._fresh()
         self.assertEqual(self.rx.teams(), {'api': 'devbox'})
         self.assertEqual(team.status(self.rt), [])
         handlers = self.rx.wrap({'settings.get': lambda: {'here': True}, 'brain.snapshot': lambda: {'teams': [], 'starting': []}})
@@ -350,12 +440,12 @@ exec env -i HOME=$R PATH=$R/.local/bin:/usr/bin:/bin XDG_STATE_HOME=$R/state XDG
         for pid in connect:
             os.kill(int(pid), signal.SIGTERM)
         self.wait('unreachable', lambda: self.rx.machines()[0]['state'] == 'unreachable')
-        self.rx.raw_at = None
+        self.rx._fresh()
         self.assertEqual([(r['team'], r['reachable']) for r in handlers['brain.snapshot']()['teams']], [('api', False)])
         os.remove(os.path.join(self.there, 'down'))
         self.rx.connect('devbox')
         self.assertEqual(self.rx.machines()[0]['state'], 'connected')
-        self.rx.raw_at = None
+        self.rx._fresh()
         self.assertEqual([(r['team'], r['reachable']) for r in handlers['brain.snapshot']()['teams']], [('api', True)])
 
 

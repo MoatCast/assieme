@@ -7,6 +7,7 @@ remote teams to the calls that list every team. Assieme never runs ssh itself: h
 SSH config and agent, and nothing here reads a key or a password.
 """
 import base64
+import functools
 import hashlib
 import io
 import json
@@ -35,7 +36,9 @@ SLOW_S = {'team.start': 115, 'team.add_agent': 115, 'team.suggest': 175, 'review
 KEPT = ('team.map', 'team.view', 'agent.detail', 'board.get', 'brief.get')  # shown from their last answer while away
 LIST_S = 8                               # a remote that lists slower than this is shown from its last answer
 BRAIN_WAIT_S = 30
-WOKE_S = 60                               # a longer gap between ticks: the Mac slept
+REVIVE_S = 120                            # after a brain there wouldn't start, wait this long before the next try
+POLL_S = 300                              # with the app closed, a remote's news is asked for at least this often
+WOKE_S = 60                              # a longer gap between ticks: the Mac slept
 TAILSCALE_APP = '/Applications/Tailscale.app/Contents/MacOS/Tailscale'
 TARGET = re.compile(r'^[A-Za-z0-9_.@:\[\]%-]+$')  # one ssh argument: never an option, never two words
 
@@ -150,7 +153,9 @@ def package_tar(pkg=None):
     return buf.getvalue(), digest.hexdigest()[:16]
 
 
+@functools.lru_cache(maxsize=None)
 def package_digest(pkg=None):
+    """Worked out once per process: New team asks for it every few seconds."""
     return package_tar(pkg)[1]
 
 
@@ -233,6 +238,9 @@ class Remotes:
         self.hc = hc or (lambda: shutil.which('hc') or 'hc')
         self.opener = opener or (lambda path: subprocess.run(['open', '-a', 'Terminal', path], capture_output=True, timeout=10))
         self.lock, self.jobs, self.last_tick, self.raw_at, self.starts = threading.Lock(), {}, None, None, set()
+        self.ms_at = None                     # (when, the machine list), read at most once a second
+        self.reviving, self.revive_after = set(), {}  # brains being started there, and when to try again
+        self.polled = {}                      # machine -> (when, its rows) of the last menu.poll with the app closed
         self.last = {}  # (machine, method) -> its last answer, shown while it can't be reached
         try:
             with open(self.store) as f:
@@ -260,14 +268,26 @@ class Remotes:
             self.raw_at = (self.clock(), raw)
         return raw
 
+    def _fresh(self):
+        """Forget the cached lists: the next read asks the core."""
+        with self.lock:
+            self.raw_at = self.ms_at = None
+
     def machines(self):
-        """The machines Assieme added, with their line: connecting, connected, needs_login or unreachable."""
+        """The machines Assieme added, with their line: connecting, connected, needs_login or unreachable.
+        Read at most once a second: every brain call asks, to route it."""
+        with self.lock:
+            if self.ms_at is not None and self.clock() - self.ms_at[0] < 1:
+                return self.ms_at[1]
         try:
             ms = self.rt.call('machine.list')['machines']
         except runtime.RuntimeError_:
-            return []
-        return [{'name': m['name'], 'target': m['target'], 'state': m.get('state', 'connecting'),
-                 'since_ms': m.get('since_ms'), 'why': m.get('why')} for m in ms if m.get('session') == SESSION]
+            ms = []
+        out = [{'name': m['name'], 'target': m['target'], 'state': m.get('state', 'connecting'),
+                'since_ms': m.get('since_ms'), 'why': m.get('why')} for m in ms if m.get('session') == SESSION]
+        with self.lock:
+            self.ms_at = (self.clock(), out)
+        return out
 
     def remote_rows(self):
         """{machine: (team rows, reachable)}: live rows from the core, the last seen ones while a line is down."""
@@ -276,17 +296,18 @@ class Remotes:
             return {}
         terminals = [t for t in self._raw().get('terminals', []) if '/' in t.get('address', '')]
         out, changed = {}, False
-        for name, m in ms.items():
-            if m['state'] == 'connected':
-                mine = [t for t in terminals if t['address'].split('/', 1)[0] == name]
-                rows = [r | {'machine': name} for r in team.status(_Listed(mine))]
-                if self.rows.get(name) != rows:
-                    self.rows[name], changed = rows, True
-                out[name] = (rows, True)
-            else:
-                out[name] = (self.rows.get(name, []), False)
-        if changed:
-            self._save()
+        with self.lock:  # the server's threads and the tick both get here
+            for name, m in ms.items():
+                if m['state'] == 'connected':
+                    mine = [t for t in terminals if t['address'].split('/', 1)[0] == name]
+                    rows = [r | {'machine': name} for r in team.status(_Listed(mine))]
+                    if self.rows.get(name) != rows:
+                        self.rows[name], changed = rows, True
+                    out[name] = (rows, True)
+                else:
+                    out[name] = (self.rows.get(name, []), False)
+            if changed:
+                self._save()
         return out
 
     def _running(self):
@@ -354,10 +375,12 @@ class Remotes:
         m = params.pop('machine', None)
         if m:
             return m
+        if not self.machines():
+            return None  # no machine added: everything is here
         t = params.get('team')
         if isinstance(t, str) and t:
             where = self.teams().get(t)
-            if where:
+            if where and not self._here(t):
                 return where
         heads = [v.split('/', 1)[0] for v in params.values() if isinstance(v, str) and '/' in v and not v.startswith('/')]
         if heads:
@@ -365,10 +388,22 @@ class Remotes:
             return next((h for h in heads if h in known), None)
         return None
 
+    def _here(self, name):
+        """A team of that name runs on this Mac: it wins over one elsewhere."""
+        try:
+            return any(r['team'] == name for r in team.status(self.rt, name))
+        except runtime.RuntimeError_:
+            return False
+
     def _routed(self, name, fn):
         def handler(**params):
             m = self._where(params)
             if not m:
+                if name == 'team.start' and not params.get('name'):
+                    elsewhere = set(self.teams())
+                    if elsewhere:  # one name across every machine, as a start there does
+                        taken = elsewhere | {r['team'] for r in team.status(self.rt) if r['state'] == 'live'}
+                        params['name'] = newteam.team_name(params.get('project') or 'team', taken)
                 return fn(**params)
             if name == 'team.start':
                 if not params.get('name'):  # one name across every machine: a team is found by its name
@@ -514,6 +549,7 @@ class Remotes:
         else:
             try:
                 name = self.rt.call('machine.add', target=target, session=SESSION)['name']
+                self._fresh()
             except runtime.RuntimeError_ as e:
                 return _failure(target, e)
         c = self.check(name)
@@ -585,6 +621,7 @@ class Remotes:
             self._hc_cli('machine', 'update', known['name'])
         elif not known:
             known = self._hc_cli('machine', 'add', job['target'], '--session', SESSION, '--install')
+        self._fresh()
         with self.lock:
             job['machine'] = known['name']
 
@@ -593,8 +630,7 @@ class Remotes:
                 and (t.get('labels') or {}).get(SERVICE) == BRAIN and t.get('state') == 'live']
 
     def _fresh_raw(self):
-        with self.lock:
-            self.raw_at = None
+        self._fresh()
         return self._raw()
 
     def start_brain(self, machine, restart=False):
@@ -622,10 +658,13 @@ class Remotes:
             return self.rt.call('machine.connect', machine=machine)
         except runtime.RuntimeError_ as e:
             raise RemoteError(str(e)) from None
+        finally:
+            self._fresh()  # its line just changed
 
     def forget(self, machine):
         """This Mac stops showing it. Its agents keep running there."""
         self.rt.call('machine.rm', machine=machine)
+        self._fresh()
         self.rows.pop(machine, None)
         self.set_up.discard(machine)
         self._save()
@@ -681,12 +720,42 @@ class Remotes:
                     self.thread(target=lambda n=m['name']: self._quietly(self.connect, n), daemon=True).start()
                 continue
             busy = (self._job(m['target']) or {'done': True})['done'] is False
-            if m['name'] in self.set_up and not busy and not self._brains(m['name']):
-                self._quietly(self.start_brain, m['name'])
+            name = m['name']
+            with self.lock:
+                due = name not in self.reviving and now >= self.revive_after.get(name, 0)
+            if name in self.set_up and not busy and due and not self._brains(name):
+                with self.lock:
+                    self.reviving.add(name)
+                self.thread(target=self._revive, args=(name,), daemon=True).start()
         if not watching:
-            for m, (x, ok) in self._each('menu.poll').items():
-                for e in x.get('events', []) if ok else []:
-                    self.notify(e['title'], e['body'])
+            self._notify_news(now)
+
+    def _revive(self, name):
+        """Start the brain there; after a failure the next try waits REVIVE_S. Never on the tick's own thread."""
+        try:
+            self.start_brain(name)
+        except (RemoteError, runtime.RuntimeError_):
+            with self.lock:
+                self.revive_after[name] = self.clock() + REVIVE_S
+        finally:
+            with self.lock:
+                self.reviving.discard(name)
+
+    def _notify_news(self, now):
+        """With the app closed, ask a machine for its news only when its teams changed, or every POLL_S: each ask
+        starts a Python there."""
+        for m, (rows, ok) in self.remote_rows().items():
+            sig = json.dumps([(r['address'], r['state'], r['status']) for r in rows], sort_keys=True)
+            at, seen = self.polled.get(m, (None, None))
+            if not ok or not rows or (seen == sig and at is not None and now - at < POLL_S):
+                continue
+            self.polled[m] = (now, sig)
+            try:
+                got = self.call(m, 'menu.poll', timeout_s=LIST_S)
+            except RemoteError:
+                continue
+            for e in got.get('events', []):
+                self.notify(e['title'], e['body'])
 
     @staticmethod
     def _quietly(fn, *args):
