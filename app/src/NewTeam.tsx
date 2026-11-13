@@ -18,6 +18,8 @@ import { useSetupStatus } from "./NewUserChecklist";
 import ToolPicker, { toolSummary } from "./ToolPicker";
 import { kindName } from "./kinds";
 import "./NewTeam.css";
+import { assignMusicians } from "./band";
+import Musician from "./Musician";
 
 type Clis = Partial<Record<AgentKind, boolean>>;
 const NAME = /^[a-z0-9-]+$/;
@@ -55,6 +57,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [task, setTask] = useState("");
   const [chosen, setChosen] = useState("");
   const [roles, setRoles] = useState<RoleDraft[]>([]);
+  const seats = assignMusicians(roles); // step 31: the instrument each will be saved with
   const [edited, setEdited] = useState(false);
   const [briefOf, setBriefOf] = useState<number | null>(null);
   const [modelOf, setModelOf] = useState<number | null>(null);
@@ -448,6 +451,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
                 {roles.map((r, i) => (
                   <div className="agent" key={i}>
                     <div className="line">
+                      <Musician instrument={seats[i].musician} palette={seats[i].palette} state="idle" role={r.name} size={1} />
                       <input className="name" aria-label="Agent name" value={r.name}
                         onChange={(e) => edit(i, { name: e.target.value })} />
                       <AgentMenu look="pill" value={r.agent} container={!!r.container} installed={clis ?? {}}

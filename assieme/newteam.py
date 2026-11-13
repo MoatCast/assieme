@@ -278,6 +278,16 @@ def roster(name, teams=None):
     return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
 
 
+def band(name, teams=None):
+    """Step 31: each role's instrument and colours, for the app to draw. {} for a team with no saved folder."""
+    try:
+        roles = preset.load(os.path.join(teams or teams_dir(), name)).roles
+    except (preset.PresetError, OSError):
+        return {}
+    return {r.name: {'musician': m, 'palette': musicians.palette(roles, i)}
+            for i, (r, m) in enumerate(zip(roles, musicians.assign(roles)))}
+
+
 def _known(r, project):
     """Step 32: an agent that doesn't take newly installed tools remembers what was there, so a later one is told apart."""
     if r.get('tools_new') is not False or r.get('tools_known'):

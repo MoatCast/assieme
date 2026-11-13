@@ -4,6 +4,7 @@ import { agentDetail, agentRestart, agentSetTools, agentTools, type AgentDetail 
 import { kindName } from "./kinds";
 import { FixButtons } from "./Team";
 import ToolPicker, { toolLabel, toolSummary } from "./ToolPicker";
+import { AgentFace } from "./band";
 
 const HEADS: Record<string, string> = { asking: "Asking you", stuck: "Seems stuck", waiting: "Has work waiting" };
 const times = (n: number) => (n === 1 ? "once" : `${n} times`);
@@ -134,7 +135,8 @@ export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpen
       <div className="dim" onClick={onClose} />
       <div className="sheet" role="dialog" aria-label={`Agent ${role}`}>
         <div className="sheet-head">
-          <div>
+          {d && <AgentFace team={team} role={role} state={d.state} size={3} />}
+          <div className="sheet-who">
             <h2 className="mono">{role}</h2>
             {d && <p>{[kindName(d.cli), d.job].filter(Boolean).join(" · ")}</p>}
           </div>

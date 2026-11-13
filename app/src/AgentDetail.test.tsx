@@ -126,3 +126,9 @@ test("no tools section when the brain has none for this agent", async () => {
   expect(screen.getByText(/Antigravity can't be given its own set/)).toBeTruthy();
   expect(screen.queryByText("Change…")).toBeNull();
 });
+
+test("faces: the sheet shows the agent's musician at 3×", async () => { // step 31
+  await open(D());
+  const img = screen.getByRole("img", { name: "builder-3, bass, working" });
+  expect(img.querySelector("svg")?.getAttribute("width")).toBe("48");
+});

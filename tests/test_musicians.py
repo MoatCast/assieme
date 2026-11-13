@@ -100,5 +100,29 @@ class SavedTest(unittest.TestCase):
         self.assertEqual([x['musician'] for x in saved], ['timpani', 'violin'])
 
 
+class BandTest(unittest.TestCase):
+
+    def setUp(self):
+        self.teams = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.teams)
+
+    def test_band_from_the_saved_team(self):
+        newteam.save(self.teams, TEAM, {}, 'shop', self.teams)
+        got = newteam.band('shop', self.teams)
+        self.assertEqual(got['builder-4'], {'musician': 'violin', 'palette': 1})
+        self.assertEqual(got['planner'], {'musician': 'piano', 'palette': 0})
+        self.assertEqual(len(got), len(TEAM))
+
+    def test_no_saved_team_has_no_band(self):
+        self.assertEqual(newteam.band('nope', self.teams), {})
+
+    def test_handler(self):
+        from assieme import teammap
+        newteam.save(self.teams, TEAM[:1], {}, 'shop', self.teams)
+        me = mock.MagicMock()
+        me.starter.teams = self.teams
+        self.assertEqual(teammap.Brain.handlers(me)['team.band']('shop'), {'planner': {'musician': 'piano', 'palette': 0}})
+
+
 if __name__ == '__main__':
     unittest.main()

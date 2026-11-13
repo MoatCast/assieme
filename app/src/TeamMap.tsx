@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import dagre from "@dagrejs/dagre";
 import type { MapEdge, MapGroup, MapNode, Pane } from "./bridge";
 import { ago } from "./Terminals";
+import { AgentFace } from "./band";
 
 const WORDS: Record<Pane["state"], string> = {
   asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", idle: "idle", exited: "done",
@@ -91,7 +92,8 @@ function Callout({ at, perHour }: { at: { x: number; y: number }; perHour: numbe
 }
 
 /** The map of one team, or of one opened group: who wakes whom. */
-export function AgentsMap({ nodes, edges, waits, onPick }: {
+export function AgentsMap({ nodes, edges, waits, onPick, team }: {
+  team?: string;
   nodes: MapNode[];
   edges: MapEdge[];
   waits: { from: string; to: string }[];
@@ -131,7 +133,7 @@ export function AgentsMap({ nodes, edges, waits, onPick }: {
         return (
           <button key={n.role} type="button" className={`node ${needs(n.state) ? "needs" : ""} ${n.paused ? "paused" : `state-${n.state}`}`} data-testid={`node-${n.role}`}
             style={{ left: b.x, top: b.y, width: b.width, height: b.height }} onClick={() => onPick(n.role)}>
-            <span className="dot" />
+            <AgentFace team={team} role={n.role} state={n.paused ? "idle" : n.state} size={2} />
             <span className="node-text">
               <span className="node-name">{n.role}</span>
               <span className="node-state">{[n.paused ? "paused" : WORDS[n.state], n.state === "exited" ? "" : ago(n.since_s)].filter(Boolean).join(" · ")}</span>
@@ -158,7 +160,7 @@ function summary(g: MapGroup) {
 }
 
 /** The map of a big team: groups, with who wakes whom between them. */
-export function GroupsMap({ groups, onOpen }: { groups: MapGroup[]; onOpen: (name: string) => void }) {
+export function GroupsMap({ groups, onOpen, team }: { groups: MapGroup[]; onOpen: (name: string) => void; team?: string }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const size = (g: MapGroup) => (open.has(g.name) ? GROUP_OPEN : GROUP);
   const links = groups.flatMap((g) => g.edges.map((e) => ({ from: g.name, to: e.to })));
@@ -203,7 +205,7 @@ export function GroupsMap({ groups, onOpen }: { groups: MapGroup[]; onOpen: (nam
               <>
                 <div className="group-chips">
                   {g.roles.map((r) => (
-                    <span key={r} className={`chip state-${g.states[r]} ${needs(g.states[r]) ? "needs" : ""}`}><span className="dot" />{r}</span>
+                    <span key={r} className={`chip state-${g.states[r]} ${needs(g.states[r]) ? "needs" : ""}`}><AgentFace team={team} role={r} state={g.states[r]} />{r}</span>
                   ))}
                 </div>
                 <button type="button" className="group-open" onClick={() => onOpen(g.name)}>Open the group to see who wakes whom inside it.</button>

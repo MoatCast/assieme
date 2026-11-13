@@ -7,6 +7,7 @@ import { ago } from "./Terminals";
 import { tokens } from "./Team";
 import "./tokens.css";
 import "./MenuBar.css";
+import { AgentFace } from "./band";
 
 const OPEN: MenuButton = { id: "open", label: "Open", kind: "reply" };
 
@@ -16,7 +17,7 @@ function Item({ team, item, press }: { team: string; item: MenuItem; press: (t: 
     return (
       <div className="mb-ask">
         <div className="mb-ask-text">
-          <span className="mb-role">{item.role}</span> <span className="mb-says">asks:</span> “{item.text}”
+          <AgentFace team={team} role={item.role} state={item.state} /> <span className="mb-role">{item.role}</span> <span className="mb-says">asks:</span> “{item.text}”
         </div>
         <div className="mb-buttons">
           {buttons.map((b, i) => (
@@ -28,7 +29,7 @@ function Item({ team, item, press }: { team: string; item: MenuItem; press: (t: 
   }
   return (
     <div className="mb-row">
-      <span className="mb-dot need" />
+      <AgentFace team={team} role={item.role} state={item.state} />
       <span className="mb-grow"><span className="mb-role">{item.role}</span><span className="mb-says"> {[item.says, ago(item.since_s)].filter(Boolean).join(" · ")}</span></span>
       <button type="button" className="mb-text" onClick={() => press(team, item, buttons[0])}>{buttons[0].label}</button>
     </div>

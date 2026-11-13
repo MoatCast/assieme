@@ -187,3 +187,6 @@
 .limit-row small { width: 80px; flex-shrink: 0; text-align: right; font-size: 12px; }
 .limit-row input { width: 96px; flex-shrink: 0; box-sizing: border-box; padding: 6px 10px; border-color: var(--quiet-line-strong); }
 .limit-row input:not(:placeholder-shown) { border-color: var(--quiet-control); }
+/* Step 31: a face where the dot was. Off brings the dot back, styled by the rules above. */
+.card-head .musician, .group-chips .musician { margin-block: -2px; }
+.sheet-head > .musician { margin-top: -4px; }

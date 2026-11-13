@@ -59,3 +59,4 @@
 .board-none { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .board-none .btn-secondary { padding: 5px 10px; font-size: 12px; line-height: 16px; background: var(--quiet-surface); }
 .field small { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.task-who .chip.with-face { display: inline-flex; align-items: center; gap: 5px; padding-left: 4px; } /* step 31 */

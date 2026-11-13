@@ -888,3 +888,10 @@ test("changing an agent's kind picks its tools again", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Tools for builder: 1 of 1" }));
   expect(screen.getByRole("checkbox", { name: "codex-only" })).toBeTruthy();
 });
+
+test("faces: each agent row shows the musician it will be saved with", async () => { // step 31
+  await open();
+  fireEvent.click(screen.getByText("Builder + reviewer"));
+  expect(screen.getByRole("img", { name: "builder, violin, idle" })).toBeTruthy();
+  expect(screen.getByRole("img", { name: "reviewer, score, idle" })).toBeTruthy();
+});

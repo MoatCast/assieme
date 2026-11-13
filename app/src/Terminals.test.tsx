@@ -233,3 +233,10 @@ test("finished work can be previewed from its pane, and a running or failed prev
   fireEvent.click(three.getByRole("button", { name: "See why" }));
   expect(onReview).toHaveBeenCalledWith("shop", "idle-three");
 });
+
+test("faces: each pane head shows its musician beside the state words", async () => { // step 31
+  await show();
+  const planner = screen.getByTestId("pane-planner");
+  expect(within(planner).getByRole("img", { name: "planner, piano, needs you" })).toBeTruthy();
+  expect(within(planner).getByText("asking you · 12m")).toBeTruthy();
+});

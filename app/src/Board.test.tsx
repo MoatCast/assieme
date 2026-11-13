@@ -197,3 +197,8 @@ test("a review card previews its branch: start, then open and stop, or see why i
   fireEvent.click(within(three).getByRole("button", { name: "See why" }));
   expect(review).toHaveBeenCalledWith("shop", "builder-3");
 });
+
+test("faces: a card's agent chip shows its musician", async () => { // step 31
+  await open(BOARD([card("2", { status: "doing", role: "builder-3", agent: { role: "builder-3", state: "stuck", since_s: 1080, detail: "", fix: null, reachable: true } })]));
+  expect(within(screen.getByTestId("task-2")).getByRole("img", { name: "builder-3, bass, needs you" })).toBeTruthy();
+});
