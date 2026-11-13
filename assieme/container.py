@@ -1,8 +1,9 @@
-"""An agent in a container that sees only its own copy of the project: Docker, else Apple's `container`.
+"""An agent in a container that sees only its own copy of the project, with Docker.
 
 Assieme never installs either. The copy, Assieme's own code and the agent's settings file are mounted at the same
 paths they have on the Mac, so the agent's command line is the one `launch` builds. Its home folder is a volume per
-kind, so it signs in once; with share_signin, that kind's sign-in folder from the Mac is mounted over it.
+kind and project, so it signs in once per project; with share_signin, that kind's sign-in files from the Mac are
+mounted read-only.
 """
 import importlib.metadata
 import os
@@ -10,17 +11,21 @@ import subprocess
 
 from . import setup
 
-TOOLS = ('docker', 'container')
-HOSTS = {'docker': 'host.docker.internal', 'container': '192.168.64.1'}  # how a container reaches this Mac
+# Apple's `container` isn't offered until it has been tried: its containers reach the Mac on an address the bridge
+# doesn't listen on.
+TOOLS = ('docker',)
+HOSTS = {'docker': 'host.docker.internal'}  # how a container reaches this Mac
 IMAGE = 'assieme-agent-{kind}:1'
 RECIPE = os.path.join(os.path.dirname(__file__), 'container')
 PACKAGE = os.path.dirname(os.path.abspath(__file__))
 HOME = '/home/node'
-# Sign-in folders that can be shared. Claude Code keeps its sign-in in the Mac's Keychain: it signs in inside.
-SIGNIN = {'codex': '.codex', 'gemini': '.gemini', 'opencode': '.local/share/opencode', 'cursor': '.cursor'}
+# The sign-in files that can be shared, each read-only. Claude Code and Cursor keep theirs in the Mac's Keychain:
+# they sign in inside. Read-only: a sign-in that needs renewing asks again inside the container.
+SIGNIN = {'codex': ['.codex/auth.json'], 'gemini': ['.gemini/oauth_creds.json', '.gemini/google_accounts.json'],
+          'opencode': ['.local/share/opencode/auth.json']}
 TIMEOUT_S = 5
 NOT_RUNNING = 'Docker is on this Mac but not running.'
-NONE = "Containers need Docker or Apple's container tool, and neither is on this Mac."
+NONE = "Containers need Docker, and it isn't on this Mac."
 NO_IMAGE = 'The container for {name} is not built yet. Choose Download and build in Add agent.'
 
 
@@ -61,7 +66,7 @@ def problem(kind, which=setup.agent_path, run=subprocess.run):
     if not s['tool']:
         return NONE
     if not s['running']:
-        return NOT_RUNNING if s['tool'] == 'docker' else "Apple's container tool is on this Mac but not running."
+        return NOT_RUNNING
     if not s['image_ready']:
         from . import launch
         return NO_IMAGE.format(name=launch.NAMES.get(kind, kind))
@@ -78,6 +83,13 @@ def build_command(kind, which=setup.agent_path):
                                              '--build-arg', f"MCP_VERSION={importlib.metadata.version('mcp')}", RECIPE])
 
 
+def _project_key(path):
+    """The project an agent's copy belongs to (<project>/.assieme/worktrees/<role>), as a short name for its volume."""
+    import hashlib
+    project = path.split(os.sep + '.assieme' + os.sep + 'worktrees' + os.sep)[0]
+    return hashlib.sha256(os.path.realpath(project).encode()).hexdigest()[:12]
+
+
 def run_argv(role, inner, env, path, terminal, bridge=None, which=setup.agent_path, home=None):
     """`docker run` around the agent's own command line. `inner` and `env` are what `launch` built for it."""
     t = tool(which)
@@ -87,11 +99,12 @@ def run_argv(role, inner, env, path, terminal, bridge=None, which=setup.agent_pa
     home = home or os.path.expanduser('~')
     a = [prog, 'run', '--rm', '-it', '--init', '--name', f'assieme-{terminal}',
          '-v', f'{path}:{path}', '-w', path, '-v', f'{PACKAGE}:{PACKAGE}:ro',
-         '-v', f'assieme-home-{role.agent}:{HOME}']
-    if role.share_signin and role.agent in SIGNIN:
-        mine = os.path.join(home, SIGNIN[role.agent])
-        os.makedirs(mine, exist_ok=True)
-        a += ['-v', f'{mine}:{HOME}/{SIGNIN[role.agent]}']
+         '-v', f'assieme-home-{role.agent}-{_project_key(path)}:{HOME}']  # one per project: no agent reads another's
+    if role.share_signin:
+        for rel in SIGNIN.get(role.agent, []):
+            mine = os.path.join(home, rel)
+            if os.path.isfile(mine):
+                a += ['-v', f'{mine}:{HOME}/{rel}:ro']
     env = {**env, 'PYTHONPATH': os.path.dirname(PACKAGE)}
     if bridge:  # 'port/ticket'
         env['ASSIEME_BRIDGE'] = f'{HOSTS[name]}:{bridge}'

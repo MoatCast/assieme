@@ -7,6 +7,8 @@ import { useSetupStatus } from "./NewUserChecklist";
 
 const KINDS = [["builder", "Builder"], ["reviewer", "Reviewer"], ["tester", "Tester"], ["planner", "Planner"]] as const;
 type Kind = (typeof KINDS)[number][0];
+// Kinds whose sign-in is a file a container can read; Claude Code and Cursor keep theirs in the Mac's Keychain.
+const SHAREABLE: AgentKind[] = ["codex", "gemini", "opencode"];
 
 /** The next free name for this kind: builder-4 when builder-1 to 3 are taken. */
 export function nextName(kind: string, taken: string[]) {
@@ -151,11 +153,11 @@ export default function AddAgent({ team, roles, clis, onClose }: {
           {inContainer && (
             <div className="where-more">
               <ContainerLine agent={agent} onReady={setContainerReady} />
-              {agent !== "claude" && (
+              {SHAREABLE.includes(agent) && (
                 <label className="share">
                   <input type="checkbox" checked={shareSignin} onChange={(e) => setShareSignin(e.target.checked)} />
                   <span>Let it use my {kindName(agent).replace(" CLI", "")} sign-in
-                    <small>{shareSignin ? `On: it can read your ${kindName(agent).replace(" CLI", "")} sign-in folder, nothing else of yours.`
+                    <small>{shareSignin ? `On: it can read your ${kindName(agent).replace(" CLI", "")} sign-in file, read-only, and nothing else of yours.`
                       : "Off: it asks you to sign in once, in its terminal."}</small>
                   </span>
                 </label>

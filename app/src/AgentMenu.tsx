@@ -143,7 +143,7 @@ export function ContainerLine({ agent, onReady, pollMs = 3000 }: { agent: AgentK
       {!state.tool ? (
         <div className="cl-row top">
           <span className="cl-dot mute" />
-          <span className="cl-text">Containers need Docker or Apple’s container tool, and neither is on this Mac.
+          <span className="cl-text">Containers need Docker, and it isn’t on this Mac.
             <button type="button" className="cl-link" onClick={() => void openLink(GET_DOCKER)}>How to get one</button>
           </span>
         </div>

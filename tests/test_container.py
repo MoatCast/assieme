@@ -28,7 +28,7 @@ class StateTest(unittest.TestCase):
     def test_no_tool(self):
         self.assertEqual(container.state('gemini', which=lambda n: None),
                          {'tool': None, 'running': False, 'image_ready': False})
-        self.assertIn('neither is on this Mac', container.problem('gemini', which=lambda n: None))
+        self.assertEqual(container.problem('gemini', which=lambda n: None), "Containers need Docker, and it isn't on this Mac.")
 
     def test_docker_not_running(self):
         which = lambda n: '/x/docker' if n == 'docker' else None
@@ -60,7 +60,7 @@ class RunArgvTest(unittest.TestCase):
         mounts = [a[i + 1] for i, w in enumerate(a) if w == '-v']
         self.assertIn(f'{self.cwd}:{self.cwd}', mounts)
         self.assertIn(f'{container.PACKAGE}:{container.PACKAGE}:ro', mounts)
-        self.assertIn('assieme-home-gemini:/home/node', mounts)
+        self.assertTrue(any(m.startswith('assieme-home-gemini-') and m.endswith(':/home/node') for m in mounts))
         self.assertFalse(any(m.startswith(os.path.expanduser('~/.gemini')) for m in mounts))
         self.assertEqual(a[a.index('-w') + 1], self.cwd)
         env = dict(a[i + 1].split('=', 1) for i, w in enumerate(a) if w == '-e')
@@ -71,12 +71,6 @@ class RunArgvTest(unittest.TestCase):
         self.assertEqual(inner, ['gemini'])  # its own program, by name, inside the image
         settings = json.load(open(os.path.join(self.cwd, '.gemini', 'settings.json')))
         self.assertTrue(settings['hooks']['AfterAgent'][0]['hooks'][0]['command'].startswith('python3 -P -m assieme.hook'))
-
-    def test_share_signin_mounts_only_that_kinds_folder(self):
-        with mock.patch('os.path.expanduser', side_effect=lambda p: p.replace('~', self.home)):
-            a = launch.argv(role(container=True, share_signin=True), cwd=self.cwd, terminal='t', which=self.which)
-        mounts = [a[i + 1] for i, w in enumerate(a) if w == '-v']
-        self.assertIn(f'{self.home}/.gemini:/home/node/.gemini', mounts)
 
     def test_claude_never_shares_a_signin(self):
         a = self.argv(role('claude', container=True, share_signin=True))

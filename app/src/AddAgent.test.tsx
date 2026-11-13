@@ -57,7 +57,18 @@ test("a container agent says what it sees, and Add waits for the container", asy
   expect(screen.getByText(/in its copy of shop, and nothing outside it/)).toBeTruthy();
   expect((screen.getByRole("button", { name: "Add agent" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole("checkbox", { name: /Let it use my Gemini sign-in/ }));
-  expect(screen.getByText("On: it can read your Gemini sign-in folder, nothing else of yours.")).toBeTruthy();
+  expect(screen.getByText("On: it can read your Gemini sign-in file, read-only, and nothing else of yours.")).toBeTruthy();
+});
+
+test("Cursor keeps its sign-in in the Keychain, so sharing isn't offered; no Docker says so", async () => {
+  b.containerStatus.mockResolvedValue({ tool: null, running: false, image_ready: false });
+  await open({ claude: true, cursor: true });
+  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
+  fireEvent.click(screen.getByRole("menuitemradio", { name: /Cursor/ }));
+  fireEvent.click(screen.getByRole("radio", { name: /A container/ }));
+  await act(async () => {});
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(screen.getByText(/Containers need Docker, and it isn’t on this Mac\./)).toBeTruthy();
 });
 
 test("Claude Code in a container is never offered a shared sign-in", async () => {

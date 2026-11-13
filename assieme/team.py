@@ -50,6 +50,7 @@ def stop(rt, name):
     live = [r for r in status(rt, name) if r['state'] == 'live']
     for r in live:
         rt.kill(r['address'])
+    bridge.revoke([r['address'] for r in live])
     return len(live)
 
 

@@ -97,14 +97,39 @@ def _codex(role, py=None):
     return a
 
 
-def _write_once(cwd, rel, data):
-    """A settings file in the agent's own folder, only when the project has none there, and kept out of git."""
+def _merge(cwd, rel, ours):
+    """Assieme's entries into a settings file in the agent's own folder: the project's own entries stay, ours are
+    replaced, never doubled. Kept out of the agent's commits (excluded, or skip-worktree when the project tracks it).
+    A file that isn't plain JSON is left alone: that agent's status then comes from its screen only. Returns the data."""
     path = os.path.join(cwd, rel)
-    if not os.path.exists(path):  # never over a project's own file
+    data = {}
+    if os.path.exists(path):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            return None
+        if not isinstance(data, dict) or not isinstance(data.get('hooks', {}), dict):
+            return None
+    for key, value in ours.items():
+        if key == 'hooks':
+            hooks = data.setdefault('hooks', {})
+            for event, entries in value.items():
+                kept = [e for e in hooks.get(event) or [] if 'assieme.hook' not in json.dumps(e)]
+                hooks[event] = kept + entries
+        elif isinstance(value, dict) and isinstance(data.get(key, {}), dict):
+            data[key] = {**data.get(key, {}), **value}
+        else:
+            data.setdefault(key, value)
+    tracked = worktree._git(cwd, 'ls-files', '--error-unmatch', rel).returncode == 0
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
+    if tracked:
+        worktree._git(cwd, 'update-index', '--skip-worktree', rel)
+    else:
         worktree._exclude(cwd, '/' + rel)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w') as f:
-            json.dump(data, f, indent=2)
+    return data
 
 
 # Kinds that read their settings from the agent's folder only when told it is trusted: Assieme asks the person first.
@@ -114,7 +139,7 @@ ASKS_TRUST = ('gemini', 'cursor')
 def _gemini(role, cwd, py=None, trusted=False):
     """Gemini CLI takes system settings only from files root owns: these go in the agent's own folder."""
     hook = lambda state: [{'hooks': [{'type': 'command', 'command': hook_command(state, py)}]}]
-    _write_once(cwd, '.gemini/settings.json', {
+    _merge(cwd, '.gemini/settings.json', {
         'hooks': {'SessionStart': hook('idle'), 'BeforeAgent': hook('working'), 'AfterAgent': hook('idle'),
                   'Notification': [{'matcher': 'ToolPermission', 'hooks': hook('blocked')[0]['hooks']}]},
         'mcpServers': {'assieme': {**_mcp(py), 'trust': True}}})  # its own team tools, without asking each time
@@ -139,13 +164,14 @@ def _opencode(role, cwd, py=None, trusted=False):
 
 
 def _cursor(role, cwd, py=None, trusted=False):
-    """Cursor reads hooks and MCP servers only from files: written into the agent's own folder when it has none,
-    and kept out of git there."""
+    """Cursor reads hooks and MCP servers only from files, so they go in the agent's own folder."""
     hook = lambda state: [{'command': hook_command(state, py)}]
-    _write_once(cwd, '.cursor/hooks.json', {'version': 1, 'hooks': {
+    _merge(cwd, '.cursor/hooks.json', {'version': 1, 'hooks': {
         'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'), 'stop': hook('idle')}})
-    _write_once(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py)}})
-    a = ['cursor-agent', '--approve-mcps'] + (['--trust'] if trusted else []) + (['--model', role.model] if role.model else [])
+    mcp = _merge(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py)}})
+    # Approving MCP servers approves them all: only when Assieme's is the only one there.
+    alone = mcp is not None and set(mcp.get('mcpServers') or {}) == {'assieme'}
+    a = ['cursor-agent'] + (['--approve-mcps'] if alone else []) + (['--trust'] if trusted else []) + (['--model', role.model] if role.model else [])
     if role.checkout == 'read-only':
         a += ['--mode', 'plan']
     return a, {}
@@ -165,7 +191,10 @@ def argv(role, block_push=True, which=setup.agent_path, cwd=None, terminal=None,
     cwd: the agent's folder, for the kinds that read their settings from files. A container role runs inside
     `docker run`; terminal names the container, bridge is the port its team tools reach the brain on.
     trusted: the person said yes to this project, for the kinds in ASKS_TRUST."""
-    cwd = cwd or os.getcwd()
+    if cwd is None:
+        if role.agent in ASKS_TRUST:  # they write settings files: never into whatever folder this process is in
+            raise ValueError(f'{NAMES[role.agent]} needs the agent\'s own folder.')
+        cwd = os.getcwd()
     if role.container:
         a, extra = BUILDERS[role.agent](role, cwd, 'python3', trusted)
         return container.run_argv(role, a, {**(BLOCK_PUSH if block_push else {}), **extra}, cwd, terminal or role.name,

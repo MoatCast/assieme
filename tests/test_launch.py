@@ -261,12 +261,14 @@ class NewKindsTest(unittest.TestCase):
         st = subprocess.run(['git', '-C', self.cwd, 'status', '--porcelain'], capture_output=True, text=True).stdout
         self.assertEqual(st, '')
 
-    def test_cursor_never_overwrites_a_projects_own_hooks(self):
+    def test_cursor_keeps_a_projects_own_hooks_and_adds_its_own(self):
         os.makedirs(os.path.join(self.cwd, '.cursor'))
         with open(os.path.join(self.cwd, '.cursor', 'hooks.json'), 'w') as f:
-            f.write('{"theirs": true}')
+            f.write('{"version": 1, "hooks": {"stop": [{"command": "theirs"}]}}')
         self.argv(role('cursor'))
-        self.assertEqual(json.load(open(os.path.join(self.cwd, '.cursor', 'hooks.json'))), {'theirs': True})
+        stop = json.load(open(os.path.join(self.cwd, '.cursor', 'hooks.json')))['hooks']['stop']
+        self.assertEqual(stop[0], {'command': 'theirs'})
+        self.assertTrue(stop[1]['command'].endswith('assieme.hook idle'))
 
     def test_new_kinds_take_no_thinking_effort(self):
         for kind in ('gemini', 'opencode', 'cursor'):

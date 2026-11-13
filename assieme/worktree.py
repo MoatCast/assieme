@@ -20,7 +20,10 @@ SAFE = ('-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null')
 
 
 def is_clone(path):
-    return os.path.isdir(os.path.join(path, '.git'))
+    """A container agent's copy: a repository of its own at <project>/.assieme/worktrees/<role>."""
+    parent = os.path.dirname(os.path.realpath(path))
+    return (os.path.basename(parent) == 'worktrees' and os.path.basename(os.path.dirname(parent)) == '.assieme'
+            and os.path.isdir(os.path.join(path, '.git')))
 
 
 def _git(cwd, *args):

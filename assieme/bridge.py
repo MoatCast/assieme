@@ -45,6 +45,26 @@ def bind(ticket, address):
         os.replace(tmp, _tickets_path())
 
 
+def _drop(keep):
+    with _lock:
+        tickets = _load()
+        left = {t: a for t, a in tickets.items() if keep(a)}
+        if left != tickets:
+            tmp = _tickets_path() + '.tmp'
+            with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w') as f:
+                json.dump(left, f)
+            os.replace(tmp, _tickets_path())
+
+
+def prune(live):
+    """Forget the tickets of terminals that are gone: hc may give their address to a new one."""
+    _drop(lambda address: address in live)
+
+
+def revoke(addresses):
+    _drop(lambda address: address not in set(addresses))
+
+
 def port():
     try:
         with open(os.path.join(_dir(), 'bridge.port')) as f:
