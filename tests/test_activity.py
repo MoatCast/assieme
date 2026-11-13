@@ -292,6 +292,18 @@ class UndoTest(ActivityCase):
         activity.undo(e['id'], Live())
         self.assertIs(settings.load()['practices']['report-line'], True)
 
+    def test_a_rule_turned_on_inside_a_group_that_is_off_tells_no_one(self):
+        class Live(Rt):
+            session, sock = 'assieme', '/s/hc.sock'
+
+            def list(self, labels, all=False):
+                return [{'address': 't1', 'state': 'live', 'cwd': '/w/a', 'labels': {team.TEAM: 'shop'}}]
+        settings.set_value('practices.safety', False)
+        settings.set_value('practices.no-push', False)
+        activity.change_practice('no-push', True, Live())
+        self.assertIs(settings.load()['practices']['no-push'], True)  # saved, for when the group is on again
+        self.assertEqual(quiet.held(), {})  # new teams wouldn't get it either, so running agents aren't told
+
     def test_a_bigger_team_switch_tells_no_running_agent(self):
         class Live(Rt):
             def list(self, labels, all=False):

@@ -195,6 +195,15 @@ class BiggerTeamsTest(_Folder):
         self.assertLess(order.index('researcher-1'), order.index('researcher-1-critic'))
         self.assertIn(preset.STEWARD_LINE, {r.name: r for r in preset.load(self.d).roles}['researcher-1-critic'].brief)
 
+    def test_a_job_that_mentions_investigating_is_not_a_researcher(self):
+        team = RESEARCH.replace('name = "researcher-1"', 'name = "builder-1"\njob = "Investigate and fix the flaky test"')
+        self.write(team.format(project=self.d) + '\n[practices]\nresearch-pairs = true\n')
+        self.assertEqual({r.name for r in preset.load(self.d).roles}, {'lead', 'builder-1'})
+
+    def test_an_investigator_by_name_gets_a_critic(self):
+        self.write(RESEARCH.replace('researcher-1', 'investigator').format(project=self.d) + '\n[practices]\nresearch-pairs = true\n')
+        self.assertIn('investigator-critic', {r.name for r in preset.load(self.d).roles})
+
     def test_a_team_without_researchers_is_unchanged(self):
         self.write(TEAM.format(project=self.d) + '\n[practices]\nresearch-pairs = true\n')
         self.assertEqual({r.name for r in preset.load(self.d).roles}, {'builder-1', 'coordinator'})

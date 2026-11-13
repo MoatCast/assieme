@@ -9,14 +9,14 @@ export type Choice = Record<string, boolean>;
 export const ruleCount = (n: number) => (n === 1 ? "1 rule" : `${n} rules`);
 /** Agents are told not to push only while the group and its rule are both on. */
 export const pushesBlocked = (v: Choice) => v.safety !== false && v["no-push"] !== false;
-// The same words the brain uses to find researchers (preset.RESEARCHER).
-const RESEARCHER = /research|investigat/i;
+// A researcher or investigator by its name, never by its job's wording: the brain's preset.RESEARCHER.
+const RESEARCHER = /^(research|investigat)/i;
 
 /** How many agents a team starts with, counting those the presets for bigger teams add. */
 export function agentCount(roles: RoleDraft[], v: Choice) {
   const names = new Set(roles.map((r) => r.name));
   const critics = v["research-pairs"] === true
-    ? roles.filter((r) => RESEARCHER.test(`${r.name} ${r.job ?? ""}`) && !names.has(`${r.name}-critic`)).length : 0;
+    ? roles.filter((r) => RESEARCHER.test(r.name) && !names.has(`${r.name}-critic`)).length : 0;
   return roles.length + critics + (v.steward === true && !names.has("steward") ? 1 : 0);
 }
 

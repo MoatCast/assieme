@@ -99,7 +99,11 @@ def _team(brain, team_name, now, terminals):
 def check(brain, team_name, now=None, log=None, terminals=None):
     """{team, found, findings, in_place}. `terminals`: herdr's terminals for this team, read when None."""
     now = now or status.now_utc()
-    got = _team(brain, team_name, now, terminals)
+    return _findings(brain, team_name, _team(brain, team_name, now, terminals), now, log)
+
+
+def _findings(brain, team_name, got, now, log):
+    """`check` on a team already read by `_team`, so `apply` reads the team and herdr only once."""
     out = {'team': team_name, 'found': got is not None, 'findings': [], 'in_place': []}
     if not got:
         return out
@@ -200,8 +204,9 @@ def check(brain, team_name, now=None, log=None, terminals=None):
 def apply(brain, team_name, ids, now=None, log=None, terminals=None):
     """Give each chosen finding's rules to its agents with their next turn. One action log row per finding."""
     now = now or status.now_utc()
-    got = check(brain, team_name, now, log, terminals)
-    members = (_team(brain, team_name, now, terminals) or (None, None, {}, None))[2]
+    team_ = _team(brain, team_name, now, terminals)
+    got = _findings(brain, team_name, team_, now, log)
+    members = team_[2] if team_ else {}
     on = _group_rules(settings.load()['practices'])
     given = delivered(team_name, log)
     done = []

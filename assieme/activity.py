@@ -179,9 +179,13 @@ def practice_item(key):
 
 
 def _apply_practice(key, on, rt):
-    settings.set_value(f'practices.{key}', on)
+    before = settings.load()['practices']
+    after = settings.set_value(f'practices.{key}', on)['practices']
     title, rules, tell = practice_item(key)
-    if not tell:  # a bigger-team preset shapes the next team started, not the agents running now
+    # Agents hear only about rules whose real state changes: what new teams get (`preset.rule_on`), so a rule turned on
+    # inside a group that is off is saved for later but told to no one. A bigger-team preset shapes the next team only.
+    rules = [r for r in rules if preset.rule_on(after if on else before, r['id']) != preset.rule_on(before if on else after, r['id'])]
+    if not tell or not rules:
         return
     text = f"assieme: the team practice \"{title}\" is now {'on' if on else 'off'}."
     text += (' From your next task, follow these:\n' + '\n'.join(f"- {r['text']}" for r in rules)) if on else ' You no longer need to follow it.'

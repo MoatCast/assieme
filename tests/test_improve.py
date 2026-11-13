@@ -154,6 +154,21 @@ class ApplyTest(ImproveCase):
         self.assertIn('Check whether it should be allowed, or change the brief so it stops trying.', f['detail'])
         self.assertNotIn('allow it explicitly', f['detail'])
 
+    def test_apply_reads_the_team_and_herdr_once(self):
+        calls = {'resolve': 0, 'running': 0}
+
+        class Counting(Brain):
+            def _resolve(self, name, now):
+                calls['resolve'] += 1
+                return super()._resolve(name, now)
+
+        def running():
+            calls['running'] += 1
+            return {'shop': [terminal('a', 'claude')]}, None
+        with mock.patch.object(improve.herdr, '_running', running):
+            improve.apply(Counting([found_row('a')]), 'shop', ['practices'], NOW, self.log)
+        self.assertEqual(calls, {'resolve': 1, 'running': 1})
+
     def test_review_findings_are_never_applied(self):
         rows = [found_row('x', cwd=ROOT), found_row('y', cwd=ROOT)]
         got = improve.apply(Brain(rows), 'shop', ['folder:x'], NOW, self.log, [])

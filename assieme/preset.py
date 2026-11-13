@@ -96,7 +96,7 @@ def _practice_rules(chosen):
 
 
 STEWARD = 'steward'
-RESEARCHER = re.compile(r'research|investigat', re.I)  # the app counts critics with the same words (RecommendedSetup)
+RESEARCHER = re.compile(r'^(research|investigat)', re.I)  # the role's name, never its job's wording; the app's agentCount matches it
 STEWARD_LINE = ('When you would stop, or need a decision only the person could make, send it to steward with '
                 'message_agent first. Call report only when steward tells you it needs the person.')
 
@@ -113,7 +113,7 @@ def _bigger(roles, chosen):
     if chosen.get('research-pairs') is True:
         for r in list(roles):
             critic = f'{r.name}-critic'
-            if RESEARCHER.search(f'{r.name} {r.job}') and critic not in names:
+            if RESEARCHER.match(r.name) and critic not in names:
                 r.brief = r.brief.rstrip('\n') + (f'\n\nBefore you report a finding, send it with its sources to {critic} '
                                                   'and wait for its check. Report only what it confirmed, and say what it could not.\n')
                 added.append(Role(critic, r.agent, '', _brief_file('critic.md'), r.model, 'read-only', r.name,

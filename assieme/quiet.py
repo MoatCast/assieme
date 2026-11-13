@@ -201,6 +201,19 @@ def _still_there(hc, note, run):
         return False
 
 
+def _moved_to(hc, note, run, others):
+    """Where an agent restarted in the same folder now is: the one live terminal there that no other held note is for.
+    None when there is none, or several (never guess which agent a note was for)."""
+    try:
+        r = run([hc, 'ls', '--json'], capture_output=True, text=True, timeout=10, env=_env(note))
+        ts = json.loads(r.stdout or '{}').get('terminals') or [] if r.returncode == 0 else []
+    except (ValueError, OSError, subprocess.SubprocessError, AttributeError):
+        return None
+    here = [t.get('address') for t in ts if t.get('state', 'live') == 'live' and _real(t.get('cwd')) == note['to_cwd']
+            and t.get('address') not in others]
+    return here[0] if len(here) == 1 else None
+
+
 def deliver(agents, now=None, run=subprocess.run, on_batch=None, on_give_up=None):
     """Send held notes: into a busy receiver's current turn, or after MAX_HOLD anyway. Returns what was sent."""
     now = now or time.time()
@@ -219,18 +232,21 @@ def deliver(agents, now=None, run=subprocess.run, on_batch=None, on_give_up=None
             overdue = now - min(n['at'] for n in notes) >= MAX_HOLD
             if not hc or not (busy or overdue):
                 continue
-            if gone or not _still_there(hc, notes[-1], run):
+            to = notes[-1]['to']
+            if not gone and not _still_there(hc, notes[-1], run):
+                to = _moved_to(hc, notes[-1], run, {k[1] for k in batches} - {to})
+            if gone or not to:
                 if now - min(n['at'] for n in notes) >= GIVE_UP_AFTER:
                     _drop(notes)
                     if on_give_up:
                         on_give_up(notes)
                 continue
-            res = run([hc, 'send', notes[-1]['to'], batch_text(notes)], capture_output=True, text=True, timeout=60,
+            res = run([hc, 'send', to, batch_text(notes)], capture_output=True, text=True, timeout=60,
                       env=_env(notes[-1]))
             if res.returncode == 0:
                 _drop(notes)
                 why = 'busy' if busy else 'overdue'
-                sent.append((notes[-1]['to'], len(notes), why))
+                sent.append((to, len(notes), why))
                 if on_batch:
                     on_batch(notes, why)
     return sent
