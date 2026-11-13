@@ -13,7 +13,8 @@ import sys
 import time
 import traceback
 
-from . import activity, adapters, answers, bridge, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
+from . import scripts as scripts_mod
+from . import activity, adapters, answers, bridge, bringover, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
 
 
 def main(argv=None):
@@ -175,10 +176,17 @@ def _serve():
 
     remotes = remote.Remotes(rt)
 
-    def start_team(project, task, roles, practices, name=None):
-        got = starter.start(project, task, roles, practices, name=name)  # a name: chosen by the Mac's brain
+    def start_team(project, task, roles, practices, name=None, scripts=None, allow_scripts=(), cards=None, origin=None):
+        """`scripts`, `allow_scripts`, `cards` and `origin` ({tool, label}) come with a team brought over (step 30)."""
+        skipped = []
+        if origin:
+            roles, skipped = bringover.not_running(roles, origin['tool'])
+        got = starter.start(project, task, roles, practices, name=name, scripts=scripts,
+                            allow_scripts=allow_scripts)  # a name: chosen by the Mac's brain
         tasks.fresh(got['team'], task)  # a new team, a new board; restarting a saved team keeps its cards
-        return got
+        if origin:
+            bringover.started(got['team'], project, roles, cards or [], scripts or {}, origin, previews.remember)
+        return got | ({'skipped': skipped} if skipped else {})
 
     def tick():
         for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()),
@@ -199,6 +207,10 @@ def _serve():
                  'project.check': newteam.project_check,
                  'team.presets': lambda: newteam.presets(),
                  'team.start': start_team,
+                 'team.allow_script': scripts_mod.allow,
+                 'bringover.find': lambda folder=None: bringover.find(folder=folder),
+                 'bringover.workspaces': lambda id: bringover.workspaces(id),
+                 'bringover.import': tools.bringover_import,
                  'team.suggest': newteam.suggest,
                  'team.improve_brief': newteam.improve_brief,
                  'team.rule_draft': newteam.rule_draft,

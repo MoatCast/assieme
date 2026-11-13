@@ -70,7 +70,15 @@ def _claude(role, cwd=None, py=None):
         a += ['--permission-mode', 'default']
     if role.checkout == 'read-only' or role.level == 'read-only':
         a += ['--disallowedTools', 'Edit', 'Write', 'NotebookEdit']
+    if _resume(role):  # brought over (step 30): its first start picks up the conversation it had
+        a += ['--resume', role.resume]
     return a
+
+
+def _resume(role):
+    """The conversation to pick up: only in the folder it was had in. A copy made because that folder is gone
+    starts fresh, as the agents find their conversations by folder."""
+    return role.resume if role.resume and (not role.worktree or os.path.isdir(role.worktree)) else None
 
 
 CODEX_EVENTS = {'SessionStart': 'session_start', 'UserPromptSubmit': 'user_prompt_submit', 'Stop': 'stop',
@@ -84,7 +92,8 @@ def codex_hook_hash(event, command):
 
 
 def _codex(role, py=None):
-    a = ['codex', '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
+    a = ['codex', *(['resume', role.resume] if _resume(role) else []),  # brought over (step 30): its conversation
+         '-c', 'check_for_update_on_startup=false']  # its update screen would stop the start-up
     # Its sandbox keeps .git read-only, so each commit is a request to step outside it: the person answers, in Assieme.
     a += ['-c', 'approval_policy="on-request"', '-c', 'approvals_reviewer="user"']
     trust = []
@@ -197,6 +206,67 @@ def _opencode(role, cwd, py=None, trusted=False):
 
 
 CURSOR_CLI, CURSOR_OURS = os.path.join('.cursor', 'cli.json'), os.path.join('.cursor', 'assieme-permissions.json')
+MERGED = (os.path.join('.gemini', 'settings.json'), os.path.join('.cursor', 'hooks.json'),
+          os.path.join('.cursor', 'mcp.json'), os.path.join('.agents', 'hooks.json'))
+
+
+def _empty(v):
+    return v in ({}, [], None) or (isinstance(v, dict) and all(_empty(x) for x in v.values()))
+
+
+def unmerge(cwd):
+    """Take Assieme's entries back out of the settings files `_merge` and `_cursor_permissions` wrote into a folder
+    (step 30's Undo, for a folder brought over from another tool): its hooks, its `assieme` server and team key, and
+    its Cursor rules. The project's own entries stay; a file left with nothing in it was Assieme's alone and goes."""
+    for rel in MERGED + (CURSOR_CLI,):
+        path = os.path.join(cwd, rel)
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        data.pop('assieme', None)
+        if isinstance(data.get('mcpServers'), dict):
+            data['mcpServers'].pop('assieme', None)
+        if isinstance(data.get('hooks'), dict):
+            for event, entries in list(data['hooks'].items()):
+                data['hooks'][event] = [e for e in entries or [] if 'assieme.hook' not in json.dumps(e)]
+        if rel == CURSOR_CLI:
+            try:
+                with open(os.path.join(cwd, CURSOR_OURS)) as f:
+                    ours = json.load(f)
+            except (OSError, ValueError):
+                ours = {}
+            perms = data.get('permissions') if isinstance(data.get('permissions'), dict) else {}
+            for key in ('allow', 'deny'):
+                if key in perms:
+                    perms[key] = [x for x in perms[key] or [] if x not in (ours.get(key) or [])]
+        for key in ('mcpServers', 'hooks'):
+            if isinstance(data.get(key), dict):
+                data[key] = {k: v for k, v in data[key].items() if v not in ([], {}, None)}
+                if not data[key]:
+                    del data[key]
+        tracked = worktree._git(cwd, 'ls-files', '--error-unmatch', rel).returncode == 0
+        if tracked:
+            worktree._git(cwd, 'update-index', '--no-skip-worktree', rel)
+            try:
+                committed = json.loads(worktree._git(cwd, 'show', f'HEAD:{rel}').stdout)
+            except ValueError:
+                committed = None
+            if committed == data:  # nothing but ours had changed: the file goes back byte for byte
+                worktree._git(cwd, 'checkout', '--', rel)
+                continue
+        elif _empty(data):
+            os.remove(path)
+            continue
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+    try:
+        os.remove(os.path.join(cwd, CURSOR_OURS))
+    except OSError:
+        pass
 
 
 def _cursor_permissions(cwd, ours):

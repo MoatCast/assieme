@@ -57,11 +57,49 @@ def folder(team, role):
     return os.path.join(team.project, '.assieme', 'worktrees', role.name)
 
 
+def _kept(role):
+    """A brought-over role's own folder (step 30), while it is still there."""
+    return role.worktree if role.worktree and os.path.isdir(role.worktree) else None
+
+
+TOOL_PATHS = (('/conductor/', 'Conductor'), ('/.conductor/', 'Conductor'), ('/.claude-squad/', 'Claude Squad'),
+              ('/vibe-kanban/', 'Vibe Kanban'), ('/.vibe-kanban-workspaces/', 'Vibe Kanban'))
+
+
+def tool_name(folder):
+    """The tool a brought-over folder belongs to, from where it is; None when the path doesn't say."""
+    return next((name for part, name in TOOL_PATHS if part in folder + '/'), None)
+
+
+def branch_of(team, role):
+    """The branch the role works on: the one it was brought over with while its folder is there, else Assieme's."""
+    return role.branch if _kept(role) and role.branch else f'assieme/{team.name}/{role.name}'
+
+
+def _same_repo(project, path):
+    common = lambda p: _git(p, 'rev-parse', '--path-format=absolute', '--git-common-dir')
+    a, b = common(project), common(path)
+    return a.returncode == 0 and b.returncode == 0 and os.path.realpath(a.stdout.strip()) == os.path.realpath(b.stdout.strip())
+
+
 def ensure(team, role):
-    """The role's worktree path: created on first use, reused while clean, never reset."""
+    """The role's worktree path: created on first use, reused while clean, never reset. A brought-over role works
+    in its own folder as it is, uncommitted work included; when that folder has gone, it gets an Assieme copy that
+    starts from its branch."""
     check_repo(team.project)
+    kept = _kept(role)
+    if kept:
+        if not _same_repo(team.project, kept):
+            raise WorktreeError(f"{kept} isn't a copy of this project. Bring it over again from its own project.")
+        now = _git(kept, 'branch', '--show-current').stdout.strip()
+        if role.branch and now != role.branch:  # Review would follow the old branch and miss the agent's commits
+            raise WorktreeError(f'{os.path.basename(kept)} is on {now or "no branch"} now, not {role.branch}. '
+                                'Switch it back, or bring it over again.')
+        return kept
     path = folder(team, role)
     branch = f'assieme/{team.name}/{role.name}'
+    start = role.branch if role.branch and not os.path.isdir(path) and _git(
+        team.project, 'rev-parse', '--verify', '--quiet', f'refs/heads/{role.branch}').returncode == 0 else 'HEAD'
     exclude(team.project)
     if os.path.isdir(path):
         top = _git(path, 'rev-parse', '--show-toplevel')
@@ -79,7 +117,7 @@ def ensure(team, role):
         if _git(team.project, 'rev-parse', '--verify', '--quiet', f'refs/heads/{branch}').returncode == 0:
             raise WorktreeError(f'branch {branch} already exists but has no worktree at {path}. '
                                 f'Delete it (git branch -D {branch}) or rename the team.')
-        args = ['worktree', 'add', '-b', branch, path]
+        args = ['worktree', 'add', '-b', branch, path, start]
     r = _git(team.project, *args)
     if r.returncode != 0:
         raise WorktreeError(f'git {" ".join(args)} failed: {r.stderr.strip()}')

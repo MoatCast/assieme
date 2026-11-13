@@ -15,7 +15,7 @@ import time
 import tomllib
 import uuid
 
-from . import adapters, live, preset, runtime, status, tasks, team as team_mod, worktree
+from . import adapters, live, newteam, preset, runtime, scripts, status, tasks, team as team_mod, worktree
 
 MAX_DIFF = 2_000_000
 TESTS_TIMEOUT_S = 900
@@ -116,6 +116,7 @@ class Review:
         self.codex_dir = codex_dir or os.path.expanduser('~/.codex/sessions')
         self.lock = threading.RLock()  # one merge, undo or discard at a time
         self.tests, self.test_locks, self.undos, self.transcripts, self.aheads = {}, {}, {}, {}, {}
+        self.kept_cache = {}
         self.on_archive = lambda team, role: None  # the brain stops the agent's preview before its folder goes
 
     def _git(self, cwd, *args, **kw):
@@ -175,10 +176,31 @@ class Review:
                 return name
         raise ReviewError('This project has no main branch to compare with.')
 
+    def _kept(self, name):
+        """{role: (branch, folder)} of the team's agents brought over in their own worktree (step 30), while that
+        folder is there. Read from the saved team, which the app asks for every few seconds: kept per file time."""
+        path = os.path.join(self.teams, name, 'team.toml')
+        try:
+            stamp = os.stat(path).st_mtime_ns
+        except OSError:
+            return {}
+        cached = self.kept_cache.get(name)
+        if not cached or cached[0] != stamp:
+            try:
+                with open(path, 'rb') as f:
+                    roles = tomllib.load(f).get('role', [])
+            except (OSError, tomllib.TOMLDecodeError):
+                roles = []
+            cached = self.kept_cache[name] = (stamp, {r['name']: (r['branch'], r['worktree']) for r in roles
+                                                      if r.get('name') and r.get('branch') and r.get('worktree')})
+        return {k: v for k, v in cached[1].items() if os.path.isdir(v[1])}
+
     def _team_branches(self, project, name):
         prefix = f'refs/heads/assieme/{name}/'
         out = self._git(project, 'for-each-ref', '--format=%(refname)', prefix).stdout.split()
-        return [(r.removeprefix(prefix), r.removeprefix('refs/heads/')) for r in out]
+        kept = self._kept(name)
+        return [(r.removeprefix(prefix), r.removeprefix('refs/heads/')) for r in out
+                if r.removeprefix(prefix) not in kept] + [(role, b) for role, (b, _) in kept.items()]
 
     def _ahead(self, project, base, branch):
         r = self._git(project, 'rev-list', '--count', f'{base}..{branch}')
@@ -192,7 +214,10 @@ class Review:
         for project, names in projects.items():  # the app asks every few seconds: as few git calls as possible
             worktree.sync(project)  # container agents' commits; nothing to do without one
             prefix = 'refs/heads/assieme/'
-            refs = self._git(project, 'for-each-ref', '--format=%(objectname) %(committerdate:unix) %(refname) %(contents:subject)', prefix).stdout.splitlines()
+            fmt = '--format=%(objectname) %(committerdate:unix) %(refname) %(contents:subject)'
+            kept = {(name, role): branch for name in names for role, (branch, _) in self._kept(name).items()}
+            heads = sorted({f'refs/heads/{b}' for b in kept.values()})  # branches brought over (step 30)
+            refs = self._git(project, 'for-each-ref', fmt, prefix, *heads).stdout.splitlines()
             if not refs:
                 continue
             try:
@@ -200,9 +225,15 @@ class Review:
             except ReviewError:
                 continue  # not a repository any more, or no commits yet
             base_tip = self._tip(project, base)
+            by_branch = {branch: key for key, branch in kept.items()}
             for line in refs:
                 tip, at, ref, *subject = line.split(' ', 3)
-                name, _, role = ref.removeprefix(prefix).partition('/')
+                if ref.removeprefix('refs/heads/') in by_branch:
+                    name, role = by_branch[ref.removeprefix('refs/heads/')]
+                else:
+                    name, _, role = ref.removeprefix(prefix).partition('/')
+                    if (name, role) in kept:
+                        continue  # its old Assieme branch, if any, isn't where it works now
                 if name in names and role:
                     branch = ref.removeprefix('refs/heads/')
                     ahead = self._ahead_of(project, base, base_tip, branch, tip)
@@ -221,11 +252,12 @@ class Review:
         if not NAME.match(role or ''):
             raise ReviewError(f'{role!r} is not an agent name.')
         project = self._project(name)
-        branch = f'assieme/{name}/{role}'
+        branch, path = self._kept(name).get(role) or (f'assieme/{name}/{role}',
+                                                      os.path.join(project, '.assieme', 'worktrees', role))
         worktree.sync(project)
         if not self._has_branch(project, branch):
             raise ReviewError(f"{role} has no branch to review. It may have been merged or discarded.")
-        return project, self._base(project), branch, os.path.join(project, '.assieme', 'worktrees', role)
+        return project, self._base(project), branch, path
 
     def _tip(self, project, branch):
         return self._git(project, 'rev-parse', f'refs/heads/{branch}').stdout.strip()
@@ -416,6 +448,11 @@ class Review:
                 self.rt.kill(address)
             except runtime.RuntimeError_ as e:
                 return f"Couldn't stop {role}: {e}"
+        if role in self._kept(name):  # brought over (step 30): its folder and branch belong to the other tool
+            newteam.clear_worktree(os.path.join(self.teams, name), role)
+            short = path.replace(os.path.expanduser('~'), '~', 1)
+            return f"Its folder stays in {short}: {worktree.tool_name(path) or 'the tool it came from'} owns it."
+        self._archive_script(project, name, role, path)
         if worktree.is_clone(path):  # a container agent's copy: its commits are already in the project
             if self._dirty(path) and not force:
                 return "Its copy has uncommitted changes, so it was left in place."
@@ -424,8 +461,23 @@ class Review:
             r = self._git(project, 'worktree', 'remove', *(['--force'] if force else []), path)
             if r.returncode != 0:
                 return f"Couldn't archive its worktree: {r.stderr.strip()}"
+        if not branch.startswith(f'assieme/{name}/'):  # brought over, its folder gone meanwhile: never theirs
+            return f"Its branch {branch} isn't Assieme's, so it was left as it is."
         r = self._git(project, 'branch', '-D', branch)
         return None if r.returncode == 0 else f"Couldn't delete its branch: {r.stderr.strip()}"
+
+    def _archive_script(self, project, name, role, path):
+        """The team's archive script (brought over, step 30) in the copy about to go, if the person said yes to it."""
+        try:
+            with open(os.path.join(self.teams, name, 'team.toml'), 'rb') as f:
+                line = tomllib.load(f).get('scripts', {}).get('archive')
+        except (OSError, tomllib.TOMLDecodeError):
+            return
+        if not line or not os.path.isdir(path) or not scripts.allowed(name, 'archive', line):
+            return
+        got = scripts.run(line, path, project)
+        live.record('archive-script', role, 'Ran the team archive script' if got['ok'] else "The archive script didn't finish",
+                    ok=got['ok'], detail=got['output'], team=name, by='assieme', log=self.log)
 
     def _checkout_of(self, project, branch):
         """The folder that has `branch` checked out, if any."""
@@ -479,6 +531,7 @@ class Review:
                 raise ReviewError(f'{role} is still working.')
             notes = {n['id'] for n in self._notes(project, role, branch)}
             clone = worktree.is_clone(path)
+            kept = role in self._kept(team)
             old, new = self._do_merge(project, base, branch, role)
             try:
                 self._set_ignored(project, self._ignored(project) | notes)
@@ -489,7 +542,7 @@ class Review:
             uid = uuid.uuid4().hex
             self.undos[uid] = {'team': team, 'role': role, 'project': project, 'base': base, 'branch': branch,
                                'path': path, 'tip': tip, 'old': old, 'new': new, 'notes': sorted(notes),
-                               'archived': problem is None, 'clone': clone}
+                               'archived': problem is None, 'clone': clone, 'kept': kept}
             self._write_log({'id': uid, 'team': team, 'agent': role, 'action': 'merge', 'undo': True,
                              'title': f"Merged {role} into {base}", 'reason': problem or 'Its worktree is archived.',
                              'restore': self.undos[uid]})
@@ -522,6 +575,8 @@ class Review:
                 r = self._git(project, 'worktree', 'add', path, branch)
                 if r.returncode != 0:
                     raise ReviewError(f"The merge is undone, but its worktree didn't come back: {r.stderr.strip()}")
+            if rec.get('kept'):  # brought over: it works in that folder on that branch again
+                newteam._rewrite_role(os.path.join(self.teams, rec['team']), rec['role'], worktree=path, branch=branch)
             self._set_ignored(project, self._ignored(project) - set(rec['notes']))
             del self.undos[id]
             tasks.unmerged(rec['team'], id)

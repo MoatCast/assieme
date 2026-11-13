@@ -10,7 +10,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, container, live, launch, permissions, preset, runtime, settings, setup, team, worktree
+from . import ask, container, live, launch, permissions, preset, runtime, scripts, settings, setup, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -20,6 +20,8 @@ KINDS = {'planner': ('planner.md', 'read-only'), 'builder': ('builder.md', 'bran
 
 NAME = re.compile(r'^[a-z0-9-]+$')
 BAD_NAME = 'Names use lower-case letters, digits and dashes, and must differ.'
+BRANCH = re.compile(r'^(?!-)(?!.*\.\.)[A-Za-z0-9._/-]+$')  # a brought-over branch: plain git names only
+RESUME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9-]*$')  # an agent's session id, never an option
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
 NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
 TOO_LARGE = "This folder is very large. Choose the folder for just this project."
@@ -48,7 +50,8 @@ def kind_brief(kind):
 def _role_dict(r):
     return {'name': r.name, 'agent': r.agent, 'job': r.job, 'checkout': r.checkout, 'parent': r.parent,
             'brief': r.brief, 'model': r.model, 'effort': r.effort, 'group': r.group, 'kind': r.kind,
-            'owns': r.owns, 'level': r.level, 'rules': r.rules, 'container': r.container, 'share_signin': r.share_signin}
+            'owns': r.owns, 'level': r.level, 'rules': r.rules, 'container': r.container, 'share_signin': r.share_signin,
+            **{k: getattr(r, k) for k in ('worktree', 'branch', 'resume') if getattr(r, k)}}  # only brought-over roles
 
 
 def _as_preset(folder, id_, label=None):
@@ -160,6 +163,12 @@ def validate(roles):
             raise NewTeamError(field, 'Choose where this agent works.')
         if r.get('checkout', 'branch') not in preset.CHECKOUTS:
             raise NewTeamError(field, f"Unknown checkout {r.get('checkout')!r}.")
+        if r.get('worktree') and not os.path.isabs(r['worktree']):
+            raise NewTeamError(field, 'Its folder needs a full path.')
+        if r.get('branch') and not BRANCH.match(r['branch']):
+            raise NewTeamError(field, f"{r['branch']!r} isn't a branch name Assieme can use.")
+        if r.get('resume') and not RESUME.match(r['resume']):  # it goes on the agent's command line
+            raise NewTeamError(field, "That conversation can't be picked up.")
         if r.get('parent') and r['parent'] not in names:
             raise NewTeamError(field, f"Reports to {r['parent']!r}, which isn't in this team.")
         if not (r.get('brief') or '').strip():
@@ -190,7 +199,8 @@ def _role_toml(r):
     q = _toml_str
     out = ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
            f'checkout = {q(r.get("checkout", "branch"))}']
-    out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level') if r.get(key)]
+    out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level', 'worktree', 'branch',
+                                                'resume') if r.get(key)]
     out += [f'{key} = true' for key in ('container', 'share_signin') if r.get(key) is True]
     if r.get('owns'):
         out.append(f'owns = {json.dumps(r["owns"], ensure_ascii=False)}')  # a JSON list of strings is a TOML array
@@ -213,7 +223,34 @@ def forget_role(folder, name):
     for r in roles:  # whoever reported to it now reports one level up, or the saved team would no longer load
         if r['parent'] == name:
             r['parent'] = gone.parent if gone else None
-    save(tm.project, roles, tm.practices, tm.name, os.path.dirname(folder))
+    save(tm.project, roles, tm.practices, tm.name, os.path.dirname(folder), tm.scripts)
+
+
+def _rewrite_role(folder, name, **changes):
+    """Save the team again with one role's fields changed, in the file's order and with its scripts."""
+    tm = preset.load(folder, practices=False)
+    with open(os.path.join(folder, 'team.toml'), 'rb') as f:
+        order = [r['name'] for r in tomllib.load(f).get('role', [])]
+    by_name = {r.name: _role_dict(r) for r in tm.roles}
+    if name in by_name:
+        by_name[name].update(changes)
+    save(tm.project, [by_name[n] for n in order], tm.practices, tm.name, os.path.dirname(folder), tm.scripts)
+
+
+def gone_notes(roles):
+    """What the start record says about brought-over agents whose folder has gone: they get a new copy."""
+    return [f"{os.path.basename(r.worktree.rstrip('/'))}'s folder isn't there any more. Its branch {r.branch} is kept: "
+            'start gives it a new copy.' for r in roles if r.worktree and not os.path.isdir(r.worktree) and r.branch]
+
+
+def clear_resume(folder, name):
+    """After a brought-over agent's first start: later starts don't resume that conversation again."""
+    _rewrite_role(folder, name, resume=None)
+
+
+def clear_worktree(folder, name):
+    """After merging a brought-over agent: its next start makes an Assieme copy; the old folder stays where it is."""
+    _rewrite_role(folder, name, worktree=None, branch=None)
 
 
 def roster(name, teams=None):
@@ -225,8 +262,13 @@ def roster(name, teams=None):
     return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
 
 
-def save(project, roles, practices, name, teams):
-    """Write the team folder `preset.load` reads; TOML strings are written as JSON strings, which TOML accepts."""
+def save(project, roles, practices, name, teams, scripts=None):
+    """Write the team folder `preset.load` reads; TOML strings are written as JSON strings, which TOML accepts.
+    `scripts`: setup, run and archive lines brought over from another tool (step 30)."""
+    scripts = {k: v for k, v in (scripts or {}).items() if v}
+    unknown = set(scripts) - set(preset.SCRIPTS)
+    if unknown:
+        raise ValueError(f'Unknown script {", ".join(sorted(unknown))}.')
     folder = os.path.join(teams, name)
     if os.path.isdir(folder):
         shutil.rmtree(folder)
@@ -235,6 +277,8 @@ def save(project, roles, practices, name, teams):
     out = [f'name = {q(name)}', f'project = {q(os.path.abspath(project))}', '']
     if practices:
         out += ['[practices]'] + [f'{k} = {"true" if v else "false"}' for k, v in practices.items()] + ['']
+    if scripts:
+        out += ['[scripts]'] + [f'{k} = {q(v)}' for k, v in scripts.items()] + ['']
     for r in roles:
         out += _role_toml(r)
         with open(os.path.join(folder, f'{r["name"]}.md'), 'w') as f:
@@ -267,7 +311,11 @@ class Starter:
         except (OSError, tomllib.TOMLDecodeError):
             return None  # started from the command line, or the folder is gone
 
-    def start(self, project, task, roles, practices, name=None):
+    def start(self, project, task, roles, practices, name=None, scripts=None, allow_scripts=()):
+        """`allow_scripts`: the brought-over scripts the person said yes to in New team, for this team's name."""
+        return self._start(project, task, roles, practices, name, scripts, allow_scripts)
+
+    def _start(self, project, task, roles, practices, name, scripts_, allow_scripts):
         """`name` is a scheduled run's own team name; New team leaves it to the project's folder name."""
         validate(roles)
         project = os.path.expanduser(project)
@@ -293,16 +341,23 @@ class Starter:
                 raise NewTeamError('start', f'{name} is still running.')
             name = self.busy[project] = name or team_name(project, taken)
         try:
-            folder = save(project, roles, practices, name, self.teams)
+            folder = save(project, roles, practices, name, self.teams, scripts_)
             try:
                 tm = preset.load(folder)
             except preset.PresetError as e:
                 raise NewTeamError('start', str(e)) from None
+            for which in allow_scripts or ():
+                if tm.scripts.get(which):
+                    scripts.allow(name, which, tm.scripts[which])
             missing = launch.missing_clis(tm.roles, which=self.which)
             if missing:
                 raise NewTeamError('start', f'not installed: {", ".join(missing)}. Install it, then start again.')
             _container_ready(tm.roles)
             try:
+                # Copies made by this start get the team's setup script; brought-over folders are already set up.
+                fresh = {r.name: worktree.folder(tm, r) for r in tm.roles
+                         if r.checkout != 'read-only' and not (r.worktree and os.path.isdir(r.worktree))
+                         and not os.path.isdir(worktree.folder(tm, r))}
                 for r in tm.roles:  # every worktree now, so a dirty one is reported to the form, not the log
                     worktree.ensure(tm, r)
             except worktree.WorktreeError as e:
@@ -312,17 +367,36 @@ class Starter:
                 self.busy.pop(project, None)
             raise
         rec = {'team': name, 'project': project, 'done': False, 'error': None, 'done_at': None,
-               'roles': [{'role': r.name, 'state': 'starting', 'detail': ''} for r in tm.roles]}  # with preset-added roles
+               'roles': [{'role': r.name, 'state': 'starting', 'detail': ''} for r in tm.roles],  # with preset-added roles
+               **({'notes': gone_notes(tm.roles)} if gone_notes(tm.roles) else {})}
         with self.lock:
             self.busy.pop(project, None)
             self.recs.append(rec)
-        self.thread(target=lambda: self._run(rec, tm, task), daemon=True).start()
+        self.thread(target=lambda: self._run(rec, tm, task, fresh), daemon=True).start()
         return {'team': name}
 
-    def _run(self, rec, tm, task):
+    def _setup(self, rec, tm, fresh):
+        """The team's setup script in each copy this start made, when the person has said yes to it; otherwise the
+        record asks for that yes, and the agents start without it."""
+        line = tm.scripts.get('setup')
+        if not line or not fresh:
+            return
+        if not scripts.allowed(tm.name, 'setup', line):
+            rec['ask_scripts'] = [{'which': 'setup', 'line': line}]
+            return
+        for name, path in fresh.items():
+            got = scripts.run(line, path, tm.project)
+            live.record('setup', name, 'Ran the team setup in its copy' if got['ok'] else "The team setup didn't finish",
+                        ok=got['ok'], detail=got['output'], team=tm.name, by='assieme')
+
+    def _run(self, rec, tm, task, fresh=None):
         try:
+            self._setup(rec, tm, fresh or {})
             # Clicking Start in the app is the person's agreement to trust the folder.
             results = {s.role: s for s in team.start(tm, task, self.rt, ask=lambda q: True)}
+            for r in tm.roles:  # a conversation brought over is picked up once; later starts begin fresh
+                if r.resume and results.get(r.name) and results[r.name].address:
+                    clear_resume(os.path.join(self.teams, tm.name), r.name)
             with self.lock:
                 for r in rec['roles']:
                     s = results.get(r['role'])

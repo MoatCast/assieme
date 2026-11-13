@@ -5,7 +5,7 @@ import os
 import subprocess
 import uuid
 
-from . import brief, budget, herdr, live, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
+from . import bringover, brief, budget, herdr, live, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -215,7 +215,7 @@ class Tools:
             raise newteam.NewTeamError('project', check['reason'])
         filled = []
         for r in roles:
-            r = dict(r)
+            r = {k: v for k, v in r.items() if k not in ('worktree', 'branch', 'resume')}  # only a bring-over sets them
             kind = r.pop('kind', None)
             if kind in newteam.KINDS:
                 r.setdefault('checkout', newteam.KINDS[kind][1])
@@ -249,6 +249,15 @@ class Tools:
                              + ' '.join(n['text'] for n in draft['notes']))
         newteam.validate(draft['roles'])
         return draft | {'id': uuid.uuid4().hex[:12], 'why': '', 'from': 'herdr', 'practices': settings.load()['practices']}
+
+    def bringover_import(self, id, ticked=None):
+        """A project from another tool (step 30) as a New team draft for the app to open. It starts nothing and
+        changes nothing of the other tool's."""
+        if id.startswith('herdr:'):
+            return self.herdr_import(id.removeprefix('herdr:'))
+        draft = bringover.draft(id, ticked or [])
+        newteam.validate(draft['roles'])
+        return draft | {'id': uuid.uuid4().hex[:12], 'why': '', 'practices': settings.load()['practices']}
 
     def draft_next(self):
         """The oldest draft waiting to open, or None. The app asks often, so this only lists a folder."""

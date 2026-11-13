@@ -4,7 +4,8 @@ import type { SetupStatus, Snapshot } from "./bridge";
 
 const snapshot = vi.fn<() => Promise<Snapshot>>();
 const setupStatus = vi.fn<() => Promise<SetupStatus>>();
-vi.mock("./bridge", () => ({ snapshot: () => snapshot(), setupStatus: () => setupStatus() }));
+const bringOverFind = vi.fn(() => Promise.resolve({ projects: [] as unknown[], unreadable: [], problems: [], looked_for: [] }));
+vi.mock("./bridge", () => ({ snapshot: () => snapshot(), setupStatus: () => setupStatus(), bringOverFind: () => bringOverFind() }));
 vi.mock("./ChangeGroups", () => ({ default: () => <div>change the groups sheet</div> }));
 vi.mock("./NewTeam", () => ({
   default: ({ clis, draft, onClose, onStarted }: { clis: { codex: boolean }; draft?: { task: string } | null; onClose: () => void; onStarted?: () => void }) => (
@@ -17,7 +18,8 @@ vi.mock("./NewTeam", () => ({
     </div>
   ),
 }));
-vi.mock("./HerdrImport", () => ({
+vi.mock("./BringOver", () => ({
+  TOOL_NAMES: { conductor: "Conductor", "vibe-kanban": "Vibe Kanban", "claude-squad": "Claude Squad", herdr: "herdr" },
   default: ({ onImported }: { onImported: (d: { id: string; task: string }) => void }) => (
     <button type="button" onClick={() => onImported({ id: "d1", task: "Add a cart" })}>pick a herdr team</button>
   ),
@@ -383,11 +385,27 @@ test("an open install sheet survives the checklist going away, and keeps the sta
   expect(setupStatus.mock.calls.length).toBeGreaterThan(calls);
 });
 
-test("moving from herdr: Import a team opens New team filled in from the pick", async () => {
+test("moving from another tool: a row per tool found, and Bring your team over opens New team from the pick", async () => {
+  bringOverFind.mockResolvedValueOnce({ projects: [
+    { id: "conductor:/p/a", tool: "conductor", label: "a", summary: "", count: 2, running: null },
+    { id: "conductor:/p/b", tool: "conductor", label: "b", summary: "", count: 1, running: null },
+    { id: "other:/p/c", tool: "other", label: "c", summary: "", count: 1, running: null },
+  ], unreadable: [], problems: [], looked_for: [] });
   snapshot.mockResolvedValue(SNAP);
   render(<FirstRun pollMs={5000} />);
   await flush();
-  fireEvent.click(within(screen.getByTestId("cli-herdr")).getByText("Import a team"));
+  expect(within(screen.getByTestId("cli-conductor")).getByText("3 workspaces ·")).toBeTruthy();
+  expect(screen.queryByTestId("cli-other")).toBeNull(); // unknown tools are in the sheet, not a row here
+  fireEvent.click(within(screen.getByTestId("cli-conductor")).getByText("Bring your team over"));
+  fireEvent.click(screen.getByText("pick a herdr team"));
+  expect(screen.getByText("New team screen")).toBeTruthy();
+});
+
+test("moving from herdr: its row opens the same sheet", async () => {
+  snapshot.mockResolvedValue(SNAP);
+  render(<FirstRun pollMs={5000} />);
+  await flush();
+  fireEvent.click(within(screen.getByTestId("cli-herdr")).getByText("Bring your team over"));
   fireEvent.click(screen.getByText("pick a herdr team"));
   expect(screen.getByText("New team screen")).toBeTruthy();
   expect(screen.getByText("draft: Add a cart")).toBeTruthy();

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { snapshot, type Agent, type AgentKind, type Snapshot, type TeamDraft } from "./bridge";
+import { bringOverFind, snapshot, type Agent, type AgentKind, type BringOverProject, type Snapshot, type TeamDraft } from "./bridge";
 import { installedOf } from "./kinds";
 import ChangeGroups from "./ChangeGroups";
-import HerdrImport from "./HerdrImport";
+import BringOver, { TOOL_NAMES } from "./BringOver";
 import NewTeam from "./NewTeam";
 import InstallSheet from "./InstallSheet";
 import NewUserChecklist, { useSetupStatus } from "./NewUserChecklist";
@@ -51,6 +51,11 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   // Moving from herdr: the import sheet, then New team filled in from what was picked.
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState<TeamDraft | null>(null);
+  // Agent work in other tools, looked for once when the screen opens; nothing found shows no rows.
+  const [others, setOthers] = useState<BringOverProject[] | null>(null);
+  useEffect(() => {
+    if (shown) bringOverFind().then((f) => setOthers(f.projects), () => setOthers([]));
+  }, [shown]);
   // The install sheet lives here, not in the checklist: it must survive the checklist going away mid-install.
   const [sheet, setSheet] = useState<{ agent: AgentKind; start: "install" | "signin" } | null>(null);
   const report = useRef(onSnapshot);
@@ -99,6 +104,9 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
     { key: "antigravity", name: "Antigravity", found: !!snap?.clis.antigravity, note: "installed" },
     { key: "herdr", name: "herdr", found: !!snap?.clis.herdr, note: "connected ·" },
   ].filter((c) => ["claude", "codex"].includes(c.key) || c.found); // the others get a row only once they are found
+  // Other tools with agent work on this Mac (step 30): a row each, which opens Bring your team over.
+  const tools = new Map<string, number>();
+  for (const p of others ?? []) if (TOOL_NAMES[p.tool] && p.tool !== "herdr") tools.set(p.tool, (tools.get(p.tool) ?? 0) + p.count);
 
   // A team shows here while it starts, if its start failed, or while an agent needs you or didn't come up.
   const settled = ["running", "already-running"];
@@ -121,7 +129,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
           onStarted={creating === "first" ? onOpenTeam : undefined} />
       )}
       {importing && (
-        <HerdrImport onClose={() => setImporting(false)} onImported={(d) => {
+        <BringOver onClose={() => setImporting(false)} onImported={(d) => {
           setImporting(false);
           setImported(d);
           setCreating("new");
@@ -145,8 +153,16 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
               <span className="cli-name">{c.name}</span>
               <span className="cli-note">{!snap ? (offline ? "" : "checking…") : c.found ? c.note : "not found"}</span>
               {c.key === "herdr" && c.found && (
-                <button type="button" className="link-btn cli-import" onClick={() => setImporting(true)}>Import a team</button>
+                <button type="button" className="link-btn cli-import" onClick={() => setImporting(true)}>Bring your team over</button>
               )}
+            </div>
+          ))}
+          {[...tools].map(([tool, n]) => (
+            <div className="cli" key={tool} data-testid={`cli-${tool}`}>
+              <Check ok />
+              <span className="cli-name">{TOOL_NAMES[tool]}</span>
+              <span className="cli-note">{`${n} ${tool === "claude-squad" ? "session" : "workspace"}${n === 1 ? "" : "s"} ·`}</span>
+              <button type="button" className="link-btn cli-import" onClick={() => setImporting(true)}>Bring your team over</button>
             </div>
           ))}
         </div>
