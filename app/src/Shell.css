@@ -1,7 +1,7 @@
 .shell { position: relative; display: flex; flex-direction: column; height: 100vh; background: var(--quiet-fog); }
 .shell-bar { display: flex; align-items: center; gap: 10px; padding: 0 20px 0 90px; height: 53px; box-sizing: border-box; flex-shrink: 0; position: relative; /* 90: past the window buttons */
   background: var(--quiet-surface); border-bottom: 1px solid var(--quiet-line); }
-.shell-bar .brand { flex-shrink: 0; }
+.shell-bar .brand { flex-shrink: 0; image-rendering: pixelated; }
 .shell-bar .team-pick { font: inherit; font-size: 14px; font-weight: 500; color: var(--quiet-ink); border: 0; background: none; cursor: pointer; }
 .shell-bar .tabs { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px;
   background: var(--quiet-fog); border-radius: 999px; }
