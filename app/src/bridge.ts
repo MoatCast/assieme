@@ -492,11 +492,16 @@ export const boardAdd = (team: string, title: string, role: string | null) =>
 export const boardMove = (team: string, id: string, status: BoardStatus) => brain<BoardCard>("board.move", { team, id, status });
 export const boardRemove = (team: string, id: string) => brain<{ ok: boolean }>("board.remove", { team, id });
 
-export type Assistants = { clients: { id: string; label: string; connected: boolean; blocked?: boolean }[]; problems: string[] };
-/** These run each client's own command, which can take several seconds apiece. */
+/** Step 18a: Assieme in each app, as that app expects (a plugin, or the Claude app's connector). */
+export type AssistantApp = { app: "claude-code" | "claude-app" | "codex"; label: string; kind: string; available: boolean;
+  installed: boolean; problem?: string | null };
+export type Assistants = { apps: AssistantApp[] };
+/** These run each app's own command, which can take several seconds apiece. */
 export const assistantsStatus = () => invoke<Assistants>("brain_call", { method: "assistants.status", params: {}, timeoutS: 60 });
-export const assistantsConnect = () => invoke<Assistants>("brain_call", { method: "assistants.connect", params: {}, timeoutS: 120 });
-export const assistantsDisconnect = () => invoke<Assistants>("brain_call", { method: "assistants.disconnect", params: {}, timeoutS: 120 });
+export const assistantsInstall = (app: AssistantApp["app"]) =>
+  invoke<Assistants>("brain_call", { method: "assistants.install", params: { app }, timeoutS: 180 });
+export const assistantsRemove = (app: AssistantApp["app"]) =>
+  invoke<Assistants>("brain_call", { method: "assistants.remove", params: { app }, timeoutS: 120 });
 export const serviceRunning = () => invoke<boolean>("service_running");
 export const serviceInstall = () => invoke<void>("service_install");
 

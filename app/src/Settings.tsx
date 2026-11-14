@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import {
-  assistantsConnect, assistantsDisconnect, assistantsStatus, getSettings, listTeams, quietPairs, quietSet, serviceInstall, serviceRunning, setSetting, stopTeam, teamPresets,
-  type Assistants, type Practices, type QuietPair, type Settings as Values, type TeamDraft, type TeamListing,
+  assistantsInstall, assistantsRemove, assistantsStatus, getSettings, listTeams, quietPairs, quietSet, serviceInstall, serviceRunning, setSetting, stopTeam, teamPresets,
+  type AssistantApp, type Assistants, type Practices, type QuietPair, type Settings as Values, type TeamDraft, type TeamListing,
 } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
 import ImproveTeam from "./ImproveTeam";
+import PhoneGuide from "./PhoneGuide";
 import { AlwaysOnSheet, BiggerTeams, Chevron, GroupSheet, Shield, ruleCount } from "./Practices";
 import Schedules from "./Schedules";
 import "./Settings.css";
@@ -51,7 +52,7 @@ function YourAssistants() {
       const a = await call();
       setGot(a);
       setOutdated(false);
-      setError(a.problems.join(" "));
+      setError("");
     } catch (e) {
       if (/no method/.test(String(e))) setOutdated(true);
       else setError(String(e));
@@ -80,28 +81,51 @@ function YourAssistants() {
     }
     setBusy(false);
   };
-  const clients = (got?.clients ?? []).filter((c) => !c.blocked); // the Claude app can't be connected while it's open
-  const blocked = got?.clients.some((c) => c.blocked) ?? false;
-  const labels = clients.map((c) => c.label);
-  const names = labels.length > 1 ? `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}` : labels[0] ?? "";
-  const connected = clients.length > 0 && clients.every((c) => c.connected);
-  const quit = blocked ? " To add the Claude app, quit it, then come back here." : "";
-  const sub = outdated ? "The background service is out of date, so it can’t connect your assistants yet. Your agents keep running while it updates."
-    : !got ? "Let your assistants see your teams and help design new ones."
-    : !clients.length && !blocked ? "Install Claude Code or Codex, and they can see your teams and help design new ones."
-    : !clients.length ? "To let the Claude app see your teams and help design new ones, quit it, then come back here."
-    : connected ? `${names} can see your teams and help design new ones.${quit}`
-    : `Let ${names} see your teams and help design new ones. They ask you before changing anything.${quit}`;
+  const [guide, setGuide] = useState(false);
+  const apps = got?.apps ?? [];
+  const sub = outdated ? "The background service is out of date, so it can’t add Assieme to your assistants yet. Your agents keep running while it updates."
+    : "Assieme in the apps you already use: they see your teams, design new ones and run them. Every change asks you first.";
   return (
-    <>
+    <div className="assistants">
       <Row title="Your assistants" sub={sub}>
-        {connected && !outdated && <span className="state good"><i />Connected</span>}
-        {connected && !outdated && <button type="button" className="btn-small" disabled={busy} onClick={() => run(assistantsDisconnect)}>Disconnect</button>}
-        {got && !outdated && clients.length > 0 && !connected && <button type="button" className="btn-small primary" disabled={busy} onClick={() => run(assistantsConnect)}>Connect</button>}
         {outdated && <button type="button" className="btn-small primary" disabled={busy} onClick={update}>Update it</button>}
       </Row>
+      {!outdated && apps.length > 0 && (
+        <ul className="assistant-apps">
+          {apps.map((a: AssistantApp) => (
+            <li key={a.app}>
+              <div className="assistant-app">
+                <span>{a.label} <span className="kind">{`· ${a.kind}`}</span></span>
+                {a.problem && <span className="problem">{a.problem}</span>}
+              </div>
+              {!a.available ? <span className="absent">Not on this Mac</span>
+                : a.installed ? (
+                  <>
+                    <span className="state good"><i />Installed</span>
+                    <button type="button" className="link-small" disabled={busy} aria-label={`Remove Assieme from ${a.label}`}
+                      onClick={() => run(() => assistantsRemove(a.app))}>Remove</button>
+                  </>
+                ) : (
+                  <button type="button" className="btn-small primary" disabled={busy} aria-label={`Install Assieme in ${a.label}`}
+                    onClick={() => run(() => assistantsInstall(a.app))}>Install</button>
+                )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!outdated && (
+        <div className="assistant-phone">
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <rect x="3.5" y="1" width="7" height="12" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+            <circle cx="7" cy="10.6" r="0.8" fill="currentColor" />
+          </svg>
+          <span>Use your session from your phone, while this Mac is awake and online.</span>
+          <button type="button" className="link-small strong" onClick={() => setGuide(true)}>How it works…</button>
+        </div>
+      )}
       {error && <p className="set-error assistants-error">{error}</p>}
-    </>
+      {guide && <PhoneGuide apps={apps} onClose={() => setGuide(false)} />}
+    </div>
   );
 }
 

@@ -1,0 +1,21 @@
+/* Step 18a: Paper "v2 — Assistants and phone: phone guide" (light) and its "Dark —" frame. */
+.modal.phone-guide { width: 720px; gap: 14px; }
+.phone-session { display: flex; flex-direction: column; gap: 12px; padding: 18px 20px; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); }
+.phone-session-head { display: flex; align-items: center; gap: 10px; }
+.phone-session-head b { flex: 1; font-size: 15px; line-height: 20px; font-weight: 600; color: var(--quiet-ink); }
+.phone-session-head .mono { font-family: var(--quiet-font-mono); font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.phone-session .tick { width: 20px; height: 20px; flex-shrink: 0; border-radius: 10px; border: 1.5px solid var(--quiet-line-strong); box-sizing: border-box; }
+.phone-session .tick.on { border: none; background: var(--quiet-working) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M6 10.2l2.6 2.6L14 7.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 20px no-repeat; }
+.phone-session ol { margin: 0 0 0 30px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; list-style: none; counter-reset: step;
+  background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); }
+.phone-session li { display: flex; gap: 10px; counter-increment: step; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.phone-session li::before { content: counter(step); width: 18px; flex-shrink: 0; font-weight: 600; color: var(--quiet-ink); }
+.phone-awake { display: flex; gap: 10px; align-items: flex-start; padding: 16px 18px; background: var(--quiet-tip-tint); border: 1px solid var(--quiet-tip-line);
+  border-radius: var(--quiet-radius-card); color: var(--quiet-tip-text); }
+.phone-awake svg { flex-shrink: 0; margin-top: 1px; color: var(--quiet-waste-text); }
+.phone-awake div { display: flex; flex-direction: column; gap: 2px; }
+.phone-awake b { font-size: 14px; line-height: 18px; font-weight: 600; }
+.phone-awake p { margin: 0; font-size: 13px; line-height: 18px; }
+.phone-awake p.small { margin-top: 8px; font-size: 12px; line-height: 16px; }
+.phone-foot { justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--quiet-line); }
+.phone-foot span { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }

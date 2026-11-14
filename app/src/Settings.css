@@ -99,3 +99,25 @@
 .schedule-sheet .when-row .select select { padding: 6px 30px 6px 10px; }
 .schedule-sheet .select svg { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .schedule-sheet .sheet-actions .remove { margin-right: auto; color: var(--quiet-needs-you-text); }
+
+/* Step 18a: Your assistants, one line per app, and the phone line (Paper "v2 — Assistants and phone: Settings, General"). */
+.set-row + .assistants, .assistants + .set-row { border-top: 1px solid var(--quiet-line); }
+.assistants { display: flex; flex-direction: column; padding-bottom: 16px; }
+.assistants > .set-row { padding-bottom: 12px; }
+.assistant-apps { margin: 0 18px; padding: 0; list-style: none; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-inner); }
+.assistant-apps li { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.assistant-apps li + li { border-top: 1px solid var(--quiet-line); }
+.assistant-app { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
+.assistant-app .kind { color: var(--quiet-mute); }
+.assistant-app .problem { font-size: 12px; color: var(--quiet-needs-you-text); }
+.assistant-apps .state { font-size: 12px; }
+.assistant-apps .state i { width: 7px; height: 7px; }
+.assistant-apps .absent { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.assistant-apps .btn-small { padding: 5px 12px; font-size: 12px; line-height: 16px; }
+.link-small { padding: 0; background: none; border: none; font: inherit; font-size: 12px; line-height: 16px; color: var(--quiet-slate);
+  text-decoration: underline; cursor: pointer; }
+.link-small.strong { font-size: 13px; font-weight: 500; color: var(--quiet-ink); }
+.link-small:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
+.assistant-phone { display: flex; align-items: center; gap: 8px; margin: 12px 18px 0; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.assistant-phone span { flex: 1; }
+.assistant-phone svg { flex-shrink: 0; }
