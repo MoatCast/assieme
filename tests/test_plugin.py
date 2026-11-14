@@ -83,10 +83,17 @@ class AskHookTest(unittest.TestCase):
         for t in ('list_teams', 'team_status', 'what_needs_you', 'read_terminal', 'recent_activity', 'app_actions', 'draft_team'):
             self.assertIsNone(self.decide(f'mcp__plugin_assieme_assieme__{t}'), t)
 
-    def test_app_action_asks_only_for_a_change(self):
-        self.assertEqual(self.decide('mcp__plugin_assieme_assieme__app_action', {'name': 'review.merge'}), 'ask')
-        self.assertIsNone(self.decide('mcp__plugin_assieme_assieme__app_action', {'name': 'review.get'}))
-        self.assertEqual(self.decide('mcp__plugin_assieme_assieme__app_action', {'name': 'made.up'}), 'ask')  # unknown: safe side
+    def test_app_action_always_asks_and_app_read_never(self):
+        for name in ('review.merge', 'review.get', 'made.up'):
+            self.assertEqual(self.decide('mcp__plugin_assieme_assieme__app_action', {'name': name}), 'ask', name)
+        self.assertIsNone(self.decide('mcp__plugin_assieme_assieme__app_read', {'name': 'review.get'}))
+
+    def test_no_permission_mode_can_say_yes_for_the_person(self):  # review, Important 5
+        for mode in ('bypassPermissions', 'dontAsk', 'auto'):
+            out = io.StringIO()
+            askhook.main(io.StringIO(json.dumps({'tool_name': 'mcp__assieme__send_message', 'tool_input': {}, 'permission_mode': mode})), out)
+            self.assertEqual(json.loads(out.getvalue())['hookSpecificOutput']['permissionDecision'], 'deny', mode)
+        self.assertEqual(self.decide('mcp__assieme__send_message'), 'ask')
 
     def test_the_change_tools_are_the_servers(self):  # a new change tool in the server must ask here too
         import asyncio
@@ -107,6 +114,15 @@ class AskHookTest(unittest.TestCase):
     def test_changes_in_the_catalogue_ask(self):
         some = next(n for n, a in actions.CATALOGUE.items() if a.changes)
         self.assertEqual(self.decide('mcp__assieme__app_action', {'name': some}), 'ask')
+
+
+class SpacedPathTest(unittest.TestCase):  # review, Important 4: the hook runs through a shell
+    def test_a_python_path_with_a_space_is_quoted(self):
+        with tempfile.TemporaryDirectory() as d:
+            plugin.build(d, '/Applications/My Apps/py thon')
+            with open(os.path.join(d, 'plugin', 'claude-hooks.json')) as f:
+                cmd = json.load(f)['hooks']['PreToolUse'][0]['hooks'][0]['command']
+        self.assertEqual(cmd, "'/Applications/My Apps/py thon' -P -m assieme.askhook")
 
 
 class GuideTest(unittest.TestCase):

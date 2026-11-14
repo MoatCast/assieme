@@ -196,29 +196,44 @@ def control_server():
     @m.tool(annotations=READ)
     def app_actions(filter: str = '') -> dict:
         """Everything the Assieme app can do, as actions: each one's name, what it does, its params, and whether it
-        changes something. `filter` keeps those whose name or description holds it. Run one with app_action."""
+        changes something. `filter` keeps those whose name or description holds it. Run a read with app_read and a change with app_action."""
         return {'actions': call('assistant.actions', filter=filter)}
 
+    @m.tool(annotations=READ)
+    def app_read(name: str, params: dict) -> dict | str:
+        """Run one action from app_actions that only reads (changes: false) with its params."""
+        a = actions.CATALOGUE.get(name)
+        if a is None:
+            return f'No action named {name}. app_actions lists them.'
+        if a.changes:
+            return f'{name} changes something: run it with app_action, which asks the person first.'
+        return call('assistant.do', name=name, params=params)
+
+    # Changes only, so a client's approval of this tool (even "always allow") never comes from a harmless read.
     @m.tool(annotations=ACT)
     async def app_action(name: str, params: dict, ctx: Context) -> Acted:
-        """Run one action from app_actions with its params. One that changes something asks the person first."""
+        """Run one action from app_actions that changes something (changes: true), after the person agrees."""
         a = actions.CATALOGUE.get(name)
         if a is None:
             return f'No action named {name}. app_actions lists them.'
         if not a.changes:
-            return call('assistant.do', name=name, params=params)
+            return f'{name} only reads: run it with app_read.'
         details = ', '.join(f'{k}: {v}' for k, v in params.items())
         return await _with_yes(ctx, f'Go ahead? {a.description}' + (f'\n\n{details}' if details else ''),
                                'assistant.do', name=name, params=params)
 
     @m.tool(annotations=ACT)
-    async def start_draft(draft_id: str, ctx: Context) -> Acted:
+    async def start_draft(draft_id: str, project: str, agents: list[str], ctx: Context) -> Acted:
         """Start a team drafted with draft_team from here, once the person agrees: for when New team on the Mac is out
-        of reach, as from a phone. On a no, the draft stays in New team."""
+        of reach, as from a phone. `project` (the folder's name) and `agents` (the agents' names, in order) must match
+        the draft: an approval prompt shows them, so the person sees what they agree to. On a no, the draft stays."""
         d = call('mcp.draft_get', id=draft_id)
         if not d:
             return 'That draft is no longer here. Make it again with draft_team.'
-        question = (f"Start this team? {_names([r['name'] for r in d['roles']])} in {os.path.basename(d['project'])}"
+        names, folder = [r['name'] for r in d['roles']], os.path.basename(d['project'])
+        if (os.path.basename(project.rstrip('/')), list(agents)) != (folder, names):
+            return f"That isn't this draft. It is {_names(names)} in {folder}: call again with those."
+        question = (f"Start this team? {_names(names)} in {folder}"
                     + (f"\n\nTask: {d['task']}" if d.get('task') else ''))
         got = await _with_yes(ctx, question, 'team.start', project=d['project'], task=d.get('task', ''),
                               roles=d['roles'], practices=d.get('practices') or {})
@@ -282,11 +297,14 @@ def control_server():
         return await fix(team, agent, 'compact', ctx, 'Free up memory for')
 
     @m.tool(annotations=ACT)
-    async def undo(activity_id: str, ctx: Context) -> Acted:
-        """Undo a row from recent_activity, once the person agrees."""
+    async def undo(activity_id: str, what: str, ctx: Context) -> Acted:
+        """Undo a row from recent_activity, once the person agrees. `what` is the row's title, so an approval prompt
+        shows what is being undone."""
         row = next((r for r in call('activity.list')['rows'] if r['id'] == activity_id), None)
         if not row or not row['undo']:
             return "This can't be undone."
+        if what.strip() != row['title']:
+            return f"That row is \"{row['title']}\": call again with that as what."
         question = (row['undo'].get('confirm') or '') + f"\n\nUndo: {row['title']}?"
         return await _with_yes(ctx, question.strip(), 'activity.undo', id=activity_id)
 
@@ -323,7 +341,8 @@ def control_server():
         got = call('mcp.draft_save', project=project, roles=roles, task=task, why=why, practices=practices)
         where = 'It is open in Assieme' if got['opened'] else 'Open the Assieme app to see it'
         return (f"{where}, in New team. The person reviews it and clicks Start. If they can't reach the Mac, start it "
-                f"from here with start_draft with draft_id {got['id']}, which asks them first.")
+                f"from here with start_draft with draft_id {got['id']}, project {os.path.basename(project.rstrip('/'))} "
+                f"and agents {[r.get('name') for r in roles]}, which asks them first.")
 
     @m.prompt(name='design_my_team', title='Design my team')
     def design_my_team(project: str = '') -> str:

@@ -83,3 +83,12 @@ class CatalogueTest(unittest.TestCase):
         h = actions.handlers(table)
         self.assertEqual(h['assistant.do'](name='review.get', params={'team': 's', 'role': 'r'}), 'diff')
         self.assertIn('review.get', [a['name'] for a in h['assistant.actions'](filter='review')])
+
+
+class RemoteTestChangesTest(unittest.TestCase):  # review, Important 2: it adds the machine and dials SSH
+    def test_remote_test_counts_as_a_change(self):
+        self.assertTrue(actions.CATALOGUE['remote.test'].changes)
+
+
+if __name__ == '__main__':
+    unittest.main()

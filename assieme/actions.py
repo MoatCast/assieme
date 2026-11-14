@@ -115,7 +115,7 @@ CATALOGUE = {
     'remote.machines': Action('Lists the machines Assieme is set up on.'),
     'remote.hosts': Action('Lists the SSH hosts this Mac knows.'),
     'remote.check': Action('Checks that a machine is reachable and ready.', {'machine': 'machine name'}),
-    'remote.test': Action('Tests an SSH connection before setting up a machine.', {'target': 'SSH host or user@address'}),
+    'remote.test': Action('Tests an SSH connection and adds the machine to Assieme.', {'target': 'SSH host or user@address'}, True),
     'remote.connect': Action('Connects to a machine Assieme is set up on.', {'machine': 'machine name'}, True),
     'remote.setup': Action('Sets Assieme up on a machine over SSH.', {'target': 'SSH host or user@address'}, True),
     'remote.forget': Action('Removes a machine from Assieme. Its files stay.', {'machine': 'machine name'}, True),

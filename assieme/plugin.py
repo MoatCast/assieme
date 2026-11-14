@@ -9,6 +9,7 @@ Assieme (the Claude app doesn't see a terminal's PATH):
 Every server entry sets CLIENT_ASKS: the client's own approval is the person's yes (see mcpserver._with_yes)."""
 import json
 import os
+import shlex
 import shutil
 import zipfile
 
@@ -48,7 +49,7 @@ def build(dest, python):
     _write(os.path.join(p, '.mcp.json'), {'mcpServers': {NAME: _server(python)}})
     _write(os.path.join(p, 'claude-hooks.json'),
            {'hooks': {'PreToolUse': [{'matcher': 'mcp__.*assieme.*',
-                                      'hooks': [{'type': 'command', 'command': f'{python} -P -m assieme.askhook'}]}]}})
+                                      'hooks': [{'type': 'command', 'command': f'{shlex.quote(python)} -P -m assieme.askhook'}]}]}})
     _write(os.path.join(p, '.codex-plugin', 'plugin.json'),
            {'name': NAME, 'version': '1.0.0', 'description': DESCRIPTION, 'mcpServers': './codex-mcp.json',
             'author': {'name': 'Assieme'}})

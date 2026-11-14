@@ -395,7 +395,7 @@ class ServerTest(State):
         self.assertEqual(self.tool_names(mcpserver.control_server()), {
             'list_teams', 'team_status', 'what_needs_you', 'read_terminal', 'recent_activity', 'answer', 'send_message',
             'nudge', 'compact', 'undo', 'start_team', 'add_agent', 'stop_agent', 'stop_team', 'draft_team',
-            'app_actions', 'app_action', 'start_draft'})
+            'app_actions', 'app_read', 'app_action', 'start_draft'})
 
     MODES = ('legacy', 'auto')  # the classic protocol, and 2026-07-28 which Claude Code 2.1.319 speaks
 
@@ -479,8 +479,18 @@ class ServerTest(State):
         self.assertEqual(self.calls, [('assistant.actions', {'filter': 'review'})])
 
     def test_a_read_action_runs_at_once(self):
-        self.act('app_action', {'name': 'review.get', 'params': {'team': 's', 'role': 'b'}}, None)
+        self.act('app_read', {'name': 'review.get', 'params': {'team': 's', 'role': 'b'}}, None)
         self.assertEqual(self.calls, [('assistant.do', {'name': 'review.get', 'params': {'team': 's', 'role': 'b'}})])
+
+    def test_app_action_is_for_changes_only(self):  # so a client's approval of app_action always means a change
+        got = text(self.act('app_action', {'name': 'review.get', 'params': {}}, self.yes()))
+        self.assertIn('app_read', got)
+        self.assertEqual(self.calls, [])
+
+    def test_app_read_never_changes_anything(self):
+        got = text(self.act('app_read', {'name': 'review.merge', 'params': {}}, None))
+        self.assertIn('app_action', got)
+        self.assertEqual(self.calls, [])
 
     def test_a_change_asks_first_with_its_details(self):
         for mode in self.MODES:
@@ -523,10 +533,33 @@ class ServerTest(State):
                     'roles': [{'name': 'planner'}, {'name': 'builder-1'}, {'name': 'reviewer'}]}
         return {'team': 'shop'}
 
+    # The client's own prompt shows only the arguments, so they name what is being agreed to (review, Important 3).
+    DRAFT = {'draft_id': 'd1', 'project': 'shop', 'agents': ['planner', 'builder-1', 'reviewer']}
+
+    def test_start_draft_refuses_a_draft_it_does_not_describe(self):
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '1'}), mock.patch.object(mcpserver, 'call', self.draft_call):
+            got = text(self.act('start_draft', self.DRAFT | {'agents': ['builder-1']}, None))
+        self.assertIn('planner, builder-1 and reviewer in shop', got)
+        self.assertNotIn('team.start', [m for m, _ in self.calls])
+
+    def undo_call(self, method, **params):
+        self.calls.append((method, params))
+        if method == 'activity.list':
+            return {'rows': [{'id': 'a1', 'title': 'Merged builder-1 into main', 'undo': {'confirm': ''}}]}
+        return {'ok': True}
+
+    def test_undo_names_what_it_undoes(self):
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '1'}), mock.patch.object(mcpserver, 'call', self.undo_call):
+            wrong = text(self.act('undo', {'activity_id': 'a1', 'what': 'Something else'}, None))
+            self.assertIn('Merged builder-1 into main', wrong)
+            self.assertNotIn('activity.undo', [m for m, _ in self.calls])
+            self.act('undo', {'activity_id': 'a1', 'what': 'Merged builder-1 into main'}, None)
+        self.assertEqual(self.calls[-1], ('activity.undo', {'id': 'a1'}))
+
     def test_start_draft_asks_then_starts_it(self):
         seen = []
         with mock.patch.object(mcpserver, 'call', self.draft_call):
-            got = text(self.act('start_draft', {'draft_id': 'd1'}, self.yes(seen)))
+            got = text(self.act('start_draft', self.DRAFT, self.yes(seen)))
         self.assertEqual(seen, ['Start this team? planner, builder-1 and reviewer in shop\n\nTask: Fix it'])
         self.assertEqual(self.calls[-1], ('team.start', {'project': '/x/shop', 'task': 'Fix it', 'practices': {},
                                                           'roles': [{'name': 'planner'}, {'name': 'builder-1'}, {'name': 'reviewer'}]}))
@@ -536,7 +569,7 @@ class ServerTest(State):
         async def no(ctx, params):
             return ElicitResult(action='decline')
         with mock.patch.object(mcpserver, 'call', self.draft_call):
-            got = text(self.act('start_draft', {'draft_id': 'd1'}, no))
+            got = text(self.act('start_draft', self.DRAFT, no))
         self.assertIn('waiting in New team on your Mac', got)
         self.assertNotIn('team.start', [m for m, _ in self.calls])
 
