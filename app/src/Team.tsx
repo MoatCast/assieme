@@ -8,6 +8,8 @@ import { AgentsMap, GroupsMap } from "./TeamMap";
 import { ago } from "./Terminals";
 import Unreachable, { awayTitle } from "./Unreachable";
 import "./Team.css";
+import { AgentFace } from "./band";
+import Stage, { StageToggle, useStageShown } from "./Stage";
 
 export const SAYS: Partial<Record<Pane["state"], string>> = {
   asking: "is asking you", stuck: "seems stuck", waiting: "has work waiting",
@@ -98,7 +100,7 @@ function Card({ team, pane, onChanged, onOpenTerminal, onChangeLimit }: {
   return (
     <div className={`card ${said ? "needs" : ""}`} data-testid={`card-${pane.role}`}>
       <div className="card-head">
-        <span className="dot" />
+        <AgentFace team={team} role={pane.role} state={pane.state} />
         <span className="card-name">{pane.role}</span>
         <span className="card-says">{[said ?? "could use a hand", ago(pane.since_s)].filter(Boolean).join(" · ")}</span>
       </div>
@@ -135,6 +137,7 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
   onSeeAll: () => void;
 }) {
   const [map, setMap] = useState<TeamMap | null>(null);
+  const stageShown = useStageShown();
   const [waiting, setWaiting] = useState<ReviewWaiting[]>([]);
   const [offline, setOffline] = useState(false);
   const [agent, setAgent] = useState<string | null>(null);
@@ -199,12 +202,17 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
   const here = starting.filter((s) => s.team === team);
   const away = map.unreachable; // its machine can't be reached: the last view from there, greyed
   const heading = away ? awayTitle(away) : null;
+  const stage = stageShown && !away && map.nodes.length > 0;
 
   return (
     <div className={away ? "team away" : "team"}>
       <div className="team-left">
-        <div className="team-title">
-          <h1>{heading ? heading.title : group ? `${group.name}: ${map.title.charAt(0).toLowerCase()}${map.title.slice(1)}` : map.title}</h1>
+        <div className={stage ? "team-title with-stage" : "team-title"}>
+          <div className="title-row">
+            <h1>{heading ? heading.title : group ? `${group.name}: ${map.title.charAt(0).toLowerCase()}${map.title.slice(1)}` : map.title}</h1>
+            {!away && <StageToggle />}
+          </div>
+          {stage && <Stage team={team ?? undefined} nodes={map.nodes} groups={map.groups ?? []} />}
           <p>{heading ? heading.subtitle : group ? `${group.roles.length} of ${map.nodes.length} agents.` : map.subtitle}</p>
           {offline && <Offline team />}
           {here.flatMap((s, i) => {
@@ -220,9 +228,9 @@ export default function Team({ team, pollMs = 5000, starting = [], onNewTeam, on
         <div className="well">
           {group && <button type="button" className="back-groups" onClick={() => setOpened(null)}>‹ All groups</button>}
           {map.groups && !group ? (
-            <GroupsMap groups={map.groups} onOpen={setOpened} />
+            <GroupsMap team={team} groups={map.groups} onOpen={setOpened} />
           ) : (
-            <AgentsMap nodes={group ? map.nodes.filter((n) => group.roles.includes(n.role)) : map.nodes} edges={map.edges} waits={map.waits} onPick={setAgent} />
+            <AgentsMap team={team} nodes={group ? map.nodes.filter((n) => group.roles.includes(n.role)) : map.nodes} edges={map.edges} waits={map.waits} onPick={setAgent} />
           )}
           <div className="spend">
             <span className="grow">

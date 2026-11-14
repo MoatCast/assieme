@@ -320,3 +320,8 @@ test("the back link names where you came from", async () => {
   await click("Team");
   expect(onBack).toHaveBeenCalled();
 });
+
+test("faces: a note shows its author's musician", async () => { // step 31
+  await open();
+  expect(screen.getAllByRole("img", { name: "reviewer, score, idle" }).length).toBeGreaterThan(0);
+});

@@ -4,6 +4,7 @@ import { addAgent, fieldOf, teamPresets, type AgentKind, type ModelOptions } fro
 import { AGENT_KINDS, kindName } from "./kinds";
 import InstallSheet from "./InstallSheet";
 import { useSetupStatus } from "./NewUserChecklist";
+import { forgetBand } from "./band";
 
 const KINDS = [["builder", "Builder"], ["reviewer", "Reviewer"], ["tester", "Tester"], ["planner", "Planner"]] as const;
 type Kind = (typeof KINDS)[number][0];
@@ -72,6 +73,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
     try {
       await addAgent(team, { name: name.trim(), agent, kind, parent: parent || null, model: model || null, effort: effort || null,
         container: inContainer, share_signin: inContainer && shareSignin });
+      forgetBand(team); // its saved instrument: ask again rather than guess from its name
       onClose();
     } catch (e) {
       setError(fieldOf(e).message);

@@ -53,6 +53,7 @@ export type AgentKind = "claude" | "codex" | "gemini" | "opencode" | "cursor" | 
 /** One agent in the New team form, in the brain's shape. */
 export type RoleDraft = {
   name: string;
+  musician?: string | null; // step 31: set when saved; New team shows the rule's choice before that
   agent: AgentKind;
   job: string;
   checkout: "branch" | "read-only";
@@ -364,6 +365,12 @@ export const agentSetTools = (team: string, role: string, choice: ToolChoice) =>
   brain<{ ok: boolean; id: string }>("agent.set_tools", { team, role, ...choice });
 export type AgentTools = { items: ToolItem[]; notices: string[]; value: ToolChoice; suggested: string[];
   role_kind: string | null; agent: AgentKind };
+/** Step 31: each role's instrument and colours (assieme/musicians.py); {} for a team with no saved folder. */
+/** chosen_for: why the rule picked the instrument ("the third builder"), null once the person picked another. */
+export type Band = Record<string, { musician: import("./musicians.gen").Instrument; palette: 0 | 1; chosen_for?: string | null }>;
+export const teamBand = (team: string) => brain<Band>("team.band", { team });
+export const agentSetMusician = (team: string, role: string, musician: string) =>
+  brain<{ ok: true }>("agent.set_musician", { team, role, musician });
 export const agentTools = (team: string, role: string) => brain<AgentTools>("agent.tools", { team, role });
 export const agentRestart =(team: string, role: string) => brain<{ ok: boolean; detail: string }>("agent.restart", { team, role });
 export const tipApply = (team: string, tip: string) => brain<{ ok: boolean; detail: string }>("tip.apply", { team, tip });

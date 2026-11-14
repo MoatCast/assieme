@@ -5,6 +5,7 @@ import Offline from "./Offline";
 import { FixButtons, SAYS, tokens } from "./Team";
 import { ago } from "./Terminals";
 import "./Board.css";
+import { AgentFace } from "./band";
 
 export const COLUMNS = [["todo", "To do"], ["doing", "Doing"], ["review", "Review"], ["done", "Done"]] as const;
 const DOING: Record<Pane["state"], string> = {
@@ -164,7 +165,7 @@ function Task({ team, card, pv, onChanged, onOpenTerminal, onReview }: {
       {card.needs_you && <div className="task-waits"><i />{card.note || "Waiting for your answer"}</div>}
       {(card.role || line) && (
         <div className="task-who">
-          {card.role && <span className="chip">{card.role}</span>}
+          {card.role && <span className="chip with-face"><AgentFace team={team} role={card.role} state={agent?.state ?? "idle"} noDot />{card.role}</span>}
           {line && <span className={needs ? "says" : ""}>{line}</span>}
         </div>
       )}

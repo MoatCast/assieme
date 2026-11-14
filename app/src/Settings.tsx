@@ -8,6 +8,7 @@ import ImproveTeam from "./ImproveTeam";
 import { AlwaysOnSheet, BiggerTeams, Chevron, GroupSheet, Shield, ruleCount } from "./Practices";
 import Schedules from "./Schedules";
 import "./Settings.css";
+import { type MusicianMode, setMusicianMode, useMusicianMode } from "./musicianMode";
 
 const SECTIONS = [
   ["general", "General"], ["fixes", "Fixes"], ["practices", "Team practices"],
@@ -104,6 +105,21 @@ function YourAssistants() {
   );
 }
 
+const MODES: [MusicianMode, string][] = [["animated", "Animated"], ["still", "Still"], ["off", "Off"]];
+
+/** Step 31: Animated, Still or Off (Paper "v2 — Musicians: Settings, General"). Applies at once in every window. */
+function Musicians() {
+  const mode = useMusicianMode();
+  return (
+    <div className="two-way" role="group" aria-label="Musicians">
+      {MODES.map(([m, label]) => (
+        <button key={m} type="button" className={mode === m ? "on" : ""} aria-pressed={mode === m}
+          onClick={() => setMusicianMode(m)}>{label}</button>
+      ))}
+    </div>
+  );
+}
+
 function General({ onShowFirstRun }: { onShowFirstRun: () => void }) {
   const [running, setRunning] = useState<boolean | null>(null);
   const [error, setError] = useState("");
@@ -128,6 +144,9 @@ function General({ onShowFirstRun }: { onShowFirstRun: () => void }) {
         </Row>
         <Row title="First run" sub="See the agents and projects Assieme found on this Mac.">
           <button type="button" className="btn-small" onClick={onShowFirstRun}>Show First run</button>
+        </Row>
+        <Row title="Musicians" sub="Agents appear as musicians. Still stops the motion; Off shows a dot.">
+          <Musicians />
         </Row>
         <YourAssistants />
       </div>

@@ -41,6 +41,16 @@
   --quiet-diff-del-bg: var(--light, #fbefec) var(--dark, #33201c);
   --quiet-diff-del-text: var(--light, #842e1b) var(--dark, #f2a593);
   --quiet-diff-del-number: var(--light, #c99486) var(--dark, #a86c5e);
+  /* Step 31: the musicians' palette letters (art/musicians.py). The second colours swap m and c. */
+  --quiet-musician-d: var(--light, #14227a) var(--dark, #5a72e6); /* hair and shoes */
+  --quiet-musician-l: var(--light, #a9b8ff) var(--dark, #e4e9ff); /* face, hands, violin bow */
+  --quiet-musician-m: var(--light, #2747d9) var(--dark, #a9b8ff); /* clothes */
+  --quiet-musician-c: var(--light, #6f88f2) var(--dark, #6f88f2); /* trim, score notes; clothes in the second colours */
+  --quiet-musician-k: var(--light, #e2b567) var(--dark, #f2cf8f); /* wood */
+  --quiet-musician-b: var(--light, #b07e43) var(--dark, #c9955a); /* wood edge, brass rim */
+  --quiet-musician-w: var(--light, #9aa6bb) var(--dark, #e4e9ff); /* strings, drum heads, keys, paper */
+  --quiet-musician-e: var(--light, #17253f) var(--dark, #8b939e); /* you, conducting */
+  --quiet-musician-grey: var(--light, #c2c8d0) var(--dark, #7d8692); /* a stopped agent */
   --quiet-glass: var(--light, #fffffff5) var(--dark, #1f232af5); /* the menu bar panel */
   --quiet-glass-fill: var(--light, #f4f5f7) var(--dark, #2a2f37);
   --quiet-glass-control: var(--light, #d5dae0) var(--dark, #4a515c);

@@ -10,7 +10,7 @@ import threading
 import time
 import tomllib
 
-from . import ask, container, live, launch, permissions, preset, runtime, scripts, settings, setup, team, worktree
+from . import ask, container, live, launch, musicians, permissions, preset, runtime, scripts, settings, setup, team, worktree
 
 PRESETS_DIR = os.path.join(os.path.dirname(__file__), 'presets')
 BUILTIN = ('one-agent', 'builder-reviewer', 'full')
@@ -55,7 +55,8 @@ def _role_dict(r):
             'owns': r.owns, 'level': r.level, 'rules': r.rules, 'container': r.container, 'share_signin': r.share_signin,
             **{k: getattr(r, k) for k in ('worktree', 'branch', 'resume') if getattr(r, k)},  # only brought-over roles
             **({'tools_off': r.tools_off} if r.tools_off else {}), **({} if r.tools_new else {'tools_new': False}),
-            **({'tools_known': r.tools_known} if r.tools_known else {})}  # only when chosen: older presets stay as they were
+            **({'tools_known': r.tools_known} if r.tools_known else {}),  # only when chosen: older presets stay as they were
+            **({'musician': r.musician} if r.musician else {})}
 
 
 def _as_preset(folder, id_, label=None):
@@ -177,6 +178,8 @@ def validate(roles):
             v = r.get(key)
             if v is not None and not (isinstance(v, list) and all(isinstance(x, str) and TOOL_ID.match(x) for x in v)):
                 raise NewTeamError(field, "That list of skills and servers can't be used.")
+        if r.get('musician') is not None and r['musician'] not in musicians.INSTRUMENTS:
+            raise NewTeamError(field, "That instrument isn't one Assieme draws.")
         if r.get('tools_new') not in (None, True, False):
             raise NewTeamError(field, "That list of skills and servers can't be used.")
         if r.get('parent') and r['parent'] not in names:
@@ -210,7 +213,7 @@ def _role_toml(r):
     out = ['[[role]]', f'name = {q(r["name"])}', f'agent = {q(r["agent"])}', f'job = {q(r.get("job", ""))}',
            f'checkout = {q(r.get("checkout", "branch"))}']
     out += [f'{key} = {q(r[key])}' for key in ('parent', 'model', 'effort', 'group', 'kind', 'level', 'worktree', 'branch',
-                                                'resume') if r.get(key)]
+                                                'resume', 'musician') if r.get(key)]
     out += [f'{key} = true' for key in ('container', 'share_signin') if r.get(key) is True]
     if r.get('tools_new') is False:
         out.append('tools_new = false')
@@ -275,6 +278,32 @@ def roster(name, teams=None):
     return {r.name: {'job': r.job, 'group': r.group, 'parent': r.parent} for r in tm.roles}
 
 
+def band(name, teams=None):
+    """Step 31: each role's instrument and colours, for the app to draw. {} for a team with no saved folder."""
+    try:
+        roles = preset.load(os.path.join(teams or teams_dir(), name)).roles
+    except (preset.PresetError, OSError):
+        return {}
+    # chosen_for: why the rule picked it, only while the person hasn't picked another
+    return {r.name: {'musician': m, 'palette': musicians.palette(roles, i), 'chosen_for': why if m == rule else None}
+            for i, (r, m, (rule, why)) in enumerate(zip(roles, musicians.assign(roles), musicians.rules(roles)))}
+
+
+def set_musician(name, role, musician, teams=None):
+    """Step 31: the instrument picked in Agent details, saved with the role. Only how it looks changes."""
+    if musician not in musicians.INSTRUMENTS:
+        raise NewTeamError('musician', "That instrument isn't one Assieme draws.")
+    folder = os.path.join(teams or teams_dir(), name)
+    try:
+        roles = preset.load(folder, practices=False).roles
+    except (preset.PresetError, OSError):
+        raise NewTeamError('musician', 'This team was started from the command line, so it has no saved instruments.') from None
+    if role not in {r.name for r in roles}:
+        raise NewTeamError('musician', f'{role} is not in this team.')
+    _rewrite_role(folder, role, musician=musician)
+    return {'ok': True}
+
+
 def _known(r, project):
     """Step 32: an agent that doesn't take newly installed tools remembers what was there, so a later one is told apart."""
     if r.get('tools_new') is not False or r.get('tools_known'):
@@ -290,7 +319,7 @@ def save(project, roles, practices, name, teams, scripts=None):
     unknown = set(scripts) - set(preset.SCRIPTS)
     if unknown:
         raise ValueError(f'Unknown script {", ".join(sorted(unknown))}.')
-    roles = [_known(r, project) for r in roles]
+    roles = [{**_known(r, project), 'musician': m} for r, m in zip(roles, musicians.assign(roles))]  # step 31: saved once
     folder = os.path.join(teams, name)
     if os.path.isdir(folder):
         shutil.rmtree(folder)
@@ -442,13 +471,14 @@ class Starter:
         if not any(r.get('state') == 'live' and (r.get('labels') or {}).get(team.TEAM) == team_name for r in rows):
             raise NewTeamError('start', 'This team has stopped. Start it again to add an agent.')
         role = dict(role)
-        kind = role.pop('kind', None)
+        tm = preset.load(folder, practices=False)
+        have = [_role_dict(r) for r in tm.roles]
+        role['musician'] = musicians.assign(have + [role])[-1]  # the next by the rule; nobody else's changes
+        kind = role.get('kind')  # kept in team.toml: later instruments and colours count by it
         if kind in KINDS:
             role.setdefault('checkout', KINDS[kind][1])
             if not (role.get('brief') or '').strip():
                 role['brief'] = kind_brief(kind)
-        tm = preset.load(folder, practices=False)
-        have = [_role_dict(r) for r in tm.roles]
         validate(have + [role])
         new = preset.Role(role['name'], role['agent'], '', '', container=role.get('container') is True)
         missing = launch.missing_clis([new], which=self.which)

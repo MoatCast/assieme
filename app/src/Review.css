@@ -108,3 +108,4 @@
 .notice strong { font-weight: 600; }
 .notice button { font: inherit; font-weight: 600; line-height: 16px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--quiet-on-ink-accent); }
 .notice button:disabled { opacity: 0.5; cursor: default; }
+.review .note-head .musician { display: inline-flex; vertical-align: -4px; margin-right: 6px; } /* step 31 */

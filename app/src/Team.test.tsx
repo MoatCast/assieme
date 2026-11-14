@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Pane, TeamMap } from "./bridge";
 
@@ -322,4 +322,21 @@ test("a team paused at its limit is one card, and its button carries on", async 
 test("just after carrying on, the spend line shows two digits so used and allowed differ", async () => {
   await open(MAP({ spend: { tokens: 1566216, waste_share: 0 }, budget: { ...BUDGET, limit: 30000, allowed: 1574216, used: 1566216 } }));
   expect(screen.getByText("1.57M of 1.57M tokens")).toBeTruthy();
+});
+
+test("faces: a map node and a card show the agent's musician, and keep their words", async () => { // step 31
+  const fix = { id: "f", text: "stuck", buttons: [{ id: "n", label: "Ask it to try another way", kind: "action" as const }] };
+  await open(MAP({ nodes: [node("builder-2"), node("a", "stuck")], panes: [pane("a", { state: "stuck", detail: "Same command x4", command: "pytest", fix })] }));
+  expect(within(screen.getByTestId("node-builder-2")).getByRole("img", { name: "builder-2, cello, working" })).toBeTruthy();
+  expect(within(screen.getByTestId("card-a")).getByRole("img", { name: "a, flute, needs you" })).toBeTruthy();
+  expect(within(screen.getByTestId("card-a")).getByText(/seems stuck/)).toBeTruthy();
+});
+
+test("stage: hidden by default; the button after the heading shows it", async () => { // step 31
+  localStorage.clear();
+  await open(MAP({ nodes: [node("planner", "asking"), node("builder-1")] }));
+  expect(screen.queryByRole("img", { name: /^The band/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Show the stage" }));
+  expect(screen.getByRole("img", { name: /^The band: 2 agents/ })).toBeTruthy();
+  localStorage.clear();
 });

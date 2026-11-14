@@ -132,3 +132,10 @@ test("notifications turned off say so, with the fix", async () => {
   expect(b.notificationSettingsOpen).toHaveBeenCalled();
   b.notificationsOff.mockResolvedValue(false);
 });
+
+test("faces: the opened menu shows each agent's musician", async () => { // step 31
+  render(<MenuBar />);
+  await flush();
+  expect(screen.getByRole("img", { name: "planner, piano, needs you" })).toBeTruthy();
+  expect(screen.getByRole("img", { name: "builder-3, bass, needs you" })).toBeTruthy();
+});

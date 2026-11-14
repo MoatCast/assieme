@@ -5,6 +5,7 @@ import { host, usePreviews } from "./Preview";
 import Offline from "./Offline";
 import Terminal from "./Terminal";
 import "./Terminals.css";
+import { AgentFace } from "./band";
 
 const STATE: Record<Pane["state"], string> = {
   asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", idle: "idle", exited: "exited",
@@ -163,7 +164,7 @@ export default function Terminals({ team, pollMs = 3000, onNewTeam, onReview, in
     <div key={p.role} data-testid={`pane-${p.role}`}
       className={`pane state-${p.state}${needsYou(p) ? " needs" : ""}${full ? " full" : ""}`}>
       <div className="pane-head" onClick={() => !full && setFocus(p.role)}>
-        <span className="dot" />
+        <AgentFace team={team} role={p.role} state={p.state} />
         <button type="button" className="pane-name">{p.role}</button>
         <span className="pane-cli">{kindName(p.agent)}</span>
         <span className="pane-state">{[STATE[p.state], p.state === "exited" ? "" : ago(p.since_s)].filter(Boolean).join(" · ")}</span>

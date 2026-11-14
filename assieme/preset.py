@@ -3,7 +3,7 @@ import os
 import re
 import tomllib
 
-from . import launch, permissions
+from . import launch, musicians, permissions
 from dataclasses import dataclass, field
 
 AGENTS = tuple(launch.CLIS)
@@ -39,6 +39,7 @@ class Role:
     tools_off: list = field(default_factory=list)  # step 32: skill/plugin/server ids turned off for this agent
     tools_new: bool = True  # newly installed ones are on
     tools_known: list = field(default_factory=list)  # ids there when the choice was saved (only used when tools_new is off)
+    musician: str | None = None  # step 31: the instrument it plays; None: the rule's choice (musicians.assign)
     cont: bool = False  # never saved: this start picks up the agent's last conversation (Restart with these)
 
 
@@ -197,7 +198,8 @@ def load(folder, practices=True):
                           share_signin=raw.get('share_signin') is True, worktree=raw.get('worktree'),
                           branch=raw.get('branch'), resume=raw.get('resume'),
                           tools_off=_ids(raw.get('tools_off')), tools_new=raw.get('tools_new') is not False,
-                          tools_known=_ids(raw.get('tools_known'))))
+                          tools_known=_ids(raw.get('tools_known')),
+                          musician=raw.get('musician') if raw.get('musician') in musicians.INSTRUMENTS else None))
     if not roles:
         raise PresetError(f'{path}: the team has no roles ([[role]] tables)')
     for r in roles:

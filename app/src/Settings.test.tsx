@@ -82,6 +82,18 @@ test("General: running, then stopped with Start it", async () => {
   expect(b.serviceInstall).toHaveBeenCalled();
 });
 
+test("General: the Musicians choice, Animated by default, saves what is picked", async () => {
+  await open();
+  const group = screen.getByRole("group", { name: "Musicians" });
+  expect(group.querySelector("[aria-pressed=true]")?.textContent).toBe("Animated");
+  fireEvent.click(screen.getByRole("button", { name: "Still" }));
+  expect(localStorage.getItem("assieme.musicians")).toBe("still");
+  expect(screen.getByRole("button", { name: "Still" }).getAttribute("aria-pressed")).toBe("true");
+  fireEvent.click(screen.getByRole("button", { name: "Off" }));
+  expect(localStorage.getItem("assieme.musicians")).toBe("off");
+  localStorage.clear();
+});
+
 test("a fix's label follows its switch", async () => {
   await open("Fixes");
   expect(screen.getAllByText("Ask first").length).toBe(2);

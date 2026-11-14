@@ -1,0 +1,12 @@
+/* Step 31: the two playing frames swap in steps, never fading; nothing moves under Reduce Motion (the component draws
+   one frame then). */
+.musician { display: inline-flex; flex-shrink: 0; line-height: 0; }
+.musician svg { display: block; }
+.musician.playing .f1 { animation: musician-a 0.9s steps(1, end) infinite; }
+.musician.playing .f2 { animation: musician-b 0.9s steps(1, end) infinite; }
+@keyframes musician-a { 0% { visibility: visible; } 50% { visibility: hidden; } }
+@keyframes musician-b { 0% { visibility: hidden; } 50% { visibility: visible; } }
+@media (prefers-reduced-motion: reduce) {
+  .musician.playing .f1, .musician.playing .f2 { animation: none; }
+  .musician.playing .f2 { visibility: hidden; }
+}

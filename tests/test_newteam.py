@@ -610,6 +610,22 @@ class AddAgentTest(unittest.TestCase):
         self.assertEqual((e['action'], e['agent'], e['address'], e['team']), ('add_agent', 'b', 't5', 'shop'))
         self.assertTrue(os.path.isdir(os.path.join(self.project, '.assieme', 'worktrees', 'b')))
 
+    def test_added_agent_gets_the_next_instrument(self):  # step 31, Review Focus 2
+        before = open(os.path.join(self.teams, 'shop', 'team.toml')).read()
+        with mock.patch.object(newteam.team, 'start', return_value=[newteam.team.Started('b', 't5', 'running')]):
+            self.starter().add_agent('shop', {'name': 'b', 'agent': 'codex', 'kind': 'builder', 'parent': 'lead'})
+        roles = {x.name: x for x in preset.load(os.path.join(self.teams, 'shop'), practices=False).roles}
+        self.assertEqual(roles['b'].musician, 'violin')
+        self.assertTrue(open(os.path.join(self.teams, 'shop', 'team.toml')).read().startswith(before))
+
+    def test_added_builders_keep_their_kind_and_colours(self):  # step 31, final review
+        for name in ('b1', 'b2', 'b3', 'b4', 'b5'):
+            with mock.patch.object(newteam.team, 'start', return_value=[newteam.team.Started(name, 't5', 'running')]):
+                self.starter().add_agent('shop', {'name': name, 'agent': 'codex', 'kind': 'builder', 'parent': 'lead'})
+        band = newteam.band('shop', self.teams)
+        self.assertEqual(band['b4'], {'musician': 'violin', 'palette': 1, 'chosen_for': 'the fourth builder'})
+        self.assertEqual(band['b5'], {'musician': 'cello', 'palette': 1, 'chosen_for': 'the fifth builder'})
+
     def test_add_agent_to_a_stopped_team_refuses(self):
         s = self.starter()
         s.rt = Rt()
