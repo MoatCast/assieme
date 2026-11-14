@@ -14,7 +14,7 @@ import time
 import traceback
 
 from . import scripts as scripts_mod
-from . import activity, adapters, answers, bridge, bringover, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
+from . import actions, activity, adapters, answers, bridge, bringover, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
 
 
 def main(argv=None):
@@ -200,8 +200,7 @@ def _serve():
                 step()
             except Exception:  # one failing step must not stop notifications, delivery or the others
                 traceback.print_exc()
-    serve.serve(serve.brain_socket_path(),
-                remotes.wrap({'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
+    table = remotes.wrap({'brain.snapshot': lambda: serve.snapshot(claude, codex, status.now_utc(), rt,
                                                           starting=starter.records()) | {'draft': tools.draft_next(),
                                                                                        'scheduled_teams': sched.run_teams()},
                  'project.check': newteam.project_check,
@@ -223,9 +222,25 @@ def _serve():
                  **menu.handlers(),
                  **setup.handlers(rt),
                  **previews.handlers(),
-                 **remote.remote_handlers()}),
-                tick=tick)
+                 **remote.remote_handlers()})
+    table |= actions.handlers(table)  # step 18a: assistants reach the same actions, routed the same way
+    serve.serve(serve.brain_socket_path(), table, tick=tick)
     return 0
+
+
+LOCAL_HANDLERS = ('brain.snapshot', 'project.check', 'team.presets', 'team.start', 'team.allow_script', 'bringover.find',
+                  'bringover.workspaces', 'bringover.import', 'team.suggest', 'team.improve_brief', 'team.rule_draft')
+
+
+def handler_names():
+    """Every action name the brain serves (the table `serve` gets), without starting it: for the catalogue's test."""
+    from unittest import mock
+    me = mock.MagicMock()
+    tables = (teammap.Brain.handlers(me), review.Review.handlers(me), mcptools.Tools.handlers(me),
+              tasks.Board.handlers(me), schedule.Scheduler.handlers(me), connect.handlers(),
+              menubar.Menubar.handlers(me), setup.handlers(me), preview.Previews.handlers(me),
+              remote.remote_handlers(), remote.Remotes.handlers(me))
+    return sorted({*LOCAL_HANDLERS, *(n for t in tables for n in t), 'assistant.actions', 'assistant.do'})
 
 
 def _ask(question):
