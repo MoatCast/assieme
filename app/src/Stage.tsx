@@ -85,18 +85,32 @@ function spread(n: number, from: number, to: number) {
   return Array.from({ length: n }, (_, i) => Math.round(n === 1 ? (from + to - FACE) / 2 : from + i * Math.min(step, FACE + 24)));
 }
 
+/** n faces packed against one end of [from, to], 16 apart, closer when they don't fit. */
+function pack(n: number, from: number, to: number, end: "left" | "right") {
+  const step = Math.min(FACE + 16, n > 1 ? (to - from - FACE) / (n - 1) : FACE);
+  const width = (n - 1) * step + FACE;
+  const start = end === "left" ? from : to - width;
+  return Array.from({ length: n }, (_, i) => Math.round(start + i * step));
+}
+
+const MIDDLE = { left: GAP.left - 6, right: GAP.right + 8 }; // clear of the back row and the conductor (Paper: x 96–144)
+
+/** Each player's place and the riser group it stands on ("middle-l" and "middle-r" are the two sides of the conductor). */
 function place(players: Player[]) {
-  const at: { p: Player; x: number; y: number }[] = [];
+  const at: { p: Player; x: number; y: number; group: string }[] = [];
   for (const seat of ["back", "middle", "front"] as Seat[]) {
     const row = players.filter((p) => p.seat === seat);
+    const left = row.slice(0, Math.ceil(row.length / 2));
+    const right = row.slice(left.length);
     if (seat === "front") {
-      const left = row.slice(0, Math.ceil(row.length / 2));
-      const right = row.slice(left.length);
-      spread(left.length, 0, GAP.left).forEach((x, i) => at.push({ p: left[i], x, y: ROW_Y.front }));
-      spread(right.length, GAP.right, W).forEach((x, i) => at.push({ p: right[i], x, y: ROW_Y.front }));
+      spread(left.length, 0, GAP.left).forEach((x, i) => at.push({ p: left[i], x, y: ROW_Y.front, group: seat }));
+      spread(right.length, GAP.right, W).forEach((x, i) => at.push({ p: right[i], x, y: ROW_Y.front, group: seat }));
+    } else if (seat === "middle") {
+      pack(left.length, 0, MIDDLE.left, "right").forEach((x, i) => at.push({ p: left[i], x, y: ROW_Y.middle, group: "middle-l" }));
+      pack(right.length, MIDDLE.right, W, "left").forEach((x, i) => at.push({ p: right[i], x, y: ROW_Y.middle, group: "middle-r" }));
     } else {
       const width = row.length * FACE + (row.length - 1) * 16;
-      row.forEach((p, i) => at.push({ p, x: Math.round((W - width) / 2) + i * (FACE + 16), y: ROW_Y[seat] }));
+      row.forEach((p, i) => at.push({ p, x: Math.round((W - width) / 2) + i * (FACE + 16), y: ROW_Y.back, group: seat }));
     }
   }
   return at;
@@ -121,15 +135,16 @@ export default function Stage({ team, nodes, groups }: { team?: string; nodes: M
   const label = [`The band: ${plural(nodes.length, "agent", "agents")}${byGroup ? ` in ${groups.length} groups` : ""}`,
     waiting ? `${waiting} ${waiting === 1 ? "needs" : "need"} you` : ""].filter(Boolean).join(", ");
   const at = place(players);
-  const risers = (["back", "middle"] as Seat[]).map((seat) => {
-    const xs = at.filter((a) => a.p.seat === seat).map((a) => a.x);
-    return xs.length ? { seat, x: Math.min(...xs) - 4, w: Math.max(...xs) - Math.min(...xs) + FACE + 8 } : null;
+  const risers = ["back", "middle-l", "middle-r"].map((group) => {
+    const xs = at.filter((a) => a.group === group).map((a) => a.x);
+    const seat: Seat = group === "back" ? "back" : "middle";
+    return xs.length ? { group, seat, x: Math.min(...xs) - 4, w: Math.max(...xs) - Math.min(...xs) + FACE + 8 } : null;
   });
   return (
     <div className="stage" role="img" aria-label={label} style={{ width: W, height: H }}>
       <div aria-hidden="true">
         <i className="stage-floor" />
-        {risers.map((r) => r && <i key={r.seat} className="stage-riser" style={{ left: r.x, top: ROW_Y[r.seat] + 54, width: r.w }} />)}
+        {risers.map((r) => r && <i key={r.group} className="stage-riser" style={{ left: r.x, top: ROW_Y[r.seat] + 54, width: r.w }} />)}
         {(["back", "middle", "front"] as Seat[]).map((seat) => (
           <div key={seat} data-seat={seat}>
             {at.filter((a) => a.p.seat === seat).map(({ p, x, y }) => (

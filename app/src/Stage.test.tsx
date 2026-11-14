@@ -59,6 +59,27 @@ test("up to twelve agents: one musician each, in its row; one image with one lab
   expect(stage.querySelectorAll('[data-seat="front"] .musician')).toHaveLength(4); // piano and strings
 });
 
+test("no figure covers another, except the front row standing before the middle row (as in Paper)", () => { // real window
+  const team = [...SMALL, node("designer"), node("writer")]; // three in the middle row: the reviewer and two flutes
+  const { container } = render(<Stage nodes={team} groups={[]} />);
+  const boxes = [...container.querySelectorAll<HTMLElement>(".stage-player, .stage-you")].map((el) => {
+    const x = parseFloat(el.style.left);
+    const y = parseFloat(el.style.top);
+    const you = el.classList.contains("stage-you");
+    return { x, y, w: you ? 54 : 48, h: you ? 51 : 54, seat: you ? "you" : el.closest("[data-seat]")?.getAttribute("data-seat") };
+  });
+  expect(boxes).toHaveLength(9);
+  for (const [i, a] of boxes.entries()) {
+    expect(a.x).toBeGreaterThanOrEqual(0);
+    expect(a.x + a.w).toBeLessThanOrEqual(380);
+    for (const b of boxes.slice(i + 1)) {
+      if (new Set([a.seat, b.seat]).size === 2 && [a.seat, b.seat].every((s) => s === "front" || s === "middle")) continue;
+      const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
+      expect(apart, JSON.stringify([a, b])).toBe(true);
+    }
+  }
+});
+
 test("the agent that needs you raises its hand", () => {
   render(<Stage nodes={[node("builder-3", "stuck")]} groups={[]} />);
   const fills = [...document.querySelectorAll("rect")].map((r) => r.getAttribute("fill"));
