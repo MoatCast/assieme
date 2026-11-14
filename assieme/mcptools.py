@@ -22,6 +22,24 @@ def _pane(p):
     return out
 
 
+KEEP_S = 24 * 3600
+
+
+def _keep(drafts, draft):
+    """A copy the assistant can still start after the app took the draft into New team (step 18a, start_draft)."""
+    kept = os.path.join(drafts, 'kept')
+    os.makedirs(kept, exist_ok=True)
+    now = time.time()
+    for n in os.listdir(kept):
+        p = os.path.join(kept, n)
+        try:
+            if now - os.path.getmtime(p) > KEEP_S:
+                os.remove(p)
+        except OSError:
+            pass
+    quiet._write_json(os.path.join(kept, f"{draft['id']}.json"), draft)
+
+
 class Tools:
     def __init__(self, brain, starter, teams=None, opener=None, notify=live.notify, scheduler=None):
         self.brain, self.starter, self.notify, self.scheduler = brain, starter, notify, scheduler
@@ -241,7 +259,7 @@ class Tools:
         id_ = uuid.uuid4().hex[:12]
         draft = {'id': id_, 'project': os.path.abspath(project), 'task': task, 'roles': filled, 'practices': chosen, 'why': why}
         quiet._write_json(os.path.join(self._drafts(), f'{id_}.json'), draft)
-        self._keep(draft)
+        _keep(self._drafts(), draft)
         try:
             opened = self.opener()
         except (OSError, subprocess.SubprocessError):
@@ -281,27 +299,9 @@ class Tools:
                 pass
         return os.path.basename(min(ages, key=ages.get))[:-5] if ages else None
 
-    KEEP_S = 24 * 3600
-
-    def _kept(self):
-        return os.path.join(self._drafts(), 'kept')
-
-    def _keep(self, draft):
-        """A copy the assistant can still start after the app took the draft into New team (step 18a, start_draft)."""
-        os.makedirs(self._kept(), exist_ok=True)
-        now = time.time()
-        for n in os.listdir(self._kept()):
-            p = os.path.join(self._kept(), n)
-            try:
-                if now - os.path.getmtime(p) > self.KEEP_S:
-                    os.remove(p)
-            except OSError:
-                pass
-        quiet._write_json(os.path.join(self._kept(), f"{draft['id']}.json"), draft)
-
     def draft_get(self, id):
         try:
-            with open(os.path.join(self._kept(), f'{os.path.basename(id)}.json')) as f:
+            with open(os.path.join(self._drafts(), 'kept', f'{os.path.basename(id)}.json')) as f:
                 d = json.load(f)
         except (OSError, ValueError):
             return None
