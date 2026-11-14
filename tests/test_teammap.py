@@ -293,6 +293,24 @@ class FoundTest(MapCase):
         got = teammap.found_groups([self.agent('x', '/w/shop/.assieme/worktrees/builder')], {}, set())
         self.assertEqual(list(got), ['shop'])
 
+    def test_a_herdr_workspace_is_one_team_across_folders(self):  # each herdr agent in its own worktree folder
+        a, b = self.agent('steward', '/w/shop-steward'), self.agent('builder2', '/w/shop-builder2')
+        a.herdr_space = b.herdr_space = 'Shop team'
+        got = teammap.found_groups([a, b, self.agent('solo', '/w/other')], {}, set())
+        self.assertEqual({k: [x.name for x in v] for k, v in got.items()}, {'Shop team': ['steward', 'builder2'], 'other': ['solo']})
+
+    def test_worktrees_of_one_repository_are_one_team(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as d:
+            main, wt = os.path.join(d, 'shop'), os.path.join(d, 'shop-builder')
+            git = lambda *a, cwd=main: subprocess.run(['git', *a], cwd=cwd, capture_output=True, check=True)
+            os.makedirs(main)
+            git('init', '-q')
+            git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'x')
+            git('worktree', 'add', '-q', wt)
+            got = teammap.found_groups([self.agent('lead', main), self.agent('builder', wt)], {}, set())
+        self.assertEqual({k: [x.name for x in v] for k, v in got.items()}, {'shop': ['lead', 'builder']})
+
     def test_found_rows_mark_what_can_be_reached(self):
         rows = teammap.found_rows('shop', [self.agent('a', '/w/a', address='t3'), self.agent('b', '/w/b', source='codex')])
         self.assertEqual(rows[0]['address'], 't3')

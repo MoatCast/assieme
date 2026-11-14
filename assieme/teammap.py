@@ -7,6 +7,7 @@ tick reads whole logs (`Today`); `build` uses the copy it left.
 import contextlib
 import dataclasses
 import datetime as dt
+import functools
 import json
 import os
 import subprocess
@@ -539,15 +540,36 @@ class Brain:
 
 
 def group_of(a, st_groups):
-    """The found team an agent belongs to: the person's choice, else its project folder."""
+    """The found team an agent belongs to: the person's choice, else its herdr workspace, else its repository (a
+    worktree counts as the project it was made from), else its folder."""
     chosen = st_groups.get(_real(a.cwd))
     if chosen:
         return chosen
+    if getattr(a, 'herdr_space', None):
+        return a.herdr_space
     cwd = (a.cwd or '').rstrip('/')
     marker = f'{os.sep}.assieme{os.sep}worktrees{os.sep}'
     if marker in cwd:  # the worktree of a team that's no longer running
         cwd = cwd.split(marker)[0]
-    return os.path.basename(cwd) or 'Other folders'
+    return os.path.basename(_repository(cwd)) or 'Other folders'
+
+
+@functools.lru_cache(maxsize=256)
+def _repository(cwd):
+    """The main checkout of the repository a folder is in; the folder itself outside git. Asked once per folder: the
+    team view polls every few seconds. shortcut: a folder that later moves into another repository keeps its first
+    answer until the brain restarts."""
+    if not cwd or not os.path.isdir(cwd):
+        return cwd
+    try:
+        out = subprocess.run(['git', '-C', cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return cwd
+    common = out.stdout.strip()
+    if out.returncode != 0 or not common:
+        return cwd
+    return os.path.dirname(common) if os.path.basename(common) == '.git' else common
 
 
 def is_own_session(a):
