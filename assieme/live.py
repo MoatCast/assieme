@@ -170,6 +170,9 @@ def run_action(s, runner=None, log=None, now=None):
 
 def record(action, agent, reason, ok=True, detail='', team=None, by='you', address=None, log=None, now=None, **extra):
     """One Activity row. `extra` is what Undo needs (see activity.UNDO). Returns the entry."""
+    if by == 'you':
+        from . import serve  # serve imports more of the brain than this module may at import time
+        by = serve.caller()  # 'assistant' when the person asked through their assistant (step 18a)
     entry = {'id': uuid.uuid4().hex[:12], 'at': (now or status.now_utc()).strftime('%Y-%m-%dT%H:%M:%SZ'), 'action': action,
              'agent': agent, 'address': address, 'team': team, 'by': by, 'reason': reason, 'ok': ok, 'detail': detail,
              **extra}

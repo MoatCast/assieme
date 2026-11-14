@@ -40,15 +40,26 @@ def snapshot(claude_dir, codex_dir, now, rt, which=setup.agent_path, hours=12, s
             'teams': teams, 'starting': list(starting)}
 
 
+_request = threading.local()
+
+
+def caller():
+    """Who asked for the request this thread is serving: 'assistant' (step 18a, through the MCP server) or 'you'."""
+    return getattr(_request, 'by', 'you')
+
+
 def handle(request, handlers):
     rid = request.get('id')
     fn = handlers.get(request.get('method'))
     if fn is None:
         return {'jsonrpc': '2.0', 'id': rid, 'error': {'code': -32601, 'message': f"no method {request.get('method')!r}"}}
+    _request.by = 'assistant' if request.get('by') == 'assistant' else 'you'
     try:
         return {'jsonrpc': '2.0', 'id': rid, 'result': fn(**(request.get('params') or {}))}
     except Exception as e:  # a failing handler is a reply, never a dead service
         return {'jsonrpc': '2.0', 'id': rid, 'error': {'code': -32000, 'message': str(e)}}
+    finally:
+        _request.by = 'you'
 
 
 class _Handler(socketserver.StreamRequestHandler):

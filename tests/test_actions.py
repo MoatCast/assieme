@@ -1,8 +1,27 @@
 """Step 18a: the brain's actions, described for assistants (Claude Code, Codex, the Claude app)."""
+import json
+import os
 import re
+import tempfile
 import unittest
 
-from assieme import actions, cli, newteam
+from assieme import actions, cli, live, newteam, serve
+
+
+class ByTest(unittest.TestCase):
+
+    def test_an_assistants_request_is_logged_as_the_assistants(self):
+        with tempfile.TemporaryDirectory() as d:
+            log = os.path.join(d, 'actions.jsonl')
+            h = {'x.do': lambda by='you': live.record('send', 'b', 'why', team='s', by=by, log=log)}
+            serve.handle({'id': 1, 'method': 'x.do', 'params': {}, 'by': 'assistant'}, h)
+            serve.handle({'id': 2, 'method': 'x.do', 'params': {}}, h)
+            serve.handle({'id': 3, 'method': 'x.do', 'params': {}, 'by': 'root'}, h)  # only "assistant" is taken
+            serve.handle({'id': 4, 'method': 'x.do', 'params': {'by': 'auto'}, 'by': 'assistant'}, h)  # a setting's own
+            with open(log) as f:
+                rows = [json.loads(line) for line in f]
+        self.assertEqual([r['by'] for r in rows], ['assistant', 'you', 'you', 'auto'])
+        self.assertEqual(serve.caller(), 'you')  # nothing left behind for the next request on this thread
 
 
 class CatalogueTest(unittest.TestCase):

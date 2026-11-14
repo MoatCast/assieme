@@ -277,6 +277,17 @@ class ToolsTest(State):
         self.assertEqual(d['practices'], {})  # New team treats an unlisted practice as on
         self.assertEqual((t.draft_next(), t.draft_take(got['id'])), (None, None))
 
+    def test_a_draft_can_still_be_started_after_new_team_took_it(self):  # step 18a: start_draft
+        t = self.tools()
+        got = t.draft_save(self.repo(), [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}], task='fix')
+        t.draft_take(got['id'])  # the app opened it in New team
+        d = t.draft_get(got['id'])
+        self.assertEqual((d['task'], d['roles'][0]['name']), ('fix', 'b'))
+        self.assertEqual(t.draft_get(got['id'])['id'], got['id'])  # reading it doesn't use it up
+        self.assertIsNone(t.draft_get('../../etc/passwd'))
+        self.assertIsNone(t.draft_get('nope'))
+        self.assertIn('mcp.draft_get', t.handlers())
+
     def test_a_bad_draft_is_refused_and_starts_nothing(self):
         t = self.tools()
         with self.assertRaises(newteam.NewTeamError):
@@ -383,7 +394,8 @@ class ServerTest(State):
     def test_the_control_face_has_every_roadmap_tool(self):
         self.assertEqual(self.tool_names(mcpserver.control_server()), {
             'list_teams', 'team_status', 'what_needs_you', 'read_terminal', 'recent_activity', 'answer', 'send_message',
-            'nudge', 'compact', 'undo', 'start_team', 'add_agent', 'stop_agent', 'stop_team', 'draft_team'})
+            'nudge', 'compact', 'undo', 'start_team', 'add_agent', 'stop_agent', 'stop_team', 'draft_team',
+            'app_actions', 'app_action', 'start_draft'})
 
     MODES = ('legacy', 'auto')  # the classic protocol, and 2026-07-28 which Claude Code 2.1.319 speaks
 
@@ -459,6 +471,78 @@ class ServerTest(State):
             got = text(self.act('draft_team', {'project': '/p', 'roles': [{'name': 'b'}]}, None))
         self.assertIn('clicks Start', got)
         self.assertEqual(call.call_args.args, ('mcp.draft_save',))
+
+    # Step 18a: every app action, a yes for each change, and starting a drafted team from the session.
+
+    def test_app_actions_lists_the_brains_actions(self):
+        self.act('app_actions', {'filter': 'review'}, None)
+        self.assertEqual(self.calls, [('assistant.actions', {'filter': 'review'})])
+
+    def test_a_read_action_runs_at_once(self):
+        self.act('app_action', {'name': 'review.get', 'params': {'team': 's', 'role': 'b'}}, None)
+        self.assertEqual(self.calls, [('assistant.do', {'name': 'review.get', 'params': {'team': 's', 'role': 'b'}})])
+
+    def test_a_change_asks_first_with_its_details(self):
+        for mode in self.MODES:
+            with self.subTest(mode=mode):
+                seen = []
+                self.calls.clear()
+                self.act('app_action', {'name': 'review.merge', 'params': {'team': 'shop', 'role': 'b', 'tip': 'abc'}},
+                         self.yes(seen), mode)
+                self.assertEqual(seen, ['Go ahead? Merges an agent’s work into main.\n\nteam: shop, role: b, tip: abc'])
+                self.assertEqual([m for m, _ in self.calls], ['assistant.do'])
+
+    def test_an_unknown_action_asks_nothing_and_says_so(self):
+        got = text(self.act('app_action', {'name': 'brain.snapshot', 'params': {}}, self.yes()))
+        self.assertIn('No action named brain.snapshot', got)
+        self.assertEqual(self.calls, [])
+
+    def test_the_clients_own_prompt_is_the_yes(self):  # the plugin's hook, the Claude app's or Codex's approval
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '1'}):
+            for tool, args, method in self.ACTIONS:
+                with self.subTest(tool=tool):
+                    self.calls.clear()
+                    self.act(tool, args, None)
+                    self.assertEqual([m for m, _ in self.calls], [method])
+
+    def test_without_the_clients_prompt_a_change_still_asks(self):  # Review Focus 4
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '0'}):
+            self.assertIn('Not done', text(self.act('send_message', {'team': 's', 'agent': 'b', 'text': 'hi'}, None)))
+        self.assertEqual(self.calls, [])
+
+    def test_the_draft_says_it_can_be_started_from_here(self):
+        with mock.patch.object(mcpserver, 'call', return_value={'id': 'd1', 'opened': True}):
+            got = text(self.act('draft_team', {'project': '/p', 'roles': [{'name': 'b'}]}, None))
+        self.assertIn('clicks Start', got)
+        self.assertIn('start_draft with draft_id d1', got)
+
+    def draft_call(self, method, **params):
+        self.calls.append((method, params))
+        if method == 'mcp.draft_get':
+            return {'id': 'd1', 'project': '/x/shop', 'task': 'Fix it', 'practices': {},
+                    'roles': [{'name': 'planner'}, {'name': 'builder-1'}, {'name': 'reviewer'}]}
+        return {'team': 'shop'}
+
+    def test_start_draft_asks_then_starts_it(self):
+        seen = []
+        with mock.patch.object(mcpserver, 'call', self.draft_call):
+            got = text(self.act('start_draft', {'draft_id': 'd1'}, self.yes(seen)))
+        self.assertEqual(seen, ['Start this team? planner, builder-1 and reviewer in shop\n\nTask: Fix it'])
+        self.assertEqual(self.calls[-1], ('team.start', {'project': '/x/shop', 'task': 'Fix it', 'practices': {},
+                                                          'roles': [{'name': 'planner'}, {'name': 'builder-1'}, {'name': 'reviewer'}]}))
+        self.assertIn('shop', got)
+
+    def test_start_draft_on_no_leaves_it_in_new_team(self):
+        async def no(ctx, params):
+            return ElicitResult(action='decline')
+        with mock.patch.object(mcpserver, 'call', self.draft_call):
+            got = text(self.act('start_draft', {'draft_id': 'd1'}, no))
+        self.assertIn('waiting in New team on your Mac', got)
+        self.assertNotIn('team.start', [m for m, _ in self.calls])
+
+    def test_assistant_requests_say_so(self):  # Activity records the change as the assistant's
+        self.assertEqual(mcpserver._request('teams.list', {}, by='assistant')['by'], 'assistant')
+        self.assertNotIn('by', mcpserver._request('teams.list', {}, by=None))
 
     def test_the_know_how_is_all_there(self):
         async def body(c):

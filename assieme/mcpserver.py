@@ -17,7 +17,7 @@ from mcp.types import ElicitRequest, ElicitRequestFormParams, InputRequiredResul
 from mcp_types.version import MODERN_PROTOCOL_VERSIONS
 from pydantic import BaseModel, Field
 
-from . import activity, newteam, preset, runtime, serve
+from . import actions, activity, newteam, preset, runtime, serve
 
 NOT_RUNNING = "Assieme's background service isn't running. Open the Assieme app and it will offer to start it."
 NOT_DONE = 'Not done: the person said no.'
@@ -39,8 +39,16 @@ def _bridge(env=None):
     return (host, int(port), ticket) if host and port.isdigit() and ticket else None
 
 
+CLIENT_ASKS = 'ASSIEME_CLIENT_ASKS'  # set by the plugin, the Claude app extension and the Codex plugin: see _with_yes
+_BY = None  # 'assistant' once this process serves the person's assistant: its changes are logged as the assistant's
+
+
+def _request(method, params, by=None):
+    return {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params} | ({'by': by} if by else {})
+
+
 def call(method, **params):
-    request = {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}
+    request = _request(method, params, _BY)
     inside = _bridge()
     try:
         if inside:
@@ -89,7 +97,11 @@ def _ask_and_retry(question):
 
 
 async def _with_yes(ctx, question, method, how='', **params):
-    """Carry out `method` only on the person's yes. Anything else, including a client that can't ask, isn't a yes."""
+    """Carry out `method` only on the person's yes. Anything else, including a client that can't ask, isn't a yes.
+    Installed as a plugin or extension, the client asks before every change tool (Claude Code's hook, the Claude app's
+    and Codex's per-tool approval), and its question reaches the phone where ours doesn't (step 18a): that is the yes."""
+    if os.environ.get(CLIENT_ASKS) == '1':
+        return call(method, **params)
     caps = ctx.client_capabilities
     if not caps or not caps.elicitation:
         return NO_ASK.format(how)
@@ -172,8 +184,47 @@ def agent_server(address):
     return m
 
 
+def _names(names):
+    return names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
+
+
 def control_server():
+    global _BY
+    _BY = 'assistant'
     m = MCPServer('assieme', instructions=_read_guide('team-design.md'))
+
+    @m.tool(annotations=READ)
+    def app_actions(filter: str = '') -> dict:
+        """Everything the Assieme app can do, as actions: each one's name, what it does, its params, and whether it
+        changes something. `filter` keeps those whose name or description holds it. Run one with app_action."""
+        return {'actions': call('assistant.actions', filter=filter)}
+
+    @m.tool(annotations=ACT)
+    async def app_action(name: str, params: dict, ctx: Context) -> Acted:
+        """Run one action from app_actions with its params. One that changes something asks the person first."""
+        a = actions.CATALOGUE.get(name)
+        if a is None:
+            return f'No action named {name}. app_actions lists them.'
+        if not a.changes:
+            return call('assistant.do', name=name, params=params)
+        details = ', '.join(f'{k}: {v}' for k, v in params.items())
+        return await _with_yes(ctx, f'Go ahead? {a.description}' + (f'\n\n{details}' if details else ''),
+                               'assistant.do', name=name, params=params)
+
+    @m.tool(annotations=ACT)
+    async def start_draft(draft_id: str, ctx: Context) -> Acted:
+        """Start a team drafted with draft_team from here, once the person agrees: for when New team on the Mac is out
+        of reach, as from a phone. On a no, the draft stays in New team."""
+        d = call('mcp.draft_get', id=draft_id)
+        if not d:
+            return 'That draft is no longer here. Make it again with draft_team.'
+        question = (f"Start this team? {_names([r['name'] for r in d['roles']])} in {os.path.basename(d['project'])}"
+                    + (f"\n\nTask: {d['task']}" if d.get('task') else ''))
+        got = await _with_yes(ctx, question, 'team.start', project=d['project'], task=d.get('task', ''),
+                              roles=d['roles'], practices=d.get('practices') or {})
+        if got == NOT_DONE:
+            return 'Not done. The draft is waiting in New team on your Mac.'
+        return f"Started {got['team']}." if isinstance(got, dict) and got.get('team') else got
 
     @m.tool(annotations=READ)
     def list_teams() -> dict:
@@ -271,7 +322,8 @@ def control_server():
         for bigger teams. `why`: one sentence the person sees."""
         got = call('mcp.draft_save', project=project, roles=roles, task=task, why=why, practices=practices)
         where = 'It is open in Assieme' if got['opened'] else 'Open the Assieme app to see it'
-        return f"{where}, in New team. The person reviews it and clicks Start."
+        return (f"{where}, in New team. The person reviews it and clicks Start. If they can't reach the Mac, start it "
+                f"from here with start_draft with draft_id {got['id']}, which asks them first.")
 
     @m.prompt(name='design_my_team', title='Design my team')
     def design_my_team(project: str = '') -> str:
