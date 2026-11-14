@@ -5,6 +5,10 @@ feature can't silently miss the assistants."""
 import inspect
 from dataclasses import dataclass, field
 
+# Set in the server entry of the plugin, the Claude app extension and the Codex plugin: the client asks before each
+# change tool, so its own prompt is the person's yes (mcpserver._with_yes). Here so the brain needn't load the SDK.
+CLIENT_ASKS = 'ASSIEME_CLIENT_ASKS'
+
 
 @dataclass(frozen=True)
 class Action:

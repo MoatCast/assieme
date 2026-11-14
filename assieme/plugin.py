@@ -12,7 +12,7 @@ import os
 import shutil
 import zipfile
 
-from . import askhook, mcpserver
+from . import actions, askhook
 
 NAME = 'assieme'
 DESCRIPTION = 'See and run your Assieme teams: design new ones and act on what needs you. Every change asks you first.'
@@ -29,7 +29,7 @@ def _write(path, data):
 
 
 def _server(python):
-    return {'command': python, 'args': ['-P', '-m', 'assieme', 'mcp'], 'env': {mcpserver.CLIENT_ASKS: '1'}}
+    return {'command': python, 'args': ['-P', '-m', 'assieme', 'mcp'], 'env': {actions.CLIENT_ASKS: '1'}}
 
 
 def build(dest, python):

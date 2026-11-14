@@ -39,7 +39,7 @@ def _bridge(env=None):
     return (host, int(port), ticket) if host and port.isdigit() and ticket else None
 
 
-CLIENT_ASKS = 'ASSIEME_CLIENT_ASKS'  # set by the plugin, the Claude app extension and the Codex plugin: see _with_yes
+CLIENT_ASKS = actions.CLIENT_ASKS
 _BY = None  # 'assistant' once this process serves the person's assistant: its changes are logged as the assistant's
 
 

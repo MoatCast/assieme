@@ -1,4 +1,4 @@
-"""The MCP server: reports on panes, the brain's mcp.* methods, the two faces and asking first, connect."""
+"""The MCP server: reports on panes, the brain's mcp.* methods, the two faces and asking first."""
 import asyncio
 import json
 import os
@@ -12,7 +12,7 @@ from unittest import mock
 from mcp import Client
 from mcp.types import ElicitResult
 
-from assieme import brief, connect, mcpserver, mcptools, newteam, panes, quiet, reports, settings, team
+from assieme import brief, mcpserver, mcptools, newteam, panes, quiet, reports, settings, team
 
 NOW_MS = 1_000_000_000_000
 
@@ -569,130 +569,3 @@ class NoBrainTest(State):
         self.assertTrue(got.is_error)
         self.assertIn("isn't running", text(got))
 
-
-class Done:
-    def __init__(self, returncode=0, stdout='', stderr=''):
-        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
-
-
-class ConnectTest(unittest.TestCase):
-    def setUp(self):
-        d = tempfile.TemporaryDirectory()
-        self.addCleanup(d.cleanup)
-        self.home = d.name
-        self.cfg = connect.desktop_config(self.home)
-        self.have, self.ran, self.app_open = set(), [], False
-        self.which = lambda c: c if c in ('claude', 'codex') else None
-
-    def run_(self, args, **kw):
-        self.ran.append(args)
-        if args[0] == 'pgrep':
-            return Done(0 if self.app_open else 1)
-        client, verb = args[0], args[2]
-        if verb == 'get':
-            return Done(0 if client in self.have else 1)
-        (self.have.add if verb == 'add' else self.have.discard)(client)
-        return Done()
-
-    def go(self, fn):
-        return fn(run=self.run_, which=self.which, home=self.home)
-
-    def test_disconnect_with_no_claude_app_settings_file_is_fine(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        self.assertFalse(os.path.exists(self.cfg))
-        self.assertEqual(self.go(connect.disconnect)['problems'], [])
-
-    def test_disconnect_still_reports_a_damaged_settings_file(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            f.write('{not json')
-        self.assertEqual(len(self.go(connect.disconnect)['problems']), 1)
-
-    def test_connect_adds_to_each_client_and_disconnect_removes(self):
-        got = self.go(connect.connect)
-        self.assertEqual([c['connected'] for c in got['clients']], [True, True])
-        add = next(a for a in self.ran if a[:3] == ['claude', 'mcp', 'add'])
-        self.assertEqual(add[3:6], ['--scope', 'user', 'assieme'])
-        self.assertEqual(add[add.index('--') + 1:], connect.command())
-        self.assertEqual([c['connected'] for c in self.go(connect.disconnect)['clients']], [False, False])
-
-    def test_a_second_connect_replaces_an_old_path(self):
-        self.go(connect.connect)
-        self.ran.clear()
-        self.go(connect.connect)
-        self.assertIn(['codex', 'mcp', 'remove', 'assieme'], self.ran)
-
-    def test_clients_installed_after_the_app_started_run_by_full_path(self):
-        self.which = lambda c: f'/home/me/.local/bin/{c}' if c in ('claude', 'codex') else None
-        real = self.run_
-        self.ran_as = []
-
-        def run(args, **kw):
-            self.ran_as.append(args[0])
-            return real([os.path.basename(args[0]), *args[1:]], **kw)
-        got = connect.connect(run=run, which=self.which, home=self.home)
-        self.assertEqual([c['connected'] for c in got['clients']], [True, True])
-        self.assertEqual(set(self.ran_as) - {'pgrep'}, {'/home/me/.local/bin/claude', '/home/me/.local/bin/codex'})
-
-    def test_connect_looks_in_local_bin_by_default(self):
-        home = tempfile.mkdtemp()
-        self.addCleanup(__import__('shutil').rmtree, home)
-        os.makedirs(os.path.join(home, '.local', 'bin'))
-        exe = os.path.join(home, '.local', 'bin', 'claude')
-        open(exe, 'w').close()
-        os.chmod(exe, 0o755)
-        with mock.patch.dict(os.environ, {'HOME': home, 'PATH': '/nonexistent', 'SHELL': '/usr/bin/false'}):
-            self.assertEqual(connect.installed(home=self.home), ['claude'])
-
-    def test_only_installed_clients(self):
-        self.which = lambda c: None
-        self.assertEqual(self.go(connect.connect), {'clients': [], 'problems': []})
-
-    def test_the_claude_app_keeps_its_other_settings(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            json.dump({'theme': 'dark', 'mcpServers': {'other': {'command': 'x'}}}, f)
-        got = self.go(connect.connect)
-        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': True})
-        with open(self.cfg) as f:
-            data = json.load(f)
-        self.assertEqual((data['theme'], data['mcpServers']['other']), ('dark', {'command': 'x'}))
-        self.assertEqual(data['mcpServers']['assieme']['args'], connect.command()[1:])
-        self.go(connect.disconnect)
-        with open(self.cfg) as f:
-            self.assertEqual(json.load(f), {'theme': 'dark', 'mcpServers': {'other': {'command': 'x'}}})
-
-    def test_the_claude_app_isnt_written_while_it_is_open(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            json.dump({'theme': 'dark'}, f)
-        self.app_open = True
-        got = self.go(connect.connect)
-        self.assertEqual(got['problems'], [])
-        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': False, 'blocked': True})
-        with open(self.cfg) as f:
-            self.assertEqual(json.load(f), {'theme': 'dark'})
-        self.app_open = False
-        got = self.go(connect.connect)
-        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': True})
-
-    def test_a_damaged_config_is_left_alone_and_reported(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            f.write('{not json')
-        got = self.go(connect.connect)
-        self.assertIn('the Claude app', got['problems'][0])
-        with open(self.cfg) as f:
-            self.assertEqual(f.read(), '{not json')
-        self.assertEqual([c['connected'] for c in got['clients']], [True, True, False], 'the others still connect')
-
-    def test_a_failing_client_is_reported_and_the_rest_go_on(self):
-        real = self.run_
-
-        def run(args, **kw):
-            if args[:3] == ['claude', 'mcp', 'add']:
-                return Done(1, stderr='nope')
-            return real(args, **kw)
-        got = connect.connect(run=run, which=self.which, home=self.home)
-        self.assertEqual(got['problems'], ['Claude Code: nope'])
-        self.assertEqual([c['connected'] for c in got['clients']], [False, True])

@@ -1,25 +1,41 @@
-"""The one Connect button: adds `assieme mcp` to every installed client, using each client's own command where it has
-one. The Claude app has only a config file: one that doesn't parse is left alone and reported. While the app is open it
-rewrites that file from memory within seconds, dropping anything added (seen on 8 November 2026), so it is only written
-with the app closed; until then the client is `blocked`."""
+"""Settings → Your assistants (step 18a): Assieme installed into each app the way that app expects, and removed.
+
+- Claude Code: a plugin from a local marketplace Assieme writes (assieme/plugin.py), with its ask hook.
+- The Claude app: an extension (.mcpb), opened so the app shows its own install window; listed there as a connector.
+- Codex in the ChatGPT app: a plugin from the same marketplace, with per-tool approval.
+
+The old Connect button added plain `mcp` entries instead; installing removes them so an app never runs Assieme twice.
+The Claude app rewrites its config file from memory while open (seen on 8 November 2026), so its old entry is only
+removed with the app closed."""
 import json
 import os
 import subprocess
 import sys
+import tomllib
 
-from . import quiet, setup
+from . import plugin, quiet, setup
 
 NAME = 'assieme'
-TIMEOUT_S = 30
-LABELS = {'claude': 'Claude Code', 'codex': 'Codex', 'desktop': 'the Claude app'}
+PLUGIN = 'assieme@assieme'
+TIMEOUT_S = 60
+APPS = (('claude-code', 'Claude Code', 'plugin'), ('claude-app', 'The Claude app', 'connector'),
+        ('codex', 'Codex in the ChatGPT app', 'plugin'))
+CLI = {'claude-code': 'claude', 'codex': 'codex'}
+FINISH_IN_APP = 'Finish in the Claude app’s install window.'
+QUIT_APP = 'Quit the Claude app, then open Settings here again to remove its old Assieme entry.'
+REMOVE_IN_APP = 'Remove it in the Claude app: Settings → Extensions → Assieme.'
 
 
-def command():
-    return [sys.executable, '-P', '-m', 'assieme', 'mcp']  # -P: never import from a worktree
+def market_dir():
+    return os.path.join(quiet.state_dir(), 'assistants-plugin')
+
+
+def _support(home):
+    return os.path.join(home or os.path.expanduser('~'), 'Library', 'Application Support', 'Claude')
 
 
 def desktop_config(home=None):
-    return os.path.join(home or os.path.expanduser('~'), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
+    return os.path.join(_support(home), 'claude_desktop_config.json')
 
 
 def _load(path):
@@ -37,92 +53,142 @@ def _desktop_open(run):
         return False
 
 
-def _desktop_add(path):
-    try:
-        data = _load(path)
-    except FileNotFoundError:
-        data = {}
-    cmd = command()
-    data.setdefault('mcpServers', {})[NAME] = {'command': cmd[0], 'args': cmd[1:]}
-    quiet._write_json(path, data)
-
-
-def _desktop_remove(path):
-    try:
-        data = _load(path)
-    except FileNotFoundError:
-        return  # no settings file: it can't be connected
-    if NAME in data.get('mcpServers', {}):
-        del data['mcpServers'][NAME]
-        quiet._write_json(path, data)
-
-
-def _desktop_has(path):
-    try:
-        return NAME in _load(path).get('mcpServers', {})
-    except (OSError, ValueError, AttributeError):
-        return False
-
-
-def installed(which=setup.agent_path, home=None):  # also finds what was installed since the app started
-    found = [c for c in ('claude', 'codex') if which(c)]
-    return found + (['desktop'] if os.path.isdir(os.path.dirname(desktop_config(home))) else [])
-
-
 def _cli(args, run):
     r = run(args, capture_output=True, text=True, timeout=TIMEOUT_S)
     if r.returncode:
         raise RuntimeError((r.stderr or r.stdout).strip()[:200] or 'it failed')
+    return r.stdout
 
 
-def _has(client, run, home, which):
-    if client == 'desktop':
-        return _desktop_has(desktop_config(home))
+def _quiet(args, run):  # a step that may already be done (a marketplace added before, nothing to remove)
     try:
-        return run([which(client) or client, 'mcp', 'get', NAME], capture_output=True, text=True, timeout=TIMEOUT_S).returncode == 0
+        return run(args, capture_output=True, text=True, timeout=TIMEOUT_S).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
 
-def status(run=subprocess.run, which=setup.agent_path, home=None):
-    """Each installed client, and whether the server is in it."""
-    out = [{'id': c, 'label': LABELS[c], 'connected': _has(c, run, home, which)} for c in installed(which, home)]
-    for c in out:
-        if c['id'] == 'desktop' and not c['connected'] and _desktop_open(run):
-            c['blocked'] = True
-    return out
+# What is installed
+
+def _claude_code_has(exe, run):
+    try:
+        return any(p.get('id') == PLUGIN for p in json.loads(_cli([exe, 'plugin', 'list', '--json'], run)))
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError, AttributeError):
+        return False
 
 
-def _each(action, run, which, home):
-    problems = []
-    for c in installed(which, home):
-        try:
-            action(c)
-        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as e:
-            problems.append(f"{LABELS[c]}: {e}")
-    return {'clients': status(run, which, home), 'problems': problems}
+def _codex_has(home):
+    # `codex plugin list` refuses to run while any configured marketplace is broken, so its own config is read
+    try:
+        with open(os.path.join(home or os.path.expanduser('~'), '.codex', 'config.toml'), 'rb') as f:
+            return bool(tomllib.load(f).get('plugins', {}).get(PLUGIN, {}).get('enabled'))
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
 
 
-def connect(run=subprocess.run, which=setup.agent_path, home=None):
-    def add(c):
-        if c == 'desktop':
-            return None if _desktop_open(run) else _desktop_add(desktop_config(home))
-        exe = which(c) or c  # by full path: the PATH this process has may not include where it was installed
-        if _has(c, run, home, which):  # an older copy of the app may have left another path behind
-            _cli([exe, 'mcp', 'remove', NAME], run)
-        scope = ['--scope', 'user'] if c == 'claude' else []
-        _cli([exe, 'mcp', 'add', *scope, NAME, '--', *command()], run)
-    return _each(add, run, which, home)
+def _app_has(home):
+    try:
+        exts = _load(os.path.join(_support(home), 'extensions-installations.json')).get('extensions') or {}
+    except (OSError, ValueError):
+        return False
+    return any(i.startswith('local.mcpb.') and (e.get('manifest') or {}).get('name') == NAME for i, e in exts.items())
 
 
-def disconnect(run=subprocess.run, which=setup.agent_path, home=None):
-    def remove(c):
-        if c == 'desktop':
-            return _desktop_remove(desktop_config(home))
-        if _has(c, run, home, which):
-            _cli([which(c) or c, 'mcp', 'remove', *(['--scope', 'user'] if c == 'claude' else []), NAME], run)
-    return _each(remove, run, which, home)
+def _old_app_entry(home):
+    try:
+        return NAME in (_load(desktop_config(home)).get('mcpServers') or {})
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
+def _drop_old_app_entry(home, run):
+    """The old Connect button's entry in the Claude app's config, removed only while the app is closed."""
+    if not _old_app_entry(home):
+        return None
+    if _desktop_open(run):
+        return QUIT_APP
+    path = desktop_config(home)
+    data = _load(path)
+    del data['mcpServers'][NAME]
+    quiet._write_json(path, data)
+    return None
+
+
+def status(run=subprocess.run, which=setup.agent_path, home=None, python=None, market=None, problems=None):
+    out = []
+    for app, label, kind in APPS:
+        if app in CLI:
+            exe = which(CLI[app])
+            available = bool(exe)
+            installed = bool(exe) and (_claude_code_has(exe, run) if app == 'claude-code' else _codex_has(home))
+        else:
+            available = os.path.isdir(_support(home))
+            installed = available and _app_has(home)
+        row = {'app': app, 'label': label, 'kind': kind, 'available': available, 'installed': installed}
+        problem = (problems or {}).get(app)
+        if app == 'claude-app' and installed and not problem:
+            problem = _drop_old_app_entry(home, run)
+        if not available and not problem:
+            problem = None
+        if problem:
+            row['problem'] = problem
+        out.append(row)
+    return {'apps': out}
+
+
+# Installing and removing
+
+def _check(app):
+    if app not in {a for a, _, _ in APPS}:
+        raise ValueError(f'No app named {app}.')
+
+
+def install(app, run=subprocess.run, which=setup.agent_path, home=None, python=None, market=None):
+    _check(app)
+    market = market or market_dir()
+    label = dict((a, l) for a, l, _ in APPS)[app]
+    problem = None
+    try:
+        built = plugin.build(market, python or sys.executable)
+        if app in CLI:
+            exe = which(CLI[app])
+            if not exe:
+                problem = f'{"Codex" if app == "codex" else "Claude Code"} isn’t installed on this Mac.'
+            else:
+                scope = ['--scope', 'user'] if app == 'claude-code' else []
+                if _quiet([exe, 'mcp', 'get', NAME], run):  # the old Connect button's entry
+                    _cli([exe, 'mcp', 'remove', *scope, NAME], run)
+                _quiet([exe, 'plugin', 'marketplace', 'add', market], run)  # already added: fine
+                _cli([exe, 'plugin', 'install' if app == 'claude-code' else 'add', PLUGIN], run)
+        else:
+            if not os.path.isdir(_support(home)):
+                problem = 'The Claude app isn’t installed on this Mac.'
+            else:
+                problem = _drop_old_app_entry(home, run)
+                _cli(['open', built['extension']], run)  # the app's own install window; nothing written behind it
+                if not _app_has(home):
+                    problem = FINISH_IN_APP
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as e:
+        problem = f'{label} couldn’t install it: {e}'
+    return status(run, which, home, problems={app: problem} if problem else None)
+
+
+def remove(app, run=subprocess.run, which=setup.agent_path, home=None, python=None, market=None):
+    _check(app)
+    label = dict((a, l) for a, l, _ in APPS)[app]
+    problem = None
+    try:
+        if app in CLI:
+            exe = which(CLI[app])
+            if exe:
+                _cli([exe, 'plugin', 'uninstall' if app == 'claude-code' else 'remove', PLUGIN], run)
+                _quiet([exe, 'plugin', 'marketplace', 'remove', NAME], run)
+        else:
+            problem = REMOVE_IN_APP  # the app owns its extensions; it removes them from its own Settings
+    except (OSError, RuntimeError, subprocess.SubprocessError) as e:
+        problem = f'{label} couldn’t remove it: {e}'
+    return status(run, which, home, problems={app: problem} if problem else None)
 
 
 def handlers():
-    return {'assistants.status': lambda: {'clients': status(), 'problems': []}, 'assistants.connect': connect, 'assistants.disconnect': disconnect}
+    return {'assistants.status': lambda: status(), 'assistants.install': lambda app: install(app),
+            'assistants.remove': lambda app: remove(app)}
