@@ -1,4 +1,4 @@
-"""The MCP server: reports on panes, the brain's mcp.* methods, the two faces and asking first, connect."""
+"""The MCP server: reports on panes, the brain's mcp.* methods, the two faces and asking first."""
 import asyncio
 import json
 import os
@@ -12,7 +12,7 @@ from unittest import mock
 from mcp import Client
 from mcp.types import ElicitResult
 
-from assieme import brief, connect, mcpserver, mcptools, newteam, panes, quiet, reports, settings, team
+from assieme import brief, mcpserver, mcptools, newteam, panes, quiet, reports, settings, team
 
 NOW_MS = 1_000_000_000_000
 
@@ -277,6 +277,17 @@ class ToolsTest(State):
         self.assertEqual(d['practices'], {})  # New team treats an unlisted practice as on
         self.assertEqual((t.draft_next(), t.draft_take(got['id'])), (None, None))
 
+    def test_a_draft_can_still_be_started_after_new_team_took_it(self):  # step 18a: start_draft
+        t = self.tools()
+        got = t.draft_save(self.repo(), [{'name': 'b', 'agent': 'claude', 'kind': 'builder'}], task='fix')
+        t.draft_take(got['id'])  # the app opened it in New team
+        d = t.draft_get(got['id'])
+        self.assertEqual((d['task'], d['roles'][0]['name']), ('fix', 'b'))
+        self.assertEqual(t.draft_get(got['id'])['id'], got['id'])  # reading it doesn't use it up
+        self.assertIsNone(t.draft_get('../../etc/passwd'))
+        self.assertIsNone(t.draft_get('nope'))
+        self.assertIn('mcp.draft_get', t.handlers())
+
     def test_a_bad_draft_is_refused_and_starts_nothing(self):
         t = self.tools()
         with self.assertRaises(newteam.NewTeamError):
@@ -383,7 +394,8 @@ class ServerTest(State):
     def test_the_control_face_has_every_roadmap_tool(self):
         self.assertEqual(self.tool_names(mcpserver.control_server()), {
             'list_teams', 'team_status', 'what_needs_you', 'read_terminal', 'recent_activity', 'answer', 'send_message',
-            'nudge', 'compact', 'undo', 'start_team', 'add_agent', 'stop_agent', 'stop_team', 'draft_team'})
+            'nudge', 'compact', 'undo', 'start_team', 'add_agent', 'stop_agent', 'stop_team', 'draft_team',
+            'app_actions', 'app_read', 'app_action', 'start_draft'})
 
     MODES = ('legacy', 'auto')  # the classic protocol, and 2026-07-28 which Claude Code 2.1.319 speaks
 
@@ -460,6 +472,111 @@ class ServerTest(State):
         self.assertIn('clicks Start', got)
         self.assertEqual(call.call_args.args, ('mcp.draft_save',))
 
+    # Step 18a: every app action, a yes for each change, and starting a drafted team from the session.
+
+    def test_app_actions_lists_the_brains_actions(self):
+        self.act('app_actions', {'filter': 'review'}, None)
+        self.assertEqual(self.calls, [('assistant.actions', {'filter': 'review'})])
+
+    def test_a_read_action_runs_at_once(self):
+        self.act('app_read', {'name': 'review.get', 'params': {'team': 's', 'role': 'b'}}, None)
+        self.assertEqual(self.calls, [('assistant.do', {'name': 'review.get', 'params': {'team': 's', 'role': 'b'}})])
+
+    def test_app_action_is_for_changes_only(self):  # so a client's approval of app_action always means a change
+        got = text(self.act('app_action', {'name': 'review.get', 'params': {}}, self.yes()))
+        self.assertIn('app_read', got)
+        self.assertEqual(self.calls, [])
+
+    def test_app_read_never_changes_anything(self):
+        got = text(self.act('app_read', {'name': 'review.merge', 'params': {}}, None))
+        self.assertIn('app_action', got)
+        self.assertEqual(self.calls, [])
+
+    def test_a_change_asks_first_with_its_details(self):
+        for mode in self.MODES:
+            with self.subTest(mode=mode):
+                seen = []
+                self.calls.clear()
+                self.act('app_action', {'name': 'review.merge', 'params': {'team': 'shop', 'role': 'b', 'tip': 'abc'}},
+                         self.yes(seen), mode)
+                self.assertEqual(seen, ['Go ahead? Merges an agent’s work into main.\n\nteam: shop, role: b, tip: abc'])
+                self.assertEqual([m for m, _ in self.calls], ['assistant.do'])
+
+    def test_an_unknown_action_asks_nothing_and_says_so(self):
+        got = text(self.act('app_action', {'name': 'brain.snapshot', 'params': {}}, self.yes()))
+        self.assertIn('No action named brain.snapshot', got)
+        self.assertEqual(self.calls, [])
+
+    def test_the_clients_own_prompt_is_the_yes(self):  # the plugin's hook, the Claude app's or Codex's approval
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '1'}):
+            for tool, args, method in self.ACTIONS:
+                with self.subTest(tool=tool):
+                    self.calls.clear()
+                    self.act(tool, args, None)
+                    self.assertEqual([m for m, _ in self.calls], [method])
+
+    def test_without_the_clients_prompt_a_change_still_asks(self):  # Review Focus 4
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '0'}):
+            self.assertIn('Not done', text(self.act('send_message', {'team': 's', 'agent': 'b', 'text': 'hi'}, None)))
+        self.assertEqual(self.calls, [])
+
+    def test_the_draft_says_it_can_be_started_from_here(self):
+        with mock.patch.object(mcpserver, 'call', return_value={'id': 'd1', 'opened': True}):
+            got = text(self.act('draft_team', {'project': '/p', 'roles': [{'name': 'b'}]}, None))
+        self.assertIn('clicks Start', got)
+        self.assertIn('start_draft with draft_id d1', got)
+
+    def draft_call(self, method, **params):
+        self.calls.append((method, params))
+        if method == 'mcp.draft_get':
+            return {'id': 'd1', 'project': '/x/shop', 'task': 'Fix it', 'practices': {},
+                    'roles': [{'name': 'planner'}, {'name': 'builder-1'}, {'name': 'reviewer'}]}
+        return {'team': 'shop'}
+
+    # The client's own prompt shows only the arguments, so they name what is being agreed to (review, Important 3).
+    DRAFT = {'draft_id': 'd1', 'project': 'shop', 'agents': ['planner', 'builder-1', 'reviewer']}
+
+    def test_start_draft_refuses_a_draft_it_does_not_describe(self):
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '1'}), mock.patch.object(mcpserver, 'call', self.draft_call):
+            got = text(self.act('start_draft', self.DRAFT | {'agents': ['builder-1']}, None))
+        self.assertIn('planner, builder-1 and reviewer in shop', got)
+        self.assertNotIn('team.start', [m for m, _ in self.calls])
+
+    def undo_call(self, method, **params):
+        self.calls.append((method, params))
+        if method == 'activity.list':
+            return {'rows': [{'id': 'a1', 'title': 'Merged builder-1 into main', 'undo': {'confirm': ''}}]}
+        return {'ok': True}
+
+    def test_undo_names_what_it_undoes(self):
+        with mock.patch.dict(os.environ, {mcpserver.CLIENT_ASKS: '1'}), mock.patch.object(mcpserver, 'call', self.undo_call):
+            wrong = text(self.act('undo', {'activity_id': 'a1', 'what': 'Something else'}, None))
+            self.assertIn('Merged builder-1 into main', wrong)
+            self.assertNotIn('activity.undo', [m for m, _ in self.calls])
+            self.act('undo', {'activity_id': 'a1', 'what': 'Merged builder-1 into main'}, None)
+        self.assertEqual(self.calls[-1], ('activity.undo', {'id': 'a1'}))
+
+    def test_start_draft_asks_then_starts_it(self):
+        seen = []
+        with mock.patch.object(mcpserver, 'call', self.draft_call):
+            got = text(self.act('start_draft', self.DRAFT, self.yes(seen)))
+        self.assertEqual(seen, ['Start this team? planner, builder-1 and reviewer in shop\n\nTask: Fix it'])
+        self.assertEqual(self.calls[-1], ('team.start', {'project': '/x/shop', 'task': 'Fix it', 'practices': {},
+                                                          'roles': [{'name': 'planner'}, {'name': 'builder-1'}, {'name': 'reviewer'}]}))
+        self.assertIn('shop', got)
+
+    def test_start_draft_on_no_leaves_it_in_new_team(self):
+        async def no(ctx, params):
+            return ElicitResult(action='decline')
+        with mock.patch.object(mcpserver, 'call', self.draft_call):
+            got = text(self.act('start_draft', self.DRAFT, no))
+        self.assertIn('waiting in New team on your Mac', got)
+        self.assertNotIn('team.start', [m for m, _ in self.calls])
+
+    def test_assistant_requests_say_so(self):  # Activity records the change as the assistant's
+        self.assertEqual(mcpserver._request('teams.list', {}, by='assistant')['by'], 'assistant')
+        self.assertNotIn('by', mcpserver._request('teams.list', {}, by=None))
+
     def test_the_know_how_is_all_there(self):
         async def body(c):
             prompt = await c.get_prompt('design_my_team', {'project': '/p'})
@@ -485,130 +602,3 @@ class NoBrainTest(State):
         self.assertTrue(got.is_error)
         self.assertIn("isn't running", text(got))
 
-
-class Done:
-    def __init__(self, returncode=0, stdout='', stderr=''):
-        self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
-
-
-class ConnectTest(unittest.TestCase):
-    def setUp(self):
-        d = tempfile.TemporaryDirectory()
-        self.addCleanup(d.cleanup)
-        self.home = d.name
-        self.cfg = connect.desktop_config(self.home)
-        self.have, self.ran, self.app_open = set(), [], False
-        self.which = lambda c: c if c in ('claude', 'codex') else None
-
-    def run_(self, args, **kw):
-        self.ran.append(args)
-        if args[0] == 'pgrep':
-            return Done(0 if self.app_open else 1)
-        client, verb = args[0], args[2]
-        if verb == 'get':
-            return Done(0 if client in self.have else 1)
-        (self.have.add if verb == 'add' else self.have.discard)(client)
-        return Done()
-
-    def go(self, fn):
-        return fn(run=self.run_, which=self.which, home=self.home)
-
-    def test_disconnect_with_no_claude_app_settings_file_is_fine(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        self.assertFalse(os.path.exists(self.cfg))
-        self.assertEqual(self.go(connect.disconnect)['problems'], [])
-
-    def test_disconnect_still_reports_a_damaged_settings_file(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            f.write('{not json')
-        self.assertEqual(len(self.go(connect.disconnect)['problems']), 1)
-
-    def test_connect_adds_to_each_client_and_disconnect_removes(self):
-        got = self.go(connect.connect)
-        self.assertEqual([c['connected'] for c in got['clients']], [True, True])
-        add = next(a for a in self.ran if a[:3] == ['claude', 'mcp', 'add'])
-        self.assertEqual(add[3:6], ['--scope', 'user', 'assieme'])
-        self.assertEqual(add[add.index('--') + 1:], connect.command())
-        self.assertEqual([c['connected'] for c in self.go(connect.disconnect)['clients']], [False, False])
-
-    def test_a_second_connect_replaces_an_old_path(self):
-        self.go(connect.connect)
-        self.ran.clear()
-        self.go(connect.connect)
-        self.assertIn(['codex', 'mcp', 'remove', 'assieme'], self.ran)
-
-    def test_clients_installed_after_the_app_started_run_by_full_path(self):
-        self.which = lambda c: f'/home/me/.local/bin/{c}' if c in ('claude', 'codex') else None
-        real = self.run_
-        self.ran_as = []
-
-        def run(args, **kw):
-            self.ran_as.append(args[0])
-            return real([os.path.basename(args[0]), *args[1:]], **kw)
-        got = connect.connect(run=run, which=self.which, home=self.home)
-        self.assertEqual([c['connected'] for c in got['clients']], [True, True])
-        self.assertEqual(set(self.ran_as) - {'pgrep'}, {'/home/me/.local/bin/claude', '/home/me/.local/bin/codex'})
-
-    def test_connect_looks_in_local_bin_by_default(self):
-        home = tempfile.mkdtemp()
-        self.addCleanup(__import__('shutil').rmtree, home)
-        os.makedirs(os.path.join(home, '.local', 'bin'))
-        exe = os.path.join(home, '.local', 'bin', 'claude')
-        open(exe, 'w').close()
-        os.chmod(exe, 0o755)
-        with mock.patch.dict(os.environ, {'HOME': home, 'PATH': '/nonexistent', 'SHELL': '/usr/bin/false'}):
-            self.assertEqual(connect.installed(home=self.home), ['claude'])
-
-    def test_only_installed_clients(self):
-        self.which = lambda c: None
-        self.assertEqual(self.go(connect.connect), {'clients': [], 'problems': []})
-
-    def test_the_claude_app_keeps_its_other_settings(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            json.dump({'theme': 'dark', 'mcpServers': {'other': {'command': 'x'}}}, f)
-        got = self.go(connect.connect)
-        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': True})
-        with open(self.cfg) as f:
-            data = json.load(f)
-        self.assertEqual((data['theme'], data['mcpServers']['other']), ('dark', {'command': 'x'}))
-        self.assertEqual(data['mcpServers']['assieme']['args'], connect.command()[1:])
-        self.go(connect.disconnect)
-        with open(self.cfg) as f:
-            self.assertEqual(json.load(f), {'theme': 'dark', 'mcpServers': {'other': {'command': 'x'}}})
-
-    def test_the_claude_app_isnt_written_while_it_is_open(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            json.dump({'theme': 'dark'}, f)
-        self.app_open = True
-        got = self.go(connect.connect)
-        self.assertEqual(got['problems'], [])
-        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': False, 'blocked': True})
-        with open(self.cfg) as f:
-            self.assertEqual(json.load(f), {'theme': 'dark'})
-        self.app_open = False
-        got = self.go(connect.connect)
-        self.assertEqual(got['clients'][-1], {'id': 'desktop', 'label': 'the Claude app', 'connected': True})
-
-    def test_a_damaged_config_is_left_alone_and_reported(self):
-        os.makedirs(os.path.dirname(self.cfg))
-        with open(self.cfg, 'w') as f:
-            f.write('{not json')
-        got = self.go(connect.connect)
-        self.assertIn('the Claude app', got['problems'][0])
-        with open(self.cfg) as f:
-            self.assertEqual(f.read(), '{not json')
-        self.assertEqual([c['connected'] for c in got['clients']], [True, True, False], 'the others still connect')
-
-    def test_a_failing_client_is_reported_and_the_rest_go_on(self):
-        real = self.run_
-
-        def run(args, **kw):
-            if args[:3] == ['claude', 'mcp', 'add']:
-                return Done(1, stderr='nope')
-            return real(args, **kw)
-        got = connect.connect(run=run, which=self.which, home=self.home)
-        self.assertEqual(got['problems'], ['Claude Code: nope'])
-        self.assertEqual([c['connected'] for c in got['clients']], [False, True])

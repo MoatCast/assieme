@@ -3,6 +3,7 @@ may do what without a question live with it (a question needs the client), and t
 import json
 import os
 import subprocess
+import time
 import uuid
 
 from . import bringover, brief, budget, herdr, live, musicians, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
@@ -19,6 +20,24 @@ def _pane(p):
         out['can_answer_with'] = [b['label'] for b in fix['buttons'] if b['kind'] in ('menu', 'answer')]
         out['fixes'] = [b['action'] for b in fix['buttons'] if b['kind'] == 'action']
     return out
+
+
+KEEP_S = 24 * 3600
+
+
+def _keep(drafts, draft):
+    """A copy the assistant can still start after the app took the draft into New team (step 18a, start_draft)."""
+    kept = os.path.join(drafts, 'kept')
+    os.makedirs(kept, exist_ok=True)
+    now = time.time()
+    for n in os.listdir(kept):
+        p = os.path.join(kept, n)
+        try:
+            if now - os.path.getmtime(p) > KEEP_S:
+                os.remove(p)
+        except OSError:
+            pass
+    quiet._write_json(os.path.join(kept, f"{draft['id']}.json"), draft)
 
 
 class Tools:
@@ -238,9 +257,9 @@ class Tools:
         if unknown:
             raise ValueError(f'Unknown practice: {", ".join(sorted(unknown))}.')
         id_ = uuid.uuid4().hex[:12]
-        quiet._write_json(os.path.join(self._drafts(), f'{id_}.json'),
-                          {'id': id_, 'project': os.path.abspath(project), 'task': task, 'roles': filled,
-                           'practices': chosen, 'why': why})
+        draft = {'id': id_, 'project': os.path.abspath(project), 'task': task, 'roles': filled, 'practices': chosen, 'why': why}
+        quiet._write_json(os.path.join(self._drafts(), f'{id_}.json'), draft)
+        _keep(self._drafts(), draft)
         try:
             opened = self.opener()
         except (OSError, subprocess.SubprocessError):
@@ -280,6 +299,14 @@ class Tools:
                 pass
         return os.path.basename(min(ages, key=ages.get))[:-5] if ages else None
 
+    def draft_get(self, id):
+        try:
+            with open(os.path.join(self._drafts(), 'kept', f'{os.path.basename(id)}.json')) as f:
+                d = json.load(f)
+        except (OSError, ValueError):
+            return None
+        return d if isinstance(d, dict) else None
+
     def draft_take(self, id):
         path = os.path.join(self._drafts(), f'{os.path.basename(id)}.json')
         try:
@@ -300,7 +327,7 @@ class Tools:
                 'mcp.list_teams': self.list_teams, 'mcp.status': self.status, 'mcp.needs_you': self.needs_you,
                 'mcp.read': self.read, 'mcp.send': self.send, 'mcp.answer': self.answer,
                 'mcp.fix_check': self.fix_check, 'mcp.fix': self.fix, 'mcp.stop_agent': self.stop_agent,
-                'mcp.start_saved': self.start_saved, 'mcp.draft_save': self.draft_save, 'draft.take': self.draft_take,
+                'mcp.start_saved': self.start_saved, 'mcp.draft_save': self.draft_save, 'draft.take': self.draft_take, 'mcp.draft_get': self.draft_get,
                 'herdr.find': herdr.find, 'herdr.import': self.herdr_import,
                 'mcp.brief': self.team_brief, 'mcp.record_decision': self.record_decision,
                 'brief.get': brief.load, 'brief.save': brief.save, 'brief.remove': brief.remove}

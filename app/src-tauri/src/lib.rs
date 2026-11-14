@@ -8,7 +8,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tauri::ipc::{Channel, InvokeResponseBody};
 
 /// Live terminal streams by id. Only `bridge.ts` calls these commands.
@@ -127,6 +127,18 @@ async fn notification_settings_open() -> Result<(), String> {
         .status().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// The Mac's standard menu, plus Settings… (⌘,) under About, where every Mac app keeps it.
+fn app_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
+    let menu = Menu::default(app)?;
+    if let Some(MenuItemKind::Submenu(first)) = menu.items()?.into_iter().next() {
+        first.insert(&MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?, 2)?;
+        first.insert(&PredefinedMenuItem::separator(app)?, 3)?;
+    }
+    app.set_menu(menu)?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -134,7 +146,16 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Streams::default())
         .manage(menubar::LastHidden::default())
-        .setup(|app| Ok(menubar::setup(app.handle())?))
+        .setup(|app| {
+            app_menu(app.handle())?;
+            Ok(menubar::setup(app.handle())?)
+        })
+        .on_menu_event(|app, event| {
+            if event.id() == "settings" {
+                menubar::open_window(app, None, None, None);
+                let _ = app.emit_to("main", "assieme-settings", ());
+            }
+        })
         .on_window_event(menubar::window_event)
         // The main window starts hidden (tauri.conf.json) so it never shows a frame in the wrong theme. Once its page
         // has loaded, its CSS already has the theme: show it here, so a failing script can never leave no window.

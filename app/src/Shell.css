@@ -8,7 +8,7 @@
 .shell-bar .tabs button { font: inherit; font-size: 13px; line-height: 16px; border: 0; background: none; cursor: pointer;
   color: var(--quiet-slate); padding: 5px 14px; border-radius: 999px; }
 .shell-bar .tabs button.on { background: var(--quiet-raised); color: var(--quiet-accent); font-weight: 600; box-shadow: 0 1px 2px color-mix(in srgb, var(--quiet-shade) 10%, transparent); }
-.window-strip { height: 40px; flex-shrink: 0; } /* First run has no bar: the window buttons and dragging need a place */
+.window-strip { height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 16px; } /* First run has no bar: the window buttons and dragging need a place */
 .shell-page { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
 .shell-page[hidden], .shell-bar[hidden] { display: none; }
 /* The top bar's three lanes, from Paper "v2 — Team: needs you": equal sides keep the tabs centred. */
@@ -16,10 +16,10 @@
 .shell-bar .shell-right { justify-content: flex-end; gap: 14px; }
 .shell-bar .team-pick { field-sizing: content; }
 .shell-bar .where { font-size: 14px; line-height: 18px; color: var(--quiet-mute); white-space: nowrap; }
-.shell-bar .add-agent { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; line-height: 16px;
+.shell-bar .add-agent, .settings-btn { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 13px; font-weight: 500; line-height: 16px;
   color: var(--quiet-ink); background: none; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control);
   padding: 6px 12px; cursor: pointer; }
-.shell-bar .gear { display: flex; background: none; border: 0; padding: 0; cursor: pointer; }
+.settings-btn { background: var(--quiet-surface); }
 /* The appearance switch, Paper "v2 — Appearance menu open": a small menu under its icon, a tick on the current choice. */
 .shell-bar .appearance { position: relative; display: flex; }
 .appearance-menu { position: absolute; top: 32px; right: -18px; z-index: 8; width: 200px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px;
