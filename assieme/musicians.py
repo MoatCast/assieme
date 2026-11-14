@@ -11,20 +11,32 @@ def _get(role, key):
     return role.get(key) if isinstance(role, dict) else getattr(role, key, None)
 
 
-def assign(roles):
-    """Each role's instrument: its saved one when it has a known one, else the rule by its place in the team."""
+ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh',
+            'twelfth']
+
+
+def rules(roles):
+    """What the rule picks for each role by its place in the team, and why, as the app's caption says it
+    ("Bass, chosen for the third builder.")."""
     out, builders, custom = [], 0, 0
     for role in roles:
         kind = _get(role, 'kind')
         if kind == 'builder':
-            rule, builders = STRINGS[builders % 3], builders + 1
+            n = builders
+            out.append((STRINGS[n % 3], f'the {ORDINALS[n]} builder' if n < len(ORDINALS) else f'builder {n + 1}'))
+            builders += 1
         elif kind in BY_KIND:
-            rule = BY_KIND[kind]
+            out.append((BY_KIND[kind], f'the {kind}'))
         else:
-            rule, custom = WINDS[custom % 3], custom + 1
-        saved = _get(role, 'musician')
-        out.append(saved if saved in INSTRUMENTS else rule)
+            out.append((WINDS[custom % 3], 'a role of your own'))
+            custom += 1
     return out
+
+
+def assign(roles):
+    """Each role's instrument: its saved one when it has a known one, else the rule by its place in the team."""
+    return [saved if (saved := _get(role, 'musician')) in INSTRUMENTS else rule
+            for role, (rule, _) in zip(roles, rules(roles))]
 
 
 def palette(roles, i):

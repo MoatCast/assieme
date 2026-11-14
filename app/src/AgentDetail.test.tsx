@@ -153,6 +153,17 @@ test("instrument: picking Cello saves it and the face changes; a refusal shows i
   expect(screen.getByRole("alert").textContent).toContain("isn't one Assieme draws");
 });
 
+test("instrument: the caption says why the rule chose it, and nothing once the person picked another", async () => { // Paper
+  forgetBand();
+  b.teamBand.mockResolvedValue({ "builder-3": { musician: "bass", palette: 0, chosen_for: "the third builder" } });
+  await open(D());
+  expect(screen.getByText("Bass, chosen for the third builder. Changing it changes only how builder-3 looks.")).toBeTruthy();
+  forgetBand();
+  b.teamBand.mockResolvedValue({ "builder-3": { musician: "flute", palette: 0, chosen_for: null } });
+  await act(async () => {});
+  expect(screen.getByText("Flute. Changing it changes only how builder-3 looks.")).toBeTruthy();
+});
+
 test("instrument: no saved team, no choice", async () => { // step 31
   forgetBand();
   b.teamBand.mockResolvedValue({});

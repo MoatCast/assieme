@@ -127,7 +127,7 @@ function InstrumentSection({ team, role }: { team: string; role: string }) {
           </button>
         ))}
       </div>
-      <p className="fine">{`${name}. Changing it changes only how ${role} looks.`}</p>
+      <p className="fine">{`${name}${seat.chosen_for ? `, chosen for ${seat.chosen_for}` : ""}. Changing it changes only how ${role} looks.`}</p>
       {error && <p className="fine error" role="alert">{error}</p>}
     </section>
   );

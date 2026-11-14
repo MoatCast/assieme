@@ -284,8 +284,9 @@ def band(name, teams=None):
         roles = preset.load(os.path.join(teams or teams_dir(), name)).roles
     except (preset.PresetError, OSError):
         return {}
-    return {r.name: {'musician': m, 'palette': musicians.palette(roles, i)}
-            for i, (r, m) in enumerate(zip(roles, musicians.assign(roles)))}
+    # chosen_for: why the rule picked it, only while the person hasn't picked another
+    return {r.name: {'musician': m, 'palette': musicians.palette(roles, i), 'chosen_for': why if m == rule else None}
+            for i, (r, m, (rule, why)) in enumerate(zip(roles, musicians.assign(roles), musicians.rules(roles)))}
 
 
 def set_musician(name, role, musician, teams=None):

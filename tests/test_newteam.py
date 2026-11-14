@@ -623,8 +623,8 @@ class AddAgentTest(unittest.TestCase):
             with mock.patch.object(newteam.team, 'start', return_value=[newteam.team.Started(name, 't5', 'running')]):
                 self.starter().add_agent('shop', {'name': name, 'agent': 'codex', 'kind': 'builder', 'parent': 'lead'})
         band = newteam.band('shop', self.teams)
-        self.assertEqual(band['b4'], {'musician': 'violin', 'palette': 1})
-        self.assertEqual(band['b5'], {'musician': 'cello', 'palette': 1})
+        self.assertEqual(band['b4'], {'musician': 'violin', 'palette': 1, 'chosen_for': 'the fourth builder'})
+        self.assertEqual(band['b5'], {'musician': 'cello', 'palette': 1, 'chosen_for': 'the fifth builder'})
 
     def test_add_agent_to_a_stopped_team_refuses(self):
         s = self.starter()

@@ -366,7 +366,8 @@ export const agentSetTools = (team: string, role: string, choice: ToolChoice) =>
 export type AgentTools = { items: ToolItem[]; notices: string[]; value: ToolChoice; suggested: string[];
   role_kind: string | null; agent: AgentKind };
 /** Step 31: each role's instrument and colours (assieme/musicians.py); {} for a team with no saved folder. */
-export type Band = Record<string, { musician: import("./musicians.gen").Instrument; palette: 0 | 1 }>;
+/** chosen_for: why the rule picked the instrument ("the third builder"), null once the person picked another. */
+export type Band = Record<string, { musician: import("./musicians.gen").Instrument; palette: 0 | 1; chosen_for?: string | null }>;
 export const teamBand = (team: string) => brain<Band>("team.band", { team });
 export const agentSetMusician = (team: string, role: string, musician: string) =>
   brain<{ ok: true }>("agent.set_musician", { team, role, musician });

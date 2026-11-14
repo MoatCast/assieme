@@ -25,6 +25,12 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(musicians.assign(TEAM), ['piano', 'violin', 'cello', 'bass', 'violin', 'reviewer', 'timpani',
                                                   'flute', 'clarinet'])
 
+    def test_reasons(self):
+        self.assertEqual([why for _, why in musicians.rules(TEAM)],
+                         ['the planner', 'the first builder', 'the second builder', 'the third builder',
+                          'the fourth builder', 'the reviewer', 'the tester', 'a role of your own', 'a role of your own'])
+        self.assertEqual(musicians.rules([r(f'b{i}', 'builder') for i in range(14)])[-1], ('cello', 'builder 14'))
+
     def test_instruments(self):
         self.assertEqual(musicians.INSTRUMENTS, ['piano', 'reviewer', 'violin', 'cello', 'bass', 'timpani', 'flute',
                                                  'clarinet', 'trumpet'])
@@ -109,9 +115,16 @@ class BandTest(unittest.TestCase):
     def test_band_from_the_saved_team(self):
         newteam.save(self.teams, TEAM, {}, 'shop', self.teams)
         got = newteam.band('shop', self.teams)
-        self.assertEqual(got['builder-4'], {'musician': 'violin', 'palette': 1})
-        self.assertEqual(got['planner'], {'musician': 'piano', 'palette': 0})
+        self.assertEqual(got['builder-4'], {'musician': 'violin', 'palette': 1, 'chosen_for': 'the fourth builder'})
+        self.assertEqual(got['planner'], {'musician': 'piano', 'palette': 0, 'chosen_for': 'the planner'})
         self.assertEqual(len(got), len(TEAM))
+
+    def test_a_picked_instrument_has_no_reason(self):  # Paper: "Bass, chosen for the third builder." only for the rule's pick
+        newteam.save(self.teams, TEAM, {}, 'shop', self.teams)
+        newteam.set_musician('shop', 'builder-4', 'flute', self.teams)
+        got = newteam.band('shop', self.teams)
+        self.assertEqual(got['builder-4']['chosen_for'], None)
+        self.assertEqual(got['builder-3']['chosen_for'], 'the third builder')
 
     def test_no_saved_team_has_no_band(self):
         self.assertEqual(newteam.band('nope', self.teams), {})
@@ -121,7 +134,7 @@ class BandTest(unittest.TestCase):
         newteam.save(self.teams, TEAM[:1], {}, 'shop', self.teams)
         me = mock.MagicMock()
         me.starter.teams = self.teams
-        self.assertEqual(teammap.Brain.handlers(me)['team.band']('shop'), {'planner': {'musician': 'piano', 'palette': 0}})
+        self.assertEqual(teammap.Brain.handlers(me)['team.band']('shop'), {'planner': {'musician': 'piano', 'palette': 0, 'chosen_for': 'the planner'}})
 
 
 class SetMusicianTest(unittest.TestCase):
