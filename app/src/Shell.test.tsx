@@ -74,10 +74,12 @@ const setSetting = vi.hoisted(() => vi.fn());
 const takeDraft = vi.hoisted(() => vi.fn());
 let opened: (r: { team: string; role: string | null; view: string | null }) => void = () => {};
 let settingsAsked: () => void = () => {};
+let newTeamAsked: () => void = () => {};
 vi.mock("./bridge", () => ({
   setSetting, reviewUndo: undo, takeDraft, windowTheme: () => Promise.resolve(),
   onOpen: (run: typeof opened) => { opened = run; return Promise.resolve(() => {}); },
   onOpenSettings: (run: () => void) => { settingsAsked = run; return Promise.resolve(() => {}); },
+  onNewTeam: (run: () => void) => { newTeamAsked = run; return Promise.resolve(() => {}); },
 }));
 
 import Shell, { liveTeams } from "./Shell";
@@ -169,8 +171,25 @@ test("the team picker lists found teams too", async () => {
   snap.current = SNAP([row("alpha", "a")], { found_teams: ["docs"] });
   render(<Shell />);
   await flush();
-  const options = [...(screen.getByLabelText("Team") as HTMLSelectElement).options].map((o) => o.value);
-  expect(options).toEqual(["alpha", "docs"]);
+  const options = [...(screen.getByLabelText("Team") as HTMLSelectElement).options].filter((o) => !o.disabled).map((o) => o.value);
+  expect(options).toEqual(["alpha", "docs", "new"]);
+});
+
+test("New team… in the team picker opens New team and keeps the team shown", async () => {
+  snap.current = SNAP([row("alpha", "a")]);
+  render(<Shell />);
+  await flush();
+  fireEvent.change(screen.getByLabelText("Team"), { target: { value: "new" } });
+  expect(screen.getByText("new team screen")).toBeTruthy();
+  expect((screen.getByLabelText("Team") as HTMLSelectElement).value).toBe("alpha");
+});
+
+test("New Team (⌘N) in the File menu opens New team", async () => {
+  snap.current = SNAP([row("alpha", "a")]);
+  render(<Shell />);
+  await flush();
+  act(() => newTeamAsked());
+  expect(screen.getByText("new team screen")).toBeTruthy();
 });
 
 test("found teams alone still open, and started teams come first", () => {

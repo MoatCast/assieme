@@ -127,13 +127,19 @@ async fn notification_settings_open() -> Result<(), String> {
         .status().map(|_| ()).map_err(|e| e.to_string())
 }
 
-/// The Mac's standard menu, plus Settings… (⌘,) under About, where every Mac app keeps it.
+/// The Mac's standard menu, plus Settings… (⌘,) under About and New Team (⌘N) at the top of File, where Mac apps keep them.
 fn app_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
     let menu = Menu::default(app)?;
-    if let Some(MenuItemKind::Submenu(first)) = menu.items()?.into_iter().next() {
-        first.insert(&MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?, 2)?;
-        first.insert(&PredefinedMenuItem::separator(app)?, 3)?;
+    for (i, item) in menu.items()?.into_iter().enumerate() {
+        let MenuItemKind::Submenu(sub) = item else { continue };
+        if i == 0 {
+            sub.insert(&MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?, 2)?;
+            sub.insert(&PredefinedMenuItem::separator(app)?, 3)?;
+        } else if sub.text()? == "File" {
+            sub.insert(&MenuItem::with_id(app, "new-team", "New Team", true, Some("CmdOrCtrl+N"))?, 0)?;
+            sub.insert(&PredefinedMenuItem::separator(app)?, 1)?;
+        }
     }
     app.set_menu(menu)?;
     Ok(())
@@ -151,10 +157,13 @@ pub fn run() {
             Ok(menubar::setup(app.handle())?)
         })
         .on_menu_event(|app, event| {
-            if event.id() == "settings" {
-                menubar::open_window(app, None, None, None);
-                let _ = app.emit_to("main", "assieme-settings", ());
-            }
+            let to = match event.id().as_ref() {
+                "settings" => "assieme-settings",
+                "new-team" => "assieme-new-team",
+                _ => return,
+            };
+            menubar::open_window(app, None, None, None);
+            let _ = app.emit_to("main", to, ());
         })
         .on_window_event(menubar::window_event)
         // The main window starts hidden (tauri.conf.json) so it never shows a frame in the wrong theme. Once its page
