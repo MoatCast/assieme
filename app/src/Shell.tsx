@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { onOpen, onOpenSettings, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
+import { onNewTeam, onOpen, onOpenSettings,reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import { installedOf } from "./kinds";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
@@ -59,6 +59,7 @@ export default function Shell() {
 
   useEffect(() => {
     const asked = onOpenSettings(() => { setSettingsAt(undefined); setSettings(true); });
+    const newTeam = onNewTeam(() => { setSettings(false); setCreating(true); });
     const stop = onOpen(({ team: t, role, view }) => {
       setPicked(t);
       setSettings(false);
@@ -67,7 +68,7 @@ export default function Shell() {
       setFocus(role);
       setTab("terminals");
     });
-    return () => { void stop.then((off) => off()); void asked.then((off) => off()); };
+    return () => { void stop.then((off) => off()); void asked.then((off) => off()); void newTeam.then((off) => off()); };
   }, []);
 
   const openTeam = () => {
@@ -127,8 +128,15 @@ export default function Shell() {
             </svg>
             {names.length > 0 && (
               <select className="team-pick" aria-label="Team" value={team ?? ""}
-                onChange={(e) => { setPicked(e.target.value); setFocus(null); }}>
+                onChange={(e) => {
+                  if (e.target.value === "new") return setCreating(true); // the picker keeps showing this team
+                  setPicked(e.target.value);
+                  setFocus(null);
+                }}>
                 {names.map((n) => <option key={n} value={n}>{n}</option>)}
+                {/* Paper "v3 — Team menu open: New team"; the Mac's own menu, so a disabled rule stands for the divider. */}
+                <option disabled>──────────</option>
+                <option value="new">New team…</option>
               </select>
             )}
             {names.length > 0 && <span className="where">· {row?.machine ?? "This Mac"}</span>}
