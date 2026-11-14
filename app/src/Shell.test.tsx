@@ -73,9 +73,11 @@ vi.mock("./AddAgent", () => ({ default: ({ team, roles }: { team: string; roles:
 const setSetting = vi.hoisted(() => vi.fn());
 const takeDraft = vi.hoisted(() => vi.fn());
 let opened: (r: { team: string; role: string | null; view: string | null }) => void = () => {};
+let settingsAsked: () => void = () => {};
 vi.mock("./bridge", () => ({
   setSetting, reviewUndo: undo, takeDraft, windowTheme: () => Promise.resolve(),
   onOpen: (run: typeof opened) => { opened = run; return Promise.resolve(() => {}); },
+  onOpenSettings: (run: () => void) => { settingsAsked = run; return Promise.resolve(() => {}); },
 }));
 
 import Shell, { liveTeams } from "./Shell";
@@ -209,6 +211,23 @@ test("Privacy on First run opens Settings at Privacy, and the gear opens it plai
   fireEvent.click(screen.getByRole("button", { name: "close settings" }));
   fireEvent.click(screen.getByRole("button", { name: "Open my team" }));
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByText("settings screen")).toBeTruthy();
+});
+
+test("First run has its own Settings button, named so it can be found", async () => {
+  snap.current = SNAP([], { first_run_done: false });
+  render(<Shell />);
+  await flush();
+  expect(screen.getByText("first run screen")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByText("settings screen")).toBeTruthy();
+});
+
+test("Settings… in the app menu opens Settings from any screen", async () => {
+  snap.current = SNAP([], { first_run_done: false });
+  render(<Shell />);
+  await flush();
+  act(() => settingsAsked());
   expect(screen.getByText("settings screen")).toBeTruthy();
 });
 

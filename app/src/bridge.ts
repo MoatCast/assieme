@@ -274,6 +274,8 @@ export const windowOpen = (a: Partial<OpenRequest> = {}) => invoke<void>("window
 /** Light or dark window chrome; "system" follows the Mac. */
 export const windowTheme = async (t: "light" | "dark" | "system") => getCurrentWindow().setTheme(t === "system" ? null : t);
 /** The menu bar or a notification asks the main window to show an agent. */
+/** Settings… (⌘,) in the app menu. */
+export const onOpenSettings = (run: () => void) => listen("assieme-settings", () => run());
 export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
 
 export type MapNode = { role: string; state: Pane["state"]; since_s: number | null; agent: AgentKind; parent: string | null; group: string | null; paused?: boolean };

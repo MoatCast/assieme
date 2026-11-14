@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { onOpen, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
+import { onOpen, onOpenSettings, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import { installedOf } from "./kinds";
 import Activity from "./Activity";
 import AddAgent from "./AddAgent";
@@ -58,6 +58,7 @@ export default function Shell() {
   const shown: Tab = tab ?? (snap?.first_run_done ? "team" : "first-run");
 
   useEffect(() => {
+    const asked = onOpenSettings(() => { setSettingsAt(undefined); setSettings(true); });
     const stop = onOpen(({ team: t, role, view }) => {
       setPicked(t);
       setSettings(false);
@@ -66,7 +67,7 @@ export default function Shell() {
       setFocus(role);
       setTab("terminals");
     });
-    return () => void stop.then((off) => off());
+    return () => { void stop.then((off) => off()); void asked.then((off) => off()); };
   }, []);
 
   const openTeam = () => {
@@ -95,6 +96,25 @@ export default function Shell() {
       setNotice(e instanceof Error ? e.message : String(e));
     }
   };
+
+  // Paper "v3 — First run: Settings button": a named pill, the same on every screen.
+  const settingsButton = (
+    <button type="button" className="settings-btn" onClick={() => { setSettingsAt(undefined); setSettings(true); }}>
+      <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true">
+        <g fill="var(--quiet-slate)">
+          {[0, 45].map((turn) => (
+            <g key={turn} transform={`rotate(${turn} 10 10)`}>
+              <rect x="8.4" y="1.2" width="3.2" height="4" rx="1" /><rect x="8.4" y="14.8" width="3.2" height="4" rx="1" />
+              <rect x="1.2" y="8.4" width="4" height="3.2" rx="1" /><rect x="14.8" y="8.4" width="4" height="3.2" rx="1" />
+            </g>
+          ))}
+          <circle cx="10" cy="10" r="6" />
+        </g>
+        <circle cx="10" cy="10" r="2.4" fill="var(--quiet-surface)" />
+      </svg>
+      Settings
+    </button>
+  );
 
   return (
     <div className="shell">
@@ -144,16 +164,11 @@ export default function Shell() {
               </button>
             )}
             <Appearance />
-            <button type="button" className="gear" aria-label="Settings" onClick={() => { setSettingsAt(undefined); setSettings(true); }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" strokeLinecap="round">
-                <circle cx="9" cy="9" r="2.4" />
-                <path d="M9 2v2M9 14v2M2 9h2M14 9h2M4 4l1.4 1.4M12.6 12.6L14 14M4 14l1.4-1.4M12.6 5.4L14 4" />
-              </svg>
-            </button>
+            {settingsButton}
           </div>
         </div>
       )}
-      {shown === "first-run" && !review && <div className="window-strip" data-tauri-drag-region />}
+      {shown === "first-run" && !review && <div className="window-strip" data-tauri-drag-region>{settingsButton}</div>}
       {/* First run stays mounted so its snapshot poll keeps the team list fresh. */}
       <div className="shell-page" hidden={!!review || shown !== "first-run"}>
         <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} shown={shown === "first-run" && !review}
