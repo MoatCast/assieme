@@ -17,5 +17,5 @@
 .phone-awake b { font-size: 14px; line-height: 18px; font-weight: 600; }
 .phone-awake p { margin: 0; font-size: 13px; line-height: 18px; }
 .phone-awake p.small { margin-top: 8px; font-size: 12px; line-height: 16px; }
-.phone-foot { justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--quiet-line); }
+.modal.phone-guide .phone-foot { justify-content: space-between; padding-top: 14px; border-top: 1px solid var(--quiet-line); }
 .phone-foot span { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
