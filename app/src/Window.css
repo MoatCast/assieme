@@ -1,6 +1,7 @@
 /* Paper "Main window", node "Body": the list and the panel, two white sheets on the pale ground. */
 .window { display: flex; gap: 12px; flex: 1; min-height: 0; padding: 12px 16px 16px; box-sizing: border-box; background: var(--quiet-bg); }
 .window-list { display: flex; min-height: 0; }
+.window-list[hidden] { display: none; }
 .window-panel { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; overflow: auto; background: var(--quiet-surface);
   border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); box-shadow: var(--quiet-sheet-shadow); }
 .panel-pad { padding: 18px 24px; }

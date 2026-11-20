@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { TeamMap } from "./bridge";
-import { MAP, fixRow, pane, waitingFor } from "./windowFixtures";
+import { MAP, fixRow, pane, today, waitingFor } from "./windowFixtures";
 
 const b = vi.hoisted(() => ({ getSettings: vi.fn(), setSetting: vi.fn(), runFound: vi.fn(), activityUndo: vi.fn(), teamBand: vi.fn() }));
 vi.mock("./bridge", () => b);
@@ -104,4 +104,11 @@ test("other teams' work to review sits at the bottom, only when there is some", 
 test("the savings tip is gone", async () => {
   await show(MAP({ panes: [pane("a")], tips: [{ id: "a>b", from: "a", to: "b", share: 0.2 }] }));
   expect(screen.queryByText(/Save about/)).toBeNull();
+});
+
+test("What Assieme did today leaves out earlier days", async () => {
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  await show(MAP({ panes: [pane("a")], done: [fixRow("a", "fixed", "13:00", { day: today(y) })] }));
+  expect(screen.queryByText("✓ Fixed")).toBeNull();
+  expect(screen.getByText(/^No problems so far\./)).toBeTruthy();
 });

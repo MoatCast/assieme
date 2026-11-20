@@ -1030,3 +1030,9 @@ class OneWindowDataTest(MapCase):
         m = self.build([r, row('b', state='exited')])
         self.assertEqual(m['running_min'], 181)
         self.assertIsNone(self.stopped_map('09:00', '10:00', 0, 0)['running_min'])
+
+    def test_a_row_with_no_start_time_is_left_out_of_how_long(self):
+        r, s = row('a'), row('b')
+        r['created_ms'] = MS - 3600_000
+        s['created_ms'] = None
+        self.assertEqual(self.build([r, s])['running_min'], 60)

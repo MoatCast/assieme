@@ -1,16 +1,16 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { TeamMap } from "./bridge";
-import { MAP, Q, fixRow, pane } from "./windowFixtures";
+import { MAP, Q, fixRow, pane, today } from "./windowFixtures";
 
 const b = vi.hoisted(() => ({ teamMap: vi.fn(), reviewWaiting: vi.fn() }));
 vi.mock("./bridge", () => b);
 // The panels have their own tests; here each one only says which it is.
-vi.mock("./AgentPanel", () => ({ default: ({ team, pane, onReview }: { team: string; pane: { role: string }; onReview: (t: string, r: string) => void }) => (
-  <><div data-testid="panel-agent">{pane.role}<div data-terminal tabIndex={-1} data-testid="term" /></div>
+vi.mock("./AgentPanel", () => ({ default: ({ team, pane, fixes, onReview }: { team: string; pane: { role: string }; fixes: unknown[]; onReview: (t: string, r: string) => void }) => (
+  <><div data-testid="panel-agent" data-fixes={fixes.length}>{pane.role}<div data-terminal tabIndex={-1} data-testid="term" /></div>
     <button type="button" onClick={() => onReview(team, pane.role)}>Review changes</button></>) }));
-vi.mock("./Review", () => ({ default: ({ role, from, onBack, onMerged }: { role: string; from: string; onBack: () => void; onMerged: (m: object) => void }) => (
-  <div data-testid="panel-review">review of {role} from {from}
+vi.mock("./Review", () => ({ default: ({ team, role, from, onBack, onMerged }: { team: string; role: string; from: string; onBack: () => void; onMerged: (m: object) => void }) => (
+  <div data-testid="panel-review" data-team={team}>review of {role} from {from}
     <button type="button" onClick={onBack}>back</button>
     <button type="button" onClick={() => onMerged({ role, base: "main", problem: null, undo: "u1" })}>merge</button></div>) }));
 vi.mock("./TeamOverview", () => ({ default: () => <div data-testid="panel-overview" /> }));
@@ -218,7 +218,7 @@ test("offline: the last map stays at full strength, and the panel says so", asyn
 
 test("a link from outside selects its agent once the team's map is in", async () => {
   b.teamMap.mockResolvedValue(QUIET);
-  const props = { team: "shop", starting: [], open: { role: "tester", view: null, nonce: 1 }, onNewTeam: vi.fn(), onNewTask: vi.fn(),
+  const props = { team: "shop", starting: [], open: { team: "shop", role: "tester", view: null, nonce: 1 }, onNewTeam: vi.fn(), onNewTask: vi.fn(),
     onMerged: vi.fn(), onDiscarded: vi.fn(), boardKey: 0, pollMs: 100000 };
   const { rerender } = render(<Window {...props} />);
   await flush();
@@ -227,15 +227,60 @@ test("a link from outside selects its agent once the team's map is in", async ()
   rerender(<Window {...props} pollMs={100001} />); // the same link does not take the selection back
   await flush();
   expect(screen.getByTestId("panel-agent").textContent).toBe("builder-1");
-  rerender(<Window {...props} open={{ role: "tester", view: "review", nonce: 2 }} />);
+  rerender(<Window {...props} open={{ team: "shop", role: "tester", view: "review", nonce: 2 }} />);
   await flush();
   expect(screen.getByTestId("panel-review").textContent).toContain("review of tester");
 });
 
 test("a link to an agent that is not there falls back to the team's own rule", async () => {
   b.teamMap.mockResolvedValue(ASKING);
-  render(<Window team="shop" starting={[]} open={{ role: "ghost", view: null, nonce: 1 }} onNewTeam={vi.fn()} onNewTask={vi.fn()}
+  render(<Window team="shop" starting={[]} open={{ team: "shop", role: "ghost", view: null, nonce: 1 }} onNewTeam={vi.fn()} onNewTask={vi.fn()}
     onMerged={vi.fn()} onDiscarded={vi.fn()} pollMs={100000} />);
   await flush();
   expect(screen.getByTestId("panel-agent").textContent).toBe("planner");
+});
+
+test("Open full size really hides the list: author CSS must not undo [hidden]", async () => {
+  // @ts-expect-error type error without @types/node package, as in vite.config.ts
+  const { readFileSync } = (await import("node:fs")) as { readFileSync: (f: string, e: string) => string };
+  expect(readFileSync("src/Window.css", "utf8")).toMatch(/\.window-list\[hidden\] \{ display: none; \}/);
+});
+
+test("a link names its team: another team's review opens for that team, and a same-named agent here is not selected", async () => {
+  b.teamMap.mockResolvedValue(MAP({ panes: [pane("builder-1"), pane("tester", { state: "idle" })] }));
+  const base = { team: "shop", starting: [], onNewTeam: vi.fn(), onNewTask: vi.fn(), onMerged: vi.fn(), onDiscarded: vi.fn(), pollMs: 100000 };
+  const { rerender } = render(<Window {...base} open={{ team: "website", role: "builder-1", view: "review", nonce: 1 }} />);
+  await flush();
+  expect(screen.getByTestId("panel-review").textContent).toContain("review of builder-1");
+  expect(screen.getByTestId("panel-review").getAttribute("data-team")).toBe("website");
+  rerender(<Window {...base} open={{ team: "website", role: "builder-1", view: null, nonce: 2 }} />);
+  await flush();
+  expect(screen.queryByTestId("panel-agent")).toBeNull(); // shop's builder-1 is another agent
+});
+
+test("a team switch closes a review and leaves full size; ⌘3 during a review shows the Board", async () => {
+  b.reviewWaiting.mockResolvedValue([{ team: "shop", project: "/p", role: "tester", branch: "b", ahead: 3 }]);
+  const { rerender, props } = await show(QUIET);
+  fireEvent.click(screen.getByRole("button", { name: /tester, done/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+  fireEvent.keyDown(window, { key: "3", metaKey: true });
+  expect(screen.queryByTestId("panel-review")).toBeNull();
+  expect(screen.getByTestId("panel-board")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /tester, done/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+  b.teamMap.mockResolvedValue(MAP({ team: "other", panes: [pane("tester", { state: "idle" })] }));
+  rerender(<Window {...props} team="other" />);
+  await flush();
+  expect(screen.queryByTestId("panel-review")).toBeNull();
+});
+
+test("only today's fixes count: yesterday's fix at this minute is not 'Fixed by Assieme'", async () => {
+  const now = new Date();
+  const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  await show(MAP({ panes: [pane("builder-3", { detail: "Editing" })],
+    done: [fixRow("builder-3", "fixed", hhmm, { outcome_at: hhmm, day: today(yesterday) })] }));
+  expect(screen.queryByText(`✓ Fixed by Assieme · ${hhmm}`)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /builder-3/ }));
+  expect(screen.getByTestId("panel-agent").getAttribute("data-fixes")).toBe("0");
 });

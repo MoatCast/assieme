@@ -1,6 +1,9 @@
 // Test data for the one-window list and panel (listModel, AgentList, Window, AgentPanel, TeamOverview).
 import type { ActivityRow, Pane, ReviewWaiting, Starting, TeamMap } from "./bridge";
 
+/** Today's date as the brain writes a row's day. */
+export const today = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 export const pane = (role: string, over: Partial<Pane> = {}): Pane => ({
   role, agent: "claude", address: `t-${role}`, state: "working", since_s: 120, detail: "", live: true, fix: null, reachable: true, ...over,
 });
@@ -17,7 +20,7 @@ export const Q = (text: string): Pane["fix"] => ({
 });
 
 export const fixRow = (agent: string, outcome: ActivityRow["outcome"], at: string, over: Partial<ActivityRow> = {}): ActivityRow => ({
-  id: `fix-${agent}-${at}`, at, day: "2026-11-20", title: `Asked ${agent} to try another way`, reason: "", by: "auto", ok: true, action: "nudge", undo: null,
+  id: `fix-${agent}-${at}`, at, day: today(), title: `Asked ${agent} to try another way`, reason: "", by: "auto", ok: true, action: "nudge", undo: null,
   agent, outcome, outcome_at: outcome === "checking" ? null : at, check_until: "14:32",
   measured: { minutes: 9, what: "the same test failed 4 times", tokens: 38000 }, problem: "stuck", ...over,
 });

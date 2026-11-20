@@ -8,13 +8,13 @@ import Board from "./Board";
 import Offline from "./Offline";
 import Unreachable, { awayTitle } from "./Unreachable";
 import Review from "./Review";
-import { failedStart, isGroup, listModel, ran, type ListModel, type Row } from "./listModel";
+import { failedStart, isGroup, listModel, ran, today, type ListModel, type Row } from "./listModel";
 import TeamOverview from "./TeamOverview";
 import Terminals from "./Terminals";
 import { useTeamMap } from "./useTeamMap";
 import "./Window.css";
 
-export type OpenLink = { role: string | null; view: "review" | null; nonce: number };
+export type OpenLink = { team: string; role: string | null; view: "review" | null; nonce: number };
 
 const FIXED_SHOWS_MIN = 10;
 const KEY_VIEWS: Record<string, View> = { "1": "overview", "2": "terminals", "3": "board", "4": "activity" };
@@ -40,7 +40,7 @@ function minutesSince(hhmm: string | null, now: Date) {
 function fixedRecently(map: TeamMap, dismissed: Set<string>, now: Date) {
   const out: Record<string, string> = {};
   for (const r of map.done) {
-    if (!r.agent || r.outcome !== "fixed" || out[r.agent] || dismissed.has(r.id ?? "")) continue;
+    if (!r.agent || r.outcome !== "fixed" || r.day !== today(now) || out[r.agent] || dismissed.has(r.id ?? "")) continue;
     const m = minutesSince(r.outcome_at, now);
     if (m !== null && m >= 0 && m <= FIXED_SHOWS_MIN) out[r.agent] = r.outcome_at!;
   }
@@ -118,19 +118,34 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     }
   };
 
-  // A link from outside, once its team's map is in: select the agent, or open its review. A link acts once.
+  // Another team: no review, merge line or full size carries over (declared before the link, which may open a review).
   useEffect(() => {
-    if (!model || !team || !open || applied.current === open.nonce) return;
-    applied.current = open.nonce;
-    if (!open.role) return;
+    setReviewing(null);
+    setMerged(null);
+    setFull(false);
+  }, [team]);
+
+  // A link from outside names its team. A review opens for that team at once; an agent is selected once that team's
+  // map is in, and never a same-named agent of another team. A link acts once.
+  useEffect(() => {
+    if (!open || applied.current === open.nonce || !open.role) return;
+    const here = !!model && team === open.team && rows(model).some((r) => r.role === open.role);
     if (open.view === "review") {
-      setReviewing({ team, role: open.role, ahead: waiting.find((x) => x.team === team && x.role === open.role)?.ahead ?? 0 });
-      if (rows(model).some((r) => r.role === open.role)) setChosen({ team, sel: { kind: "agent", role: open.role } });
-    } else if (rows(model).some((r) => r.role === open.role)) {
+      applied.current = open.nonce;
+      setReviewing({ team: open.team, role: open.role, ahead: waiting.find((x) => x.team === open.team && x.role === open.role)?.ahead ?? 0 });
+      if (here && team) setChosen({ team, sel: { kind: "agent", role: open.role } });
+      return;
+    }
+    if (!model || team !== open.team) return;
+    applied.current = open.nonce;
+    if (here) {
       setChosen({ team, sel: { kind: "agent", role: open.role } });
       setReviewing(null);
     }
   }, [model, team, open, waiting]);
+
+  const selectNow = useRef(select);
+  selectNow.current = select;
 
   // A team opens on its own rule; a selected agent that stops hands the panel to Team overview.
   useEffect(() => {
@@ -161,7 +176,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
         setToList((n) => n + 1);
       } else if (KEY_VIEWS[e.key] && team) {
         e.preventDefault();
-        setChosen({ team, sel: { kind: "view", view: KEY_VIEWS[e.key] } });
+        selectNow.current({ kind: "view", view: KEY_VIEWS[e.key] }); // as a click: a review in the panel closes too
       }
     };
     window.addEventListener("keydown", onKey, true);
@@ -275,7 +290,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
         {!reviewing && merged && selectedPane?.role === merged.role && <p className="panel-merged" role="status">{merged.text}</p>}
         {!reviewing && selectedPane && (
           <AgentPanel key={`${team}/${selectedPane.role}`} team={team} pane={selectedPane} full={full} onFullSize={setFull}
-            fixes={map.done.filter((r) => r.agent === selectedPane.role)}
+            fixes={map.done.filter((r) => r.agent === selectedPane.role && r.day === today())}
             waiters={map.waits.filter((x) => x.to === selectedPane.role).map((x) => x.from)}
             failed={failedStart(starting, team, selectedPane.role, map.panes)}
             review={waiting.find((x) => x.team === team && x.role === selectedPane.role) ?? null}

@@ -52,3 +52,4 @@
 .panel-side .fine { margin: 0; color: var(--quiet-mute); font-size: 12px; line-height: 16px; }
 .panel-detail { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--quiet-line); font-size: 13px; }
 .panel-detail section b { color: var(--quiet-slate); font-size: 12px; }
+.panel-card .card-ask { color: var(--quiet-ink); font-size: 13px; line-height: 18px; }

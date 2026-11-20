@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getSettings, runFound, setSetting, type ReviewWaiting, type TeamMap } from "./bridge";
 import DailyLimits from "./DailyLimits";
 import FixRow, { AssiemeMark } from "./FixRow";
-import { tokens } from "./listModel";
+import { today, tokens } from "./listModel";
 import Stage, { StageToggle, useStageShown } from "./Stage";
 import { AgentsMap, GroupsMap } from "./TeamMap";
 import "./TeamOverview.css";
@@ -64,7 +64,7 @@ export default function TeamOverview({ team, map, waiting, onSelectAgent, onSeeA
   const live = map.panes.filter((p) => p.state !== "exited").length;
   const budget = map.budget ?? null;
   const cap = budget?.allowed ?? budget?.limit ?? null;
-  const today = map.done.filter((r) => r.by === "auto");
+  const todays = map.done.filter((r) => r.by === "auto" && r.day === today());
   const others = waiting.filter((w) => w.team !== team);
   const checkingRoles = map.done.filter((r) => r.outcome === "checking" && r.agent).map((r) => r.agent!);
   const opened = map.groups?.find((g) => g.name === group) ?? null;
@@ -114,8 +114,8 @@ export default function TeamOverview({ team, map, waiting, onSelectAgent, onSeeA
           <span className="grow"><b>What Assieme did today</b> <span>· {fixed} fixed, {checking} being checked</span></span>
           <button type="button" className="link-accent" onClick={onSeeAll}>See all in Activity ›</button>
         </div>
-        {today.slice(0, 3).map((r, i) => <FixRow key={r.id ?? i} row={r} onChanged={onRefresh} />)}
-        {!today.length && (
+        {todays.slice(0, 3).map((r, i) => <FixRow key={r.id ?? i} row={r} onChanged={onRefresh} />)}
+        {!todays.length && (
           <p className="overview-empty">No problems so far. When an agent loops, repeats a refused command or runs low on memory, Assieme
             fixes it on its own and lists the result here. If a fix doesn't work, it pauses the agent and asks you.</p>
         )}

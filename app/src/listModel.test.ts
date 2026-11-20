@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { listModel, type Group, type Row } from "./listModel";
+import { failedStart, listModel, type Group, type Row } from "./listModel";
 import { MAP, Q, fixRow, pane, starting, waitingFor } from "./windowFixtures";
 
 const AT_1426 = new Date(2026, 10, 20, 14, 26);
@@ -140,4 +140,14 @@ test("a stopped team summarises its run", () => {
 test("needs-you rows are ordered by how long they have waited", () => {
   const m = model(MAP({ panes: [pane("a", { state: "asking", since_s: 60, fix: Q("A?") }), pane("b", { state: "asking", since_s: 900, fix: Q("B?") })] }), [], [], {});
   expect(m.needs.map((r) => r.role)).toEqual(["b", "a"]);
+});
+
+test("a start that failed part-way leaves the agents that came up alone", () => {
+  const s = starting([{ role: "a", state: "ok" }, { role: "b", state: "needs-you" }], { done: true, error: "boom" });
+  const panes = [pane("a")];
+  const m = model(MAP({ panes }), [], [s], {});
+  expect(m.needs.map((r) => r.role)).toEqual(["b"]);
+  expect(m.working.map((r) => (r as Row).role)).toEqual(["a"]);
+  expect(failedStart([s], "shop", "a", panes)).toBeNull();
+  expect(failedStart([s], "shop", "b", panes)).toEqual({ reason: "boom" });
 });

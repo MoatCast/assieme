@@ -79,6 +79,7 @@ export default function AgentPanel({ team, pane, fixes, waiters, failed, review,
   const [settings, setSettings] = useState(false);
   const [sent, setSent] = useState<{ label: string; at: string; state: Pane["state"] } | null>(null);
   const [note, setNote] = useState("");
+  const [removing, setRemoving] = useState(false);
   const term = useRef<HTMLDivElement>(null);
   const pv = usePreviews(3000, onReview);
   const role = pane.role;
@@ -131,10 +132,18 @@ export default function AgentPanel({ team, pane, fixes, waiters, failed, review,
             ? `Sign in from ${role}'s terminal below, then try again. The rest of the team keeps working.`
             : "The rest of the team keeps working."}</p>
           {note && <p className="card-note">{note}</p>}
-          <div className="card-buttons">
-            <button type="button" className="btn-primary" onClick={() => act(() => agentRestart(team, role))}>Try again</button>
-            <button type="button" className="btn-outline" onClick={() => act(() => agentRemove(team, role))}>Remove agent</button>
-          </div>
+          {removing ? (
+            <div className="card-buttons">
+              <span className="card-ask">Remove {role} from the team? Its branch and files stay.</span>
+              <button type="button" className="btn-ghost" onClick={() => setRemoving(false)}>Keep it</button>
+              <button type="button" className="btn-outline" onClick={() => { setRemoving(false); void act(() => agentRemove(team, role)); }}>Remove</button>
+            </div>
+          ) : (
+            <div className="card-buttons">
+              <button type="button" className="btn-primary" onClick={() => act(() => agentRestart(team, role))}>Try again</button>
+              <button type="button" className="btn-outline" onClick={() => setRemoving(true)}>Remove agent</button>
+            </div>
+          )}
         </div>
       );
     if (pane.fix?.pause)

@@ -28,6 +28,10 @@ export function tokens(n: number) {
   return String(n);
 }
 
+/** Today as the brain writes a row's day: fix rows of earlier days are history, not "today". */
+export const today = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 export const isGroup = (x: Row | Group): x is Group => "rows" in x;
 
 /** A starting agent has settled when its state is none of these (as the Team tab read it). */
@@ -72,9 +76,10 @@ export function failedStart(starting: Starting[], team: string, role: string, pa
     if (s.team !== team) continue;
     const r = s.roles.find((x) => x.role === role);
     if (!r) continue;
-    if (s.error) return { reason: s.error };
     const live = panes.some((p) => p.role === role && p.state !== "exited");
-    if (s.done && UNSETTLED.includes(r.state) && !live) return { reason: r.detail || "It didn't come up." };
+    if (live) return null; // it came up, even if the start failed for another agent
+    if (s.error) return { reason: s.error };
+    if (s.done && UNSETTLED.includes(r.state)) return { reason: r.detail || "It didn't come up." };
   }
   return null;
 }
@@ -101,7 +106,7 @@ export function listModel(map: TeamMap, waiting: ReviewWaiting[], starting: Star
         startingRoles.add(r.role);
       } else if (s.error || UNSETTLED.includes(r.state)) {
         const live = map.panes.some((p) => p.role === r.role && p.state !== "exited");
-        if (live && !s.error) continue;
+        if (live) continue; // a start that failed part-way: the agents that came up stay where they are
         startingRoles.add(r.role);
         needs.push(row(r.role, "needs", `Couldn't start: ${s.error || r.detail || "it didn't come up"}`, "needs", "needs you"));
       }

@@ -247,8 +247,7 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
     stopped = not any(r.get('state') == 'live' for r in rows)
     return {'team': team_name, 'found': found, **({'run_by_assieme': bool(st['run_found'].get(team_name))} if found else {}),
             'stopped': stopped, 'fixes_today': fixes_today, 'last_at': every[0]['at'] if every else None,
-            'running_min': None if stopped else max(0, int(now.timestamp() * 1000 - min(
-                r.get('created_ms') or 0 for r in rows if r.get('state') == 'live')) // 60_000),
+            'running_min': _running_min(rows, now) if not stopped else None,
             'open_tasks': sum(c.get('status') != 'done' for c in tasks.board(team_name)['cards']),
             'run': _run(rows, fixes_today['fixed'], team_name) if stopped and rows else None,
             'title': title, 'subtitle': subtitle, 'budget': bud,
@@ -258,11 +257,20 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             'spend_ready': getattr(today, 'ready', True)}
 
 
+def _running_min(rows, now):
+    """Minutes since the first live agent started; a row with no start time is left out."""
+    starts = [r['created_ms'] for r in rows if r.get('state') == 'live' and r.get('created_ms')]
+    return max(0, int(now.timestamp() * 1000 - min(starts)) // 60_000) if starts else None
+
+
 def _run(rows, fixed, team_name):
     """A stopped team's last run: from its first agent's start to its last agent's stop."""
     run = panes._current_run(rows)
-    start = min(r.get('created_ms') or 0 for r in run)
-    end = max(r.get('status_ms') or r.get('created_ms') or 0 for r in run)
+    starts = [r['created_ms'] for r in run if r.get('created_ms')]
+    ends = [r.get('status_ms') or r.get('created_ms') for r in run if r.get('status_ms') or r.get('created_ms')]
+    if not starts or not ends:
+        return None  # no times recorded: no summary rather than a wrong one
+    start, end = min(starts), max(ends)
     done = sum(c.get('status') == 'done' for c in tasks.board(team_name)['cards'])
     return {'minutes': max(0, (end - start) // 60_000), 'fixed': fixed, 'tasks_done': done,
             'stopped_at': dt.datetime.fromtimestamp(end / 1000).strftime('%H:%M')}

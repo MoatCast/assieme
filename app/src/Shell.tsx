@@ -62,7 +62,7 @@ export default function Shell() {
       setPicked(t);
       setSettings(false);
       // The team switches; the window then selects the agent, or opens its review in the panel (Review Focus 5).
-      setOpen({ role, view: view === "review" && role ? "review" : null, nonce: Date.now() });
+      setOpen({ team: t, role, view: view === "review" && role ? "review" : null, nonce: Date.now() });
       setTab("window");
     });
     return () => { void stop.then((off) => off()); void asked.then((off) => off()); void newTeam.then((off) => off()); };
@@ -203,7 +203,7 @@ export default function Shell() {
           onOpenTeam={(t, role) => {
             setSettings(false);
             setPicked(t);
-            setOpen({ role, view: role ? "review" : null, nonce: Date.now() });
+            setOpen({ team: t, role, view: role ? "review" : null, nonce: Date.now() });
             setTab("window");
           }} />
       )}

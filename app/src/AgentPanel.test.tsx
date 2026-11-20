@@ -99,7 +99,12 @@ test("a failed start: the reason, then Try again and Remove agent", async () => 
   expect(within(card).getByText("Sign in from builder-4's terminal below, then try again. The rest of the team keeps working.")).toBeTruthy();
   await act(async () => { fireEvent.click(within(card).getByRole("button", { name: "Try again" })); });
   expect(b.agentRestart).toHaveBeenCalledWith("shop", "builder-4");
-  await act(async () => { fireEvent.click(within(card).getByRole("button", { name: "Remove agent" })); });
+  fireEvent.click(within(card).getByRole("button", { name: "Remove agent" }));
+  expect(b.agentRemove).not.toHaveBeenCalled(); // it asks first
+  expect(within(card).getByText("Remove builder-4 from the team? Its branch and files stay.")).toBeTruthy();
+  fireEvent.click(within(card).getByRole("button", { name: "Keep it" }));
+  fireEvent.click(within(card).getByRole("button", { name: "Remove agent" }));
+  await act(async () => { fireEvent.click(within(card).getByRole("button", { name: "Remove" })); });
   expect(b.agentRemove).toHaveBeenCalledWith("shop", "builder-4");
   expect(props.onChanged).toHaveBeenCalled();
 });
