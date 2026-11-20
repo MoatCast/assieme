@@ -654,6 +654,20 @@ class BrainTest(MapCase):
         out = self.tick_with_tip(twice=True)
         self.assertEqual(len([x for x in out if x['action'] == 'quiet']), 1)
 
+    def test_undone_hold_is_not_held_again(self):
+        self.tick_with_tip()
+        quiet.set_pair(f'{WT}/a', f'{WT}/b', 'a to b', False)  # what Undo does
+        out = self.tick_with_tip()
+        self.assertFalse([x for x in out if x['action'] in ('quiet', 'outcome')])
+        self.assertFalse(quiet.is_quiet(f'{WT}/a', f'{WT}/b'))
+
+    def test_a_pair_without_a_rate_reads_plainly(self):
+        b = self.brain()
+        built = {'edges': [], 'tips': [{'id': 'a>b', 'from': 'a', 'to': 'b', 'share': 0.3,
+                                        'from_cwd': f'{WT}/a', 'to_cwd': f'{WT}/b'}]}
+        e = teammap.hold_automatically({'shop': built}, NOW)[0]
+        self.assertEqual(e['measured']['what'], 'Repeated wake-ups with no work')
+
     def test_ask_first_keeps_the_tip(self):
         out = self.tick_with_tip(fixes_quiet='ask')
         self.assertFalse([x for x in out if x['action'] == 'quiet'])

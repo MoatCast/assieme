@@ -265,13 +265,15 @@ def apply_tip(team_name, tip_id, built, now=None):
 def hold_automatically(views, now=None):
     """The first tip of each team, held at once: it works from the next note, so it is judged fixed straight away."""
     out = []
-    for name, built in views.items():
-        t = next((x for x in built.get('tips', []) if not quiet.is_quiet(x['from_cwd'], x['to_cwd'])), None)
+    tried = {tuple(e['pair'][:2]) for e in live.recent_actions(None, 500) if e.get('action') == 'quiet' and e.get('by') == 'auto'}
+    for name, built in views.items():  # a pair held once is never held again, so an Undo sticks
+        t = next((x for x in built.get('tips', []) if not quiet.is_quiet(x['from_cwd'], x['to_cwd'])
+                  and (x['from_cwd'], x['to_cwd']) not in tried), None)
         if not t:
             continue
         edge = next((e for e in built.get('edges', []) if (e['from'], e['to']) == (t['from'], t['to'])), None) or {}
         n = (edge.get('noisy') or {}).get('per_hour')
-        what = f'{n} wake-ups an hour with no work' if n is not None else f"{edge.get('empty', 0)} wake-ups with no work"
+        what = f'{n} wake-ups an hour with no work' if n is not None else 'Repeated wake-ups with no work'
         e = _hold_pair(name, t, now, by='auto', title=f"Held {t['from']}'s routine notes until {t['to']} was free",
                        measured={'what': what, 'minutes': None, 'tokens': None})
         out += [e, live.record('outcome', e['agent'], '', team=name, by='auto', now=now, of=e['id'], result='fixed')]
