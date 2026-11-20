@@ -97,6 +97,7 @@ class Agent:
         self.children = []
         self.herdr = None
         self.herdr_address = None  # its terminal in the user's own herdr, for a read-only view
+        self.herdr_space = None  # the herdr workspace it runs in: its team, wherever its folder is
         self.cwd = None           # working folder, to tell a running agent from a closed one
         self.asked = False        # its latest reply ends with a question
         self.turn_by = None       # who started its current or last turn: an agent name or HUMAN
@@ -419,8 +420,10 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
             a.state, a.detail = 'stuck', f'subagent {lost[0].detail}'
 
     if running is not None:  # a folder with no Claude or Codex process: the session was closed
+        # unless herdr runs it live: an agent that moved into another folder still logs that one
+        in_herdr = {id(_by_cwd(agents, t.get('cwd'), t.get('agent'))) for t in herdr or [] if t.get('state') == 'live'}
         for a in agents:
-            if (a.cwd and a.cwd not in running and (now - a.last).total_seconds() > EXIT_GRACE
+            if (a.cwd and a.cwd not in running and id(a) not in in_herdr and (now - a.last).total_seconds() > EXIT_GRACE
                     and a.state in ('idle', 'stuck', 'idle, work waiting')):
                 a.state, a.detail = 'exited', ''
     for a in agents:  # it ended its turn with a question, in a turn a person started: the person owes an answer
@@ -465,9 +468,14 @@ def _work_waiting(agents, now, alias):
                 r.detail = f'message from {sender.name} {_ago((now - ts).total_seconds())} ago started no turn'
 
 
-def _by_cwd(agents, cwd):
+def _by_cwd(agents, cwd, kind=None):
+    """The agent working in `cwd`; with herdr's `kind` (claude-code, codex), a session of that kind first."""
     if not cwd:
         return None
+    if kind:
+        same = _by_cwd([a for a in agents if a.source == kind], cwd)
+        if same:
+            return same
     paths = {cwd, os.path.realpath(cwd)}  # Claude Code names a folder by its resolved path: /tmp is /private/tmp
     keys = {re.sub(r'[^A-Za-z0-9]', '-', p) for p in paths}
     for a in agents:
@@ -482,12 +490,14 @@ def _by_cwd(agents, cwd):
 def _apply_herdr(agents, terminals):
     """herdr's own status is shown beside ours. Only 'blocked' adds what logs cannot see: a permission prompt."""
     for t in terminals:
-        a = _by_cwd(agents, t.get('cwd'))
+        a = _by_cwd(agents, t.get('cwd'), t.get('agent'))
         if not a or t.get('state') != 'live':
             continue
         st = t.get('status') if isinstance(t.get('status'), dict) else {}
         a.herdr = st.get('state') or 'unreported'  # the agent never sent herdr its status
         a.herdr_address = t.get('address')
+        if (t.get('labels') or {}).get('herdr.space'):  # `where` is "<workspace> / <name>"
+            a.herdr_space = (t.get('where') or '').split(' / ')[0] or t['labels']['herdr.space']
         if a.herdr in ('idle', 'done') and a.state in ('working', 'stuck') and not a.pending:
             # the agent itself told herdr it finished; Codex can leave a turn open in its log (seen after /compact)
             a.state, a.detail = 'idle', 'herdr: done'
@@ -532,7 +542,8 @@ def herdr_terminals():
         terminals = _hc_json('ls').get('terminals') or []
         for t in terminals:
             if t.get('state') == 'live':
-                t['status'] = (_hc_json('get', t['address']) or {}).get('status')
+                got = _hc_json('get', t['address']) or {}
+                t['status'], t['labels'] = got.get('status'), got.get('labels')  # `ls` has neither
         return terminals
     except (OSError, ValueError, subprocess.SubprocessError, AttributeError, KeyError, TypeError):
         return None
