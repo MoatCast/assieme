@@ -98,6 +98,22 @@ class NeedsYouTest(Case):
         self.assertEqual([b['label'] for b in got[0]['buttons']], ['Open', 'Ask it to try another way'])
         self.assertEqual(self.events(team(pane(state='stuck', since_s=120, fix=fix, detail='no progress for 2 min'))), [])
 
+    def paused(self, since_s=60):
+        card = {'id': 'fixpause:shop/b', 'text': 'No progress for 10 min after Assieme asked it to try another way.',
+                'buttons': [{'id': 'hint', 'label': 'Give it a hint', 'kind': 'reply'},
+                            {'id': 'resume', 'label': 'Resume as is', 'kind': 'action'}]}
+        return dict(pane('b', 'idle', since_s=since_s, fix=card), paused_by_fix=True)
+
+    def test_an_idle_agent_paused_after_a_fix_notifies_once(self):
+        got = self.events(team(self.paused()))
+        self.assertEqual([(g['title'], g['fix']) for g in got], [('b is paused: still stuck after a fix', 'fixpause:shop/b')])
+        self.assertEqual([b['label'] for b in got[0]['buttons']], ['Open', 'Resume as is'])
+        self.assertEqual(self.events(team(self.paused(120))), [])
+
+    def test_a_paused_agent_is_never_ready_or_stopped(self):
+        got = self.events(team(self.paused()), waiting=[ready('b')])
+        self.assertEqual([g['kind'] for g in got], ['needs_you'])
+
     def test_routine_progress_never_notifies(self):
         self.assertEqual(self.events(team(pane(state='working'), pane('b', 'idle'))), [])
 
