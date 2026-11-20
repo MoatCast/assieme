@@ -16,7 +16,16 @@ _DEFAULTS = {'fixes': {'nudge': 'auto', 'compact': 'auto', 'tell': 'auto', 'quie
              'notify_paused_until': None,
              'show_commands': False,
              'groups': {},
-             'first_run_done': False}
+             'first_run_done': False,
+             'thresholds': {'quiet_minutes': 15, 'memory_full': 0.75}}
+# What the fixes act on (Settings › Fixes): "goes quiet for [15] minutes", "memory is over [75%] full".
+BOUNDS = {'quiet_minutes': (5, 120, 'Enter a number of minutes from 5 to 120.'),
+          'memory_full': (0.5, 0.95, 'Enter a share from 50% to 95%.')}
+
+
+def _in_bounds(name, value):
+    lo, hi, _ = BOUNDS[name]
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and lo <= value <= hi
 
 
 def defaults():
@@ -46,7 +55,13 @@ def _clean(raw):
     v = raw.get('fixes_version')
     s['fixes_version'] = v if isinstance(v, int) and not isinstance(v, bool) else 1  # a file without it is from before 2
     s['run_found'] = {k: True for k, v in _dict(raw, 'run_found').items() if v is True}
+    s['thresholds'] = {k: v if _in_bounds(k, v := _dict(raw, 'thresholds').get(k)) else d for k, d in s['thresholds'].items()}
     return s
+
+
+def threshold(name):
+    """The saved value of a fix threshold, or its default."""
+    return load()['thresholds'][name]
 
 
 def load(file=None):
@@ -60,6 +75,8 @@ def load(file=None):
 
 def _check(key, value):
     top, _, sub = key.partition('.')
+    if top == 'thresholds' and sub in BOUNDS and not _in_bounds(sub, value):
+        raise ValueError(BOUNDS[sub][2])
     good = {'fixes': sub in _DEFAULTS['fixes'] and value in ('ask', 'auto'),
             'notify': sub in _DEFAULTS['notify'] and isinstance(value, bool),
             'practices': bool(sub) and isinstance(value, bool),
@@ -68,7 +85,8 @@ def _check(key, value):
             'run_found': bool(sub) and isinstance(value, bool),
             'first_run_done': not sub and isinstance(value, bool),
             'notify_paused_until': not sub and (value is None or isinstance(value, str)),
-            'groups': not sub and isinstance(value, dict)}
+            'groups': not sub and isinstance(value, dict),
+            'thresholds': sub in BOUNDS}
     if not good.get(top):
         raise ValueError(f'no setting {key!r} with that value')
     return top, sub

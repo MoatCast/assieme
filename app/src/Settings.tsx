@@ -18,8 +18,8 @@ const SECTIONS = [
 type Section = (typeof SECTIONS)[number][0];
 
 const FIXES = [
-  ["nudge", "Ask stuck agents to try another way", "When an agent repeats the same thing or goes quiet for 15 minutes."],
-  ["compact", "Free up memory between tasks", "When a team agent is idle and its memory is over 75% full."],
+  ["nudge", "Ask stuck agents to try another way", "When an agent repeats the same thing or goes quiet for {quiet_minutes} minutes."],
+  ["compact", "Free up memory between tasks", "When a team agent is idle and its memory is over {memory_full} full."],
   ["tell", "Explain blocked commands", "When an agent keeps retrying something your rules don’t allow."],
   ["quiet", "Hold routine notes until the receiver is free", "When an agent keeps waking another with notes that need no answer."],
 ] as const;
@@ -29,7 +29,7 @@ function Switch({ label, on, disabled, onChange }: { label: string; on: boolean;
   return <input type="checkbox" role="switch" className="switch" aria-label={label} checked={on} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />;
 }
 
-function Row({ title, sub, children }: { title: string; sub?: string; children?: React.ReactNode }) {
+function Row({ title, sub, children }: { title: string; sub?: React.ReactNode; children?: React.ReactNode }) {
   return (
     <div className="set-row">
       <div className="set-text"><b>{title}</b>{sub && <span>{sub}</span>}</div>
@@ -214,6 +214,41 @@ function General({ onShowFirstRun }: { onShowFirstRun: () => void }) {
   );
 }
 
+type Threshold = "quiet_minutes" | "memory_full";
+const THRESHOLD_DEFAULTS = { quiet_minutes: 15, memory_full: 0.75 };
+
+/** Paper "Settings: fixes": the number inside a fix's description, saved on blur and Return. The brain checks the
+ * bounds, so text or a number out of range is refused with them and the saved value stays. */
+function ThresholdField({ name, saved, set }: { name: Threshold; saved: number; set: (k: string, v: unknown) => void }) {
+  const percent = name === "memory_full";
+  const shown = percent ? `${Math.round(saved * 100)}%` : String(saved);
+  const [draft, setDraft] = useState<string | null>(null);
+  const save = () => {
+    if (draft === null) return;
+    const text = draft.trim().replace(/%$/, "");
+    const n = text && /^\d+(\.\d+)?$/.test(text) ? Number(text) : NaN;
+    setDraft(null);
+    if (draft.trim() === shown) return;
+    set(`thresholds.${name}`, Number.isNaN(n) ? draft : percent ? n / 100 : n);
+  };
+  return (
+    <input className="threshold" type="text" inputMode="numeric" size={percent ? 3 : 2}
+      aria-label={percent ? "Memory full, in percent" : "Minutes of quiet"} value={draft ?? shown}
+      onChange={(e) => setDraft(e.target.value)} onBlur={save}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }} />
+  );
+}
+
+/** A fix's description with its threshold as a field. */
+function withField(sub: string, values: Values, set: (k: string, v: unknown) => void) {
+  const m = sub.match(/^(.*?) \{(\w+)\} (.*)$/);
+  if (!m) return sub;
+  const name = m[2] as Threshold;
+  return (
+    <span className="threshold-line">{m[1]} <ThresholdField name={name} saved={values.thresholds?.[name] ?? THRESHOLD_DEFAULTS[name]} set={set} /> {m[3]}</span>
+  );
+}
+
 function Fixes({ values, set, team }: { values: Values; set: (k: string, v: unknown) => void; team: string | null }) {
   const [pairs, setPairs] = useState<QuietPair[]>([]);
   const [choices, setChoices] = useState<{ role: string; cwd: string }[]>([]);
@@ -242,7 +277,7 @@ function Fixes({ values, set, team }: { values: Values; set: (k: string, v: unkn
         {FIXES.map(([id, title, sub]) => {
           const auto = values.fixes[id] === "auto";
           return (
-            <Row key={id} title={title} sub={sub}>
+            <Row key={id} title={title} sub={withField(sub, values, set)}>
               <span className={auto ? "mode auto" : "mode"}>{auto ? "Automatic" : "Ask first"}</span>
               <Switch label={title} on={auto} onChange={(on) => set(`fixes.${id}`, on ? "auto" : "ask")} />
             </Row>

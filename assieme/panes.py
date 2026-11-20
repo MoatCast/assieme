@@ -7,14 +7,13 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import adapters, brief, budget, fixes, launch, live, prompts, reports, status, team
+from . import adapters, brief, budget, fixes, launch, live, prompts, reports, settings, status, team
 
 KIND_OF = {program: kind for kind, program in launch.CLIS.items()}
 
 URGENT = ('asking', 'stuck', 'waiting')  # what the needs-you strip lists, in this order
 ACTIONS = ('nudge', 'compact', 'tell')    # `quiet` stays in the command line
 CHANGED = 'This question changed. Take a look.'
-MEMORY_FULL = 0.75  # Settings promises automatic Free up memory only past this
 ANSWERED = 'You answered its question.'  # never the question: the action log keeps no words of the agents'
 
 
@@ -94,7 +93,7 @@ def _latest(rows):
 
 def _memory_full(a):
     limit = status.memory_limit(a) if a else None
-    return bool(limit and a.context > limit * MEMORY_FULL)
+    return bool(limit and a.context > limit * settings.threshold('memory_full'))  # Settings › Fixes
 
 
 def _fix(role, buttons, text, question=None):

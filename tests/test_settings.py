@@ -93,6 +93,31 @@ class SettingsTest(unittest.TestCase):
                 settings.set_value(key, value, self.path)
 
 
+class ThresholdTest(SettingsTest):
+    def test_defaults_and_a_saved_value(self):
+        self.assertEqual(settings.load(self.path)['thresholds'], {'quiet_minutes': 15, 'memory_full': 0.75})
+        self.assertEqual(settings.set_value('thresholds.quiet_minutes', 20, self.file)['thresholds']['quiet_minutes'], 20)
+
+    def test_out_of_range_is_refused_with_the_bounds(self):
+        settings.set_value('thresholds.quiet_minutes', 20, self.file)
+        for key, value, bounds in (('thresholds.quiet_minutes', 4, '5 to 120'), ('thresholds.quiet_minutes', 121, '5 to 120'),
+                                   ('thresholds.memory_full', 0.96, '50% to 95%'), ('thresholds.memory_full', 0.4, '50% to 95%')):
+            with self.assertRaisesRegex(ValueError, bounds):
+                settings.set_value(key, value, self.file)
+        self.assertEqual(settings.load(self.file)['thresholds'], {'quiet_minutes': 20, 'memory_full': 0.75})
+
+    def test_text_is_refused(self):
+        for value in ('20', True, None):
+            with self.assertRaisesRegex(ValueError, '5 to 120'):
+                settings.set_value('thresholds.quiet_minutes', value, self.file)
+        with self.assertRaises(ValueError):
+            settings.set_value('thresholds.nope', 10, self.file)
+
+    def test_a_damaged_value_in_the_file_is_the_default(self):
+        self.write(json.dumps({'thresholds': {'quiet_minutes': 'x', 'memory_full': 2}}))
+        self.assertEqual(settings.load(self.file)['thresholds'], {'quiet_minutes': 15, 'memory_full': 0.75})
+
+
 class WakeTagTest(unittest.TestCase):
     def test_real_tag_has_only_the_address(self):
         self.assertEqual(adapters.wake_sender('<hc from="t2">kid says OK</hc>'), ('t2', 'hc'))

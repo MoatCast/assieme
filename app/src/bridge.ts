@@ -393,6 +393,8 @@ export type Settings = {
   show_commands: boolean;
   groups: Record<string, string>;
   first_run_done: boolean;
+  /** What the fixes act on: minutes of quiet (5–120), and memory full as a share (0.5–0.95). */
+  thresholds?: { quiet_minutes: number; memory_full: number };
 };
 export type QuietPair = { from_cwd: string; to_cwd: string; label: string; saved: number | null };
 export type TeamListing = { name: string; kind: "assieme" | "found"; agents: number };

@@ -396,6 +396,15 @@ class RecentActionsTest(unittest.TestCase):
         self.assertEqual(status.recent_actions('/nope.jsonl', 'codex'), [])
 
 
+class MemoryThresholdTest(unittest.TestCase):
+    def test_memory_threshold_changes_when_compact_fires(self):
+        a = Agent('a', 'claude-code', '/x')
+        a.context = 160_000  # 80% of 200K
+        for share, full in ((0.75, True), (0.85, False)):
+            with mock.patch.object(panes.settings, 'threshold', lambda name, s=share: s):
+                self.assertIs(panes._memory_full(a), full)
+
+
 class MemoryLimitTest(unittest.TestCase):
     def test_memory_limit_claude_200k_then_1m(self):
         a = Agent('a', 'claude-code', '/x')

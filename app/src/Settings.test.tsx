@@ -392,3 +392,40 @@ test("Scheduled runs opens a run's team from Settings", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Open" }));
   expect(onOpenTeam).toHaveBeenCalledWith("nightly", null);
 });
+
+test("Fixes: the threshold fields save on blur and Return", async () => {
+  b.getSettings.mockResolvedValue({ ...VALUES, thresholds: { quiet_minutes: 15, memory_full: 0.75 } });
+  b.setSetting.mockImplementation(async (k: string, v: number) =>
+    ({ ...VALUES, thresholds: { quiet_minutes: 15, memory_full: 0.75, [k.split(".")[1]]: v } }));
+  await open("Fixes");
+  const quiet = screen.getByRole("textbox", { name: "Minutes of quiet" }) as HTMLInputElement;
+  expect(quiet.closest(".threshold-line")!.textContent).toBe("When an agent repeats the same thing or goes quiet for  minutes.");
+  expect(quiet.value).toBe("15");
+  fireEvent.change(quiet, { target: { value: "20" } });
+  fireEvent.blur(quiet);
+  await flush();
+  expect(b.setSetting).toHaveBeenLastCalledWith("thresholds.quiet_minutes", 20);
+  expect(quiet.value).toBe("20");
+  const memory = screen.getByRole("textbox", { name: "Memory full, in percent" }) as HTMLInputElement;
+  expect(memory.value).toBe("75%");
+  fireEvent.change(memory, { target: { value: "80" } });
+  fireEvent.keyDown(memory, { key: "Enter" });
+  await flush();
+  expect(b.setSetting).toHaveBeenLastCalledWith("thresholds.memory_full", 0.8);
+  expect(memory.value).toBe("80%");
+});
+
+test("Fixes: a threshold out of range or as text is refused with the bounds, and the saved value stays", async () => {
+  b.getSettings.mockResolvedValue({ ...VALUES, thresholds: { quiet_minutes: 15, memory_full: 0.75 } });
+  b.setSetting.mockRejectedValue("Enter a number of minutes from 5 to 120.");
+  await open("Fixes");
+  const quiet = screen.getByRole("textbox", { name: "Minutes of quiet" }) as HTMLInputElement;
+  for (const typed of ["200", "soon"]) {
+    fireEvent.change(quiet, { target: { value: typed } });
+    fireEvent.blur(quiet);
+    await flush();
+    expect(screen.getByText("Enter a number of minutes from 5 to 120.")).toBeTruthy();
+    expect(quiet.value).toBe("15");
+  }
+  expect(b.setSetting.mock.calls).toEqual([["thresholds.quiet_minutes", 200], ["thresholds.quiet_minutes", "soon"]]);
+});
