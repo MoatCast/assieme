@@ -96,7 +96,7 @@ test("a card's button acts once, and Write a reply opens the terminal", async ()
   fireEvent.click(screen.getByRole("button", { name: "To main" }));
   await flush();
   expect(b.paneAct).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole("button", { name: "Write a reply" }));
+  fireEvent.click(screen.getByRole("button", { name: "✎ Write a reply" }));
   expect(calls.term).toHaveBeenCalledWith("a");
 });
 

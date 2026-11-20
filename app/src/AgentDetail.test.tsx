@@ -58,7 +58,7 @@ test("who wakes it", async () => {
   expect(screen.getByText(/3 of today’s did nothing/)).toBeTruthy();
   cleanup();
   await open(D());
-  expect(screen.getByText("Nothing woke it in the last hour.")).toBeTruthy();
+  expect(screen.getByText("No agent woke it in the last hour.")).toBeTruthy();
 });
 
 test("closes on X and on Escape", async () => {
@@ -179,4 +179,13 @@ test("Musicians Off: no instrument choice and no picture in the sheet, as before
   expect(screen.queryByRole("group", { name: "Instrument" })).toBeNull();
   expect(screen.queryByRole("img", { name: /^builder-3, / })).toBeNull();
   localStorage.clear();
+});
+
+test("only settings: the panel's ••• shows no fix, memory, history or wakers", async () => {
+  b.agentDetail.mockResolvedValue(D({ memory: { pct: 40, amber: false }, recent: [{ at: "14:20", text: "Edited retry.py" }],
+    wakers: [{ role: "planner", count: 2 }], fix: { id: "f", text: "Go?", buttons: [] }, state: "asking" }));
+  render(<AgentDetail team="shop" role="builder-3" pollMs={100000} only="settings" onClose={vi.fn()} onOpenTerminal={vi.fn()} onChanged={vi.fn()} />);
+  await act(async () => {});
+  expect(screen.getByRole("dialog", { name: "Agent builder-3" })).toBeTruthy();
+  for (const gone of ["Memory", "Who wakes it", "What it’s been doing", "Asking you"]) expect(screen.queryByText(gone)).toBeNull();
 });

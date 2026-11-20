@@ -5,7 +5,7 @@ import Activity from "./Activity";
 import AgentList, { type Selection, type View } from "./AgentList";
 import AgentPanel from "./AgentPanel";
 import Board from "./Board";
-import { isGroup, listModel, type ListModel, type Row } from "./listModel";
+import { failedStart, isGroup, listModel, type ListModel, type Row } from "./listModel";
 import TeamOverview from "./TeamOverview";
 import Terminals from "./Terminals";
 import { useTeamMap } from "./useTeamMap";
@@ -77,6 +77,8 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [said, setSaid] = useState("");
   const [intoPanel, setIntoPanel] = useState(0);
+  const [full, setFull] = useState(false);
+  const [toList, setToList] = useState(0);
   const list = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const last = useRef<{ map: TeamMap; model: ListModel } | null>(null);
@@ -120,11 +122,10 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     const onKey = (e: KeyboardEvent) => {
       if (!e.metaKey || e.altKey || e.ctrlKey) return;
       if (e.key.toLowerCase() === "l") {
-        const row = list.current?.querySelector<HTMLElement>("[aria-current='true']");
-        if (!row) return;
         e.preventDefault();
         e.stopPropagation();
-        row.focus();
+        setFull(false);
+        setToList((n) => n + 1);
       } else if (KEY_VIEWS[e.key] && team) {
         e.preventDefault();
         setChosen({ team, sel: { kind: "view", view: KEY_VIEWS[e.key] } });
@@ -133,6 +134,10 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [team]);
+
+  useEffect(() => {
+    if (toList) list.current?.querySelector<HTMLElement>("[aria-current='true']")?.focus();
+  }, [toList]);
 
   // Return: the card's first button when the panel has a card, else the terminal.
   useEffect(() => {
@@ -180,11 +185,18 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
 
   return (
     <div className="window">
-      <div ref={list} className="window-list" onKeyDown={onListKey}>
+      <div ref={list} className="window-list" hidden={full && sel?.kind === "agent"} onKeyDown={onListKey}>
         {sel && <AgentList model={model} selected={sel} views={views} onSelect={select} />}
       </div>
       <div ref={panel} className="window-panel">
-        {selectedPane && <AgentPanel key={`${team}/${selectedPane.role}`} team={team} pane={selectedPane} onChanged={refresh} onReview={onReview} />}
+        {selectedPane && (
+          <AgentPanel key={`${team}/${selectedPane.role}`} team={team} pane={selectedPane} full={full} onFullSize={setFull}
+            fixes={map.done.filter((r) => r.agent === selectedPane.role)}
+            waiters={map.waits.filter((x) => x.to === selectedPane.role).map((x) => x.from)}
+            failed={failedStart(starting, team, selectedPane.role, map.panes)}
+            review={waiting.find((x) => x.team === team && x.role === selectedPane.role) ?? null}
+            onChanged={refresh} onReview={onReview} />
+        )}
         {sel?.kind === "view" && sel.view === "overview" && <TeamOverview team={team} />}
         {sel?.kind === "view" && sel.view === "terminals" && <Terminals team={team} pollMs={3000} onNewTeam={onNewTeam} onReview={onReview} />}
         {sel?.kind === "view" && sel.view === "board" && (

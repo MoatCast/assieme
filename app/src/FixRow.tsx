@@ -23,7 +23,7 @@ function measuredText(row: ActivityRow) {
 }
 
 /** What Assieme did, said about the agent as "it": "Asked builder-3 to try another way" → "asked it to try another way". */
-function didText(row: ActivityRow) {
+export function didText(row: ActivityRow) {
   const a = row.agent;
   const t = a ? row.title.split(`${a}'s`).join("its").split(`${a}’s`).join("its").split(a).join("it") : row.title;
   return lowerFirst(t);
@@ -39,8 +39,20 @@ export function OutcomeTag({ row }: { row: ActivityRow }) {
 export default function FixRow({ row, compact = false, onChanged }: { row: ActivityRow; compact?: boolean; onChanged?: () => void }) {
   const [note, setNote] = useState("");
   const measured = measuredText(row);
+  if (compact) // the agent's own panel: Assieme's sentence, its tag beneath (Paper "What Assieme did" beside the terminal)
+    return (
+      <div className="fix-row compact">
+        <span className="fix-at">{row.at}</span>
+        <AssiemeMark />
+        <span className="fix-lines">
+          <span className="fix-text" data-testid="fix-text">{note || row.title}</span>
+          <OutcomeTag row={row} />
+          {row.undo && onChanged && <UndoButton row={row} className="link" onDone={onChanged} onNote={setNote} />}
+        </span>
+      </div>
+    );
   return (
-    <div className={compact ? "fix-row compact" : "fix-row"}>
+    <div className="fix-row">
       <span className="fix-at">{row.at}</span>
       <AssiemeMark />
       <span className="fix-text" data-testid="fix-text">

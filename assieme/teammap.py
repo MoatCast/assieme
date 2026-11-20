@@ -13,7 +13,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, answers, budget, fixes, live, newteam, panes, quiet, report, runtime, settings, status, tasks, team
+from . import activity, adapters, answers, budget, fixes, live, newteam, panes, preset, quiet, report, runtime, settings, status, tasks, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -375,7 +375,9 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
                     now_t, start_t = (tokens or {}).get(p['role'], (None, None))
                     entry = live.record(action, p['role'], p['fix']['text'] + (' (team found in herdr)' if found else ''), ok, detail_, team=name, by='auto',
                                         address=p['address'], log=log, now=now, problem=key, refused=fixes.refused_command(b['send']),
-                                        measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now))
+                                        measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now),
+                                        # a nudge's words are the same for every agent; a tell's can name a refused command
+                                        **({'sent': b['send']} if action == 'nudge' else {}))
                     entries.append(entry)
                     out.append(entry)
     return out
@@ -632,6 +634,7 @@ class Brain:
                 'agent.set_tools': lambda team, role, tools_off, tools_new:
                     {'ok': True, 'id': agenttools.set_tools(self.starter.teams, team, role, tools_off, tools_new)['id']},
                 'agent.restart': lambda team, role: agenttools.restart(self.starter.teams, self.rt, team, role),
+                'agent.remove': lambda team, role: remove_agent(self.starter.teams, self.rt, team, role),
                 'agent.tools': lambda team, role: agenttools.for_agent(self.starter.teams, team, role),
                 'team.band': lambda team: newteam.band(team, self.starter.teams),
                 'agent.set_musician': lambda team, role, musician: newteam.set_musician(team, role, musician, self.starter.teams),
@@ -648,6 +651,23 @@ class Brain:
                 'quiet.set': lambda from_cwd, to_cwd, label='', on=True: self.set_pair(from_cwd, to_cwd, label, on),
                 'team.run_found': lambda team, on: self.run_found(team, on),
                 'groups.set': lambda groups: settings.set_value('groups', groups)}
+
+
+def remove_agent(teams, rt, team_name, role):
+    """Remove Agent on a start that failed: stop its terminal if one runs and take it out of the saved team."""
+    try:
+        rows = rt.list({team.TEAM: team_name}, all=False)
+    except runtime.RuntimeError_:
+        rows = []
+    for r in rows:
+        if r.get('state') == 'live' and (r.get('labels') or {}).get(team.ROLE) == role:
+            rt.kill(r['address'])
+    try:
+        newteam.forget_role(os.path.join(teams, team_name), role)
+    except (preset.PresetError, OSError):  # no saved folder to tidy (a team from the command line): the agent itself has stopped
+        pass
+    live.record('stop_agent', role, "You removed it after it couldn't start. Its branch and files stay.", team=team_name)
+    return {'ok': True, 'detail': ''}
 
 
 def group_of(a, st_groups):

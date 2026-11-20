@@ -459,6 +459,12 @@ class RunAutomaticTest(MapCase):
         [e] = self.auto({'shop': self.stuck()})
         self.assertEqual((e['by'], e['team'], e['action'], e['agent']), ('auto', 'shop', 'nudge', 'a'))
 
+    def test_a_nudge_row_keeps_what_it_sent(self):  # the panel's "Show the message Assieme sent"
+        settings.set_value('fixes.nudge', 'auto')
+        self.auto({'shop': self.stuck()})
+        [r] = activity.list_rows(team='shop', now=NOW)['rows']
+        self.assertEqual(r['sent'], self.sent[0][1])
+
     def test_found_teams_never_acted_on(self):
         settings.set_value('fixes.nudge', 'auto')
         m = self.stuck()
@@ -966,3 +972,11 @@ class OneWindowDataTest(MapCase):
         live.record('merge', 'a', 'x', team='shop', now=NOW, title='Merged a into main')
         m = self.build([row('a')])
         self.assertEqual((m['open_tasks'], m['last_at']), (2, NOW.astimezone().strftime('%H:%M')))
+
+    def test_remove_agent_after_a_failed_start(self):
+        rt = FakeRt([row('b'), row('a')])
+        me = mock.MagicMock()
+        me.rt, me.starter.teams = rt, self.tmp.name
+        out = teammap.Brain.handlers(me)['agent.remove']('shop', 'b')
+        self.assertEqual((out['ok'], rt.killed), (True, ['t-b']))
+        self.assertEqual(activity.list_rows(team='shop', now=NOW)['rows'][0]['action'], 'stop_agent')

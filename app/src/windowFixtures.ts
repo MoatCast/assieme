@@ -17,7 +17,7 @@ export const Q = (text: string): Pane["fix"] => ({
 });
 
 export const fixRow = (agent: string, outcome: ActivityRow["outcome"], at: string, over: Partial<ActivityRow> = {}): ActivityRow => ({
-  id: `fix-${agent}-${at}`, at, day: "2026-11-20", title: `Nudged ${agent}`, reason: "", by: "auto", ok: true, action: "nudge", undo: null,
+  id: `fix-${agent}-${at}`, at, day: "2026-11-20", title: `Asked ${agent} to try another way`, reason: "", by: "auto", ok: true, action: "nudge", undo: null,
   agent, outcome, outcome_at: outcome === "checking" ? null : at, check_until: "14:32",
   measured: { minutes: 9, what: "the same test failed 4 times", tokens: 38000 }, problem: "stuck", ...over,
 });

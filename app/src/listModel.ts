@@ -66,6 +66,19 @@ function needsLine(p: Pane): string | null {
   return null;
 }
 
+/** Why this agent's start failed, or null (a whole start that failed names every agent in it). */
+export function failedStart(starting: Starting[], team: string, role: string, panes: Pane[]): { reason: string } | null {
+  for (const s of starting) {
+    if (s.team !== team) continue;
+    const r = s.roles.find((x) => x.role === role);
+    if (!r) continue;
+    if (s.error) return { reason: s.error };
+    const live = panes.some((p) => p.role === role && p.state !== "exited");
+    if (s.done && UNSETTLED.includes(r.state) && !live) return { reason: r.detail || "It didn't come up." };
+  }
+  return null;
+}
+
 export function listModel(map: TeamMap, waiting: ReviewWaiting[], starting: Starting[], fixedRecently: Record<string, string>,
   now: Date = new Date()): ListModel {
   const stale = !!map.unreachable;

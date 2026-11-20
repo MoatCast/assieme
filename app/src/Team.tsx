@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { paneAct, reviewWaiting, teamMap, tipApply, type ActivityRow, type Pane, type PaneButton, type ReviewWaiting, type Starting, type TeamMap } from "./bridge";
+import { useEffect, useRef, useState } from "react";
+import { reviewWaiting, teamMap, tipApply, type ActivityRow, type Pane, type ReviewWaiting, type Starting, type TeamMap } from "./bridge";
 import { UndoButton } from "./Activity";
 import AgentDetail from "./AgentDetail";
 import DailyLimits from "./DailyLimits";
@@ -20,51 +20,8 @@ const UNSETTLED = ["needs-you", "not-reporting", "exited"];
 
 export { tokens } from "./listModel";
 
-/** One fix's buttons, used on the card and in agent detail. A button works once. */
-export function FixButtons({ team, pane, onChanged, onOpenTerminal, more }: {
-  team: string;
-  pane: Pick<Pane, "role" | "fix" | "reachable">;
-  onChanged: () => void;
-  onOpenTerminal: (role: string) => void;
-  /** Shown in place of "Open terminal". */
-  more?: ReactNode;
-}) {
-  const [pending, setPending] = useState<string | null>(null);
-  const [pressed, setPressed] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-  const fix = pane.fix;
-  const press = async (b: PaneButton) => {
-    if (b.kind === "reply") return onOpenTerminal(pane.role);
-    if (!fix || pressed === fix.id || pending) return;
-    setPending(b.id);
-    try {
-      const r = await paneAct({ team, role: pane.role, fix: fix.id, button: b.id });
-      setNote(r.ok ? "" : r.detail);
-      if (r.ok) setPressed(fix.id);
-      onChanged();
-    } catch (e) {
-      setNote(String(e));
-    } finally {
-      setPending(null);
-    }
-  };
-  const buttons = fix?.buttons ?? [];
-  return (
-    <>
-      {note && <p className="card-note">{note}</p>}
-      <div className="card-buttons">
-        {buttons.map((b, i) => (
-          <button key={b.id} type="button" disabled={pending === b.id || (b.kind !== "reply" && pressed === fix?.id)}
-            className={b.kind === "reply" ? "btn-quiet" : i === 0 ? "btn-primary" : "btn-secondary"}
-            onClick={() => press(b)}>{b.kind === "reply" ? "Write a reply" : b.label}</button>
-        ))}
-        {more ?? (pane.reachable !== false && !buttons.some((b) => b.kind === "reply") && (
-          <button type="button" className="btn-quiet" onClick={() => onOpenTerminal(pane.role)}>Open terminal</button>
-        ))}
-      </div>
-    </>
-  );
-}
+export { default as FixButtons } from "./FixButtons";
+import FixButtons from "./FixButtons";
 
 function Card({ team, pane, onChanged, onOpenTerminal, onChangeLimit }: {
   team: string;
