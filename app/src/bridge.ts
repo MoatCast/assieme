@@ -307,6 +307,8 @@ export type ActivityRow = {
   check_until: string | null;
   measured: { minutes: number | null; what: string; tokens: number | null } | null;
   problem: string | null;
+  /** The words a nudge sent (the panel's "Show the message Assieme sent"). */
+  sent?: string | null;
 };
 export type TeamMap = {
   team: string;
@@ -326,6 +328,15 @@ export type TeamMap = {
   groups: MapGroup[] | null;
   tips: Tip[];
   done: ActivityRow[];
+  /** Today's automatic fixes by outcome (the list's heading and Team overview). */
+  fixes_today?: { fixed: number; checking: number };
+  /** A stopped team's last run, for the list's heading; null while it runs. */
+  run?: { minutes: number; fixed: number; tasks_done: number; stopped_at: string } | null;
+  /** The list's views: the board's open tasks and the time of the last Activity row. */
+  open_tasks?: number;
+  /** Minutes since the running team's first agent started; null once it stopped. */
+  running_min?: number | null;
+  last_at?: string | null;
   spend: { tokens: number; waste_share: number } | null;
   spend_ready?: boolean;
   /** Daily limits, in tokens. Null for agents found on this Mac: they get none. */
@@ -386,6 +397,7 @@ export const teamBand = (team: string) => brain<Band>("team.band", { team });
 export const agentSetMusician = (team: string, role: string, musician: string) =>
   brain<{ ok: true }>("agent.set_musician", { team, role, musician });
 export const agentTools = (team: string, role: string) => brain<AgentTools>("agent.tools", { team, role });
+export const agentRemove = (team: string, role: string) => brain<{ ok: boolean; detail: string }>("agent.remove", { team, role });
 export const agentRestart =(team: string, role: string) => brain<{ ok: boolean; detail: string }>("agent.restart", { team, role });
 export const tipApply = (team: string, tip: string) => brain<{ ok: boolean; detail: string }>("tip.apply", { team, tip });
 /** Creating a worktree can take a while on a large repository. */

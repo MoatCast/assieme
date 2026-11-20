@@ -46,6 +46,7 @@ CATALOGUE = {
     'groups.set': Action('Saves how a large team groups its agents on the map.', {'groups': 'groups by team'}, True),
     # Agents
     'agent.detail': Action('Shows one agent: what is wrong, how full its memory is and who wakes it.', {'team': T, 'role': R}),
+    'agent.remove': Action("Removes an agent that couldn't start. Its branch and files stay.", {'team': T, 'role': R}, True),
     'agent.restart': Action('Restarts an agent with its saved choice. Whatever it is doing stops.', {'team': T, 'role': R}, True),
     'agent.tools': Action('Lists the skills and MCP servers an agent has on and off.', {'team': T, 'role': R}),
     'agent.set_tools': Action('Turns an agent’s skills and MCP servers on or off.',

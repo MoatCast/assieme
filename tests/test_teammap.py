@@ -459,6 +459,12 @@ class RunAutomaticTest(MapCase):
         [e] = self.auto({'shop': self.stuck()})
         self.assertEqual((e['by'], e['team'], e['action'], e['agent']), ('auto', 'shop', 'nudge', 'a'))
 
+    def test_a_nudge_row_keeps_what_it_sent(self):  # the panel's "Show the message Assieme sent"
+        settings.set_value('fixes.nudge', 'auto')
+        self.auto({'shop': self.stuck()})
+        [r] = activity.list_rows(team='shop', now=NOW)['rows']
+        self.assertEqual(r['sent'], self.sent[0][1])
+
     def test_found_teams_never_acted_on(self):
         settings.set_value('fixes.nudge', 'auto')
         m = self.stuck()
@@ -950,3 +956,102 @@ class AutomaticMemory(unittest.TestCase):
         rows = [{'address': 't1', 'state': 'live', 'cwd': a.cwd, 'created_ms': 1, 'labels': {team.TEAM: 'shop', team.ROLE: 'b'}}]
         p = panes.view('shop', rows, [a], NOW, lambda _: '', None)['panes'][0]
         self.assertTrue(p['fix']['text'].startswith('b holds'), p['fix']['text'])
+
+
+class OneWindowDataTest(MapCase):
+    """What the one-window list needs: today's fix counts and a stopped team's run."""
+
+    def log_fix(self, role, outcome, action='nudge', at=NOW):
+        e = live.record(action, role, 'stuck', team='shop', by='auto', now=at - dt.timedelta(minutes=1),
+                        problem='stuck', check_until=fixes.check_until(at))
+        if outcome:
+            live.record('outcome', role, '', team='shop', by='auto', now=at, of=e['id'], result=outcome)
+
+    def local_ms(self, hhmm):
+        h, m = map(int, hhmm.split(':'))
+        return int(NOW.astimezone().replace(hour=h, minute=m, second=0, microsecond=0).timestamp() * 1000)
+
+    def local_dt(self, hhmm):
+        return dt.datetime.fromtimestamp(self.local_ms(hhmm) / 1000, tz=dt.timezone.utc)
+
+    def stopped_map(self, started, stopped, fixed, done_cards, before=0):
+        """`before`: fixes and done cards from before this run started, which its summary leaves out."""
+        rows = []
+        for i, role in enumerate(('a', 'b')):
+            r = row(role, state='exited')
+            r['created_ms'] = self.local_ms(started) + i * 1000
+            r['status_ms'] = self.local_ms(stopped) - (1 - i) * 60_000
+            rows.append(r)
+        inside = self.local_dt(started) + dt.timedelta(minutes=5)
+        early = self.local_dt(started) - dt.timedelta(minutes=30)
+        for i in range(fixed):
+            self.log_fix(f'r{i}', 'fixed', at=inside)
+        for i in range(before):
+            self.log_fix(f'old{i}', 'fixed', at=early)
+        from assieme import tasks
+        for i in range(done_cards + before + 1):
+            c = tasks.add('shop', f'task {i}')
+            if i < done_cards + before:
+                tasks.move('shop', c['id'], 'done', now=(inside if i < done_cards else early).timestamp())
+        return self.build(rows)
+
+    def test_fixes_today_counts_outcomes(self):
+        self.log_fix('builder-3', outcome='fixed'); self.log_fix('tester', outcome='fixed'); self.log_fix('reviewer', outcome=None)
+        self.assertEqual(self.build([row('a')])['fixes_today'], {'fixed': 2, 'checking': 1})
+
+    def test_yesterdays_fixes_are_not_counted(self):
+        self.log_fix('builder-3', outcome='fixed', at=NOW - dt.timedelta(days=1))
+        self.assertEqual(self.build([row('a')])['fixes_today'], {'fixed': 0, 'checking': 0})
+
+    def test_stopped_team_summarises_the_run(self):
+        m = self.stopped_map(started='09:28', stopped='12:40', fixed=4, done_cards=3)
+        self.assertEqual(m['run'], {'minutes': 192, 'fixed': 4, 'tasks_done': 3, 'stopped_at': '12:40'})
+
+    def test_a_run_counts_only_what_happened_inside_it(self):
+        m = self.stopped_map(started='09:28', stopped='12:40', fixed=2, done_cards=1, before=3)
+        self.assertEqual((m['run']['fixed'], m['run']['tasks_done']), (2, 1))
+
+    def test_a_running_team_has_no_run_summary(self):
+        self.assertIsNone(self.build([row('a')])['run'])
+
+    def test_done_keeps_more_than_two_rows(self):
+        for r in ('a', 'b', 'c', 'd'):
+            self.log_fix(r, 'fixed')
+        self.assertEqual(len(self.build([row('a')])['done']), 4)
+
+    def test_views_counts_open_tasks_and_last_activity(self):
+        from assieme import tasks
+        for t in ('one', 'two', 'three'):
+            tasks.add('shop', t)
+        tasks.move('shop', '3', 'done')
+        live.record('merge', 'a', 'x', team='shop', now=NOW, title='Merged a into main')
+        m = self.build([row('a')])
+        self.assertEqual((m['open_tasks'], m['last_at']), (2, NOW.astimezone().strftime('%H:%M')))
+
+    def test_remove_agent_after_a_failed_start(self):
+        rt = FakeRt([row('b'), row('a')])
+        me = mock.MagicMock()
+        me.rt, me.starter.teams = rt, self.tmp.name
+        out = teammap.Brain.handlers(me)['agent.remove']('shop', 'b')
+        self.assertEqual((out['ok'], rt.killed), (True, ['t-b']))
+        me.starter.forget.assert_called_once_with('shop', 'b')  # its "Couldn't start" row goes at once
+        self.assertEqual(activity.list_rows(team='shop', now=NOW)['rows'][0]['action'], 'stop_agent')
+
+    def test_a_running_team_says_how_long_it_has_run(self):
+        r = row('a')
+        r['created_ms'] = MS - 3 * 3600_000 - 60_000
+        m = self.build([r, row('b', state='exited')])
+        self.assertEqual(m['running_min'], 181)
+        self.assertIsNone(self.stopped_map('09:00', '10:00', 0, 0)['running_min'])
+
+    def test_a_row_with_no_start_time_is_left_out_of_how_long(self):
+        r, s = row('a'), row('b')
+        r['created_ms'] = MS - 3600_000
+        s['created_ms'] = None
+        self.assertEqual(self.build([r, s])['running_min'], 60)
+
+    def test_try_again_forgets_the_failed_start(self):
+        me = mock.MagicMock()
+        with mock.patch('assieme.agenttools.restart', return_value={'ok': True, 'detail': ''}):
+            teammap.Brain.handlers(me)['agent.restart']('shop', 'b')
+        me.starter.forget.assert_called_once_with('shop', 'b')

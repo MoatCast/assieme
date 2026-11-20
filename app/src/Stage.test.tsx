@@ -102,3 +102,12 @@ test("over twelve: one musician per group with a count, and the same height", ()
   const small = render(<Stage nodes={SMALL} groups={[]} />).container;
   expect((small.firstChild as HTMLElement).style.height).toBe(tall);
 });
+
+test("the band button's on state is the neutral selection, never the accent: blue means Assieme only", async () => {
+  // @ts-expect-error type error without @types/node package, as in vite.config.ts
+  const { readFileSync } = (await import("node:fs")) as { readFileSync: (f: string, e: string) => string };
+  const on = readFileSync("src/Stage.css", "utf8").match(/\.stage-toggle\.on \{([^}]*)\}/)![1];
+  expect(on).not.toContain("accent");
+  expect(on).toContain("--quiet-select");
+  expect(on).toContain("--quiet-outline");
+});

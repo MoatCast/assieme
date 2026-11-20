@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { agentDetail, agentRestart, agentSetMusician, agentSetTools, agentTools, type AgentDetail as Detail, type AgentTools,
   type ToolChoice } from "./bridge";
 import { kindName } from "./kinds";
-import { FixButtons } from "./Team";
+import FixButtons from "./FixButtons";
 import ToolPicker, { toolLabel, toolSummary } from "./ToolPicker";
 import { AgentFace, forgetBand, useBand } from "./band";
 import Musician from "./Musician";
@@ -134,10 +134,45 @@ function InstrumentSection({ team, role }: { team: string; role: string }) {
 }
 
 /** One agent: what's wrong, how full its memory is, what it's been doing and who wakes it. */
-export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpenTerminal, onChanged }: {
+/** Memory, from today's agent detail; the agent panel shows it under the history. */
+export function MemorySection({ memory }: { memory: Detail["memory"] }) {
+  if (!memory) return null;
+  return (
+    <section>
+      <div className="meter-head"><b>Memory</b><span className={memory.amber ? "amber" : ""}>{memory.pct}% full</span></div>
+      <div className="meter"><i className={memory.amber ? "amber" : ""} style={{ width: `${memory.pct}%` }} /></div>
+      {memory.amber && <p className="fine">Once it’s done, Assieme can free up memory so it doesn’t slow down.</p>}
+    </section>
+  );
+}
+
+/** Who wakes it, from today's agent detail. */
+export function WakersSection({ d }: { d: Pick<Detail, "wakers" | "empty_wakes"> }) {
+  return (
+    <section>
+      <b>Who wakes it</b>
+      {d.wakers.length > 0 ? (
+        <>
+          <div className="wakers">
+            {d.wakers.map((w) => <span key={w.role}><code>{w.role}</code> {times(w.count)}</span>)}
+          </div>
+          <p className="fine">
+            All in the last hour. {d.empty_wakes ? `${d.empty_wakes} of today’s did nothing.` : "None of today’s were empty wake-ups."}
+          </p>
+        </>
+      ) : <p className="fine">No agent woke it in the last hour.</p>}
+    </section>
+  );
+}
+
+export { Recent };
+
+export default function AgentDetail({ team, role, pollMs = 5000, only, onClose, onOpenTerminal, onChanged }: {
   team: string;
   role: string;
   pollMs?: number;
+  /** "settings": only the instrument, skills and servers (the agent panel's "•••"). */
+  only?: "settings";
   onClose: () => void;
   onOpenTerminal: (role: string) => void;
   onChanged: () => void;
@@ -185,7 +220,7 @@ export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpen
             </svg>
           </button>
         </div>
-        {d?.fix && (
+        {!only && d?.fix && (
           <div className="detail-fix">
             <div className="detail-fix-head"><span className="dot" />{(HEADS[d.state] ?? "Could use a hand") + forHow(d.since_s)}</div>
             <p>{d.state === "asking" ? d.fix.text : d.detail || d.fix.text}</p>
@@ -195,14 +230,8 @@ export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpen
         )}
         <InstrumentSection team={team} role={role} />
         <ToolsSection team={team} role={role} onChanged={onChanged} />
-        {d?.memory && (
-          <section>
-            <div className="meter-head"><b>Memory</b><span className={d.memory.amber ? "amber" : ""}>{d.memory.pct}% full</span></div>
-            <div className="meter"><i className={d.memory.amber ? "amber" : ""} style={{ width: `${d.memory.pct}%` }} /></div>
-            {d.memory.amber && <p className="fine">Once it’s done, Assieme can free up memory so it doesn’t slow down.</p>}
-          </section>
-        )}
-        {d && d.recent.length > 0 && (
+        {!only && <MemorySection memory={d?.memory ?? null} />}
+        {!only && d && d.recent.length > 0 && (
           <section>
             <b>What it’s been doing</b>
             <div className="recent">
@@ -210,21 +239,7 @@ export default function AgentDetail({ team, role, pollMs = 5000, onClose, onOpen
             </div>
           </section>
         )}
-        {d && (
-          <section>
-            <b>Who wakes it</b>
-            {d.wakers.length > 0 ? (
-              <>
-                <div className="wakers">
-                  {d.wakers.map((w) => <span key={w.role}><code>{w.role}</code> {times(w.count)}</span>)}
-                </div>
-                <p className="fine">
-                  All in the last hour. {d.empty_wakes ? `${d.empty_wakes} of today’s did nothing.` : "None of today’s were empty wake-ups."}
-                </p>
-              </>
-            ) : <p className="fine">Nothing woke it in the last hour.</p>}
-          </section>
-        )}
+        {!only && d && <WakersSection d={d} />}
       </div>
     </>
   );

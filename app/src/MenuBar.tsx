@@ -4,7 +4,7 @@ import {
   type MenuButton, type MenuItem, type MenuState, type MenuTeam,
 } from "./bridge";
 import { ago } from "./Terminals";
-import { tokens } from "./Team";
+import { tokens } from "./listModel";
 import "./tokens.css";
 import "./MenuBar.css";
 import { AgentFace } from "./band";

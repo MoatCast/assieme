@@ -26,3 +26,4 @@
 .undo-ask { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 240px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); text-align: right; }
 .undo-ask button { font: inherit; font-size: 13px; padding: 0; background: none; border: 0; color: var(--quiet-slate); cursor: pointer; }
 .undo-ask button:last-child { font-weight: 600; color: var(--quiet-ink); }
+.activity-row .fix-row { flex: 1; min-width: 0; }

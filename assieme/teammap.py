@@ -13,7 +13,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, answers, budget, fixes, live, newteam, panes, quiet, report, runtime, settings, status, team
+from . import activity, adapters, answers, budget, fixes, live, newteam, panes, preset, quiet, report, runtime, settings, status, tasks, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -21,6 +21,7 @@ REFRESH_S = 120
 DONE_FOR_YOU = ('nudge', 'compact', 'tell', 'quiet')  # fixes; what the person did is in Activity
 WORDS = ('No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten')
 NEEDS_YOU = ('asking', 'stuck', 'waiting')
+DONE_ROWS = 50            # fix rows sent with the map: Team overview shows 3, an agent's panel shows its own
 
 
 def needs_you(p):
@@ -237,14 +238,53 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
         subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
                     f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
                     + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
-    done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
+    today_ = now.astimezone().strftime('%Y-%m-%d')
+    every = activity.list_rows(team=team_name, now=now)['rows']
+    done = [r for r in every if r['action'] in DONE_FOR_YOU][:DONE_ROWS]
+    mine = [r for r in done if r['day'] == today_ and r['by'] == 'auto']
+    fixes_today = {'fixed': sum(r['outcome'] == 'fixed' or r['action'] == 'quiet' for r in mine),
+                   'checking': sum(r['outcome'] == 'checking' for r in mine)}
+    stopped = not any(r.get('state') == 'live' for r in rows)
     return {'team': team_name, 'found': found, **({'run_by_assieme': bool(st['run_found'].get(team_name))} if found else {}),
-            'stopped': not any(r.get('state') == 'live' for r in rows),
+            'stopped': stopped, 'fixes_today': fixes_today, 'last_at': every[0]['at'] if every else None,
+            'running_min': _running_min(rows, now) if not stopped else None,
+            'open_tasks': sum(c.get('status') != 'done' for c in tasks.board(team_name)['cards']),
+            'run': _run(rows, done, team_name) if stopped and rows else None,
             'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
             'tips': tips, 'done': done,
             'spend': {'tokens': total, 'waste_share': round(rep['empty_tokens'] / total, 4)} if total else None,
             'spend_ready': getattr(today, 'ready', True)}
+
+
+def _running_min(rows, now):
+    """Minutes since the first live agent started; a row with no start time is left out."""
+    starts = [r['created_ms'] for r in rows if r.get('state') == 'live' and r.get('created_ms')]
+    return max(0, int(now.timestamp() * 1000 - min(starts)) // 60_000) if starts else None
+
+
+def _row_ms(r):
+    """An Activity row's local day and minute, as epoch ms (rows carry no finer time)."""
+    try:
+        return int(dt.datetime.strptime(f"{r['day']} {r['at']}", '%Y-%m-%d %H:%M').timestamp() * 1000)
+    except (KeyError, ValueError):
+        return None
+
+
+def _run(rows, done, team_name):
+    """A stopped team's last run: from its first agent's start to its last agent's stop, with the fixes and the
+    board cards finished inside it (not every card the board ever finished, nor today's fixes before it)."""
+    run = panes._current_run(rows)
+    starts = [r['created_ms'] for r in run if r.get('created_ms')]
+    ends = [r.get('status_ms') or r.get('created_ms') for r in run if r.get('status_ms') or r.get('created_ms')]
+    if not starts or not ends:
+        return None  # no times recorded: no summary rather than a wrong one
+    start, end = min(starts), max(ends)
+    inside = lambda ms: ms is not None and start - 60_000 < ms <= end  # rows are to the minute
+    fixed = sum(r['by'] == 'auto' and (r['outcome'] == 'fixed' or r['action'] == 'quiet') and inside(_row_ms(r)) for r in done)
+    finished = sum(c.get('status') == 'done' and inside(c.get('moved_ms')) for c in tasks.board(team_name)['cards'])
+    return {'minutes': max(0, (end - start) // 60_000), 'fixed': fixed, 'tasks_done': finished,
+            'stopped_at': dt.datetime.fromtimestamp(end / 1000).strftime('%H:%M')}
 
 
 def _hold_pair(team_name, t, now=None, **extra):
@@ -356,7 +396,9 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
                     now_t, start_t = (tokens or {}).get((name, p['role']), (None, None))
                     entry = live.record(action, p['role'], p['fix']['text'] + (' (team found in herdr)' if found else ''), ok, detail_, team=name, by='auto',
                                         address=p['address'], log=log, now=now, problem=key, refused=fixes.refused_command(b['send']),
-                                        measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now))
+                                        measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now),
+                                        # a nudge's words are the same for every agent; a tell's can name a refused command
+                                        **({'sent': b['send']} if action == 'nudge' else {}))
                     entries.append(entry)
                     out.append(entry)
     return out
@@ -614,7 +656,10 @@ class Brain:
                     agenttools.suggest(role_kind, kind, project, own_copy),
                 'agent.set_tools': lambda team, role, tools_off, tools_new:
                     {'ok': True, 'id': agenttools.set_tools(self.starter.teams, team, role, tools_off, tools_new)['id']},
-                'agent.restart': lambda team, role: agenttools.restart(self.starter.teams, self.rt, team, role),
+                'agent.restart': lambda team, role: (self.starter.forget(team, role),  # Try again on a failed start
+                                                     agenttools.restart(self.starter.teams, self.rt, team, role))[1],
+                'agent.remove': lambda team, role: (self.starter.forget(team, role),
+                                                    remove_agent(self.starter.teams, self.rt, team, role))[1],
                 'agent.tools': lambda team, role: agenttools.for_agent(self.starter.teams, team, role),
                 'team.band': lambda team: newteam.band(team, self.starter.teams),
                 'agent.set_musician': lambda team, role, musician: newteam.set_musician(team, role, musician, self.starter.teams),
@@ -631,6 +676,23 @@ class Brain:
                 'quiet.set': lambda from_cwd, to_cwd, label='', on=True: self.set_pair(from_cwd, to_cwd, label, on),
                 'team.run_found': lambda team, on: self.run_found(team, on),
                 'groups.set': lambda groups: settings.set_value('groups', groups)}
+
+
+def remove_agent(teams, rt, team_name, role):
+    """Remove Agent on a start that failed: stop its terminal if one runs and take it out of the saved team."""
+    try:
+        rows = rt.list({team.TEAM: team_name}, all=False)
+    except runtime.RuntimeError_:
+        rows = []
+    for r in rows:
+        if r.get('state') == 'live' and (r.get('labels') or {}).get(team.ROLE) == role:
+            rt.kill(r['address'])
+    try:
+        newteam.forget_role(os.path.join(teams, team_name), role)
+    except (preset.PresetError, OSError):  # no saved folder to tidy (a team from the command line): the agent itself has stopped
+        pass
+    live.record('stop_agent', role, "You removed it after it couldn't start. Its branch and files stay.", team=team_name)
+    return {'ok': True, 'detail': ''}
 
 
 def group_of(a, st_groups):

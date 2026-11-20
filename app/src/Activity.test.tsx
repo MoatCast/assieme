@@ -69,7 +69,7 @@ test("Undo refreshes the list, and its button waits while pending", async () => 
 
 test("an empty list says so", async () => {
   await open([]);
-  expect(screen.getByText("Nothing yet.")).toBeTruthy();
+  expect(screen.getByText("No activity yet.")).toBeTruthy();
 });
 
 test("Stop on an added agent asks first, and Keep it running changes nothing", async () => {
@@ -84,4 +84,12 @@ test("Stop on an added agent asks first, and Keep it running changes nothing", a
   fireEvent.click(screen.getByRole("button", { name: "Stop it" }));
   await act(async () => {});
   expect(b.activityUndo).toHaveBeenCalledWith("1");
+});
+
+test("Assieme's fixes are fix rows, with their outcome as icon and words", async () => {
+  await open([row("f", { by: "auto", action: "nudge", agent: "builder-3", title: "Asked builder-3 to try another way", outcome: "still_stuck",
+    measured: { minutes: 9, what: "the same test failed 4 times", tokens: null } })]);
+  expect(screen.getByText("! Still stuck")).toBeTruthy();
+  expect(screen.getByTestId("fix-text").textContent).toBe("builder-3 · stuck 9 min, the same test failed 4 times → asked it to try another way");
+  expect(screen.getByLabelText("Assieme")).toBeTruthy();
 });

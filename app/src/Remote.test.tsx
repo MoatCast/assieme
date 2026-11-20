@@ -183,7 +183,7 @@ test("a set-up that fails says why in words, with Try again", async () => {
 test("the team view while its machine is away: reconnecting, or a login in Terminal", async () => {
   const line = { name: "gpu-box", target: "gpu-box", state: "unreachable" as const, since_ms: Date.UTC(2026, 10, 13, 14, 2) };
   expect(awayTitle(line).title).toBe("Can’t reach gpu-box");
-  expect(awayTitle(line).subtitle).toMatch(/^Since \d\d:\d\d\. Its agents keep working there; this is what they were doing then\.$/);
+  expect(awayTitle(line).subtitle).toMatch(/^Since \d\d:\d\d\. Assieme keeps trying and reconnects as soon as gpu-box is back\. Answers and other changes wait until then\.$/);
   const retried = vi.fn();
   r.remoteConnect.mockResolvedValue(line);
   render(<Unreachable line={line} onRetried={retried} />);

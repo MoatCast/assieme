@@ -25,6 +25,7 @@ RESUME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9-]*$')  # an agent's session id, nev
 TOOL_ID = re.compile(r'^(server|plugin|skill|extension):[^\x00-\x1f\x7f]{1,200}$')  # step 32: names may have spaces
 TOOL_KEYS = ('tools_off', 'tools_new', 'tools_known')
 KEEP_DONE_S = 600  # a finished start stays on First run for 10 minutes
+FAILED = ('not-reporting', 'exited')  # a role in these after its start did not come up (needs-you is a live agent asking)
 NEEDS_SAVE = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one."
 TOO_LARGE = "This folder is very large. Choose the folder for just this project."
 NO_TOOLS = "This needs Apple's developer tools first."
@@ -519,10 +520,20 @@ class Starter:
             with self.lock:
                 rec['done'], rec['done_at'] = True, self.now()
 
+    def forget(self, team_name, role):
+        """The person retried or removed an agent whose start failed: its "Couldn't start" row goes."""
+        with self.lock:
+            for r in self.recs:
+                if r['team'] == team_name:
+                    r['roles'] = [x for x in r['roles'] if x['role'] != role]
+            self.recs = [r for r in self.recs if r['roles']]
+
     def records(self):
         with self.lock:
             now = self.now()
-            self.recs = [r for r in self.recs if not r['done'] or now - r['done_at'] <= KEEP_DONE_S]
+            # A start that failed stays until the person retries or removes its agents, not ten minutes.
+            failed = lambda r: r['done'] and (r['error'] or any(x['state'] in FAILED for x in r['roles']))
+            self.recs = [r for r in self.recs if not r['done'] or now - r['done_at'] <= KEEP_DONE_S or failed(r)]
             return [{k: v for k, v in r.items() if k != 'done_at'} | {'roles': [dict(x) for x in r['roles']]}
                     for r in self.recs]
 

@@ -147,7 +147,7 @@ function FileDiff({ data, path, busy, onNote }: {
 type Dialog = "ask" | "discard" | "merge" | null;
 
 /** Review, from Paper "v2 — Review": one agent's branch, its checks and diff, and what to do with it. */
-export default function Review({ team, role, pollMs = 5000, from = "Terminals", onBack, onMerged, onDiscarded }: {
+export default function Review({ team, role, pollMs = 5000, from = role, onBack, onMerged, onDiscarded }: {
   team: string;
   role: string;
   pollMs?: number;
@@ -214,16 +214,18 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
     }
   };
 
+  // Paper "Main window: review in the panel": back to the agent, then the branch.
   const crumbs = (
     <div className="crumbs">
-      <strong>{data?.project ?? team}</strong> · This Mac /{" "}
-      <button type="button" className="crumb" onClick={onBack}>{from}</button> / <strong>{role}</strong>
+      <button type="button" className="crumb" onClick={onBack}>‹ <span className="mono">{from}</span></button>
+      <span className="crumb-sep">/</span>
+      <strong>{data?.project ?? team}</strong>
     </div>
   );
   if (!data)
     return (
       <div className="review">
-        <div className="review-bar" data-tauri-drag-region>{crumbs}</div>
+        <div className="review-bar">{crumbs}</div>
         {problem && <div className="refused">{problem}</div>}
       </div>
     );
@@ -234,6 +236,7 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
   const tests = check("tests")?.state;
   const working = data.agent.working;
   const merge = () => act(async () => onMerged(await reviewMerge(team, role, data.tip, dialog === "merge")));
+  const open = data.notes.length; // reviewer comments not yet sent or ignored
   const note = (id: string, action: "fix" | "ignore") => act(async () => {
     await reviewNote(team, role, id, action);
     if (action === "fix") setSent(`Sent the note to ${role}.`);
@@ -242,17 +245,16 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
 
   return (
     <div className="review">
-      <div className="review-bar" data-tauri-drag-region>
+      <div className="review-bar">
         {crumbs}
-        <div className="grow" />
-        <button type="button" className="quiet" disabled={busy} onClick={() => setDialog("discard")}>Discard</button>
-        <button type="button" className="secondary" disabled={busy} onClick={() => setDialog("ask")}>Ask for changes</button>
-        <button type="button" className="secondary" disabled={busy || data.ahead === 0} onClick={() => act(async () => {
+        <button type="button" className="discard" disabled={busy} onClick={() => setDialog("discard")}>Discard changes</button>
+        <button type="button" className={open ? "btn-primary" : "btn-outline"} disabled={busy} onClick={() => setDialog("ask")}>Ask for changes</button>
+        <button type="button" className="btn-outline" disabled={busy || data.ahead === 0} onClick={() => act(async () => {
           const pr = await reviewPullRequest(team, role);
           if (pr.url) await openLink(pr.url);
           setSent(pr.url ? `The pull request is open: ${pr.url}` : pr.detail ?? "");
         })}>Open pull request</button>
-        <button type="button" className="primary" disabled={busy || blocked}
+        <button type="button" className={open ? "btn-outline" : "btn-primary"} disabled={busy || blocked}
           onClick={() => (tests === "bad" || tests === "running" || working ? setDialog("merge") : void merge())}>
           Merge into {data.base}
         </button>
@@ -267,6 +269,13 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
           <div className="side-group">
             <h2>Checks</h2>
             {data.checks.map((c) => <CheckRow key={c.id} check={c} />)}
+            {open > 0 && (
+              <div className="check check-warn">
+                <span className="check-dot" />
+                <span><span>{open === 1 ? "1 reviewer comment open" : `${open} reviewer comments open`}</span> · <button type="button"
+                  className="crumb" onClick={() => setPicked(data.notes[0].file)}>Show</button></span>
+              </div>
+            )}
           </div>
           <PreviewGroup team={team} role={role} pv={pv} />
           <div className="side-group files">
@@ -321,7 +330,7 @@ export default function Review({ team, role, pollMs = 5000, from = "Terminals", 
             {dialog === "discard" && (
               <>
                 <div className="sheet-title">Discard {role}'s work?</div>
-                <p>This stops {role} and removes its {plural(data.ahead, "commit")} and its worktree, along with any uncommitted changes.</p>
+                <p>This stops {role} and removes its copy, with its {plural(data.ahead, "saved version")} and any unsaved changes.</p>
                 <div className="sheet-actions">
                   <button type="button" className="quiet" disabled={busy} onClick={() => setDialog(null)}>Keep it</button>
                   <button type="button" className="danger" disabled={busy} onClick={() => act(async () => {

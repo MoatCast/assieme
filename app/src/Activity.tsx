@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { activityList, activityUndo, type ActivityRow } from "./bridge";
+import { activityList, type ActivityRow } from "./bridge";
+import FixRow from "./FixRow";
+import { UndoButton } from "./UndoButton";
 import "./Activity.css";
 
 const FILTERS = [["all", "All"], ["you", "By you"], ["auto", "Automatic"]] as const;
@@ -14,38 +16,10 @@ function dayLabel(day: string, now = new Date()) {
   return day;
 }
 
-/** A row's Undo or Stop. Where the brain gives a warning, it asks first: an agent is never ended on one click. */
-export function UndoButton({ row, onDone, onNote, className = "" }: {
-  row: ActivityRow;
-  onDone: () => void;
-  onNote: (note: string) => void;
-  className?: string;
-}) {
-  const [asking, setAsking] = useState(false);
-  const [pending, setPending] = useState(false);
-  const act = async () => {
-    if (pending) return;
-    setPending(true);
-    setAsking(false);
-    const r = await activityUndo(row.id!).catch((e) => ({ ok: false, detail: String(e) }));
-    onNote(r.ok ? "" : r.detail);
-    setPending(false);
-    onDone();
-  };
-  if (asking)
-    return (
-      <span className="undo-ask">
-        <span>{row.undo!.confirm}</span>
-        <button type="button" onClick={() => setAsking(false)}>Keep it running</button>
-        <button type="button" onClick={act}>{row.undo!.label} it</button>
-      </span>
-    );
-  return (
-    <button type="button" className={className} disabled={pending} onClick={() => (row.undo!.confirm ? setAsking(true) : act())}>{row.undo!.label}</button>
-  );
-}
-
 /** Everything Assieme did, and why, with Undo where it really undoes something. */
+/** Assieme's own fixes read as fix rows: the problem as measured → what it did, and the outcome. */
+const isFix = (r: ActivityRow) => r.by === "auto" && ["nudge", "compact", "tell", "quiet"].includes(r.action);
+
 export default function Activity({ team, pollMs = 10000 }: { team: string | null; pollMs?: number }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [rows, setRows] = useState<ActivityRow[] | null>(null);
@@ -88,12 +62,16 @@ export default function Activity({ team, pollMs = 10000 }: { team: string | null
             ))}
           </div>
         </div>
-        {rows && rows.length === 0 && <p className="activity-empty">Nothing yet.</p>}
+        {rows && rows.length === 0 && <p className="activity-empty">No activity yet.</p>}
         {[...days].map(([day, list]) => (
           <div className="activity-day" key={day}>
             <div className="activity-day-name">{dayLabel(day)}</div>
             <div className="activity-rows">
-              {list.map((r, i) => (
+              {list.map((r, i) => isFix(r) ? (
+                <div className="activity-row" key={r.id ?? `${day}-${i}`} data-testid={`row-${r.id ?? i}`}>
+                  <FixRow row={r} onChanged={() => setTick((t) => t + 1)} />
+                </div>
+              ) : (
                 <div className="activity-row" key={r.id ?? `${day}-${i}`} data-testid={`row-${r.id ?? i}`}>
                   <span className="activity-at">{r.at}</span>
                   <div className="activity-text">

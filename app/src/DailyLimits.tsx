@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { budgetSet, type Budget } from "./bridge";
-import { tokens } from "./Team";
+import { tokens } from "./listModel";
 
 const ALL = "*";
 const shown = (n: number | null) => (n ? String(n / 1e6) : "");

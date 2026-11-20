@@ -183,7 +183,7 @@ def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the 
         rows.append({'id': e.get('id'), 'at': local.strftime('%H:%M') if local else '', 'day': local.strftime('%Y-%m-%d') if local else '',
                      'title': _title(e), 'reason': reason, 'by': by, 'ok': e.get('ok', True), 'agent': e.get('agent'), 'action': e.get('action'),
                      'outcome': outcome, 'outcome_at': hhmm(status.parse_ts(out.get('at'))) if out else None,
-                     'check_until': hhmm(until), 'measured': e.get('measured'), 'problem': e.get('problem'),
+                     'check_until': hhmm(until), 'measured': e.get('measured'), 'problem': e.get('problem'), 'sent': e.get('sent'),
                      'undo': ({'label': UNDO[action][1]} | ({'confirm': CONFIRM[action].format(agent=e.get('agent'))} if action in CONFIRM else {})) if can else None})
     return {'rows': rows}
 

@@ -8,7 +8,7 @@
 .review button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; padding: 0; }
 .review button:disabled { opacity: 0.5; cursor: default; }
 
-.review-bar { display: flex; align-items: center; gap: 14px; height: 53px; box-sizing: border-box; padding: 0 20px 0 90px; /* 90: past the window buttons */ border-bottom: 1px solid var(--quiet-line); flex-shrink: 0; }
+.review-bar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; box-sizing: border-box; padding: 14px 20px; /* in the panel: Paper "review in the panel" */ border-bottom: 1px solid var(--quiet-line); flex-shrink: 0; }
 .review .crumbs { font-size: 14px; line-height: 18px; }
 .review .crumbs strong { font-weight: 600; }
 .review .crumb { text-decoration: none; }
@@ -70,10 +70,10 @@
 .review-diff td.diff-gutter + td.diff-gutter { padding-left: 20px; }
 .review-diff td.diff-code { padding: 0 20px 0 0; color: var(--quiet-mute); white-space: pre-wrap; word-break: break-word; }
 .review-diff td.diff-code::before { content: "  "; white-space: pre; }
-.review-diff td.diff-gutter-insert { background: var(--quiet-diff-add-bg); color: var(--quiet-diff-add-number); }
+.review-diff td.diff-gutter-insert { background: var(--quiet-diff-add-bg); color: var(--quiet-mute); }
 .review-diff td.diff-code-insert { background: var(--quiet-diff-add-bg); color: var(--quiet-diff-add-text); }
 .review-diff td.diff-code-insert::before { content: "+ "; }
-.review-diff td.diff-gutter-delete { background: var(--quiet-diff-del-bg); color: var(--quiet-diff-del-number); }
+.review-diff td.diff-gutter-delete { background: var(--quiet-diff-del-bg); color: var(--quiet-mute); }
 .review-diff td.diff-code-delete { background: var(--quiet-diff-del-bg); color: var(--quiet-diff-del-text); }
 .review-diff td.diff-code-delete::before { content: "- "; }
 .review-diff .unchanged { background: var(--quiet-fog); color: var(--quiet-mute); }
@@ -109,3 +109,11 @@
 .notice button { font: inherit; font-weight: 600; line-height: 16px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--quiet-on-ink-accent); }
 .notice button:disabled { opacity: 0.5; cursor: default; }
 .review .note-head .musician { display: inline-flex; vertical-align: -4px; margin-right: 6px; } /* step 31 */
+.review .crumbs { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; color: var(--quiet-slate); }
+.review .crumbs .mono { color: var(--quiet-ink); font-weight: 550; }
+.review .crumb-sep { color: var(--quiet-mute); }
+.review .crumbs strong { color: var(--quiet-ink); }
+.review .discard { margin-right: 12px; padding: 7px 8px; color: var(--quiet-slate); font-size: 13px; font-weight: 500; line-height: 16px; }
+.review .review-bar .btn-primary, .review .review-bar .btn-outline { padding: 6px 12px; font-size: 13px; line-height: 16px; }
+.review .review-bar .btn-primary { padding: 7px 12px; background: var(--quiet-ink); color: var(--quiet-on-ink); border-radius: 999px; }
+.review .review-bar .btn-outline { border: 1px solid var(--quiet-outline); border-radius: 999px; }

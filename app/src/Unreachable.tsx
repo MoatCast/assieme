@@ -8,11 +8,11 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export function awayTitle(line: Pick<Machine, "name" | "since_ms">) {
   return {
     title: `Can’t reach ${line.name}`,
-    subtitle: `${line.since_ms ? `Since ${since(line.since_ms)}. ` : ""}Its agents keep working there; this is what they were doing then.`,
+    subtitle: `${line.since_ms ? `Since ${since(line.since_ms)}. ` : ""}Assieme keeps trying and reconnects as soon as ${line.name} is back. Answers and other changes wait until then.`,
   };
 }
 
-/** The card in place of "Nothing waiting on you": reconnecting, or a login only the person can give, in Terminal. */
+/** The card at the top of the panel while a machine is away: reconnecting, or a login only the person can give, in Terminal. */
 export default function Unreachable({ line, onRetried }: { line: Machine; onRetried: () => void }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
@@ -42,8 +42,7 @@ export default function Unreachable({ line, onRetried }: { line: Machine; onRetr
         </svg>
       )}
       <b>{login ? `${line.name} wants you to log in again` : `Reconnecting to ${line.name}…`}</b>
-      <p>{login ? "Its agents keep working. Open Terminal to log in, and Assieme reconnects right after."
-        : "Assieme tries again on its own, and at once when your Mac wakes. Buttons that change something there wait until it’s back."}</p>
+      <p>{login ? "Its agents keep working. Open Terminal to log in, and Assieme reconnects right after." : awayTitle(line).subtitle}</p>
       {note && <p className="rm-error">{note}</p>}
       <button type="button" className={login ? "btn-primary" : "btn-secondary"} disabled={busy} onClick={act}>
         {login ? "Open Terminal" : busy ? "Trying…" : "Try now"}
