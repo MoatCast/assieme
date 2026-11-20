@@ -243,7 +243,8 @@ export type Pane = {
   session?: string;
   reachable?: boolean;
   command?: string | null;
-  state: "asking" | "stuck" | "waiting" | "working" | "idle" | "exited";
+  /** at-limit: its plan's limit is reached, and it waits for the reset (never Needs you). */
+  state: "asking" | "stuck" | "waiting" | "working" | "at-limit" | "idle" | "exited";
   since_s: number | null;
   detail: string;
   live: boolean;

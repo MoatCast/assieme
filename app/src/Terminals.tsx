@@ -9,7 +9,7 @@ import "./Terminals.css";
 import { AgentFace } from "./band";
 
 const STATE: Record<Pane["state"], string> = {
-  asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", idle: "done", exited: "exited",
+  asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", "at-limit": "waiting for a limit", idle: "done", exited: "exited",
 };
 
 export function ago(s: number | null): string {

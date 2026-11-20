@@ -1055,3 +1055,26 @@ class OneWindowDataTest(MapCase):
         with mock.patch('assieme.agenttools.restart', return_value={'ok': True, 'detail': ''}):
             teammap.Brain.handlers(me)['agent.restart']('shop', 'b')
         me.starter.forget.assert_called_once_with('shop', 'b')
+
+
+class AtLimitTest(MapCase):
+    """An agent at its plan's limit waits for the reset: never Needs you, and no fix is offered."""
+    RESET = NOW.timestamp() + 3600
+
+    def test_at_limit_is_not_needs_you(self):
+        a = log_agent('a', 'stuck', detail='silent 18 min')
+        m = self.build([row('a', agent='codex'), row('b', 'working')], [a],
+                       plan_limits={'codex': {'used': 100.0, 'reached': True, 'resets_at': self.RESET}})
+        p = next(p for p in m['panes'] if p['role'] == 'a')
+        back = dt.datetime.fromtimestamp(self.RESET).strftime('%H:%M')
+        self.assertEqual((p['state'], p['fix'], p['detail']), ('at-limit', None, f'Codex limit · back at {back}'))
+        self.assertEqual(m['title'], 'All quiet')
+        self.assertEqual(m['limits']['codex']['reached'], True)
+
+    def test_other_kind_is_untouched(self):
+        m = self.build([row('a', 'working')], plan_limits={'codex': {'used': 100.0, 'reached': True, 'resets_at': self.RESET}})
+        self.assertEqual(m['panes'][0]['state'], 'working')
+
+    def test_limit_cleared_returns_the_agent_to_working(self):
+        m = self.build([row('a', 'working', agent='codex')], plan_limits={})
+        self.assertEqual(m['panes'][0]['state'], 'working')
