@@ -12,7 +12,7 @@ export function awayTitle(line: Pick<Machine, "name" | "since_ms">) {
   };
 }
 
-/** The card in place of "Nothing waiting on you": reconnecting, or a login only the person can give, in Terminal. */
+/** The card at the top of the panel while a machine is away: reconnecting, or a login only the person can give, in Terminal. */
 export default function Unreachable({ line, onRetried }: { line: Machine; onRetried: () => void }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
