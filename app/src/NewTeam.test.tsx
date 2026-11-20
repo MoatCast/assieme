@@ -418,6 +418,7 @@ test("a stopped service shows Offline and recovers", async () => {
 
 test("a new user without developer tools or a signed-in agent starts at Developer tools", async () => {
   b.setupStatus.mockResolvedValue({ git: false, agents: {} });
+  b.installTools.mockResolvedValue({ ok: true });
   await open({ claude: false, codex: false });
   expect(heading()).toBe("Install Apple’s developer tools");
   expect(screen.getByRole("navigation", { name: "Setup steps" }).textContent).toContain("Agent");
