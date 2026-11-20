@@ -360,6 +360,30 @@ class StarterTest(unittest.TestCase):
         self.clock[0] += 2
         self.assertEqual(s.records(), [])
 
+    def test_a_failed_start_stays_until_retried_or_removed(self):  # the one window's "Couldn't start" row
+        self.result = lambda tm: [team.Started('builder', 't0', 'running'), team.Started('reviewer', 't1', 'exited', 'it stopped')]
+        s = self.starter()
+        s.start(self.repo, 't', ROLES, {})
+        self.manual.run_all()
+        self.clock[0] += 3600
+        [rec] = s.records()
+        self.assertEqual([r['role'] for r in rec['roles']], ['builder', 'reviewer'])
+        s.forget('repo', 'reviewer')
+        self.assertEqual(s.records(), [])  # what is left came up: it expires as any finished start
+
+    def test_a_whole_start_that_failed_stays_until_each_role_is_handled(self):
+        def boom(tm):
+            raise team.TeamError('boom')
+        self.result = boom
+        s = self.starter()
+        s.start(self.repo, 't', ROLES, {})
+        self.manual.run_all()
+        self.clock[0] += 3600
+        s.forget('repo', 'builder')
+        self.assertEqual([r['role'] for r in s.records()[0]['roles']], ['reviewer'])
+        s.forget('repo', 'reviewer')
+        self.assertEqual(s.records(), [])
+
     def test_name_skips_live_team(self):
         self.assertEqual(self.starter(Rt(live=['repo'])).start(self.repo, 't', ROLES, {}), {'team': 'repo-2'})
 

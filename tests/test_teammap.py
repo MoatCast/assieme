@@ -971,20 +971,28 @@ class OneWindowDataTest(MapCase):
         h, m = map(int, hhmm.split(':'))
         return int(NOW.astimezone().replace(hour=h, minute=m, second=0, microsecond=0).timestamp() * 1000)
 
-    def stopped_map(self, started, stopped, fixed, done_cards):
+    def local_dt(self, hhmm):
+        return dt.datetime.fromtimestamp(self.local_ms(hhmm) / 1000, tz=dt.timezone.utc)
+
+    def stopped_map(self, started, stopped, fixed, done_cards, before=0):
+        """`before`: fixes and done cards from before this run started, which its summary leaves out."""
         rows = []
         for i, role in enumerate(('a', 'b')):
             r = row(role, state='exited')
             r['created_ms'] = self.local_ms(started) + i * 1000
             r['status_ms'] = self.local_ms(stopped) - (1 - i) * 60_000
             rows.append(r)
+        inside = self.local_dt(started) + dt.timedelta(minutes=5)
+        early = self.local_dt(started) - dt.timedelta(minutes=30)
         for i in range(fixed):
-            self.log_fix(f'r{i}', 'fixed')
+            self.log_fix(f'r{i}', 'fixed', at=inside)
+        for i in range(before):
+            self.log_fix(f'old{i}', 'fixed', at=early)
         from assieme import tasks
-        for i in range(done_cards + 1):
+        for i in range(done_cards + before + 1):
             c = tasks.add('shop', f'task {i}')
-            if i < done_cards:
-                tasks.move('shop', c['id'], 'done')
+            if i < done_cards + before:
+                tasks.move('shop', c['id'], 'done', now=(inside if i < done_cards else early).timestamp())
         return self.build(rows)
 
     def test_fixes_today_counts_outcomes(self):
@@ -998,6 +1006,10 @@ class OneWindowDataTest(MapCase):
     def test_stopped_team_summarises_the_run(self):
         m = self.stopped_map(started='09:28', stopped='12:40', fixed=4, done_cards=3)
         self.assertEqual(m['run'], {'minutes': 192, 'fixed': 4, 'tasks_done': 3, 'stopped_at': '12:40'})
+
+    def test_a_run_counts_only_what_happened_inside_it(self):
+        m = self.stopped_map(started='09:28', stopped='12:40', fixed=2, done_cards=1, before=3)
+        self.assertEqual((m['run']['fixed'], m['run']['tasks_done']), (2, 1))
 
     def test_a_running_team_has_no_run_summary(self):
         self.assertIsNone(self.build([row('a')])['run'])
@@ -1022,6 +1034,7 @@ class OneWindowDataTest(MapCase):
         me.rt, me.starter.teams = rt, self.tmp.name
         out = teammap.Brain.handlers(me)['agent.remove']('shop', 'b')
         self.assertEqual((out['ok'], rt.killed), (True, ['t-b']))
+        me.starter.forget.assert_called_once_with('shop', 'b')  # its "Couldn't start" row goes at once
         self.assertEqual(activity.list_rows(team='shop', now=NOW)['rows'][0]['action'], 'stop_agent')
 
     def test_a_running_team_says_how_long_it_has_run(self):
@@ -1036,3 +1049,9 @@ class OneWindowDataTest(MapCase):
         r['created_ms'] = MS - 3600_000
         s['created_ms'] = None
         self.assertEqual(self.build([r, s])['running_min'], 60)
+
+    def test_try_again_forgets_the_failed_start(self):
+        me = mock.MagicMock()
+        with mock.patch('assieme.agenttools.restart', return_value={'ok': True, 'detail': ''}):
+            teammap.Brain.handlers(me)['agent.restart']('shop', 'b')
+        me.starter.forget.assert_called_once_with('shop', 'b')
