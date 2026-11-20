@@ -215,3 +215,27 @@ test("offline: the last map stays at full strength, and the panel says so", asyn
   expect(screen.getByRole("button", { name: /builder-1, working/ })).toBeTruthy();
   expect(screen.getByText("Reconnecting…")).toBeTruthy();
 });
+
+test("a link from outside selects its agent once the team's map is in", async () => {
+  b.teamMap.mockResolvedValue(QUIET);
+  const props = { team: "shop", starting: [], open: { role: "tester", view: null, nonce: 1 }, onNewTeam: vi.fn(), onNewTask: vi.fn(),
+    onMerged: vi.fn(), onDiscarded: vi.fn(), boardKey: 0, pollMs: 100000 };
+  const { rerender } = render(<Window {...props} />);
+  await flush();
+  expect(screen.getByTestId("panel-agent").textContent).toBe("tester");
+  fireEvent.click(screen.getByRole("button", { name: /builder-1, working/ }));
+  rerender(<Window {...props} pollMs={100001} />); // the same link does not take the selection back
+  await flush();
+  expect(screen.getByTestId("panel-agent").textContent).toBe("builder-1");
+  rerender(<Window {...props} open={{ role: "tester", view: "review", nonce: 2 }} />);
+  await flush();
+  expect(screen.getByTestId("panel-review").textContent).toContain("review of tester");
+});
+
+test("a link to an agent that is not there falls back to the team's own rule", async () => {
+  b.teamMap.mockResolvedValue(ASKING);
+  render(<Window team="shop" starting={[]} open={{ role: "ghost", view: null, nonce: 1 }} onNewTeam={vi.fn()} onNewTask={vi.fn()}
+    onMerged={vi.fn()} onDiscarded={vi.fn()} pollMs={100000} />);
+  await flush();
+  expect(screen.getByTestId("panel-agent").textContent).toBe("planner");
+});

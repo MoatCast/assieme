@@ -7,7 +7,7 @@ import Appearance from "./Appearance";
 import { NewTask } from "./Board";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
-import Review, { Notice } from "./Review";
+import { Notice } from "./Review";
 import Settings from "./Settings";
 import TeamBrief from "./TeamBrief";
 import Window, { type OpenLink } from "./Window";
@@ -44,7 +44,6 @@ export default function Shell() {
   const [settings, setSettings] = useState(false);
   const [settingsAt, setSettingsAt] = useState<string | undefined>();
   const [open, setOpen] = useState<OpenLink | null>(null);
-  const [review, setReview] = useState<{ team: string; role: string } | null>(null);
   const [merged, setMerged] = useState<MergeResult | null>(null);
   const [notice, setNotice] = useState("");
   const [draft, setDraft] = useState<TeamDraft | null>(null);
@@ -62,9 +61,8 @@ export default function Shell() {
     const stop = onOpen(({ team: t, role, view }) => {
       setPicked(t);
       setSettings(false);
-      if (view === "review" && role) return setReview({ team: t, role });
-      setReview(null);
-      setOpen({ role, view: null, nonce: Date.now() });
+      // The team switches; the window then selects the agent, or opens its review in the panel (Review Focus 5).
+      setOpen({ role, view: view === "review" && role ? "review" : null, nonce: Date.now() });
       setTab("window");
     });
     return () => { void stop.then((off) => off()); void asked.then((off) => off()); void newTeam.then((off) => off()); };
@@ -125,7 +123,7 @@ export default function Shell() {
   return (
     <div className="shell">
       {shown !== "first-run" && (
-        <div className="shell-bar" hidden={!!review} data-tauri-drag-region>
+        <div className="shell-bar" data-tauri-drag-region>
           <div className="shell-left" data-tauri-drag-region>
             <img className="brand" src="/mark.svg" width="16" height="16" alt="" />
             {names.length > 0 && (
@@ -157,32 +155,18 @@ export default function Shell() {
           </div>
         </div>
       )}
-      {shown === "first-run" && !review && <div className="window-strip" data-tauri-drag-region>{settingsButton}</div>}
+      {shown === "first-run" && <div className="window-strip" data-tauri-drag-region>{settingsButton}</div>}
       {/* First run stays mounted so its snapshot poll keeps the team list fresh. */}
-      <div className="shell-page" hidden={!!review || shown !== "first-run"}>
-        <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} shown={shown === "first-run" && !review}
+      <div className="shell-page" hidden={shown !== "first-run"}>
+        <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} shown={shown === "first-run"}
           onOpenSettings={(section) => { setSettingsAt(section); setSettings(true); }} />
       </div>
       {shown === "window" && (
-        <div className="shell-page" hidden={!!review}>
+        <div className="shell-page">
           <Window team={team} starting={snap?.starting ?? []} open={open} boardKey={boardKey}
             onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
             onMerged={(m) => { setNotice(""); setMerged(m); }} onDiscarded={setNotice} onBringOver={() => setBringing(true)}
             onOpenFixes={() => { setSettingsAt("fixes"); setSettings(true); }} />
-        </div>
-      )}
-      {review && (
-        <div className="shell-page">
-          <Review key={`${review.team}/${review.role}`} team={review.team} role={review.role} from="Team" onBack={() => setReview(null)}
-            onMerged={(m) => {
-              setReview(null);
-              setNotice("");
-              setMerged(m);
-            }}
-            onDiscarded={(text) => {
-              setReview(null);
-              setNotice(text);
-            }} />
         </div>
       )}
       {merged && (
@@ -219,8 +203,7 @@ export default function Shell() {
           onOpenTeam={(t, role) => {
             setSettings(false);
             setPicked(t);
-            if (role) return setReview({ team: t, role });
-            setOpen(null);
+            setOpen({ role, view: role ? "review" : null, nonce: Date.now() });
             setTab("window");
           }} />
       )}

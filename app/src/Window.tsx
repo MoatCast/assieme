@@ -94,6 +94,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   const list = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const last = useRef<{ map: TeamMap; model: ListModel } | null>(null);
+  const applied = useRef<number | null>(null); // the link from outside already acted on
 
   const now = new Date();
   const recent = map ? fixedRecently(map, dismissed, now) : {};
@@ -117,10 +118,24 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     }
   };
 
+  // A link from outside, once its team's map is in: select the agent, or open its review. A link acts once.
+  useEffect(() => {
+    if (!model || !team || !open || applied.current === open.nonce) return;
+    applied.current = open.nonce;
+    if (!open.role) return;
+    if (open.view === "review") {
+      setReviewing({ team, role: open.role, ahead: waiting.find((x) => x.team === team && x.role === open.role)?.ahead ?? 0 });
+      if (rows(model).some((r) => r.role === open.role)) setChosen({ team, sel: { kind: "agent", role: open.role } });
+    } else if (rows(model).some((r) => r.role === open.role)) {
+      setChosen({ team, sel: { kind: "agent", role: open.role } });
+      setReviewing(null);
+    }
+  }, [model, team, open, waiting]);
+
   // A team opens on its own rule; a selected agent that stops hands the panel to Team overview.
   useEffect(() => {
     if (!model || !team) return;
-    if (!sel) return setChosen({ team, sel: initialSelection(model) });
+    if (!sel) return setChosen((prev) => (prev && prev.team === team ? prev : { team, sel: initialSelection(model) })); // a link may have chosen
     if (sel.kind === "agent" && !rows(model).some((r) => r.role === sel.role))
       setChosen({ team, sel: { kind: "view", view: "overview" } });
   }, [model, team, sel]);
@@ -188,7 +203,6 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     }
   };
 
-  void open; // links from outside: Task 11
 
   // Review opens in the panel; Back returns to the agent (spec "The panel").
   const onReview = (t: string, role: string) =>

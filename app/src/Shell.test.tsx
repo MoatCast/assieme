@@ -23,6 +23,7 @@ vi.mock("./Window", () => ({
   }) => (
     <div>
       <span>window for {team ?? "none"}</span><span>read {boardKey}</span>{open?.role && <span>selected {open.role}</span>}
+      <span data-testid="open-view">{open?.view ?? ""}</span>
       <button type="button" onClick={onNewTeam}>empty new team</button>
       <button type="button" onClick={onNewTask}>board new task</button>
       <button type="button" onClick={onBringOver}>bring over</button>
@@ -57,8 +58,9 @@ vi.mock("./Review", () => ({
 vi.mock("./NewTeam", () => ({ default: ({ draft, onClose }: { draft?: { why: string } | null; onClose: () => void }) => (
   <div><span>new team screen{draft ? `, drafted: ${draft.why}` : ""}</span><button type="button" onClick={onClose}>close new team</button></div>
 ) }));
-vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun, section }: { onClose: () => void; onShowFirstRun: () => void; section?: string }) => (
-  <div><span>settings screen{section ? ` at ${section}` : ""}</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button></div>
+vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun, section, onOpenTeam }: { onClose: () => void; onShowFirstRun: () => void; section?: string; onOpenTeam: (t: string, r: string | null) => void }) => (
+  <div><span>settings screen{section ? ` at ${section}` : ""}</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button>
+    <button type="button" onClick={() => onOpenTeam("gamma", "r")}>open nightly review</button></div>
 ) }));
 vi.mock("./Board", () => ({
   NewTask: ({ team, roles, onClose }: { team: string; roles: string[]; onClose: (added: boolean, note?: string) => void }) => (
@@ -298,13 +300,28 @@ test("an assistant's draft opens in New team, once", async () => {
   expect(screen.queryByText(/new team screen/)).toBeNull();
 });
 
-test("the menu bar can open an agent's terminal or its review", async () => {
+test("a link from the menu bar switches the team, then selects the agent or opens its review in the panel", async () => {
   render(<Shell />);
   await act(async () => {});
-  await act(async () => opened({ team: "shop", role: "planner", view: "terminals" }));
-  expect(screen.queryByText("new team screen")).toBeNull();
-  await act(async () => opened({ team: "shop", role: "builder-1", view: "review" }));
-  expect(document.body.textContent).toContain("builder-1");
+  expect(screen.getByText("window for beta")).toBeTruthy();
+  await act(async () => opened({ team: "alpha", role: "a", view: "terminals" }));
+  expect(screen.getByText("window for alpha")).toBeTruthy();
+  expect(screen.getByText("selected a")).toBeTruthy();
+  expect(screen.getByTestId("open-view").textContent).toBe("");
+  await act(async () => opened({ team: "gamma", role: "c", view: "review" }));
+  expect(screen.getByText("window for gamma")).toBeTruthy();
+  expect(screen.getByTestId("open-view").textContent).toBe("review");
+  expect(screen.queryByText(/^review of/)).toBeNull(); // no full-page review any more
+});
+
+test("Settings opens a scheduled run's review in the panel", async () => {
+  render(<Shell />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  fireEvent.click(screen.getByRole("button", { name: "open nightly review" }));
+  expect(screen.queryByText("settings screen")).toBeNull();
+  expect(screen.getByText("selected r")).toBeTruthy();
+  expect(screen.getByTestId("open-view").textContent).toBe("review");
 });
 
 test("Bring your team over from the empty window opens its sheet, and an import opens New team", async () => {
