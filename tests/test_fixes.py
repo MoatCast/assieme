@@ -69,7 +69,7 @@ class FixesCase(unittest.TestCase):
 
     def test_fix_row_carries_the_measured_problem(self):
         e = teammap.run_automatic(views(stuck('builder-3', since_s=540, detail='same test failed 4 times')), AUTO, self.rt,
-                                  log=self.log, now=NOW, tokens={'builder-3': (52000, 14000)})[0]
+                                  log=self.log, now=NOW, tokens={('shop', 'builder-3'): (52000, 14000)})[0]
         self.assertEqual(e['measured'], {'minutes': 9, 'what': 'same test failed 4 times', 'tokens': 38000})
         self.assertEqual(e['check_until'], '2026-11-08T12:10:00Z')
         self.assertEqual(e['problem'], 'shop/builder-3/nudge/20261108T1151')
@@ -295,7 +295,22 @@ class PauseCase(unittest.TestCase):
         fixes.check_outcomes(views(self.turned('builder-3', 14)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=15))
         self.assertFalse(fixes.is_paused('shop', 'builder-3'))
         rows = activity.list_rows('shop', path=self.log, now=NOW + dt.timedelta(minutes=16))['rows']
-        self.assertEqual((rows[0]['action'], rows[0]['by'], rows[0]['reason']), ('fix_resume', 'you', 'You wrote to it in its terminal.'))
+        self.assertEqual((rows[0]['action'], rows[0]['by'], rows[0]['reason']), ('fix_resume', 'auto', 'It started working again.'))
+
+    def test_a_held_note_reaches_it_when_a_new_turn_ends_the_pause(self):
+        self.still_stuck('builder-3')
+        fixes.hold('shop', 'builder-3', 'planner', 'use the flag')
+        fixes.check_outcomes(views(self.turned('builder-3', 14)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=15))
+        [text] = self.rt.sent['t-builder-3']
+        self.assertTrue(text.startswith('Messages that arrived while you were paused:'))
+        self.assertIn('- from planner: use the flag', text)
+
+    def test_held_notes_of_an_agent_that_exits_are_logged_as_dropped(self):
+        self.still_stuck('builder-3')
+        fixes.hold('shop', 'builder-3', 'planner', 'use the flag')
+        fixes.check_outcomes(views(), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=12))
+        rows = activity.list_rows('shop', path=self.log, now=NOW + dt.timedelta(minutes=13))['rows']
+        self.assertEqual((rows[0]['action'], rows[0]['by'], rows[0]['title']), ('fix_dropped', 'auto', 'Did not deliver 1 message to builder-3'))
 
     def test_an_agent_that_exits_is_no_longer_paused(self):
         self.still_stuck('builder-3')

@@ -245,6 +245,7 @@ export type Pane = {
   since_s: number | null;
   detail: string;
   live: boolean;
+  paused_by_fix?: boolean;
   /** `budget` is set on a pause at a daily limit: its scope ("*" is the whole team), who is paused, and the line under the question. */
   fix: { id: string; text: string; buttons: PaneButton[]; budget?: string; who?: string; detail?: string; pause?: { at: string; of: string } } | null;
   /** Paused by Assieme after a fix that didn't work (it usually reads idle then). */
@@ -367,7 +368,6 @@ export type AgentDetail = {
   recent: { at: string; text: string }[];
   wakers: { role: string; count: number }[];
   empty_wakes: number;
-  paused_by_fix?: boolean;
 };
 export type Settings = {
   fixes: Record<"nudge" | "compact" | "tell" | "quiet", "ask" | "auto">;

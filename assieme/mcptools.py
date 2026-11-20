@@ -83,7 +83,7 @@ class Tools:
         if budget.hold(name, to, me, text):
             return {'sent': 'held', 'detail': f'{to} is paused at a daily spend limit. It gets this when the person lets it carry on.'}
         if fixes.hold(name, to, me, text):
-            return {'sent': 'held', 'detail': f'{to} is paused until the person looks at it. It gets this when they let it carry on.'}
+            return {'sent': 'held', 'detail': f'{to} is paused until the person resumes it. It gets this message when it carries on.'}
         if (info.get('cwd') and target.get('cwd') and quiet.is_quiet(info['cwd'], target['cwd'])
                 and not quiet.urgent(text) and quiet.deliverer_alive()):
             quiet.hold_note(target['address'], target['cwd'], text, rt.session, rt.sock, sender=me, from_cwd=quiet._real(info['cwd']))

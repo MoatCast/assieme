@@ -181,7 +181,8 @@ class ToolsTest(State):
         t = self.tools([row('a', 't1'), row('b', 't2')])
         with mock.patch.object(self.brain.rt, 'interrupt', create=True):
             fixes.pause('shop', 'b', 't2', 'f1', self.brain.rt, status.now_utc())
-        self.assertEqual(t.message('t1', 'b', 'use the flag')['sent'], 'held')
+        self.assertEqual(t.message('t1', 'b', 'use the flag'), {'sent': 'held', 'detail':
+                         'b is paused until the person resumes it. It gets this message when it carries on.'})
         self.assertEqual(self.brain.rt.sent, [])
         fixes.resume('shop', 'b', self.brain.rt)
         self.assertIn('- from a: use the flag', self.brain.rt.sent[-1][1])
