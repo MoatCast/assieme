@@ -87,9 +87,6 @@ test("Start is pressed once, and is off while pending", async () => {
   const h = step();
   const start = screen.getByRole("button", { name: "Start 2 agents" });
   fireEvent.click(start);
-  expect(h.onStart).not.toHaveBeenCalled(); // inside the click guard: a double-click from Team
-  vi.setSystemTime(new Date(Date.now() + 400));
-  fireEvent.click(start);
   expect(h.onStart).toHaveBeenCalledTimes(1);
   cleanup();
   step({ pending: true, error: "not installed: codex." });

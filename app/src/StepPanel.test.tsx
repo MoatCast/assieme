@@ -46,3 +46,22 @@ test("a click right after a step change is ignored", () => {
   act(() => { vi.advanceTimersByTime(300); });
   expect(result.current()).toBe(false);
 });
+
+test("every button in a panel ignores clicks for 300 ms after the step changes", () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  const pressed = vi.fn();
+  const view = (at: StepId) => (
+    <StepPanel steps={steps} at={at} answers={{}} title="T" onGo={() => {}} footer={<button type="button" onClick={pressed}>Continue</button>}>
+      <button type="button" onClick={pressed}>Option</button>
+    </StepPanel>
+  );
+  const { rerender } = render(view("project"));
+  vi.setSystemTime(new Date(Date.now() + 400));
+  rerender(view("task"));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  fireEvent.click(screen.getByRole("button", { name: "Option" }));
+  expect(pressed).not.toHaveBeenCalled();
+  vi.setSystemTime(new Date(Date.now() + 400));
+  fireEvent.click(screen.getByRole("button", { name: "Option" }));
+  expect(pressed).toHaveBeenCalledTimes(1);
+});

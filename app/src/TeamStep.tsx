@@ -3,7 +3,7 @@ import type { AgentKind, Preset, Suggestion } from "./bridge";
 import HelpMeChoose from "./HelpMeChoose";
 import { kindName } from "./kinds";
 import { presetNote } from "./newTeamSteps";
-import StepPanel, { useClickGuard, type PanelProps } from "./StepPanel";
+import StepPanel, { type PanelProps } from "./StepPanel";
 
 const count = (n: number) => (n === 1 ? "1 agent" : `${n} agents`);
 
@@ -16,10 +16,9 @@ export default function TeamStep({ panel, presets, last, installed, task, projec
   onInstall: (k: AgentKind) => void; onBack: () => void;
 }) {
   const [helping, setHelping] = useState(false);
-  const guard = useClickGuard(panel.at);
   const first = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (last) first.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const pick = (p: Preset) => { if (!guard()) onPick(p); };
+  const pick = (p: Preset) => onPick(p);
   const option = (p: Preset, isLast: boolean) => (
     <button type="button" className="option" key={p.id} ref={isLast ? first : undefined} onClick={() => pick(p)}>
       <span className="text"><b>{p.label}</b><small>{presetNote(p, isLast)}</small></span>
@@ -45,7 +44,7 @@ export default function TeamStep({ panel, presets, last, installed, task, projec
         <>
           {last && option(last, true)}
           {presets.map((p) => option(p, false))}
-          <button type="button" className="option" onClick={() => !guard() && setHelping(true)}>
+          <button type="button" className="option" onClick={() => setHelping(true)}>
             <span className="text"><b>Help me choose</b><small>Assieme reads your task and suggests a team for you to confirm.</small></span>
             <span className="count">Not sure?</span>
           </button>

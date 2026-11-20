@@ -4,7 +4,7 @@ import ConnectMachine, { AgentChecks } from "./ConnectMachine";
 import InstallSheet from "./InstallSheet";
 import { remoteCheck, remoteConnect, remoteMachines, remoteRepos, remoteTerminal, since, type Machine, type MachineCheck } from "./remote";
 import type { AgentKind } from "./bridge";
-import StepPanel, { useClickGuard, type Clis, type PanelProps } from "./StepPanel";
+import StepPanel, { type Clis, type PanelProps } from "./StepPanel";
 import "./Remote.css";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -136,7 +136,6 @@ export function WhereStep({ panel, machine, there, onMachine, onAgents, onNext, 
   panel: PanelProps; machine: string | null; there: Clis | null; onMachine: (m: string | null) => void;
   onAgents: (a: Clis | null) => void; onNext: () => void; onCancel: () => void; pollMs?: number;
 }) {
-  const guard = useClickGuard(panel.at);
   return (
     <StepPanel {...panel} title="Where should the agents run?" hint="Choosing This Mac moves to the next step." footer={<>
       <span className="safe" />
@@ -144,7 +143,6 @@ export function WhereStep({ panel, machine, there, onMachine, onAgents, onNext, 
       {machine !== null && <button type="button" className="primary" disabled={!there} onClick={onNext}>Continue</button>}
     </>}>
       <RemoteMachine machine={machine} onAgents={onAgents} pollMs={pollMs} onMachine={(m) => {
-        if (guard()) return;
         onMachine(m);
         if (m === null) onNext();
       }} />

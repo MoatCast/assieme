@@ -3,7 +3,7 @@ import type { AgentKind, SetupStatus } from "./bridge";
 import ConnectSheet from "./ConnectSheet";
 import InstallFlow, { type FlowAction } from "./InstallFlow";
 import { AGENT_KINDS } from "./kinds";
-import StepPanel, { useClickGuard, type PanelProps } from "./StepPanel";
+import StepPanel, { type PanelProps } from "./StepPanel";
 import { LOCAL_NOTE } from "./ToolsStep";
 
 const PLAN: Record<AgentKind, string> = {
@@ -18,12 +18,10 @@ const PLAN: Record<AgentKind, string> = {
 export function AgentStep({ panel, status, onNext, onBack }: { panel: PanelProps; status: SetupStatus | null; onNext: () => void; onBack: () => void }) {
   const [chosen, setChosen] = useState<AgentKind | null>(null);
   const [action, setAction] = useState<FlowAction>(null);
-  const guard = useClickGuard(panel.at);
   const ready = chosen && status?.agents[chosen]?.signed_in;
   const connect = ready && chosen === "antigravity" && !status?.agents.antigravity?.connected;
   useEffect(() => { if (ready && !connect) onNext(); }, [ready, connect]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (k: AgentKind) => {
-    if (guard()) return;
     setAction(null);
     setChosen(k);
   };

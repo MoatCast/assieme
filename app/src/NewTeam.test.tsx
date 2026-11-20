@@ -57,7 +57,9 @@ const MODELS = {
   },
 };
 
-const flush = () => act(async () => {});
+const settle = () => act(async () => {});
+/** Let promises settle, then step past the 300 ms click guard, as a person does between deliberate clicks. */
+const flush = async () => { await settle(); vi.setSystemTime(new Date(Date.now() + 400)); };
 const both = { claude: true, codex: true };
 const READY = { git: true, agents: { claude: { installed: true, signed_in: true }, codex: { installed: true, signed_in: true } } };
 const SETUP = { ok: false, setup: true, reason: "This folder has no saved version yet." };
@@ -148,8 +150,10 @@ test("Back keeps every answer", async () => {
   await toStart();
   fireEvent.click(button("Back"));
   expect(heading()).toBe("Who should work on it?");
+  later();
   fireEvent.click(button("Back"));
   expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("Fix login");
+  later();
   fireEvent.click(button("Back"));
   expect(heading()).toBe("Which project should the team work on?");
   screen.getByText("~/shop");
@@ -172,6 +176,7 @@ test("the indicator's done steps go back", async () => {
   await toStart();
   fireEvent.click(button("✓ Fix login"));
   expect(heading()).toBe("What should the team work on?");
+  later();
   fireEvent.click(button("✓ shop"));
   expect(heading()).toBe("Which project should the team work on?");
   expect(screen.queryByRole("button", { name: "✓ Fix login" })).toBeNull(); // later steps aren't buttons
@@ -199,12 +204,12 @@ test("a double-click on a team option doesn't press the next panel", async () =>
   await toTeam();
   later();
   fireEvent.click(button(/Builder and reviewer/));
-  await flush();
+  await settle();
   vi.setSystemTime(new Date(Date.now() + 50));
   // The second click lands where the option was: Start's primary sits elsewhere, and a click inside the guard does nothing.
   const startButton = button("Start 2 agents");
   fireEvent.click(startButton);
-  await flush();
+  await settle();
   expect(heading()).toBe("What Assieme does for this team");
   expect(b.startTeam).not.toHaveBeenCalled();
 });
@@ -220,11 +225,10 @@ test("errors go back to their step", async () => {
   screen.getByText("This project already has a running team: shop. Stop it first.");
 
   b.startTeam.mockRejectedValueOnce("role:0: Names use lower-case letters, digits and dashes, and must differ.");
-  fireEvent.click(button("Continue"));
-  fireEvent.click(button("Continue"));
-  await flush();
-  fireEvent.click(button("✓ Fix login"));
-  fireEvent.click(button("Continue"));
+  later();
+  fireEvent.click(button("Continue")); // Project → Task
+  later();
+  fireEvent.click(button("Continue")); // Task → Team
   await pick(/Builder and reviewer/);
   later();
   fireEvent.click(button("Start 2 agents"));
@@ -249,6 +253,7 @@ test("start is pressed once", async () => {
   b.startTeam.mockReturnValue(new Promise(() => {}));
   await open();
   await toStart();
+  await flush();
   const start = button("Start 2 agents");
   fireEvent.click(start);
   fireEvent.click(start);
@@ -324,6 +329,7 @@ test("an import over edited agents asks first, and No keeps them", async () => {
   fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
   fireEvent.click(button("Done"));
   fireEvent.click(button("Back"));
+  later();
   b.confirmReplace.mockResolvedValue(false);
   fireEvent.click(button("Bring your team over ›"));
   await flush();
@@ -634,4 +640,39 @@ test("a started or discarded team leaves no draft behind", async () => {
   cleanup();
   await open();
   expect(screen.queryByRole("button", { name: /Continue setting up/ })).toBeNull();
+});
+
+test("a double-click on Project's Continue doesn't press Task's Continue", async () => {
+  await open();
+  await chooseFolder();
+  fireEvent.change(screen.getByRole("textbox", { name: "What should the team work on?" }), { target: { value: "Fix login" } });
+  fireEvent.click(button("✓ shop"));
+  later();
+  fireEvent.click(button("Continue"));
+  fireEvent.click(button("Continue"));
+  expect(heading()).toBe("What should the team work on?");
+});
+
+test("Cancel with no folder chosen keeps the setup kept from last time", async () => {
+  await open();
+  await toTeam("Add a cart");
+  cleanup();
+  const onClose = await open();
+  fireEvent.click(within(screen.getByRole("contentinfo")).getByText("Cancel"));
+  await flush();
+  expect(onClose).toHaveBeenCalled();
+  cleanup();
+  await open();
+  button("Continue setting up shop");
+});
+
+test("Escape with a group's sheet open doesn't close Team rules behind it", async () => {
+  await open();
+  await toStart();
+  fireEvent.click(button("Review team rules ›"));
+  fireEvent.click(button("Careful reviews: each rule"));
+  (document.activeElement as HTMLElement | null)?.blur();
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  expect(heading()).toBe("Team rules for shop");
 });

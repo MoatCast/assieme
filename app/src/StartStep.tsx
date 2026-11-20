@@ -3,7 +3,7 @@ import type { Practices, RoleDraft, Settings } from "./bridge";
 import { kindName } from "./kinds";
 import { rulesLine, teamSummary, whileTheyWork } from "./newTeamSteps";
 import { AlwaysOnSheet, RESEARCHER, agentCount, type Choice } from "./Practices";
-import StepPanel, { useClickGuard, type PanelProps } from "./StepPanel";
+import StepPanel, { type PanelProps } from "./StepPanel";
 
 const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
@@ -17,7 +17,6 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
   notice?: React.ReactNode; // an import's team still running in its old tool
 }) {
   const [always, setAlways] = useState(false);
-  const guard = useClickGuard(panel.at); // a double-click on Team's option must not press Start
   const n = agentCount(roles, value);
   const research = practices.bigger.find((x) => x.id === "research-pairs");
   const bigger = (key: string, text: string, addLabel: string, added: string) => (
@@ -34,7 +33,7 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
         <span className="safe">You can change these any time in Settings.</span>
         {error && <span className="error" role="alert">{error}</span>}
         <button type="button" className="quiet" onClick={onBack}>Back</button>
-        <button type="button" className="primary" disabled={pending} onClick={() => !guard() && onStart()}>{n === 1 ? "Start 1 agent" : `Start ${n} agents`}</button>
+        <button type="button" className="primary" disabled={pending} onClick={onStart}>{n === 1 ? "Start 1 agent" : `Start ${n} agents`}</button>
       </>}>
       {notice}
       <div className="does">

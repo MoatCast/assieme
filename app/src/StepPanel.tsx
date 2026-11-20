@@ -6,6 +6,7 @@ export type StepPanelProps = {
   steps: StepId[]; at: StepId; answers: Partial<Record<StepId, string>>;
   title: string; hint?: string; announce?: string;
   onGo: (id: StepId) => void; // a done step in the indicator was clicked
+  guard?: () => boolean; // true while a click must be ignored; NewTeam's, which lives across steps
   footer: ReactNode; children: ReactNode;
 };
 /** What each step receives from NewTeam to draw its panel. */
@@ -15,13 +16,13 @@ export type Clis = Partial<Record<AgentKind, boolean>>;
 
 /** True while a click must be ignored: for `ms` after the step changes, so a double-click can't press the next panel. */
 export function useClickGuard(at: StepId, ms = 300): () => boolean {
-  const seen = useRef({ at, t: Date.now() });
+  const seen = useRef({ at, t: 0 }); // the first step is not a change: nothing to ignore on opening
   if (seen.current.at !== at) seen.current = { at, t: Date.now() };
   return () => Date.now() - seen.current.t < ms;
 }
 
 /** One step of New team: the step list, a heading that takes focus, the question's body and a footer that stays put. */
-export default function StepPanel({ steps, at, answers, title, hint, announce, onGo, footer, children }: StepPanelProps) {
+export default function StepPanel({ steps, at, answers, title, hint, announce, onGo, guard: shared, footer, children }: StepPanelProps) {
   const heading = useRef<HTMLHeadingElement>(null);
   const body = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -29,8 +30,12 @@ export default function StepPanel({ steps, at, answers, title, hint, announce, o
     if (!body.current?.contains(document.activeElement)) heading.current?.focus();
   }, [at]);
   const items = indicator(steps, at, answers);
+  const own = useClickGuard(at);
+  const guard = shared ?? own;
+  // A click right after the step changes (the second half of a double-click) presses nothing on the new panel.
+  const ignore = (e: React.MouseEvent) => { if (guard()) { e.stopPropagation(); e.preventDefault(); } };
   return (
-    <div className="newteam">
+    <div className="newteam" onClickCapture={ignore}>
       <div className="panel">
         <header>
           <nav aria-label="Setup steps">

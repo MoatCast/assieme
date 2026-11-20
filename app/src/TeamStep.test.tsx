@@ -60,13 +60,6 @@ test("picking an option calls onPick once", () => {
   expect(h.onPick).toHaveBeenCalledWith(PRESETS[2]);
 });
 
-test("a click right after the step appears is ignored", () => {
-  const h = { onPick: vi.fn() };
-  render(<TeamStep panel={PANEL} presets={PRESETS} last={null} installed={["claude"]} task="" project="/p" machine={null}
-    onPick={h.onPick} onSuggested={vi.fn()} onBringOver={vi.fn()} onInstall={vi.fn()} onBack={vi.fn()} />);
-  fireEvent.click(option(/One agent/));
-  expect(h.onPick).not.toHaveBeenCalled();
-});
 
 test("Help me choose reads the task and needs Use this team", async () => {
   b.suggestTeam.mockResolvedValue({ roles: [r("builder"), r("reviewer")], why: "A small change with a check." });

@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const b = vi.hoisted(() => ({
-  teamPresets: vi.fn(), checkProject: vi.fn(), startTeam: vi.fn(), confirmReplace: vi.fn(),
+  teamPresets: vi.fn(), checkProject: vi.fn(), startTeam: vi.fn(), confirmReplace: vi.fn(), pickFolder: vi.fn(),
   setupCommands: vi.fn(), terminalState: vi.fn(), installStop: vi.fn(),
 }));
 vi.mock("./bridge", async (orig) => ({ ...(await orig<typeof import("./bridge")>()), ...b }));
@@ -20,7 +20,7 @@ import RemoteMachine, { WhereStep } from "./RemoteMachine";
 import NewTeam from "./NewTeam";
 import Unreachable, { awayTitle } from "./Unreachable";
 
-const flush = () => act(async () => {});
+const flush = async () => { await act(async () => {}); if (vi.isFakeTimers()) vi.setSystemTime(new Date(Date.now() + 400)); };
 const ROLE = { name: "builder", agent: "codex" as const, job: "builds", checkout: "branch" as const, parent: null, brief: "You build." };
 const PRESETS = [{ id: "one-agent", label: "One agent", roles: [ROLE] }];
 const MODELS = { claude: { models: [], efforts: [] }, codex: { models: [], efforts: [] } };
@@ -221,14 +221,6 @@ test("a remote machine waits for Continue until its agents are ready", async () 
   expect(g.onNext).not.toHaveBeenCalled();
 });
 
-test("a click right after Where appears is ignored", async () => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  const h = where(null);
-  await flush();
-  fireEvent.click(screen.getByRole("button", { name: /This Mac/ }));
-  expect(h.onNext).not.toHaveBeenCalled();
-  vi.useRealTimers();
-});
 
 test("New team on a remote machine: Where first, its agents, a project typed there, and the start goes there", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -298,4 +290,48 @@ test("an agent installed there but signed out isn't ready: Sign in is offered an
   screen.getByRole("button", { name: "Sign in to Claude Code" });
   expect(h.onAgents).toHaveBeenLastCalledWith({ claude: false, codex: false });
   expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+test("Back to Where and This Mac again keeps the chosen folder", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  b.checkProject.mockResolvedValue({ ok: true });
+  b.pickFolder.mockResolvedValue("/Users/me/shop");
+  render(<NewTeam clis={{ claude: true, codex: true }} onClose={() => {}} />);
+  await flush();
+  await flush();
+  later();
+  fireEvent.click(screen.getByRole("button", { name: /This Mac/ }));
+  await flush();
+  later();
+  fireEvent.click(screen.getByRole("button", { name: /Choose a folder…/ }));
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "✓ This Mac" }));
+  later();
+  fireEvent.click(screen.getByRole("button", { name: /This Mac/ }));
+  await flush();
+  screen.getByRole("heading", { name: "Which project should the team work on?" });
+  screen.getByText("~/shop");
+  vi.useRealTimers();
+});
+
+test("a kept setup from a remote machine is checked on that machine and goes through Where", async () => {
+  localStorage.setItem("assieme.newteam.draft", JSON.stringify({ machine: "gpu-box", project: "~/checkout-service", task: "Fix login",
+    roles: [ROLE], chosen: "one-agent", practices: {}, at: "start" }));
+  vi.useFakeTimers({ toFake: ["Date"] });
+  render(<NewTeam clis={{ claude: true, codex: true }} onClose={() => {}} />);
+  await flush();
+  await flush();
+  // Where shows first when machines exist; go on to Project, where the offer is.
+  later();
+  fireEvent.click(screen.getByRole("button", { name: /This Mac/ }));
+  await flush();
+  later();
+  fireEvent.click(screen.getByRole("button", { name: "Continue setting up checkout-service" }));
+  await flush();
+  expect(r.checkProjectOn).toHaveBeenCalledWith("~/checkout-service", "gpu-box");
+  expect(b.checkProject).not.toHaveBeenCalled();
+  screen.getByRole("heading", { name: "Where should the agents run?" });
+  expect(screen.getByRole("button", { name: /gpu-box/ }).getAttribute("aria-pressed")).toBe("true");
+  localStorage.clear();
+  vi.useRealTimers();
 });

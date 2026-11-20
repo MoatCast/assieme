@@ -16,7 +16,7 @@ import ProjectStep from "./ProjectStep";
 import { WhereStep } from "./RemoteMachine";
 import { checkProjectOn, remoteMachines, startTeamOn } from "./remote";
 import StartStep from "./StartStep";
-import type { Clis, PanelProps } from "./StepPanel";
+import { useClickGuard, type Clis, type PanelProps } from "./StepPanel";
 import TaskStep from "./TaskStep";
 import TeamRules from "./TeamRules";
 import TeamStep from "./TeamStep";
@@ -49,6 +49,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [needs, setNeeds] = useState<Needs>({ tools: false, agent: !!clis && !Object.values(clis).some(Boolean), remote: false });
   const steps = stepsShown(needs);
   const [at, setAt] = useState<StepId>(steps[0]);
+  const guard = useClickGuard(at); // one clock for every step: each step's panel mounts fresh
   const statusSeen = useRef(false);
   const setup = useSetupStatus(installing !== null || at === "tools" || at === "agent" || !statusSeen.current);
   const [notReady, setNotReady] = useState<Record<AgentKind, boolean>>({} as Record<AgentKind, boolean>);
@@ -279,12 +280,12 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
 
   /** keep: leave the shown result in place until the new one arrives (after a save). Returns the check, or null when a
    *  newer check replaced it or it failed. */
-  const verify = async (p: string, keep = false): Promise<ProjectCheck | null> => {
+  const verify = async (p: string, keep = false, on = machine): Promise<ProjectCheck | null> => {
     const id = ++latest.current;
     setCheckError("");
     if (!keep) setCheck(null);
     try {
-      const c = await (machine ? checkProjectOn(p, machine) : checkProject(p));
+      const c = await (on ? checkProjectOn(p, on) : checkProject(p));
       if (id !== latest.current) return null;
       setCheck(c);
       if (folderMovesOn(c)) setAnnounce(`${base(p)} checked`);
@@ -328,8 +329,12 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     setEdited(!kept.chosen);
     setPracticeOn(kept.practices);
     setProject(kept.project);
-    jump.current = steps.includes(kept.at) && kept.at !== "project" ? kept.at : "project";
-    void verify(kept.project);
+    if (kept.machine) {
+      // Its agents are known only once that machine answers: go through Where, which checks it.
+      setNeeds((n) => ({ ...n, remote: true }));
+      go("where");
+    } else jump.current = steps.includes(kept.at) && kept.at !== "project" ? kept.at : "project";
+    void verify(kept.project, false, kept.machine);
   };
 
   const go = (s: StepId) => {
@@ -340,8 +345,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const back = () => { const p = prevStep(steps, at); if (p) go(p); };
 
   const cancel = async () => {
-    if (project && !(await confirmDiscard())) return;
-    clearDraft();
+    if (project) {
+      if (!(await confirmDiscard())) return;
+      clearDraft(); // only a discarded setup loses its draft; one kept from last time stays on offer
+    }
     onClose();
   };
   // Escape closes the innermost sheet (each modal handles its own), then Team rules, then means Cancel. Never Back.
@@ -414,7 +421,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     project: project ? base(project) : "", task: taskAnswer(task),
     team: imported ? "Brought over" : chosen ? presets.find((p) => p.id === chosen)?.label ?? last?.label ?? "" : why ? "Suggested team" : "",
   };
-  const panel: PanelProps = { steps, at, answers, announce, onGo: go };
+  const panel: PanelProps = { steps, at, answers, announce, onGo: go, guard };
   const containerWaiting = roles.some((r) => r.container && notReady[r.agent]);
 
   let body: React.ReactNode;
@@ -423,7 +430,11 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   else if (at === "agent") body = <AgentStep panel={panel} status={setup.status} onNext={next} onBack={back} />;
   else if (at === "where") body = (
     <WhereStep panel={panel} machine={machine} there={there} onAgents={setThere} onNext={next} onCancel={() => void cancel()}
-      onMachine={(m) => { setMachine(m); setProject(""); setCheck(null); setProjectError(""); }} />
+      onMachine={(m) => {
+        if (m === machine) return; // the same machine again keeps the folder
+        latest.current++; // a check still running for the old machine can't land
+        setMachine(m); setProject(""); setCheck(null); setProjectError(""); setCheckError("");
+      }} />
   );
   else if (at === "project") body = (
     <ProjectStep panel={panel} machine={machine} recent={machine ? [] : recent} project={project} check={check}
