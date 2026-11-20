@@ -8,10 +8,15 @@ import {
   openLink, reviewAsk, reviewDiscard, reviewEditor, reviewGet, reviewMerge, reviewNote, reviewPullRequest,
   type MergeResult, type ReviewCheck, type ReviewData, type ReviewNote,
 } from "./bridge";
+import Details, { splitDetail } from "./Details";
 import { PreviewGroup, usePreviews } from "./Preview";
 import "./Review.css";
 import { AgentFace } from "./band";
 
+const Refused = ({ text }: { text: string }) => {
+  const { message, detail } = splitDetail(text);
+  return <div className="refused">{message} <Details text={detail} /></div>;
+};
 const words = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
@@ -226,7 +231,7 @@ export default function Review({ team, role, pollMs = 5000, from = role, onBack,
     return (
       <div className="review">
         <div className="review-bar">{crumbs}</div>
-        {problem && <div className="refused">{problem}</div>}
+        {problem && <Refused text={problem} />}
       </div>
     );
 
@@ -259,7 +264,7 @@ export default function Review({ team, role, pollMs = 5000, from = role, onBack,
           Merge into {data.base}
         </button>
       </div>
-      {problem && <div className="refused">{problem}</div>}
+      {problem && <Refused text={problem} />}
       <div className="review-body">
         <aside className="review-side">
           <div className="side-group title">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Details, { splitDetail } from "./Details";
 import type { Practices, RoleDraft, Settings } from "./bridge";
 import { kindName } from "./kinds";
 import { rulesLine, teamSummary, whileTheyWork } from "./newTeamSteps";
@@ -18,6 +19,7 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
 }) {
   const [always, setAlways] = useState(false);
   const n = agentCount(roles, value);
+  const failed = splitDetail(error);
   const research = practices.bigger.find((x) => x.id === "research-pairs");
   const bigger = (key: string, text: string, addLabel: string, added: string) => (
     <div className="bigger-line">
@@ -31,7 +33,7 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
     <StepPanel {...panel} title="What Assieme does for this team"
       hint="It starts every agent with these and keeps watching while they work. All of it is on." footer={<>
         <span className="safe">You can change these any time in Settings.</span>
-        {error && <span className="error" role="alert">{error}</span>}
+        {error && <span className="error" role="alert">{failed.message} <Details text={failed.detail} /></span>}
         <button type="button" className="quiet" onClick={onBack}>Back</button>
         <button type="button" className="primary" disabled={pending} onClick={onStart}>{n === 1 ? "Start 1 agent" : `Start ${n} agents`}</button>
       </>}>

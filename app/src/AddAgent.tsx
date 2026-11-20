@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import AgentMenu, { ContainerLine } from "./AgentMenu";
+import Details, { splitDetail } from "./Details";
 import { addAgent, fieldOf, teamPresets, type AgentKind, type ModelOptions } from "./bridge";
 import { AGENT_KINDS, kindName } from "./kinds";
 import InstallSheet from "./InstallSheet";
@@ -168,7 +169,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
           )}
         </div>
         <div className="sheet-foot">
-          {error && <p className="error">{error}</p>}
+          {error && <p className="error">{splitDetail(error).message} <Details text={splitDetail(error).detail} /></p>}
           <p>It starts with the standard {kind} brief and your team practices. {inContainer
             ? `It can read, edit and run files in its copy of ${team}, and no file outside it.`
             : `It can read, edit and run files in ${team}.`}</p>
