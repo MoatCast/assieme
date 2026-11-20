@@ -12,7 +12,7 @@ import ChangeGroups from "./ChangeGroups";
 import Settings from "./Settings";
 
 const VALUES = {
-  fixes: { nudge: "ask", compact: "auto", tell: "ask" }, practices: {}, notify: { needs_you: true, stalls: true, finished: true },
+  fixes: { nudge: "ask", compact: "auto", tell: "ask", quiet: "ask" }, fixes_notice: false, practices: {}, notify: { needs_you: true, stalls: true, finished: true },
   show_commands: false, groups: {}, first_run_done: true,
 };
 const flush = () => act(async () => {});
@@ -96,7 +96,7 @@ test("General: the Musicians choice, Animated by default, saves what is picked",
 
 test("a fix's label follows its switch", async () => {
   await open("Fixes");
-  expect(screen.getAllByText("Ask first").length).toBe(2);
+  expect(screen.getAllByText("Ask first").length).toBe(3);
   expect(screen.getByText("Automatic")).toBeTruthy();
   fireEvent.click(screen.getByRole("switch", { name: "Ask stuck agents to try another way" }));
   await flush();
@@ -104,9 +104,18 @@ test("a fix's label follows its switch", async () => {
   expect(screen.getAllByText("Automatic").length).toBe(2);
 });
 
+test("Fixes lists four switches, Automatic by default", async () => {
+  b.getSettings.mockResolvedValue({ ...VALUES, fixes: { nudge: "auto", compact: "auto", tell: "auto", quiet: "auto" } });
+  await open("Fixes");
+  expect(screen.getAllByRole("switch").filter((e) => (e as HTMLInputElement).checked).length).toBe(4);
+  expect(screen.getAllByText("Automatic").length).toBe(4);
+  expect(screen.getByRole("switch", { name: "Hold routine notes until the receiver is free" })).toBeTruthy();
+  expect(screen.getByText("Assieme fixes these problems on its own and lists what it did. If a fix doesn't work, it pauses the agent and asks you.")).toBeTruthy();
+});
+
 test("the Fixes line no longer promises Undo for everything", async () => {
   await open("Fixes");
-  expect(screen.getByText(/tell you after in “Done for you”/)).toBeTruthy();
+  expect(screen.getByText(/lists what it did/)).toBeTruthy();
   expect(screen.queryByText(/undo anything/i)).toBeNull();
 });
 

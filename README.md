@@ -20,8 +20,7 @@
 </p>
 
 Assieme ("together", in Italian) runs a team of Claude Code and Codex agents on your Mac. Each agent plays its own part
-on its own branch. Assieme shows you who is playing, who has stopped and who needs you, and fixes the problem with
-your say-so.
+on its own branch. Assieme shows you who is playing, who has stopped and who needs you. Assieme fixes stuck agents, full memory and refused commands on its own, and tells you what it did. Questions, merges and money stay yours.
 
 ---
 
