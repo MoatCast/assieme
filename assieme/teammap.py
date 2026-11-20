@@ -302,8 +302,11 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None):
                         continue
                     if action == 'compact' and not p.get('memory_full'):
                         continue  # asking can come sooner; doing it without asking waits until memory really is full
-                    key = fixes.problem_key(name, p['role'], action, now - dt.timedelta(seconds=p['since_s']))
-                    if fixes.attempted(key, entries):
+                    started = now - dt.timedelta(seconds=p['since_s'])
+                    key = fixes.problem_key(name, p['role'], action, started)
+                    # since_s jitters by seconds between ticks, so a start near a minute edge may key a minute off
+                    if any(fixes.attempted(fixes.problem_key(name, p['role'], action, started + dt.timedelta(minutes=k)), entries)
+                           for k in (-1, 0, 1)):
                         continue
                     try:
                         rt.send(p['address'], b['send'])

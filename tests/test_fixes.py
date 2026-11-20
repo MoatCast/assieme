@@ -79,6 +79,12 @@ class FixesCase(unittest.TestCase):
         [t.join() for t in ts]
         self.assertEqual(self.rt.sent_to('t-builder-3'), 1)
 
+    def test_jitter_across_a_minute_boundary_is_still_one_problem(self):
+        teammap.run_automatic(views(stuck('builder-3', since_s=541)), AUTO, self.rt, log=self.log, now=NOW)  # started 11:50:59
+        later = NOW + dt.timedelta(seconds=5)
+        teammap.run_automatic(views(stuck('builder-3', since_s=545)), AUTO, self.rt, log=self.log, now=later)  # 11:51:00
+        self.assertEqual(self.rt.sent_to('t-builder-3'), 1)
+
     def test_measure_without_tokens(self):
         self.assertEqual(fixes.measure(stuck('a'), None, 5), {'minutes': 9, 'what': 'silent 9 min', 'tokens': None})
 
