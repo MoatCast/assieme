@@ -284,3 +284,21 @@ test("only today's fixes count: yesterday's fix at this minute is not 'Fixed by 
   fireEvent.click(screen.getByRole("button", { name: /builder-3/ }));
   expect(screen.getByTestId("panel-agent").getAttribute("data-fixes")).toBe("0");
 });
+
+test("All terminals counts only the terminals it can show", async () => {
+  await show(MAP({ panes: [pane("a"), pane("b", { reachable: false }), pane("c", { state: "exited" })] }));
+  expect(screen.getByRole("button", { name: /All terminals/ }).textContent).toContain("1 running");
+});
+
+test("after a merge stops the agent, Team overview still says what was merged", async () => {
+  b.reviewWaiting.mockResolvedValue([{ team: "shop", project: "/p", role: "tester", branch: "b", ahead: 1 }]);
+  const { rerender, props } = await show(QUIET);
+  fireEvent.click(screen.getByRole("button", { name: /tester, done/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "merge" }));
+  b.teamMap.mockResolvedValue(MAP({ panes: [pane("builder-1")] })); // the merge archived tester's copy: it has gone
+  rerender(<Window {...props} pollMs={100001} />);
+  await flush();
+  expect(screen.getByTestId("panel-overview")).toBeTruthy();
+  expect(screen.getByText("Merged into main · 1 commit")).toBeTruthy();
+});

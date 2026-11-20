@@ -268,7 +268,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     );
   }
   if (!map || !model) return <div className="window"><div className="window-panel">{offline && <Offline team />}</div></div>;
-  const live = map.panes.filter((p) => p.state !== "exited").length;
+  const live = map.panes.filter((p) => p.state !== "exited" && p.reachable !== false).length; // terminals All terminals can show
   const fixed = map.fixes_today?.fixed ?? 0;
   const views: Record<View, string> = {
     overview: fixed ? `${fixed} fixed today` : "",
@@ -287,7 +287,8 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
         {offline && <div className="panel-offline"><Offline team /></div>}
         {map.unreachable && <div className="panel-away"><Unreachable line={map.unreachable} onRetried={refresh} /></div>}
         {reviewPanel}
-        {!reviewing && merged && selectedPane?.role === merged.role && <p className="panel-merged" role="status">{merged.text}</p>}
+        {/* until the person picks another row: the merge usually stops the agent, and the panel then moves to Team overview */}
+        {!reviewing && merged && (selectedPane?.role === merged.role || sel?.kind === "view") && <p className="panel-merged" role="status">{merged.text}</p>}
         {!reviewing && selectedPane && (
           <AgentPanel key={`${team}/${selectedPane.role}`} team={team} pane={selectedPane} full={full} onFullSize={setFull}
             fixes={map.done.filter((r) => r.agent === selectedPane.role && r.day === today())}

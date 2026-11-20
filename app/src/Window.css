@@ -20,3 +20,6 @@
 .panel-empty-row small { color: var(--quiet-mute); font-size: 12px; line-height: 16px; }
 .panel-empty-row .btn-secondary { padding: 5px 12px; font-size: 13px; line-height: 16px; }
 .panel-offline, .panel-away { margin: 14px 24px 0; }
+/* Board and Activity already sit on the panel's sheet: no second frame inside it. */
+.window-panel .board, .window-panel .activity { padding: 0; }
+.window-panel .board-body, .window-panel .activity-sheet { border: 0; border-radius: 0; box-shadow: none; background: none; }
