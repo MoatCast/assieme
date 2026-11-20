@@ -907,3 +907,53 @@ class AutomaticMemory(unittest.TestCase):
         rows = [{'address': 't1', 'state': 'live', 'cwd': a.cwd, 'created_ms': 1, 'labels': {team.TEAM: 'shop', team.ROLE: 'b'}}]
         p = panes.view('shop', rows, [a], NOW, lambda _: '', None)['panes'][0]
         self.assertTrue(p['fix']['text'].startswith('b holds'), p['fix']['text'])
+
+
+class OneWindowDataTest(MapCase):
+    """What the one-window list needs: today's fix counts and a stopped team's run."""
+
+    def log_fix(self, role, outcome, action='nudge', at=NOW):
+        e = live.record(action, role, 'stuck', team='shop', by='auto', now=at - dt.timedelta(minutes=1),
+                        problem='stuck', check_until=fixes.check_until(at))
+        if outcome:
+            live.record('outcome', role, '', team='shop', by='auto', now=at, of=e['id'], result=outcome)
+
+    def local_ms(self, hhmm):
+        h, m = map(int, hhmm.split(':'))
+        return int(NOW.astimezone().replace(hour=h, minute=m, second=0, microsecond=0).timestamp() * 1000)
+
+    def stopped_map(self, started, stopped, fixed, done_cards):
+        rows = []
+        for i, role in enumerate(('a', 'b')):
+            r = row(role, state='exited')
+            r['created_ms'] = self.local_ms(started) + i * 1000
+            r['status_ms'] = self.local_ms(stopped) - (1 - i) * 60_000
+            rows.append(r)
+        for i in range(fixed):
+            self.log_fix(f'r{i}', 'fixed')
+        from assieme import tasks
+        for i in range(done_cards + 1):
+            c = tasks.add('shop', f'task {i}')
+            if i < done_cards:
+                tasks.move('shop', c['id'], 'done')
+        return self.build(rows)
+
+    def test_fixes_today_counts_outcomes(self):
+        self.log_fix('builder-3', outcome='fixed'); self.log_fix('tester', outcome='fixed'); self.log_fix('reviewer', outcome=None)
+        self.assertEqual(self.build([row('a')])['fixes_today'], {'fixed': 2, 'checking': 1})
+
+    def test_yesterdays_fixes_are_not_counted(self):
+        self.log_fix('builder-3', outcome='fixed', at=NOW - dt.timedelta(days=1))
+        self.assertEqual(self.build([row('a')])['fixes_today'], {'fixed': 0, 'checking': 0})
+
+    def test_stopped_team_summarises_the_run(self):
+        m = self.stopped_map(started='09:28', stopped='12:40', fixed=4, done_cards=3)
+        self.assertEqual(m['run'], {'minutes': 192, 'fixed': 4, 'tasks_done': 3, 'stopped_at': '12:40'})
+
+    def test_a_running_team_has_no_run_summary(self):
+        self.assertIsNone(self.build([row('a')])['run'])
+
+    def test_done_keeps_more_than_two_rows(self):
+        for r in ('a', 'b', 'c', 'd'):
+            self.log_fix(r, 'fixed')
+        self.assertEqual(len(self.build([row('a')])['done']), 4)

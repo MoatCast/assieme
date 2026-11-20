@@ -13,7 +13,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, answers, budget, fixes, live, newteam, panes, quiet, report, runtime, settings, status, team
+from . import activity, adapters, answers, budget, fixes, live, newteam, panes, quiet, report, runtime, settings, status, tasks, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -21,6 +21,7 @@ REFRESH_S = 120
 DONE_FOR_YOU = ('nudge', 'compact', 'tell', 'quiet')  # fixes; what the person did is in Activity
 WORDS = ('No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten')
 NEEDS_YOU = ('asking', 'stuck', 'waiting')
+DONE_ROWS = 50            # fix rows sent with the map: Team overview shows 3, an agent's panel shows its own
 
 
 def needs_you(p):
@@ -237,14 +238,30 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
         subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
                     f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
                     + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
-    done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
+    today_ = now.astimezone().strftime('%Y-%m-%d')
+    done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:DONE_ROWS]
+    mine = [r for r in done if r['day'] == today_ and r['by'] == 'auto']
+    fixes_today = {'fixed': sum(r['outcome'] == 'fixed' or r['action'] == 'quiet' for r in mine),
+                   'checking': sum(r['outcome'] == 'checking' for r in mine)}
+    stopped = not any(r.get('state') == 'live' for r in rows)
     return {'team': team_name, 'found': found, **({'run_by_assieme': bool(st['run_found'].get(team_name))} if found else {}),
-            'stopped': not any(r.get('state') == 'live' for r in rows),
+            'stopped': stopped, 'fixes_today': fixes_today,
+            'run': _run(rows, fixes_today['fixed'], team_name) if stopped and rows else None,
             'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
             'tips': tips, 'done': done,
             'spend': {'tokens': total, 'waste_share': round(rep['empty_tokens'] / total, 4)} if total else None,
             'spend_ready': getattr(today, 'ready', True)}
+
+
+def _run(rows, fixed, team_name):
+    """A stopped team's last run: from its first agent's start to its last agent's stop."""
+    run = panes._current_run(rows)
+    start = min(r.get('created_ms') or 0 for r in run)
+    end = max(r.get('status_ms') or r.get('created_ms') or 0 for r in run)
+    done = sum(c.get('status') == 'done' for c in tasks.board(team_name)['cards'])
+    return {'minutes': max(0, (end - start) // 60_000), 'fixed': fixed, 'tasks_done': done,
+            'stopped_at': dt.datetime.fromtimestamp(end / 1000).strftime('%H:%M')}
 
 
 def _hold_pair(team_name, t, now=None, **extra):

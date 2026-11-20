@@ -325,6 +325,10 @@ export type TeamMap = {
   groups: MapGroup[] | null;
   tips: Tip[];
   done: ActivityRow[];
+  /** Today's automatic fixes by outcome (the list's heading and Team overview). */
+  fixes_today?: { fixed: number; checking: number };
+  /** A stopped team's last run, for the list's heading; null while it runs. */
+  run?: { minutes: number; fixed: number; tasks_done: number; stopped_at: string } | null;
   spend: { tokens: number; waste_share: number } | null;
   spend_ready?: boolean;
   /** Daily limits, in tokens. Null for agents found on this Mac: they get none. */
