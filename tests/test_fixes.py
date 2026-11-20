@@ -5,7 +5,9 @@ import tempfile
 import threading
 import unittest
 
-from assieme import fixes, settings, teammap
+import importlib
+
+from assieme import activity, fixes, settings, teammap
 
 NOW = dt.datetime(2026, 11, 8, 12, 0, tzinfo=dt.timezone.utc)
 AUTO = settings.defaults()
@@ -99,6 +101,73 @@ class FixesCase(unittest.TestCase):
         with open(fixes.state_path(), 'w') as f:
             f.write('{nope')
         self.assertEqual(fixes.start_tokens('shop', 'a', NOW, 7, NOW), 7)
+
+
+def local(minutes):
+    return (NOW + dt.timedelta(minutes=minutes)).astimezone().strftime('%H:%M')
+
+
+class OutcomeCase(unittest.TestCase):
+    setUp, tearDown = FixesCase.setUp, FixesCase.tearDown
+
+    def nudge_at(self, now):
+        return teammap.run_automatic(views(stuck('builder-3')), AUTO, self.rt, log=self.log, now=now)[0]
+
+    def row_of(self, id):
+        rows = activity.list_rows('shop', path=self.log, now=NOW + dt.timedelta(hours=3))['rows']
+        return next(r for r in rows if r['id'] == id)
+
+    def test_nudge_is_fixed_when_the_agent_works_again(self):
+        fix = self.nudge_at(NOW)
+        fixes.check_outcomes(views(working('builder-3')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=4))
+        row = self.row_of(fix['id'])
+        self.assertEqual((row['outcome'], row['outcome_at'], row['agent']), ('fixed', local(4), 'builder-3'))
+        self.assertEqual(row['measured']['minutes'], 9)
+
+    def test_still_stuck_after_ten_minutes(self):
+        fix = self.nudge_at(NOW)
+        fixes.check_outcomes(views(stuck('builder-3', since_s=1200)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual(self.row_of(fix['id'])['outcome'], 'still_stuck')
+
+    def test_not_judged_before_the_time_limit(self):
+        self.nudge_at(NOW)
+        out = fixes.check_outcomes(views(stuck('builder-3', since_s=300)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=3))
+        self.assertEqual(out, [])
+
+    def test_checking_until_the_time_limit(self):
+        fix = self.nudge_at(NOW)
+        rows = activity.list_rows('shop', path=self.log, now=NOW + dt.timedelta(minutes=3))['rows']
+        self.assertEqual([(r['outcome'], r['check_until']) for r in rows if r['id'] == fix['id']], [('checking', local(10))])
+
+    def test_an_exited_agent_is_not_checking_forever(self):
+        fix = self.nudge_at(NOW)
+        out = fixes.check_outcomes(views(), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=11))
+        self.assertEqual(out, [])
+        self.assertIsNone(self.row_of(fix['id'])['outcome'])
+
+    def test_outcome_survives_a_brain_restart(self):
+        fix = self.nudge_at(NOW)
+        importlib.reload(fixes)  # nothing kept in memory
+        fixes.check_outcomes(views(working('builder-3')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=2))
+        self.assertEqual(self.row_of(fix['id'])['outcome'], 'fixed')
+
+    def test_one_outcome_per_fix(self):
+        self.nudge_at(NOW)
+        w = views(working('builder-3'))
+        fixes.check_outcomes(w, self.rt, log=self.log, now=NOW + dt.timedelta(minutes=1))
+        self.assertEqual(fixes.check_outcomes(w, self.rt, log=self.log, now=NOW + dt.timedelta(minutes=2)), [])
+
+    def test_outcome_entries_are_not_rows(self):
+        self.nudge_at(NOW)
+        fixes.check_outcomes(views(working('builder-3')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=1))
+        actions = [r['action'] for r in activity.list_rows('shop', path=self.log, now=NOW)['rows']]
+        self.assertNotIn('outcome', actions)
+
+    def test_other_rows_have_no_outcome(self):
+        from assieme import live
+        live.record('send', 'a', 'x', team='shop', log=self.log, now=NOW)
+        [r] = activity.list_rows('shop', path=self.log, now=NOW)['rows']
+        self.assertEqual((r['outcome'], r['outcome_at'], r['check_until'], r['measured'], r['problem']), (None,) * 5)
 
 
 if __name__ == '__main__':

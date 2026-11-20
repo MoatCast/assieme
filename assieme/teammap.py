@@ -517,7 +517,8 @@ class Brain:
             budget.check(n, views[n], self.rt, now, announce)
         if not auto:
             return []
-        return run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now))
+        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now))
+        return done + fixes.check_outcomes(views, self.rt, now=now)
 
     def _problem_tokens(self, views, now):
         """role -> (tokens now, tokens when its problem began), for the panes that have a problem."""

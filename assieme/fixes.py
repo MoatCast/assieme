@@ -3,7 +3,7 @@ import datetime as dt
 import os
 import threading
 
-from . import quiet, status
+from . import live, quiet, status
 
 CHECK_S = 600  # how long a fix has to work before it counts as not having worked
 LOCK = threading.Lock()  # check attempted -> send -> record, so two ticks never both send
@@ -48,3 +48,32 @@ def start_tokens(team, role, started, tokens_now, now):
 
 def check_until(now):
     return (now + dt.timedelta(seconds=CHECK_S)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def check_outcomes(views, rt, log=None, now=None):
+    """Judge each automatic fix not yet judged, once, and log an `outcome` entry. Everything is read from the log, so a
+    restart forgets nothing. A fix whose agent has exited gets none."""
+    now = now or status.now_utc()
+    out = []
+    with LOCK:
+        entries = live.recent_actions(log, 500)
+        done = {e.get('of') for e in entries if e.get('action') == 'outcome'}
+        for e in entries:
+            until = status.parse_ts(e.get('check_until'))
+            if e.get('by') != 'auto' or not e.get('problem') or e['id'] in done or not until:
+                continue
+            pane = next((p for p in (views.get(e.get('team')) or {}).get('panes', []) if p['role'] == e.get('agent')), None)
+            if not pane or pane.get('state') == 'exited':
+                continue
+            action = e['action']
+            if action == 'nudge':
+                fixed = pane['state'] == 'working'
+            elif action == 'compact':
+                fixed = not pane.get('memory_full')
+            else:  # tell: fixed unless the same command is refused again by the time is up
+                fixed = now >= until and not any(b.get('action') == action for b in (pane.get('fix') or {}).get('buttons', []))
+            if not fixed and now < until:
+                continue
+            out.append(live.record('outcome', e['agent'], '', team=e.get('team'), by='auto', log=log, now=now,
+                                   of=e['id'], result='fixed' if fixed else 'still_stuck'))
+    return out
