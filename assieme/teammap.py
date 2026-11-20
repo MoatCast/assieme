@@ -380,6 +380,9 @@ class HerdrRt:
     def read(self, t, lines=0):
         return self._hc('read', t)
 
+    def interrupt(self, t, timeout_s=3):
+        self.keys(t, ['Escape'])
+
 
 class Brain:
     """What the app asks about teams. One object so that `team.view`, `team.map` and the buttons see the same team."""
@@ -569,14 +572,18 @@ class Brain:
             return []
         names = {r['labels'][team.TEAM] for r in self._assieme_rows() if r.get('state') == 'live'}
         views = {n: self._map(n) for n in names if auto or n in limited}
+        if auto:  # found teams the person let Assieme run
+            views |= {n: self._map(n) for n in self._found(now)[1] if st['run_found'].get(n)}
         for n in names & limited:
             budget.check(n, views[n], self.rt, now, announce)
         if not auto:
             return []
-        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now))
+        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now), herdr=self.herdr)
         if st['fixes'].get('quiet') == 'auto':
             done += hold_automatically({n: v for n, v in views.items() if not v.get('found')}, now)
-        return done + fixes.check_outcomes(views, self.rt, now=now)
+        mine = {n: v for n, v in views.items() if not v.get('found')}  # each team's outcomes through the runtime that reaches it
+        return done + fixes.check_outcomes(mine, self.rt, now=now) + fixes.check_outcomes(
+            {n: v for n, v in views.items() if v.get('found')}, self.herdr, now=now)
 
     def _problem_tokens(self, views, now):
         """role -> (tokens now, tokens when its problem began), for the panes that have a problem."""

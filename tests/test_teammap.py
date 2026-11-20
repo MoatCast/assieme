@@ -538,6 +538,70 @@ class FoundRunTest(MapCase):
         self.assertFalse(settings.load()['run_found'].get('herdr-shop'))
 
 
+class FoundTickTest(MapCase):
+    """Found teams through TeamMap.tick, the way the app runs them."""
+    def setUp(self):
+        super().setUp()
+        self.calls = []
+        outer = self
+
+        class Herdr:
+            def send(self, t, text):
+                outer.calls.append(('send', t, text))
+
+            def interrupt(self, t, timeout_s=3):
+                outer.calls.append(('interrupt', t))
+
+            def keys(self, t, keys):
+                outer.calls.append(('keys', t))
+
+            def read(self, t, lines=0):
+                return '⏺ ok\n'
+        self.brain = teammap.Brain('/c', '/x', FakeRt([]), None, NoAnswers(), herdr=Herdr())
+        a = FoundTest.agent(self, 'a', '/w/a', 'stuck', address='w1:2')
+        a.detail, a.last = 'silent 18 min', NOW - dt.timedelta(minutes=18)
+        self.agent = a
+        self.brain._found = lambda now: ([a], {'herdr-shop': [a]})
+        settings.set_value('fixes.nudge', 'auto')
+        settings.set_value('run_found.herdr-shop', True)
+
+    def tick(self, minutes=0):
+        now = NOW + dt.timedelta(minutes=minutes)
+        with mock.patch.object(status, 'now_utc', return_value=now):
+            return self.brain.tick(now)
+
+    def sends(self, kind='send'):
+        return [c for c in self.calls if c[0] == kind]
+
+    def test_opted_in_team_gets_one_nudge_through_herdr(self):
+        self.tick()
+        self.tick(1)
+        self.assertEqual(len(self.sends()), 1)
+        self.assertEqual(self.sends()[0][1], 'w1:2')
+        self.assertEqual(self.brain.rt.sent, [])
+
+    def test_still_stuck_after_the_nudge_pauses_through_herdr(self):
+        self.tick()
+        self.tick(60)
+        self.assertEqual(self.sends('interrupt'), [('interrupt', 'w1:2')])
+        self.assertTrue(fixes.is_paused('herdr-shop', 'a'))
+
+    def test_resume_on_a_found_team_sends_through_herdr(self):
+        self.tick()
+        self.tick(60)
+        self.calls.clear()
+        with mock.patch.object(status, 'now_utc', return_value=NOW), mock.patch.object(status, 'running_cwds', return_value=set()):
+            self.brain.act('herdr-shop', 'a', 'fixpause:herdr-shop/a', 'resume')
+        self.assertEqual(self.calls, [('send', 'w1:2', fixes.RESUME)])
+
+    def test_after_undo_the_next_tick_sends_nothing(self):
+        self.brain.run_found('herdr-shop', True)
+        [e] = [x for x in live.recent_actions(None, 5) if x['action'] == 'run_found']
+        activity.undo(e['id'], self.brain.rt)
+        self.tick()
+        self.assertEqual(self.calls, [])
+
+
 class FakeRt:
     session, sock = 'assieme', '/s/hc.sock'
 
