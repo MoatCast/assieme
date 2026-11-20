@@ -6,7 +6,7 @@ import subprocess
 import time
 import uuid
 
-from . import bringover, brief, budget, herdr, live, musicians, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
+from . import bringover, brief, budget, fixes, herdr, live, musicians, newteam, panes, preset, quiet, reports, schedule, settings, status, team as team_, teammap
 
 READ_MAX_LINES = 2000
 READ_MAX_CHARS = 50_000
@@ -82,6 +82,8 @@ class Tools:
         rt = self.brain.rt
         if budget.hold(name, to, me, text):
             return {'sent': 'held', 'detail': f'{to} is paused at a daily spend limit. It gets this when the person lets it carry on.'}
+        if fixes.hold(name, to, me, text):
+            return {'sent': 'held', 'detail': f'{to} is paused until the person looks at it. It gets this when they let it carry on.'}
         if (info.get('cwd') and target.get('cwd') and quiet.is_quiet(info['cwd'], target['cwd'])
                 and not quiet.urgent(text) and quiet.deliverer_alive()):
             quiet.hold_note(target['address'], target['cwd'], text, rt.session, rt.sock, sender=me, from_cwd=quiet._real(info['cwd']))

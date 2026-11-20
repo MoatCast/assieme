@@ -7,7 +7,7 @@ import threading
 import unittest
 from unittest import mock
 
-from assieme import activity, live, panes, quiet, settings, status, team, teammap
+from assieme import activity, budget, fixes, live, panes, quiet, settings, status, team, teammap
 from assieme.model import HUMAN, Session
 from assieme.status import Agent
 
@@ -499,14 +499,55 @@ class FakeRt:
     def send(self, t, text):
         self.sent.append((t, text))
 
+    def interrupt(self, t, timeout_s=3):
+        pass
+
     def kill(self, t):
         self.killed.append(t)
+
+
+def pause_after_fix(role, rt):
+    fixes.pause('shop', role, f't-{role}', 'f1', rt, NOW, measured={'minutes': 9, 'what': 'silent 9 min', 'tokens': None})
+
+
+class FixPauseMapTest(MapCase):
+    def test_a_paused_agent_shows_the_card(self):
+        pause_after_fix('a', FakeRt())
+        m = self.build([row('a'), row('b')], [log_agent('a', 'stuck', detail='silent 9 min')])
+        a, b = m['panes']
+        self.assertEqual((a['fix']['id'], a['paused_by_fix'], b['paused_by_fix']), ('fixpause:shop/a', True, False))
+        self.assertEqual([x['id'] for x in a['fix']['buttons']], ['hint', 'resume'])
+        self.assertEqual([n.get('paused', False) for n in m['nodes']], [True, False])
+
+    def test_a_budget_pause_wins(self):
+        rt = FakeRt()
+        pause_after_fix('a', rt)
+        rows, sessions = [row('a', 'working')], [session('a', tokens=2000)]
+        budget.set_limits('shop', {'*': 1000}, 'pause', rt, {'a': 2000}, 2000, now=NOW)
+        budget.check('shop', self.build(rows, sessions=sessions), rt, NOW)
+        p = self.build(rows, sessions=sessions)['panes'][0]
+        self.assertEqual((p['fix'].get('budget'), p['paused_by_fix']), ('*', False))
 
 
 class BrainTest(MapCase):
     def brain(self, rows=()):
         d = tempfile.mkdtemp()
         return teammap.Brain(os.path.join(d, 'c'), os.path.join(d, 'x'), FakeRt(rows), None, NoAnswers())
+
+    def test_resume_button_through_pane_act(self):
+        self.tm = self.brain([row('builder-3')])
+        pause_after_fix('builder-3', self.tm.rt)
+        with mock.patch.object(status, 'running_cwds', return_value=set()):
+            self.assertEqual(self.tm.act('shop', 'builder-3', 'fixpause:shop/builder-3', 'resume'), {'ok': True, 'detail': ''})
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+        self.assertEqual(self.tm.rt.sent, [('t-builder-3', fixes.RESUME)])
+
+    def test_the_app_never_gets_refused_commands(self):
+        with mock.patch.object(status, 'running_cwds', return_value=set()):
+            b = self.brain([row('a', 'working')])
+            self.assertNotIn('refused', b.map('shop')['panes'][0])
+            self.assertNotIn('refused', b.view('shop')['panes'][0])
+            self.assertIn('refused', b._map('shop')['panes'][0])  # the brain's own tick still reads them
 
     def test_one_view_reads_the_logs_once_for_the_same_terminals(self):
         b = self.brain()

@@ -130,6 +130,11 @@ class ViewTest(unittest.TestCase):
         b = pane(view([row('r', 'working')], [refused]), 'r')['fix']['buttons']
         self.assertEqual(b[0]['label'], 'Tell it to stop retrying')
 
+    def test_refusals_kept_only_as_long_as_a_fix_can_be_judged(self):
+        old = NOW - dt.timedelta(minutes=41)
+        a = log_agent('R', 'r', 'working', refused=[(old, 'make old', '', ''), (NOW, 'make new', '', '')])
+        self.assertEqual([x for _, x in pane(view([row('r', 'working')], [a]), 'r')['refused']], ['make new'])
+
     def test_exited_pane(self):
         p = pane(view([row('a', state='finished')], screens={'t-a': 'work\nError: boom\n\n'}), 'a')
         self.assertEqual((p['fix'], p['detail']), (None, 'Error: boom'))

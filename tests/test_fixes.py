@@ -1,4 +1,5 @@
 """One automatic fix per problem, with the problem measured."""
+import collections
 import datetime as dt
 import os
 import tempfile
@@ -202,6 +203,103 @@ class OutcomeCase(unittest.TestCase):
         live.record('send', 'a', 'x', team='shop', log=self.log, now=NOW)
         [r] = activity.list_rows('shop', path=self.log, now=NOW)['rows']
         self.assertEqual((r['outcome'], r['outcome_at'], r['check_until'], r['measured'], r['problem']), (None,) * 5)
+
+
+class PauseRt:
+    def __init__(self):
+        self.sent, self.interrupts = collections.defaultdict(list), []
+
+    def send(self, t, text):
+        self.sent[t].append(text)
+
+    def interrupt(self, t, timeout_s=3):
+        self.interrupts.append(t)
+
+
+class PauseCase(unittest.TestCase):
+    def setUp(self):
+        FixesCase.setUp(self)
+        self.rt = PauseRt()
+
+    tearDown = FixesCase.tearDown
+
+    def still_stuck(self, role):
+        self.fix = teammap.run_automatic(views(stuck(role)), AUTO, self.rt, log=self.log, now=NOW)[0]
+        fixes.check_outcomes(views(stuck(role, since_s=1200)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.rt.sent.clear()
+
+    def test_still_stuck_nudge_pauses_once(self):
+        self.still_stuck('builder-3')
+        self.assertEqual(self.rt.interrupts, ['t-builder-3'])
+        self.assertTrue(fixes.is_paused('shop', 'builder-3'))
+        fixes.check_outcomes(views(working('builder-3')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=12))
+        self.assertEqual(self.rt.interrupts, ['t-builder-3'])  # never twice
+
+    def test_paused_pane_card(self):
+        self.still_stuck('builder-3')
+        f = fixes.pane_fix('shop', 'builder-3', NOW)
+        self.assertEqual([b['label'] for b in f['buttons']], ['Give it a hint', 'Resume as is'])
+        self.assertEqual((f['id'], f['pause']), ('fixpause:shop/builder-3', {'at': local(10), 'of': self.fix['id']}))
+        self.assertEqual(f['text'], 'No progress for 10 min after Assieme asked it to try another way.')
+        self.assertIn('silent 9 min', f['detail'])
+        self.assertIsNone(fixes.pane_fix('shop', 'other', NOW))
+
+    def test_the_pause_is_a_row(self):
+        self.still_stuck('builder-3')
+        titles = [r['title'] for r in activity.list_rows('shop', path=self.log, now=NOW + dt.timedelta(minutes=11))['rows']]
+        self.assertIn('Paused builder-3: still stuck after a fix', titles)
+
+    def test_resume_sends_the_message_and_held_notes(self):
+        self.still_stuck('builder-3')
+        self.assertTrue(fixes.hold('shop', 'builder-3', 'planner', 'use the flag'))
+        self.assertEqual(fixes.resume('shop', 'builder-3', self.rt, log=self.log, now=NOW)['ok'], True)
+        self.assertEqual(self.rt.sent['t-builder-3'][0], fixes.RESUME)
+        self.assertIn('use the flag', self.rt.sent['t-builder-3'][1])
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+        self.assertFalse(fixes.resume('shop', 'builder-3', self.rt, log=self.log, now=NOW)['ok'])  # a second press
+
+    def test_not_paused_means_not_held(self):
+        self.assertFalse(fixes.hold('shop', 'builder-3', 'planner', 'x'))
+
+    def test_typing_in_its_terminal_ends_the_pause(self):
+        self.still_stuck('builder-3')
+        fixes.check_outcomes(views(working('builder-3')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=15))
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+        rows = activity.list_rows('shop', path=self.log, now=NOW + dt.timedelta(minutes=16))['rows']
+        self.assertEqual((rows[0]['action'], rows[0]['by'], rows[0]['reason']), ('fix_resume', 'you', 'You wrote to it in its terminal.'))
+
+    def test_an_agent_that_exits_is_no_longer_paused(self):
+        self.still_stuck('builder-3')
+        fixes.check_outcomes(views(), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=12))
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+
+    def test_pause_survives_a_brain_restart(self):
+        self.still_stuck('builder-3')
+        importlib.reload(fixes)
+        self.assertTrue(fixes.is_paused('shop', 'builder-3'))
+
+    def test_a_fix_whose_send_failed_never_pauses(self):
+        from assieme import live
+        live.record('nudge', 'builder-3', 'x', False, 'gone', team='shop', by='auto', log=self.log, now=NOW, problem='k',
+                    check_until=fixes.check_until(NOW))
+        out = fixes.check_outcomes(views(stuck('builder-3', since_s=1200)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual((out, self.rt.interrupts), ([], []))
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+
+    def test_a_compact_that_did_not_work_does_not_pause(self):
+        from assieme import live
+        live.record('compact', 'builder-3', 'x', team='shop', by='auto', log=self.log, now=NOW, problem='k',
+                    check_until=fixes.check_until(NOW))
+        full = dict(stuck('builder-3', since_s=1200), memory_full=True)
+        [o] = fixes.check_outcomes(views(full), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual((o['result'], self.rt.interrupts), ('still_stuck', []))
+
+    def test_damaged_pause_state_reads_as_not_paused(self):
+        os.makedirs(os.path.dirname(fixes.state_path()), exist_ok=True)
+        with open(fixes.state_path(), 'w') as f:
+            f.write('{"paused": 3}')
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+        self.assertIsNone(fixes.pane_fix('shop', 'builder-3', NOW))
 
 
 if __name__ == '__main__':

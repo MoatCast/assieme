@@ -224,6 +224,11 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
                         f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
                         + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
+    for p, n in zip(v['panes'], nodes):  # paused after a fix that didn't work; a budget pause wins
+        card = None if n.get('paused') or p['state'] in ('asking', 'exited') else fixes.pane_fix(team_name, p['role'], now)
+        p['paused_by_fix'] = bool(card)
+        if card:
+            p['fix'], p['detail'], n['paused'] = card, 'Paused: still stuck after a fix', True
     done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
     return {'team': team_name, 'found': found,
             'stopped': not any(r.get('state') == 'live' for r in rows),
@@ -416,8 +421,15 @@ class Brain:
                       newteam.roster(team))
         return built, rows, agents
 
-    def map(self, team):
+    def _map(self, team):
         return self._built(team, status.now_utc())[0]
+
+    def map(self, team):
+        """What leaves the brain: refused-command labels can hold arguments, so only the tick reads them."""
+        built = self._map(team)
+        for p in built['panes']:
+            p.pop('refused', None)
+        return built
 
     def view(self, team):
         built = self.map(team)
@@ -426,6 +438,8 @@ class Brain:
 
     def act(self, team, role, fix, button, by='you'):
         _, _, _, rt = self._resolve(team, status.now_utc())
+        if fix == f'fixpause:{team}/{role}' and button == 'resume':  # it logs its own row; a second press does nothing
+            return fixes.resume(team, role, rt, by=by)
         return panes.act(team, role, fix, button, lambda: self.map(team), rt, by=by)
 
     def detail(self, team, role):
@@ -512,7 +526,7 @@ class Brain:
         if not limited and not auto:
             return []
         names = {r['labels'][team.TEAM] for r in self._assieme_rows() if r.get('state') == 'live'}
-        views = {n: self.map(n) for n in names if auto or n in limited}
+        views = {n: self._map(n) for n in names if auto or n in limited}
         for n in names & limited:
             budget.check(n, views[n], self.rt, now, announce)
         if not auto:

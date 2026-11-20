@@ -4,10 +4,14 @@ import os
 import re
 import threading
 
-from . import live, quiet, status
+from . import budget, live, quiet, status
 
 CHECK_S = 600  # how long a fix has to work before it counts as not having worked
 LOCK = threading.Lock()  # check attempted -> send -> record, so two ticks never both send
+RESUME = ('assieme: the person has let you carry on. Assieme paused you because the same problem continued after its '
+          'suggestion; try a different approach.')
+PAUSED = f'No progress for {CHECK_S // 60} min after Assieme asked it to try another way.'
+GONE = 'This has already carried on.'
 
 
 def state_path():
@@ -17,6 +21,102 @@ def state_path():
 def _state():
     s = quiet._read_json(state_path(), {})
     return s if isinstance(s, dict) else {}
+
+
+def _paused(state):
+    """team/role -> {'at', 'of', 'address', 'stopped', 'notes', 'measured'}. Damaged reads as nobody paused."""
+    if not isinstance(state.get('paused'), dict):
+        state['paused'] = {}
+    return state['paused']
+
+
+def _pane(views, team, role):
+    return next((p for p in (views.get(team) or {}).get('panes', []) if p['role'] == role), None)
+
+
+def _pause(paused, team, role, address, of, measured, rt, now, log, press=True):
+    """Under LOCK. Presses the agent's stop key once; it is never pressed again for this pause."""
+    k = f'{team}/{role}'
+    if k in paused:
+        return paused[k]
+    stopped = False
+    if press:
+        try:
+            rt.interrupt(address)
+            stopped = True
+        except Exception:  # not retried: Resume, or the person typing in its terminal, ends the pause
+            pass
+    paused[k] = {'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'), 'of': of, 'address': address, 'stopped': stopped, 'notes': [],
+                 'measured': measured}
+    live.record('fix_pause', role, PAUSED, team=team, by='auto', address=address, log=log, now=now,
+                title=f'Paused {role}: still stuck after a fix')
+    return paused[k]
+
+
+def pause(team, role, address, of, rt, now, log=None, measured=None):
+    with LOCK:
+        state = _state()
+        x = _pause(_paused(state), team, role, address, of, measured, rt, now, log)
+        quiet._write_json(state_path(), state)
+        return x
+
+
+def is_paused(team, role):
+    return isinstance(_paused(_state()).get(f'{team}/{role}'), dict)
+
+
+def hold(team, role, sender, text):
+    """Keep a message for an agent paused after a fix. False when it isn't paused, so the caller sends it as usual."""
+    with LOCK:
+        state = _state()
+        x = _paused(state).get(f'{team}/{role}')
+        if not isinstance(x, dict):
+            return False
+        x.setdefault('notes', []).append({'from': sender, 'text': text})
+        quiet._write_json(state_path(), state)
+        return True
+
+
+def resume(team, role, rt, log=None, now=None, by='you'):
+    """Let it carry on: RESUME, then the messages held for it."""
+    now = now or status.now_utc()
+    with LOCK:
+        state = _state()
+        x = _paused(state).pop(f'{team}/{role}', None)
+        if not isinstance(x, dict):
+            return {'ok': False, 'detail': GONE}
+        quiet._write_json(state_path(), state)
+    notes = x.get('notes') or []
+    texts = [RESUME] + (['Messages that arrived while you were paused:\n' +
+                         '\n'.join(f"- from {n['from']}: {n['text']}" for n in notes)] if notes else [])
+    try:
+        for t in texts:
+            rt.send(x['address'], t)
+        ok, detail = True, ''
+    except Exception as e:
+        ok, detail = False, str(e)[:120]
+    live.record('fix_resume', role, 'You let it carry on.', ok, detail, team=team, by=by, address=x['address'], log=log,
+                now=now, title=f'Let {role} carry on')
+    return {'ok': ok, 'detail': detail}
+
+
+def _measured_line(m):
+    if not isinstance(m, dict):
+        return ''
+    what = m.get('what') or f"no progress for {m.get('minutes')} min"
+    return f'Before the fix: {what}.' + (f" {budget.words(m['tokens'])} tokens used on it." if m.get('tokens') else '')
+
+
+def pane_fix(team, role, now):
+    """The Needs-you card of an agent paused after a fix, or None."""
+    x = _paused(_state()).get(f'{team}/{role}')
+    if not isinstance(x, dict):
+        return None
+    at = status.parse_ts(x.get('at'))
+    return {'id': f'fixpause:{team}/{role}', 'pause': {'at': at.astimezone().strftime('%H:%M') if at else '', 'of': x.get('of')},
+            'text': PAUSED, 'detail': _measured_line(x.get('measured')), 'question': None,
+            'buttons': [{'id': 'hint', 'label': 'Give it a hint', 'kind': 'reply'},
+                        {'id': 'resume', 'label': 'Resume as is', 'kind': 'action'}]}
 
 
 def problem_key(team, role, action, started):
@@ -53,17 +153,21 @@ def check_until(now):
 
 def check_outcomes(views, rt, log=None, now=None):
     """Judge each automatic fix not yet judged, once, and log an `outcome` entry. Everything is read from the log, so a
-    restart forgets nothing. A fix whose agent has exited gets none."""
+    restart forgets nothing. A fix whose agent has exited gets none, and so does one whose send failed.
+    A nudge that ends still stuck pauses its agent; a pause ends when the agent exits or the person makes it work."""
     now = now or status.now_utc()
     out = []
     with LOCK:
+        state = _state()
+        before = repr(state)
+        paused = _paused(state)
         entries = live.recent_actions(log, 500)
         done = {e.get('of') for e in entries if e.get('action') == 'outcome'}
         for e in entries:
             until = status.parse_ts(e.get('check_until'))
-            if e.get('by') != 'auto' or not e.get('problem') or e['id'] in done or not until:
+            if e.get('by') != 'auto' or not e.get('problem') or e['id'] in done or not until or e.get('ok') is False:
                 continue
-            pane = next((p for p in (views.get(e.get('team')) or {}).get('panes', []) if p['role'] == e.get('agent')), None)
+            pane = _pane(views, e.get('team'), e.get('agent'))
             if not pane or pane.get('state') == 'exited':
                 continue
             action = e['action']
@@ -83,6 +187,22 @@ def check_outcomes(views, rt, log=None, now=None):
                 continue
             out.append(live.record('outcome', e['agent'], '', team=e.get('team'), by='auto', log=log, now=now,
                                    of=e['id'], result='fixed' if fixed else 'still_stuck'))
+            if action == 'nudge' and not fixed:  # a real question on screen: Esc would refuse it, so it is not pressed
+                _pause(paused, e['team'], e['agent'], pane['address'], e['id'], e.get('measured'), rt, now, log,
+                       press=pane['state'] != 'asking')
+        for k in list(paused):
+            team, role = k.split('/', 1)
+            if team not in views:
+                continue  # not looked at this tick
+            pane, x = _pane(views, team, role), paused[k]
+            if not isinstance(x, dict) or not pane or pane.get('state') == 'exited' or pane['address'] != x.get('address'):
+                del paused[k]  # it exited, or a new agent has its name
+            elif pane['state'] == 'working' and x.get('stopped'):
+                del paused[k]
+                live.record('fix_resume', role, 'You wrote to it in its terminal.', team=team, by='you', address=pane['address'],
+                            log=log, now=now, title=f'Let {role} carry on')
+        if repr(state) != before:
+            quiet._write_json(state_path(), state)
     return out
 
 

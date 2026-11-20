@@ -12,7 +12,7 @@ from unittest import mock
 from mcp import Client
 from mcp.types import ElicitResult
 
-from assieme import brief, mcpserver, mcptools, newteam, panes, quiet, reports, settings, team
+from assieme import brief, fixes, mcpserver, mcptools, newteam, panes, quiet, reports, settings, status, team
 
 NOW_MS = 1_000_000_000_000
 
@@ -176,6 +176,15 @@ class ToolsTest(State):
         with self.assertRaisesRegex(ValueError, 'still starting'):
             t.message('t1', 'c', 'hi')
         self.assertEqual(self.brain.rt.sent, [])
+
+    def test_a_message_to_an_agent_paused_after_a_fix_waits(self):
+        t = self.tools([row('a', 't1'), row('b', 't2')])
+        with mock.patch.object(self.brain.rt, 'interrupt', create=True):
+            fixes.pause('shop', 'b', 't2', 'f1', self.brain.rt, status.now_utc())
+        self.assertEqual(t.message('t1', 'b', 'use the flag')['sent'], 'held')
+        self.assertEqual(self.brain.rt.sent, [])
+        fixes.resume('shop', 'b', self.brain.rt)
+        self.assertIn('- from a: use the flag', self.brain.rt.sent[-1][1])
 
     def test_a_quiet_pair_holds_routine_notes_but_not_questions(self):
         t = self.tools([row('a', 't1', cwd=self.dir), row('b', 't2', cwd=os.path.join(self.dir, 'teams'))])
