@@ -26,3 +26,8 @@ assieme = ["practices.toml", "presets/*/*", "presets/briefs/*", "guide/*", "open
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
