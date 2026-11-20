@@ -13,7 +13,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, answers, budget, live, newteam, panes, quiet, report, runtime, settings, status, team
+from . import activity, adapters, answers, budget, fixes, live, newteam, panes, quiet, report, runtime, settings, status, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -284,32 +284,38 @@ def detail(team_name, role, built, agents, roster, now, rows=None, show_commands
             'wakers': _wakers(a, alias, now) if a else [], 'empty_wakes': sum(e['empty'] for e in edge_in)}
 
 
-def run_automatic(views, st, rt, log=None, now=None):
+def run_automatic(views, st, rt, log=None, now=None, tokens=None):
     """Carry out the fixes switched to automatic, on teams started in Assieme only. Only buttons that are fixes: a
-    question is the person's to answer. One of each per agent per live.ACTED_HIDE."""
+    question is the person's to answer. One attempt per problem (fixes.problem_key), measured as it starts.
+    `tokens` is role -> (tokens now, tokens when the problem began)."""
     now = now or status.now_utc()
-    # A failed try waits too: otherwise it would retry and log a row every tick.
-    recent = [e for e in live.recent_actions(log, 200) if status.parse_ts(e.get('at'))
-              and (now - status.parse_ts(e['at'])).total_seconds() <= live.ACTED_HIDE]
-    done = {(e.get('team'), e.get('agent'), e.get('action')) for e in recent}
     out = []
-    for name, built in views.items():
-        if built.get('found'):
-            continue
-        for p in built['panes']:
-            for b in (p['fix'] or {}).get('buttons', []):
-                action = b.get('action')
-                if b['kind'] != 'action' or st['fixes'].get(action) != 'auto' or (name, p['role'], action) in done:
-                    continue
-                if action == 'compact' and not p.get('memory_full'):
-                    continue  # asking can come sooner; doing it without asking waits until memory really is full
-                try:
-                    rt.send(p['address'], b['send'])
-                    ok, detail_ = True, 'sent'
-                except Exception as e:  # a failed fix is a row in Activity, and the others still run
-                    ok, detail_ = False, str(e)[:120]
-                out.append(live.record(action, p['role'], p['fix']['text'], ok, detail_, team=name, by='auto',
-                                       address=p['address'], log=log, now=now))
+    with fixes.LOCK:  # a failed try counts as the attempt too: otherwise it would retry and log a row every tick
+        entries = live.recent_actions(log, 500)
+        for name, built in views.items():
+            if built.get('found'):
+                continue
+            for p in built['panes']:
+                for b in (p['fix'] or {}).get('buttons', []):
+                    action = b.get('action')
+                    if b['kind'] != 'action' or st['fixes'].get(action) != 'auto':
+                        continue
+                    if action == 'compact' and not p.get('memory_full'):
+                        continue  # asking can come sooner; doing it without asking waits until memory really is full
+                    key = fixes.problem_key(name, p['role'], action, now - dt.timedelta(seconds=p['since_s']))
+                    if fixes.attempted(key, entries):
+                        continue
+                    try:
+                        rt.send(p['address'], b['send'])
+                        ok, detail_ = True, 'sent'
+                    except Exception as e:  # a failed fix is a row in Activity, and the others still run
+                        ok, detail_ = False, str(e)[:120]
+                    now_t, start_t = (tokens or {}).get(p['role'], (None, None))
+                    entry = live.record(action, p['role'], p['fix']['text'], ok, detail_, team=name, by='auto',
+                                        address=p['address'], log=log, now=now, problem=key,
+                                        measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now))
+                    entries.append(entry)
+                    out.append(entry)
     return out
 
 
@@ -506,7 +512,23 @@ class Brain:
         views = {n: self.map(n) for n in names if auto or n in limited}
         for n in names & limited:
             budget.check(n, views[n], self.rt, now, announce)
-        return run_automatic(views, st, self.rt, now=now) if auto else []
+        if not auto:
+            return []
+        return run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now))
+
+    def _problem_tokens(self, views, now):
+        """role -> (tokens now, tokens when its problem began), for the panes that have a problem."""
+        out = {}
+        for n, built in views.items():
+            if built.get('found'):
+                continue
+            agents = _team_report(self._assieme_rows(n), self.today, now)['agents']
+            for p in built['panes']:
+                if p['fix']:
+                    t = (agents.get(p['role']) or {}).get('tokens')
+                    began = now - dt.timedelta(seconds=p['since_s'])
+                    out[p['role']] = (t, fixes.start_tokens(n, p['role'], began, t, now) if t is not None else None)
+        return out
 
     def handlers(self):
         from . import agenttools, improve  # they read teams through this module

@@ -444,12 +444,15 @@ class RunAutomaticTest(MapCase):
         self.assertEqual(self.auto({'shop': self.stuck()}), [])
         self.assertEqual(len(self.sent), 1)
 
-    def test_it_can_repeat_after_the_wait(self):
+    def test_it_does_not_repeat_for_the_same_problem(self):
         settings.set_value('fixes.nudge', 'auto')
         self.auto({'shop': self.stuck()})
         later = NOW + dt.timedelta(seconds=live.ACTED_HIDE + 1)
-        teammap.run_automatic({'shop': self.stuck()}, settings.load(), self.rt, now=later)
-        self.assertEqual(len(self.sent), 2)
+        built = self.stuck()
+        for p in built['panes']:
+            p['since_s'] += live.ACTED_HIDE + 1  # the same problem, seen later
+        teammap.run_automatic({'shop': built}, settings.load(), self.rt, now=later)
+        self.assertEqual(len(self.sent), 1)
 
     def test_logged_by_auto(self):
         settings.set_value('fixes.nudge', 'auto')
