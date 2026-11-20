@@ -94,7 +94,11 @@ async fn terminal_read(session: String, address: String) -> Result<String, Strin
 
 #[tauri::command]
 async fn service_running() -> bool {
-    service::running("launchctl")
+    tauri::async_runtime::spawn_blocking(|| {
+        service::running("launchctl") && service::answers(&bridge::brain_socket(), std::time::Duration::from_secs(1))
+    })
+    .await
+    .unwrap_or(false)
 }
 
 /// Install the background brain with the Python and hc bundled inside the app.
