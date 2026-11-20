@@ -259,7 +259,7 @@ test("a merge returns to the window with the notice, and Undo reports back", asy
   undo.mockResolvedValue({ role: "builder-1", base: "main" });
   await openReview();
   fireEvent.click(screen.getByRole("button", { name: "merge" }));
-  expect(screen.getByTestId("notice").textContent).toBe("Merged builder-1 into main. Its worktree is archived.");
+  expect(screen.getByTestId("notice").textContent).toBe("Merged builder-1 into main. Its copy was cleaned up.");
   expect(screen.getByText("window for beta")).toBeTruthy();
   expect(screen.getByRole("button", { name: "notice ends after 120000" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));

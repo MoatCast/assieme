@@ -177,7 +177,7 @@ test("a refused merge shows the brain's words and keeps the screen", async () =>
 test("Discard asks first and says what goes", async () => {
   await open();
   await click("Discard changes");
-  expect(screen.getByText(/removes its 3 commits and its worktree/)).toBeInTheDocument();
+  expect(screen.getByText(/^This stops builder-1 and removes its copy, with its 3 saved versions and any unsaved changes\.$/)).toBeInTheDocument();
   await click("Keep it");
   expect(b.reviewDiscard).not.toHaveBeenCalled();
   await click("Discard changes");

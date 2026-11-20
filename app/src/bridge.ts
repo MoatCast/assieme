@@ -248,8 +248,6 @@ export type Pane = {
   paused_by_fix?: boolean;
   /** `budget` is set on a pause at a daily limit: its scope ("*" is the whole team), who is paused, and the line under the question. */
   fix: { id: string; text: string; buttons: PaneButton[]; budget?: string; who?: string; detail?: string; pause?: { at: string; of: string } } | null;
-  /** Paused by Assieme after a fix that didn't work (it usually reads idle then). */
-  paused_by_fix?: boolean;
 };
 export type TeamView = { team: string; panes: Pane[]; strip: { role: string; text: string }[] };
 

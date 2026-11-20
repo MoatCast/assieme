@@ -330,7 +330,7 @@ export default function Review({ team, role, pollMs = 5000, from = role, onBack,
             {dialog === "discard" && (
               <>
                 <div className="sheet-title">Discard {role}'s work?</div>
-                <p>This stops {role} and removes its {plural(data.ahead, "commit")} and its worktree, along with any uncommitted changes.</p>
+                <p>This stops {role} and removes its copy, with its {plural(data.ahead, "saved version")} and any unsaved changes.</p>
                 <div className="sheet-actions">
                   <button type="button" className="quiet" disabled={busy} onClick={() => setDialog(null)}>Keep it</button>
                   <button type="button" className="danger" disabled={busy} onClick={() => act(async () => {
