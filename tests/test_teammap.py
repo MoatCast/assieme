@@ -553,7 +553,7 @@ class FoundTickTest(MapCase):
                 outer.calls.append(('interrupt', t))
 
             def keys(self, t, keys):
-                outer.calls.append(('keys', t))
+                outer.calls.append(('keys', t, list(keys)))
 
             def read(self, t, lines=0):
                 return '⏺ ok\n'
@@ -593,6 +593,11 @@ class FoundTickTest(MapCase):
         with mock.patch.object(status, 'now_utc', return_value=NOW), mock.patch.object(status, 'running_cwds', return_value=set()):
             self.brain.act('herdr-shop', 'a', 'fixpause:herdr-shop/a', 'resume')
         self.assertEqual(self.calls, [('send', 'w1:2', fixes.RESUME)])
+
+    def test_interrupt_presses_esc_by_the_name_hc_knows(self):
+        with mock.patch.object(teammap.HerdrRt, '_hc') as hc:
+            teammap.HerdrRt().interrupt('w1:2')
+        hc.assert_called_once_with('keys', 'w1:2', 'esc')
 
     def test_after_undo_the_next_tick_sends_nothing(self):
         self.brain.run_found('herdr-shop', True)

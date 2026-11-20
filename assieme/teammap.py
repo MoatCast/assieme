@@ -381,7 +381,7 @@ class HerdrRt:
         return self._hc('read', t)
 
     def interrupt(self, t, timeout_s=3):
-        self.keys(t, ['Escape'])
+        self.keys(t, ['esc'])
 
 
 class Brain:
