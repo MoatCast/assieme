@@ -54,10 +54,10 @@ test("a container agent says what it sees, and Add waits for the container", asy
   fireEvent.click(screen.getByRole("radio", { name: /A container/ }));
   await act(async () => {});
   expect(screen.getByText("Docker is on this Mac but not running.")).toBeTruthy();
-  expect(screen.getByText(/in its copy of shop, and nothing outside it/)).toBeTruthy();
+  expect(screen.getByText(/in its copy of shop, and no file outside it/)).toBeTruthy();
   expect((screen.getByRole("button", { name: "Add agent" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole("checkbox", { name: /Let it use my Gemini sign-in/ }));
-  expect(screen.getByText("On: it can read your Gemini sign-in file, read-only, and nothing else of yours.")).toBeTruthy();
+  expect(screen.getByText("On: it can read your Gemini sign-in file, read-only, and no other file of yours.")).toBeTruthy();
 });
 
 test("Cursor keeps its sign-in in the Keychain, so sharing isn't offered; no Docker says so", async () => {
