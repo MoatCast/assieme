@@ -57,7 +57,7 @@ def _undo_fix(e, rt):
 
 
 def _undo_run_found(e, rt):
-    settings.set_value(f'run_found.{e["team"]}', False)
+    settings.set_value(f'run_found.{e["team"]}', bool(e.get('old')))
 
 
 def _undo_practice(e, rt):

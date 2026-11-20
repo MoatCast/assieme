@@ -537,6 +537,16 @@ class FoundRunTest(MapCase):
         activity.undo(e['id'], self.rt)
         self.assertFalse(settings.load()['run_found'].get('herdr-shop'))
 
+    def test_turning_run_found_off_is_its_own_row_and_undo_turns_it_back_on(self):
+        brain = teammap.Brain('/c', '/x', self.rt, None, NoAnswers())
+        settings.set_value('run_found.herdr-shop', True)
+        brain.run_found('herdr-shop', False)
+        self.assertFalse(settings.load()['run_found'].get('herdr-shop'))
+        [r] = [x for x in activity.list_rows('herdr-shop')['rows'] if x['action'] == 'run_found']
+        self.assertEqual((r['title'], r['reason']), ('Stopped running herdr-shop', 'You took this team back.'))
+        activity.undo(r['id'], self.rt)
+        self.assertTrue(settings.load()['run_found'].get('herdr-shop'))
+
 
 class FoundTickTest(MapCase):
     """Found teams through TeamMap.tick, the way the app runs them."""
@@ -599,7 +609,22 @@ class FoundTickTest(MapCase):
             teammap.HerdrRt().interrupt('w1:2')
         hc.assert_called_once_with('keys', 'w1:2', 'esc')
 
+    def test_a_pause_ends_by_itself_when_every_fix_asks_first(self):
+        self.tick()
+        self.tick(60)
+        fixes.hold('herdr-shop', 'a', 'planner', 'use the flag')
+        for k in settings.defaults()['fixes']:
+            settings.set_value(f'fixes.{k}', 'ask')
+        self.calls.clear()
+        self.agent.turn_start = NOW + dt.timedelta(minutes=61)
+        self.tick(62)
+        self.assertFalse(fixes.is_paused('herdr-shop', 'a'))
+        [(_, to, text)] = self.sends()  # the held note, and no automatic fix
+        self.assertEqual(to, 'w1:2')
+        self.assertIn('- from planner: use the flag', text)
+
     def test_after_undo_the_next_tick_sends_nothing(self):
+        settings.set_value('run_found.herdr-shop', False)  # undo restores what it was before
         self.brain.run_found('herdr-shop', True)
         [e] = [x for x in live.recent_actions(None, 5) if x['action'] == 'run_found']
         activity.undo(e['id'], self.brain.rt)
@@ -816,6 +841,24 @@ class BrainTest(MapCase):
         out = self.tick_with_tip(fixes_quiet='ask')
         self.assertFalse([x for x in out if x['action'] == 'quiet'])
         self.assertFalse(quiet.is_quiet(f'{WT}/a', f'{WT}/b'))
+
+    def test_tick_counts_tokens_per_team_when_two_teams_share_a_role(self):
+        settings.set_value('fixes.nudge', 'auto')
+        rows = [dict(row('builder'), address=f't-{n}', labels={team.TEAM: n, team.ROLE: 'builder'}) for n in ('shop', 'cafe')]
+        b = self.brain(rows)
+        pane = lambda n: {'role': 'builder', 'address': f't-{n}', 'state': 'stuck', 'since_s': 540, 'detail': 'silent 9 min',
+                          'memory_full': False, 'fix': {'text': 'It has gone quiet.',
+                                                        'buttons': [{'kind': 'action', 'action': 'nudge', 'send': 'continue'}]}}
+        began = NOW - dt.timedelta(seconds=540)
+        fixes.start_tokens('shop', 'builder', began, 100, began)
+        fixes.start_tokens('cafe', 'builder', began, 4000, began)
+        used = {'shop': 1000, 'cafe': 5000}
+        report = lambda rows, today, now: {'agents': {'builder': {'tokens': used[rows[0]['labels'][team.TEAM]]}}}
+        with mock.patch.object(b, '_map', side_effect=lambda n: {'found': False, 'panes': [pane(n)]}), \
+                mock.patch.object(b, '_found', return_value=([], {})), mock.patch.object(teammap, '_team_report', report), \
+                mock.patch.object(b.today, 'refresh'):
+            got = b.tick(NOW)
+        self.assertEqual({e['team']: e['measured']['tokens'] for e in got}, {'shop': 900, 'cafe': 1000})
 
     def test_tick_reads_no_teams_while_everything_asks_first(self):
         for k in settings.defaults()['fixes']:

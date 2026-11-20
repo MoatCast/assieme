@@ -61,6 +61,10 @@ def pause(team, role, address, of, rt, now, log=None, measured=None):
         return x
 
 
+def paused_teams():
+    return {k.split('/', 1)[0] for k in _paused(_state())}
+
+
 def is_paused(team, role):
     return isinstance(_paused(_state()).get(f'{team}/{role}'), dict)
 
@@ -86,9 +90,7 @@ def resume(team, role, rt, log=None, now=None, by='you'):
         if not isinstance(x, dict):
             return {'ok': False, 'detail': GONE}
         quiet._write_json(state_path(), state)
-    notes = x.get('notes') or []
-    texts = [RESUME] + (['Messages that arrived while you were paused:\n' +
-                         '\n'.join(f"- from {n['from']}: {n['text']}" for n in notes)] if notes else [])
+    texts = [RESUME] + _held(x)
     try:
         for t in texts:
             rt.send(x['address'], t)
@@ -98,6 +100,12 @@ def resume(team, role, rt, log=None, now=None, by='you'):
     live.record('fix_resume', role, 'You let it carry on.', ok, detail, team=team, by=by, address=x['address'], log=log,
                 now=now, title=f'Let {role} carry on')
     return {'ok': ok, 'detail': detail}
+
+
+def _held(x):
+    notes = x.get('notes') or []
+    return ['Messages that arrived while you were paused:\n' +
+            '\n'.join(f"- from {n['from']}: {n['text']}" for n in notes)] if notes else []
 
 
 def _measured_line(m):
@@ -164,7 +172,7 @@ def check_outcomes(views, rt, log=None, now=None):
     restart forgets nothing. A fix whose agent has exited gets none, and so does one whose send failed.
     A nudge that ends still stuck pauses its agent; a pause ends when the agent exits or the person makes it work."""
     now = now or status.now_utc()
-    out = []
+    out, carried = [], []
     with LOCK:
         state = _state()
         before = repr(state)
@@ -205,12 +213,24 @@ def check_outcomes(views, rt, log=None, now=None):
             pane, x = _pane(views, team, role), paused[k]
             if not isinstance(x, dict) or not pane or pane.get('state') == 'exited' or pane['address'] != x.get('address'):
                 del paused[k]  # it exited, or a new agent has its name
+                n = len(x.get('notes') or []) if isinstance(x, dict) else 0
+                if n:
+                    live.record('fix_dropped', role, 'It stopped while paused.', team=team, by='auto', log=log, now=now,
+                                title=f"Did not deliver {n} message{'s' * (n != 1)} to {role}")
             elif _carried_on(pane, x):
                 del paused[k]
-                live.record('fix_resume', role, 'You wrote to it in its terminal.', team=team, by='you', address=pane['address'],
-                            log=log, now=now, title=f'Let {role} carry on')
+                carried.append((team, role, x))
         if repr(state) != before:
             quiet._write_json(state_path(), state)
+    for team, role, x in carried:  # sent after LOCK, as resume does
+        try:
+            for t in _held(x):
+                rt.send(x['address'], t)
+            ok, detail = True, ''
+        except Exception as e:
+            ok, detail = False, str(e)[:120]
+        live.record('fix_resume', role, 'It started working again.', ok, detail, team=team, by='auto', address=x['address'],
+                    log=log, now=now, title=f'Let {role} carry on')
     return out
 
 

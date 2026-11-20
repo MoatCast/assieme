@@ -353,7 +353,7 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
                         ok, detail_ = True, 'sent'
                     except Exception as e:  # a failed fix is a row in Activity, and the others still run
                         ok, detail_ = False, str(e)[:120]
-                    now_t, start_t = (tokens or {}).get(p['role'], (None, None))
+                    now_t, start_t = (tokens or {}).get((name, p['role']), (None, None))
                     entry = live.record(action, p['role'], p['fix']['text'] + (' (team found in herdr)' if found else ''), ok, detail_, team=name, by='auto',
                                         address=p['address'], log=log, now=now, problem=key, refused=fixes.refused_command(b['send']),
                                         measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now))
@@ -525,7 +525,8 @@ class Brain:
     def run_found(self, team_name, on):
         old = bool(settings.load()['run_found'].get(team_name))
         settings.set_value(f'run_found.{team_name}', bool(on))
-        live.record('run_found', team_name, 'You let Assieme run this team.', team=team_name, old=old, new=bool(on))
+        live.record('run_found', team_name, 'You let Assieme run this team.' if on else 'You took this team back.', team=team_name,
+                    old=old, new=bool(on), **({} if on else {'title': f'Stopped running {team_name}'}))
         return {'ok': True}
 
     def pairs(self, team_name=None):
@@ -568,17 +569,18 @@ class Brain:
         self.today.refresh(now)
         st = settings.load()
         limited, auto = budget.teams(), 'auto' in st['fixes'].values()
-        if not limited and not auto:
+        paused = fixes.paused_teams()  # a pause ends by itself even once every fix asks first
+        if not limited and not auto and not paused:
             return []
         names = {r['labels'][team.TEAM] for r in self._assieme_rows() if r.get('state') == 'live'}
-        views = {n: self._map(n) for n in names if auto or n in limited}
-        if auto:  # found teams the person let Assieme run
-            views |= {n: self._map(n) for n in self._found(now)[1] if st['run_found'].get(n)}
+        views = {n: self._map(n) for n in names if auto or n in limited or n in paused}
+        if auto or paused:  # found teams the person let Assieme run
+            views |= {n: self._map(n) for n in self._found(now)[1] if st['run_found'].get(n) and (auto or n in paused)}
         for n in names & limited:
             budget.check(n, views[n], self.rt, now, announce)
-        if not auto:
+        if not auto and not paused:
             return []
-        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now), herdr=self.herdr)
+        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now), herdr=self.herdr) if auto else []
         if st['fixes'].get('quiet') == 'auto':
             done += hold_automatically({n: v for n, v in views.items() if not v.get('found')}, now)
         mine = {n: v for n, v in views.items() if not v.get('found')}  # each team's outcomes through the runtime that reaches it
@@ -586,7 +588,7 @@ class Brain:
             {n: v for n, v in views.items() if v.get('found')}, self.herdr, now=now)
 
     def _problem_tokens(self, views, now):
-        """role -> (tokens now, tokens when its problem began), for the panes that have a problem."""
+        """(team, role) -> (tokens now, tokens when its problem began), for the panes that have a problem."""
         out = {}
         for n, built in views.items():
             if built.get('found'):
@@ -596,7 +598,7 @@ class Brain:
                 if p['fix']:
                     t = (agents.get(p['role']) or {}).get('tokens')
                     began = now - dt.timedelta(seconds=p['since_s'])
-                    out[p['role']] = (t, fixes.start_tokens(n, p['role'], began, t, now) if t is not None else None)
+                    out[(n, p['role'])] = (t, fixes.start_tokens(n, p['role'], began, t, now) if t is not None else None)
         return out
 
     def handlers(self):
