@@ -1,0 +1,48 @@
+import "@testing-library/jest-dom/vitest";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
+import StepPanel, { useClickGuard } from "./StepPanel";
+import type { StepId } from "./newTeamSteps";
+
+afterEach(() => { cleanup(); vi.useRealTimers(); });
+
+const steps: StepId[] = ["project", "task", "team", "start"];
+const panel = (at: StepId, onGo = vi.fn(), announce?: string) => (
+  <StepPanel steps={steps} at={at} answers={{ project: "checkout-service" }} title={`Title ${at}`} hint="Hint"
+    announce={announce} onGo={onGo} footer={<button type="button">Continue</button>}>
+    <p>Body</p>
+  </StepPanel>
+);
+
+test("the indicator is a named list with the current step marked", () => {
+  const onGo = vi.fn();
+  render(panel("task", onGo));
+  const nav = screen.getByRole("navigation", { name: "Setup steps" });
+  expect(nav.querySelector("[aria-current='step']")).toHaveTextContent("Task");
+  fireEvent.click(screen.getByRole("button", { name: "✓ checkout-service" }));
+  expect(onGo).toHaveBeenCalledWith("project");
+  expect(screen.queryByRole("button", { name: "Team" })).toBeNull(); // later steps aren't buttons
+});
+
+test("the heading takes focus when the step changes", () => {
+  const { rerender } = render(panel("project"));
+  rerender(panel("task"));
+  expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+  expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Title task");
+});
+
+test("the live region says what changed", () => {
+  render(panel("task", vi.fn(), "checkout-service checked"));
+  expect(screen.getByText("checkout-service checked").closest("[aria-live='polite']")).not.toBeNull();
+});
+
+test("a click right after a step change is ignored", () => {
+  vi.useFakeTimers();
+  const { result, rerender } = renderHook(({ at }) => useClickGuard(at), { initialProps: { at: "project" as StepId } });
+  act(() => { vi.advanceTimersByTime(300); });
+  expect(result.current()).toBe(false);
+  rerender({ at: "task" });
+  expect(result.current()).toBe(true);
+  act(() => { vi.advanceTimersByTime(300); });
+  expect(result.current()).toBe(false);
+});

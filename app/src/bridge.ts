@@ -182,6 +182,8 @@ export const bringOverWorkspaces = (id: string) => brain<BringOverWorkspaces>("b
 export const bringOverImport = (id: string, ticked: string[]) => brain<TeamDraft>("bringover.import", { id, ticked });
 
 /** The app's own dialog: `window.confirm` shows nothing in its web view, so it would replace without asking. */
+export const confirmDiscard = () =>
+  ask("Discard this new team?", { title: "New team", kind: "warning", okLabel: "Discard", cancelLabel: "Keep setting up" });
 export const confirmReplace = () =>
   ask("Replace the agents you've edited?", { title: "New team", kind: "warning", okLabel: "Replace", cancelLabel: "Keep them" });
 

@@ -35,6 +35,7 @@
   --quiet-tip-tint: var(--light, #f9f0da) var(--dark, #2a2518);
   --quiet-tip-line: var(--light, #e3c887) var(--dark, #5a4a26);
   --quiet-tip-text: var(--light, #5e4a1e) var(--dark, #e3cfa0);
+  --quiet-assieme-tint: var(--light, #eef1fb) var(--dark, #232b45); /* Assieme's own blocks */
   --quiet-diff-add-bg: var(--light, #eef7f1) var(--dark, #1a2b21);
   --quiet-diff-add-text: var(--light, #225a39) var(--dark, #8fd3a8);
   --quiet-diff-add-number: var(--light, #7faf90) var(--dark, #4f7d60);
