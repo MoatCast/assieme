@@ -168,7 +168,7 @@ export default function InstallFlow({ agent, start, status, onDone, onSkip, onAc
     return (
       <>
         <div className="modal-head">
-          <h2 id="install-title">{`Install ${name}?`}</h2>
+          {inSheet && <h2 id="install-title">{`Install ${name}?`}</h2>}
           <p className="big">{c.body}</p>
         </div>
         <div className="sheet-command">

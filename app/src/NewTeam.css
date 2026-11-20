@@ -162,3 +162,23 @@
 .newteam .team-line small { display: block; margin-top: 2px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
 .newteam .bigger-line { display: flex; align-items: center; gap: 16px; padding: 0 16px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
 .newteam.sheet-layer { z-index: 20; }
+/* First run steps: Developer tools and Agent, from Paper "v3 — First run". */
+.newteam .wait-block { border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.newteam .wait-block b { color: var(--quiet-ink); font-size: 14px; font-weight: 600; line-height: 19px; }
+.newteam .wait-title { display: flex; align-items: center; gap: 10px; }
+.newteam .wait-block p, .newteam .wait-block .link { margin: 0 0 0 26px; color: var(--quiet-slate); font-size: 14px; line-height: 20px; }
+.newteam .wait-block .link { color: var(--quiet-ink); font-size: 13px; }
+.newteam .kinds { display: flex; flex-direction: column; gap: 10px; }
+.newteam .kinds .option { padding: 12px 19px; }
+.newteam .kinds .option small, .newteam .kind-head small { font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.newteam .kind-card { border: 2px solid var(--quiet-ink); border-radius: 16px; padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
+.newteam .kind-head { display: flex; align-items: center; gap: 16px; }
+.newteam .kind-head b { flex: 1; font-size: 15px; font-weight: 600; line-height: 20px; color: var(--quiet-ink); }
+.newteam .kind-card .modal-head, .newteam .kind-card .sheet-command { display: flex; flex-direction: column; gap: 6px; }
+.newteam .kind-card .big { margin: 0; color: var(--quiet-slate); font-size: 13px; line-height: 19px; }
+.newteam .kind-card .sheet-command p { margin: 0; color: var(--quiet-slate); font-size: 12px; line-height: 16px; }
+.newteam .kind-card code { display: block; background: var(--quiet-fog); border-radius: 10px; padding: 9px 12px; color: var(--quiet-ink);
+  font: 12px/16px var(--quiet-font-mono); }
+.newteam .flow-actions { display: flex; align-items: center; gap: 14px; }
+.newteam .flow-actions .sheet-note { flex: 1; color: var(--quiet-slate); font-size: 13px; }

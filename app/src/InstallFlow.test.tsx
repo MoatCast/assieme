@@ -41,7 +41,7 @@ function flow(start: "install" | "signin" = "install", st: SetupStatus | null = 
 test("the primary is handed to the owner through onAction, not drawn in the flow", async () => {
   const h = flow();
   await flush();
-  screen.getByText("Install Claude Code?");
+  expect(screen.queryByText("Install Claude Code?")).toBeNull(); // the panel's chosen card names the agent
   screen.getByText("The exact command, if you want to check it");
   expect(h.last()).toMatchObject({ label: "Install Claude Code", busy: false });
   expect(screen.queryByRole("button", { name: "Install Claude Code" })).toBeNull();
