@@ -1,13 +1,21 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import dagre from "@dagrejs/dagre";
 import type { MapEdge, MapGroup, MapNode, Pane } from "./bridge";
-import { ago } from "./Terminals";
 import { AgentFace } from "./band";
+import "./TeamMap.css";
 
 const WORDS: Record<Pane["state"], string> = {
   asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", idle: "idle", exited: "done",
 };
 const NODE = { width: 150, height: 54 };
+const NODE_COMPACT = { width: 150, height: 48 };
+/** The list's words for a node: "asking you · 12 min", "Assieme · checking". */
+function nodeWords(n: MapNode, checking: boolean) {
+  if (checking) return "Assieme · checking";
+  if (n.paused) return "paused";
+  const wait = needs(n.state) && n.since_s !== null ? (n.since_s < 60 ? "now" : `${Math.round(n.since_s / 60)} min`) : "";
+  return [WORDS[n.state], wait].filter(Boolean).join(" · ");
+}
 const GROUP = { width: 270, height: 74 };
 const GROUP_OPEN = { width: 400, height: 170 };
 export const needs = (s: Pane["state"]) => s === "asking" || s === "stuck" || s === "waiting";
@@ -92,8 +100,12 @@ function Callout({ at, perHour }: { at: { x: number; y: number }; perHour: numbe
 }
 
 /** The map of one team, or of one opened group: who wakes whom. */
-export function AgentsMap({ nodes, edges, waits, onPick, team }: {
+export function AgentsMap({ nodes, edges, waits, onPick, team, compact = false, checking = [] }: {
   team?: string;
+  /** Team overview's strip: a third of the height, smaller nodes. */
+  compact?: boolean;
+  /** Agents whose fix Assieme is checking. */
+  checking?: string[];
   nodes: MapNode[];
   edges: MapEdge[];
   waits: { from: string; to: string }[];
@@ -101,7 +113,7 @@ export function AgentsMap({ nodes, edges, waits, onPick, team }: {
 }) {
   const roles = new Set(nodes.map((n) => n.role));
   const shown = edges.filter((e) => roles.has(e.from) && roles.has(e.to));
-  const placed = layout(nodes.map((n) => ({ id: n.role, ...NODE })), shown,
+  const placed = layout(nodes.map((n) => ({ id: n.role, ...(compact ? NODE_COMPACT : NODE) })), shown,
     nodes.filter((n) => n.parent && roles.has(n.parent)).map((n) => ({ from: n.parent!, to: n.role })));
   const dashed = waits.filter((w) => placed.boxes[w.from] && placed.boxes[w.to]);
   const curves = dashed.map((w) => {
@@ -131,12 +143,12 @@ export function AgentsMap({ nodes, edges, waits, onPick, team }: {
       {nodes.map((n) => {
         const b = placed.boxes[n.role];
         return (
-          <button key={n.role} type="button" className={`node ${needs(n.state) ? "needs" : ""} ${n.paused ? "paused" : `state-${n.state}`}`} data-testid={`node-${n.role}`}
+          <button key={n.role} type="button" className={`node ${needs(n.state) && !checking.includes(n.role) ? "needs" : ""} ${checking.includes(n.role) ? "assieme" : ""} ${n.paused ? "paused" : `state-${n.state}`}`} data-testid={`node-${n.role}`}
             style={{ left: b.x, top: b.y, width: b.width, height: b.height }} onClick={() => onPick(n.role)}>
             <AgentFace team={team} role={n.role} state={n.paused ? "idle" : n.state} size={2} />
             <span className="node-text">
               <span className="node-name">{n.role}</span>
-              <span className="node-state">{[n.paused ? "paused" : WORDS[n.state], n.state === "exited" ? "" : ago(n.since_s)].filter(Boolean).join(" · ")}</span>
+              <span className="node-state">{nodeWords(n, checking.includes(n.role))}</span>
             </span>
           </button>
         );

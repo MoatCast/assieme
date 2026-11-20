@@ -247,6 +247,8 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
     stopped = not any(r.get('state') == 'live' for r in rows)
     return {'team': team_name, 'found': found, **({'run_by_assieme': bool(st['run_found'].get(team_name))} if found else {}),
             'stopped': stopped, 'fixes_today': fixes_today, 'last_at': every[0]['at'] if every else None,
+            'running_min': None if stopped else max(0, int(now.timestamp() * 1000 - min(
+                r.get('created_ms') or 0 for r in rows if r.get('state') == 'live')) // 60_000),
             'open_tasks': sum(c.get('status') != 'done' for c in tasks.board(team_name)['cards']),
             'run': _run(rows, fixes_today['fixed'], team_name) if stopped and rows else None,
             'title': title, 'subtitle': subtitle, 'budget': bud,

@@ -10,6 +10,5 @@
 .stage-toggle { width: 30px; height: 30px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   padding: 0; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control);
   background: var(--quiet-surface); color: var(--quiet-slate); cursor: pointer; }
-.stage-toggle.on { border-color: var(--quiet-accent); color: var(--quiet-accent);
-  background: color-mix(in srgb, var(--quiet-accent) 8%, var(--quiet-surface)); }
-.stage-toggle:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
+.stage-toggle.on { border-color: var(--quiet-outline); color: var(--quiet-ink); background: var(--quiet-select); } /* blue means Assieme only */
+.stage-toggle:focus-visible { outline: 2px solid var(--quiet-ink); outline-offset: 2px; }

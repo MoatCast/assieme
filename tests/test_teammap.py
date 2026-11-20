@@ -980,3 +980,10 @@ class OneWindowDataTest(MapCase):
         out = teammap.Brain.handlers(me)['agent.remove']('shop', 'b')
         self.assertEqual((out['ok'], rt.killed), (True, ['t-b']))
         self.assertEqual(activity.list_rows(team='shop', now=NOW)['rows'][0]['action'], 'stop_agent')
+
+    def test_a_running_team_says_how_long_it_has_run(self):
+        r = row('a')
+        r['created_ms'] = MS - 3 * 3600_000 - 60_000
+        m = self.build([r, row('b', state='exited')])
+        self.assertEqual(m['running_min'], 181)
+        self.assertIsNone(self.stopped_map('09:00', '10:00', 0, 0)['running_min'])

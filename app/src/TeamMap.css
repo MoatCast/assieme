@@ -1,0 +1,44 @@
+/* The map of who wakes whom (Team overview), from Paper "v2 — Team" frames and "Main window: team overview". */
+.map-fit { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.map-canvas { position: relative; flex-shrink: 0; transform-origin: center; }
+.map-canvas > svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.legend { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; color: var(--quiet-mute); white-space: nowrap; }
+.legend i { width: 16px; height: 0; border-top: 2px solid var(--quiet-edge); }
+.legend i.dashed { border-top: 1.5px dashed var(--quiet-needs-you); }
+:where(.map-fit) .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; background: var(--quiet-idle); }
+.state-working .dot, .dot.state-working { background: var(--quiet-working); }
+.needs .dot, .dot.state-asking, .dot.state-stuck, .dot.state-waiting { background: var(--quiet-needs-you); }
+.node { position: absolute; display: flex; align-items: center; gap: 10px; padding: 0 12px; box-sizing: border-box; text-align: left;
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-card); box-shadow: 0 1px 2px color-mix(in srgb, var(--quiet-shade) 6%, transparent); }
+.node.needs { background: var(--quiet-needs-you-tint); border: 1.5px solid var(--quiet-needs-you); }
+.node.needs .dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--quiet-needs-you) 15%, transparent); }
+.node-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.node-name { font-family: var(--quiet-font-mono); font-size: 13px; line-height: 16px; font-weight: 550; color: var(--quiet-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.node-state { font-size: 12px; line-height: 16px; color: var(--quiet-slate); white-space: pre; }
+.node.needs .node-state { color: var(--quiet-needs-you-text); }
+.edge-note { position: absolute; display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; width: max-content; background: var(--quiet-tip-tint);
+  border: 1px solid var(--quiet-tip-line); border-radius: 8px; font-size: 12px; line-height: 16px; color: var(--quiet-tip-text); }
+.edge-note b { font-weight: 600; color: var(--quiet-waste-text); }
+.wait-chip { position: absolute; padding: 3px 8px; background: var(--quiet-surface); border: 1px solid var(--quiet-needs-you-line); border-radius: 8px;
+  font-size: 12px; line-height: 16px; color: var(--quiet-needs-you-text); white-space: nowrap; }
+.group-card { position: absolute; display: flex; flex-direction: column; gap: 8px; padding: 14px; box-sizing: border-box; background: var(--quiet-surface);
+  border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-card); }
+.group-card.needs { background: var(--quiet-needs-you-tint); border: 1.5px solid var(--quiet-needs-you); gap: 10px; }
+.group-head { display: flex; align-items: center; gap: 8px; }
+.group-head b { font-size: 14px; line-height: 18px; font-weight: 600; color: var(--quiet-ink); }
+.group-head small { font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.group-need { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--quiet-needs-you-text); }
+.chevron { display: flex; padding: 0; background: none; border: 0; }
+.group-dots { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.group-sum { padding-left: 6px; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.group-sum.noisy { color: var(--quiet-waste-text); font-weight: 500; }
+.group-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.group-chips .chip { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-control);
+  font-family: var(--quiet-font-mono); font-size: 12px; line-height: 16px; color: var(--quiet-ink); }
+.group-chips .chip.needs { border-color: var(--quiet-needs-you); }
+.group-chips .dot { width: 6px; height: 6px; border-radius: 3px; }
+.group-open { align-self: flex-start; padding: 0; background: none; border: 0; font-size: 12px; line-height: 16px; color: var(--quiet-slate); text-decoration: underline; text-align: left; }
+.node.paused .dot { background: var(--quiet-waste); }
+.card-head .musician, .group-chips .musician { margin-block: -2px; }
+.node.assieme { border: 1.5px solid var(--quiet-assieme-line); background: var(--quiet-assieme-tint); }
+.node.assieme .node-state { color: var(--quiet-accent); }

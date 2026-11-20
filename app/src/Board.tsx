@@ -3,8 +3,9 @@ import { boardAdd, boardGet, boardMove, boardRemove, openLink, type BoardCard, t
 import { Cross, host, usePreviews, type Previews } from "./Preview";
 import Offline from "./Offline";
 import FixButtons from "./FixButtons";
-import { SAYS } from "./Team";
 import { tokens } from "./listModel";
+
+const SAYS: Partial<Record<Pane["state"], string>> = { asking: "is asking you", stuck: "seems stuck", waiting: "has work waiting" };
 import { ago } from "./Terminals";
 import "./Board.css";
 import { AgentFace } from "./band";

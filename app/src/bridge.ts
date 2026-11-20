@@ -335,6 +335,8 @@ export type TeamMap = {
   run?: { minutes: number; fixed: number; tasks_done: number; stopped_at: string } | null;
   /** The list's views: the board's open tasks and the time of the last Activity row. */
   open_tasks?: number;
+  /** Minutes since the running team's first agent started; null once it stopped. */
+  running_min?: number | null;
   last_at?: string | null;
   spend: { tokens: number; waste_share: number } | null;
   spend_ready?: boolean;

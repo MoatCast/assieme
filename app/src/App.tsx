@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Shell from "./Shell";
 import { serviceInstall, serviceRunning } from "./bridge";
 import "./tokens.css";
+import "./Sheets.css";
 
 type Ask = "checking" | "ask" | "starting" | "done" | { error: string };
 

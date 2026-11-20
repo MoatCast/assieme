@@ -61,7 +61,7 @@ function changes(before: TeamMap, after: TeamMap, beforeModel: ListModel, afterM
 /** A row with no pane yet (an agent still starting) still opens a panel. */
 const bare = (role: string): Pane => ({ role, agent: "claude", address: "", state: "working", since_s: null, detail: "", live: false, fix: null });
 
-export default function Window({ team, starting, open, pollMs = 5000, boardKey = 0, onNewTeam, onNewTask, onReview }: {
+export default function Window({ team, starting, open, pollMs = 5000, boardKey = 0, onNewTeam, onNewTask, onReview, onOpenFixes = () => {} }: {
   team: string | null;
   starting: Starting[];
   /** A link from outside (menu bar, notification): select that agent, or open its review. */
@@ -71,6 +71,8 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   onNewTeam: () => void;
   onNewTask: () => void;
   onReview: (team: string, role: string) => void;
+  /** Settings › Fixes, from Team overview's one-time notice. */
+  onOpenFixes?: () => void;
 }) {
   const { map, waiting, refresh } = useTeamMap(team, pollMs);
   const [chosen, setChosen] = useState<{ team: string; sel: Selection } | null>(null);
@@ -197,7 +199,10 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
             review={waiting.find((x) => x.team === team && x.role === selectedPane.role) ?? null}
             onChanged={refresh} onReview={onReview} />
         )}
-        {sel?.kind === "view" && sel.view === "overview" && <TeamOverview team={team} />}
+        {sel?.kind === "view" && sel.view === "overview" && (
+          <TeamOverview team={team} map={map} waiting={waiting} onRefresh={refresh} onReview={onReview} onOpenFixes={onOpenFixes}
+            onSelectAgent={(role) => select({ kind: "agent", role })} onSeeAll={() => select({ kind: "view", view: "activity" })} />
+        )}
         {sel?.kind === "view" && sel.view === "terminals" && <Terminals team={team} pollMs={3000} onNewTeam={onNewTeam} onReview={onReview} />}
         {sel?.kind === "view" && sel.view === "board" && (
           <Board team={team} pollMs={5000} refreshKey={boardKey} onNewTeam={onNewTeam} onNewTask={onNewTask}

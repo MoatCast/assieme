@@ -1,0 +1,98 @@
+/* Sheets from the right (agent settings, Team brief, Add agent, Daily limits) and the fix card bits they share. */
+:where(.overview, .sheet) button { font: inherit; cursor: pointer; }
+:where(.overview, .sheet) button:disabled { cursor: default; opacity: 0.5; }
+.card-sub, .card-note { margin: 0; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
+.card-note { color: var(--quiet-needs-you-text); }
+.card-code { margin: 0; padding: 10px 12px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); font-family: var(--quiet-font-mono); font-size: 12px; line-height: 18px;
+  color: var(--quiet-slate); white-space: pre-wrap; overflow-wrap: anywhere; }
+.card-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Panels from the right, over the dimmed map. */
+.dim { position: fixed; inset: 53px 0 0 0; background: var(--quiet-scrim); z-index: 5; }
+.sheet { position: fixed; top: 53px; right: 0; bottom: 0; width: 440px; max-width: 100%; z-index: 6; display: flex; flex-direction: column; gap: 24px; padding: 24px 28px; box-sizing: border-box; overflow: auto;
+  background: var(--quiet-surface); border-left: 1px solid var(--quiet-line); box-shadow: -8px 0 24px color-mix(in srgb, var(--quiet-shade) 15%, transparent); font-size: 13px; line-height: 16px; color: var(--quiet-ink); }
+.sheet-head { display: flex; align-items: flex-start; gap: 12px; }
+.sheet-head > div { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.sheet-head h2 { margin: 0; font-size: 20px; line-height: 24px; font-weight: 600; color: var(--quiet-ink); }
+.sheet-head h2.mono { font-family: var(--quiet-font-mono); }
+.sheet-head p { margin: 0; color: var(--quiet-slate); }
+.sheet-close { display: flex; padding: 0; background: none; border: 0; }
+.sheet section { display: flex; flex-direction: column; gap: 10px; }
+.sheet section > b { font-weight: 600; }
+.detail-fix { display: flex; flex-direction: column; gap: 12px; padding: 16px; background: var(--quiet-needs-you-tint); border-radius: var(--quiet-radius-inner); }
+.detail-fix-head { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; line-height: 18px; color: var(--quiet-needs-you-text); }
+.detail-fix-head .dot { width: 8px; height: 8px; border-radius: 4px; background: var(--quiet-needs-you); }
+.detail-fix p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); overflow-wrap: anywhere; }
+/* Skills and servers (step 32), Paper "v2 — Tools: agent details, changed". */
+.detail-tools .link-btn { font-size: 13px; color: var(--quiet-ink); text-decoration: underline 1px; }
+.detail-tools-next { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: var(--quiet-tip-tint);
+  border: 1px solid var(--quiet-tip-line); border-radius: var(--quiet-radius-inner); }
+.detail-tools-next p { margin: 0; font-size: 13px; line-height: 18px; color: var(--quiet-tip-text); }
+.detail-tools-next div { display: flex; gap: 8px; }
+.detail-tools-next button { padding: 7px 14px; font-size: 13px; }
+.meter-head { display: flex; justify-content: space-between; }
+.meter-head b { font-weight: 600; }
+.meter-head span.amber { color: var(--quiet-waste-text); }
+.meter { display: flex; height: 6px; border-radius: 3px; background: var(--quiet-track); }
+.meter i { height: 6px; border-radius: 3px; background: var(--quiet-edge); }
+.meter i.amber { background: var(--quiet-edge-waste); }
+.fine { margin: 0; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.recent { display: flex; flex-direction: column; gap: 8px; }
+.recent div { display: flex; gap: 12px; }
+.recent span:first-child { width: 40px; flex-shrink: 0; color: var(--quiet-mute); }
+.recent code { font-family: var(--quiet-font-mono); font-size: 13px; }
+.wakers { display: flex; flex-wrap: wrap; gap: 8px; }
+.wakers span { padding: 6px 10px; background: var(--quiet-fog); border-radius: var(--quiet-radius-control); color: var(--quiet-slate); }
+.wakers code { font-family: var(--quiet-font-mono); font-size: 13px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span, .field > div.label { font-weight: 500; }
+.field input, .field select, .field textarea { padding: 8px 12px; border: 1px solid var(--quiet-control); border-radius: 10px; background: var(--quiet-surface); color: var(--quiet-ink); font: inherit; line-height: 18px; }
+.field textarea { resize: vertical; line-height: 19px; }
+/* Team brief, from Paper "v2 — Team: team brief". */
+.decisions-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.decisions-head span { font-size: 12px; color: var(--quiet-slate); }
+.decision { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid var(--quiet-line); }
+.decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
+.decision p { margin: 0; line-height: 18px; color: var(--quiet-slate); }
+.decision b { font-size: 14px; font-weight: 500; line-height: 19px; }
+.decision small { font-size: 12px; color: var(--quiet-mute); }
+.decision code { font-family: var(--quiet-font-mono); }
+.decision .link { flex-shrink: 0; padding: 0; background: none; border: 0; color: var(--quiet-slate); line-height: 18px; }
+.decisions .none { margin: 0; padding: 10px 0; border-top: 1px solid var(--quiet-line); color: var(--quiet-slate); }
+.field input.mono, .field select.mono { font-family: var(--quiet-font-mono); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pills button { padding: 6px 12px; background: none; border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control); color: var(--quiet-ink); line-height: 16px; }
+.pills button.on { background: var(--quiet-ink); border-color: var(--quiet-ink); color: var(--quiet-on-ink); font-weight: 500; }
+.two-way { display: inline-flex; align-self: flex-start; gap: 2px; padding: 2px; background: var(--quiet-fog); border-radius: var(--quiet-radius-control); }
+.two-way button { padding: 3px 9px; background: none; border: 0; border-radius: var(--quiet-radius-control); color: var(--quiet-slate); line-height: 16px; }
+.two-way button.on { background: var(--quiet-raised); color: var(--quiet-ink); font-weight: 500; box-shadow: 0 1px 2px color-mix(in srgb, var(--quiet-shade) 10%, transparent); }
+.two-fields { display: flex; gap: 12px; }
+.two-fields .field { flex: 1; min-width: 0; }
+.sheet-foot { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; }
+.sheet-foot p { margin: 0; line-height: 19px; color: var(--quiet-slate); }
+.sheet-foot .error { color: var(--quiet-needs-you-text); }
+.sheet-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+/* Daily limits: Paper "v2 — Team: daily limit set", "daily limits sheet", "paused at the limit". */
+.spend .limit { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.spend .link { color: var(--quiet-accent); font-weight: 500; }
+.meter { display: flex; width: 72px; height: 4px; border-radius: 2px; background: var(--quiet-line); overflow: hidden; }
+.meter > i { background: var(--quiet-control); border-radius: 2px; }
+.meter.full > i { background: var(--quiet-waste); }
+.limit-team { display: flex; align-items: center; gap: 10px; color: var(--quiet-slate); }
+.limit-team input { width: 96px; box-sizing: border-box; }
+.limit-agents { display: flex; flex-direction: column; gap: 8px; }
+.limit-agents p { margin: 0; color: var(--quiet-slate); line-height: 18px; }
+.limit-row { display: flex; flex-direction: row; align-items: center; gap: 10px; color: var(--quiet-slate); }
+.limit-row .mono { flex: 1; min-width: 0; font-family: var(--quiet-font-mono); color: var(--quiet-ink); overflow: hidden; text-overflow: ellipsis; }
+.limit-row small { width: 80px; flex-shrink: 0; text-align: right; font-size: 12px; }
+.limit-row input { width: 96px; flex-shrink: 0; box-sizing: border-box; padding: 6px 10px; border-color: var(--quiet-line-strong); }
+.limit-row input:not(:placeholder-shown) { border-color: var(--quiet-control); }
+.sheet-head > .musician { margin-top: -4px; }
+/* Step 31: Agent details › Instrument. Tiles hold the musician at 2×; the chosen one has the accent ring. */
+.detail-instrument { display: flex; flex-direction: column; gap: 10px; }
+.instrument-tiles { display: flex; gap: 6px; flex-wrap: wrap; }
+.instrument-tiles button { width: 36px; height: 42px; display: flex; align-items: center; justify-content: center; padding: 0;
+  border: 1px solid var(--quiet-line); border-radius: 8px; background: var(--quiet-surface); cursor: pointer; }
+.instrument-tiles button.on { border: 2px solid var(--quiet-accent); background: color-mix(in srgb, var(--quiet-accent) 8%, var(--quiet-surface)); }
+.instrument-tiles button:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: 2px; }
