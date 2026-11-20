@@ -161,3 +161,4 @@
 .newteam .team-line b { display: block; color: var(--quiet-ink); font-size: 14px; font-weight: 500; line-height: 18px; }
 .newteam .team-line small { display: block; margin-top: 2px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
 .newteam .bigger-line { display: flex; align-items: center; gap: 16px; padding: 0 16px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+.newteam.sheet-layer { z-index: 20; }
