@@ -40,7 +40,7 @@ class PresetsTest(unittest.TestCase):
         p = newteam.presets(teams=self.teams)
         self.assertEqual([x['id'] for x in p['presets']], ['one-agent', 'builder-reviewer', 'full'])
         self.assertEqual([x['label'] for x in p['presets']],
-                         ['One agent', 'Builder + reviewer', 'Planner, 3 builders, reviewer, tester'])
+                         ['One agent', 'Builder and reviewer', 'Full team'])
         full = p['presets'][2]['roles']
         self.assertEqual([r['name'] for r in full],
                          ['planner', 'builder-1', 'builder-2', 'builder-3', 'reviewer', 'tester'])
@@ -57,8 +57,21 @@ class PresetsTest(unittest.TestCase):
         self.saved('older', now - 100)
         self.saved('newer', now)
         last = newteam.presets(teams=self.teams)['last']
-        self.assertEqual((last['id'], last['label']), ('newer', 'My last team'))
+        self.assertEqual((last['id'], last['label']), ('newer', 'Same as last time'))
         self.assertEqual(last['roles'][0]['brief'].strip(), 'Build it.')
+
+    def test_recent_projects_newest_first_distinct_max_three(self):
+        now = time.time()
+        for i, (name, project) in enumerate([('a', '/p/one'), ('b', '/p/two'), ('c', '/p/three'), ('d', '/p/two'),
+                                             ('e', '/p/four')]):
+            self.saved(name, now - 100 + i)
+            path = os.path.join(self.teams, name, 'team.toml')
+            with open(path) as f:
+                text = f.read().replace('/tmp/x', project)
+            with open(path, 'w') as f:
+                f.write(text)
+            os.utime(os.path.join(self.teams, name), (now - 100 + i, now - 100 + i))
+        self.assertEqual(newteam.presets(teams=self.teams)['recent'], ['/p/four', '/p/two', '/p/three'])
 
     def test_broken_saved_team_is_skipped(self):
         os.makedirs(os.path.join(self.teams, 'broken'))
@@ -394,6 +407,17 @@ class SuggestTest(unittest.TestCase):
             self.run_with(**kw)
         self.assertEqual(e.exception.field, 'suggest')
         self.assertEqual(e.exception.message, message)
+
+    def test_suggest_with_task_puts_task_in_prompt(self):
+        self.calls = []
+
+        def run(argv, **kw):
+            self.calls.append((argv, kw))
+            return subprocess.CompletedProcess(argv, 0, json.dumps(GOOD), '')
+        newteam.suggest('/p', '', 'every', 'lean', task='Add rate limiting', run=run, which=ALL, models=MODELS)
+        prompt = self.calls[0][1]['input']
+        self.assertIn('Add rate limiting', prompt)
+        self.assertNotIn('The change is', prompt)
 
     def test_valid_reply(self):
         out = self.run_with(json.dumps(GOOD))

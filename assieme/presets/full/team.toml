@@ -1,5 +1,5 @@
 name = "full"
-label = "Planner, 3 builders, reviewer, tester"
+label = "Full team"
 
 [[role]]
 name = "planner"

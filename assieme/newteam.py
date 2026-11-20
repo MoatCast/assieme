@@ -76,12 +76,23 @@ def presets(teams=None):
                    key=os.path.getmtime, reverse=True)
     for folder in saved:
         try:
-            last = _as_preset(folder, os.path.basename(folder), 'My last team')
+            last = _as_preset(folder, os.path.basename(folder), 'Same as last time')
             break
         except (preset.PresetError, OSError):
             continue  # a half-written or hand-edited folder: try the next one
+    recent = []  # the Project step's recent folders: newest first, each once
+    for folder in saved:
+        try:
+            with open(os.path.join(folder, 'team.toml'), 'rb') as f:
+                p = tomllib.load(f).get('project')
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+        if isinstance(p, str) and p and p not in recent:
+            recent.append(p)
+        if len(recent) == 3:
+            break
     kinds = {k: {'brief': kind_brief(k), 'job': _KIND_JOBS[k], 'checkout': c} for k, (_, c) in KINDS.items()}
-    return {'presets': builtin, 'practices': preset.practices(), 'last': last, 'models': model_options(),
+    return {'presets': builtin, 'practices': preset.practices(), 'last': last, 'recent': recent, 'models': model_options(),
             'practice_defaults': settings.load()['practices'], 'kinds': kinds, 'permissions': permissions.table()}
 
 
@@ -553,10 +564,11 @@ def _models_text(agents, models):
     return '\n'.join(out)
 
 
-def _prompt(size, review, budget, agents, models):
+def _prompt(size, review, budget, agents, models, task=''):
     kinds = '\n'.join(f'- {k}: {v}' for k, v in _KIND_JOBS.items())
+    what = f'The task: {task}.' if task else f'The change is {_WORDS["size"].get(size, size)}.'
     return (f'Suggest an agent team for the code in this folder. Read enough of the project to judge it.\n\n'
-            f'The change is {_WORDS["size"].get(size, size)}. The person wants to review '
+            f'{what} The person wants to review '
             f'{_WORDS["review"].get(review, review)}. Budget: {_WORDS["budget"].get(budget, budget)}.\n\n'
             f'Role kinds you can use:\n{kinds}\n\n'
             f'Use 1 to {MAX_ROLES} agents. Each agent is one of these, the ones installed: '
@@ -601,14 +613,14 @@ def _team_from(text, installed, models):
     return {'roles': roles, 'why': str(data.get('why', ''))}
 
 
-def suggest(project, size, review, budget, run=subprocess.run, which=setup.agent_path, models=None):
+def suggest(project, size, review, budget, task='', run=subprocess.run, which=setup.agent_path, models=None):
     """Help me choose: the person's own Claude Code (else Codex), read-only in the project, suggests a team
     with each agent's model and thinking effort, among what New team offers on this machine."""
     have = ask.installed(which)
     models = models or model_options()
     pre = "Couldn't get a suggestion: "
     try:
-        text = ask.ask_agent(_prompt(size, review, budget, have, models), project, SUGGEST_TIMEOUT_S, run=run, which=which,
+        text = ask.ask_agent(_prompt(size, review, budget, have, models, task.strip()), project, SUGGEST_TIMEOUT_S, run=run, which=which,
                              timeout_label='3 minutes')
     except ask.AskError as e:
         raise NewTeamError('suggest', str(e) if e.missing else pre + str(e)) from None
