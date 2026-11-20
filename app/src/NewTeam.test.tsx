@@ -70,6 +70,7 @@ const deferred = <T,>() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear(); // a draft kept by an earlier test would offer to continue
   vi.useFakeTimers({ toFake: ["Date"] }); // the 300 ms click guard reads the clock
   b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS, kinds: KINDS, permissions: TABLE });
   b.checkProject.mockResolvedValue({ ok: true });
@@ -598,4 +599,39 @@ test("an agent can run sealed off, and Start waits for the container", async () 
   fireEvent.click(button("Done"));
   screen.getByText("Get the container ready to continue.");
   expect(button("Start 1 agent").disabled).toBe(true);
+});
+
+test("closing mid-setup offers to continue next time", async () => {
+  localStorage.clear();
+  await open();
+  await toTeam("Add a cart");
+  await pick(/Builder and reviewer/);
+  cleanup(); // the window closes
+  await open();
+  later();
+  fireEvent.click(button("Continue setting up shop"));
+  await flush();
+  expect(heading()).toBe("What Assieme does for this team");
+  expect(screen.getByRole("navigation", { name: "Setup steps" }).textContent).toContain("✓ Add a cart");
+  await editAgents();
+  expect(names()).toEqual(["builder", "reviewer"]);
+  localStorage.clear();
+});
+
+test("a started or discarded team leaves no draft behind", async () => {
+  localStorage.clear();
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await open();
+  await toStart();
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  cleanup();
+  await open();
+  expect(screen.queryByRole("button", { name: /Continue setting up/ })).toBeNull();
+  await chooseFolder();
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  cleanup();
+  await open();
+  expect(screen.queryByRole("button", { name: /Continue setting up/ })).toBeNull();
 });

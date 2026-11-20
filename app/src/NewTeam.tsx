@@ -9,6 +9,7 @@ import EditAgents, { type Imported } from "./EditAgents";
 import InstallSheet from "./InstallSheet";
 import { AGENT_KINDS, kindName } from "./kinds";
 import { folderMovesOn, nextStep, prevStep, stepsShown, STEP_LABEL, taskAnswer, type Needs, type StepId } from "./newTeamSteps";
+import { clearDraft, loadDraft, saveDraft, type Saved } from "./newTeamDraft";
 import Offline from "./Offline";
 import { defaultLevel } from "./PermissionsEditor";
 import ProjectStep from "./ProjectStep";
@@ -82,6 +83,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   const [startError, setStartError] = useState("");
   const [pending, setPending] = useState(false);
   const starting = useRef(false); // a second click before React re-renders must not start a second team
+  const [kept] = useState<Saved | null>(() => (draft ? null : loadDraft())); // a setup left when the window closed
+  const [resumed, setResumed] = useState(false);
 
   // Step 32: what each agent kind has installed on this Mac, and which agent's picker is open. Each agent without a
   // choice of its own gets its role's suggestion once its kind's list is in.
@@ -311,6 +314,24 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     installTools().catch((e) => setCheckError(message(e)));
   };
 
+  // Closing the window keeps the draft; Start and Discard clear it.
+  useEffect(() => {
+    if (project) saveDraft({ machine, project, task, roles, chosen, practices: practiceOn, at });
+  }, [machine, project, task, roles, chosen, practiceOn, at]);
+  const resume = () => {
+    if (!kept) return;
+    setResumed(true);
+    setMachine(kept.machine);
+    setTask(kept.task);
+    setRoles(kept.roles);
+    setChosen(kept.chosen);
+    setEdited(!kept.chosen);
+    setPracticeOn(kept.practices);
+    setProject(kept.project);
+    jump.current = steps.includes(kept.at) && kept.at !== "project" ? kept.at : "project";
+    void verify(kept.project);
+  };
+
   const go = (s: StepId) => {
     setAt(s);
     setAnnounce(undefined);
@@ -320,6 +341,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
 
   const cancel = async () => {
     if (project && !(await confirmDiscard())) return;
+    clearDraft();
     onClose();
   };
   // Escape closes the innermost sheet (each modal handles its own), then Team rules, then means Cancel. Never Back.
@@ -355,6 +377,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       } : {};
       const form = { project, task: task.trim(), roles, practices: practiceOn, ...brought };
       await (machine ? startTeamOn(form, machine) : startTeam(form));
+      clearDraft();
       onStarted?.();
       onClose();
     } catch (e) {
@@ -404,7 +427,8 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   );
   else if (at === "project") body = (
     <ProjectStep panel={panel} machine={machine} recent={machine ? [] : recent} project={project} check={check}
-      error={projectError || checkError} onUse={(p) => void use(p)} onRecheck={() => void verify(project, true)}
+      error={projectError || checkError} onUse={(p) => void use(p)}
+      resume={kept && !resumed && !project ? { name: base(kept.project), act: resume } : null} onRecheck={() => void verify(project, true)}
       onInstallTools={installDevTools} onContinueAnyway={() => go(nextStep(steps, "project"))} onCancel={() => void cancel()} />
   );
   else if (at === "task") body = (
