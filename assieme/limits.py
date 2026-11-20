@@ -16,8 +16,15 @@ NEWEST = 5            # logs per kind read: the account's latest state is in the
 TAIL = 128 * 1024
 
 
+def _mtime(p):
+    try:
+        return os.path.getmtime(p)
+    except OSError:
+        return 0  # removed since it was listed: read as oldest, and its read below finds nothing
+
+
 def _newest(paths):
-    return sorted(paths, key=os.path.getmtime, reverse=True)[:NEWEST]
+    return sorted(paths, key=_mtime, reverse=True)[:NEWEST]
 
 
 def _rows(paths):
