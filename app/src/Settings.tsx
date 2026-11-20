@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  assistantsInstall, assistantsRemove, assistantsStatus, getSettings, listTeams, quietPairs, quietSet, serviceInstall, serviceRunning, setSetting, stopTeam, teamPresets,
-  type AssistantApp, type Assistants, type Practices, type QuietPair, type Settings as Values, type TeamDraft, type TeamListing,
+  assistantsInstall, assistantsRemove, assistantsStatus, cliInstall, cliRemove, cliStatus, getSettings, listTeams, quietPairs, quietSet, serviceInstall, serviceRunning, setSetting, stopTeam, teamPresets,
+  type AssistantApp, type Assistants, type CliStatus, type Practices, type QuietPair, type Settings as Values, type TeamDraft, type TeamListing,
 } from "./bridge";
 import ChangeGroups from "./ChangeGroups";
 import ImproveTeam from "./ImproveTeam";
@@ -145,6 +145,39 @@ function Musicians() {
   );
 }
 
+/** Paper "Settings: General", row "Command line tools". */
+function CommandLineTools() {
+  const [got, setGot] = useState<CliStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = async (call: () => Promise<CliStatus>) => {
+    setBusy(true);
+    try {
+      setGot(await call());
+      setError("");
+    } catch (e) {
+      setError(String(e));
+    }
+    setBusy(false);
+  };
+  useEffect(() => { void run(cliStatus); }, []);
+  return (
+    <>
+      <Row title="Command line tools" sub="Run assieme in Terminal, for scripts and quick checks. Installing adds it to your PATH.">
+        {got?.state === "installed" ? (
+          <>
+            <span className="state good"><i />Installed</span>
+            <button type="button" className="link-small" disabled={busy} aria-label="Remove the command line tools" onClick={() => run(cliRemove)}>Remove</button>
+          </>
+        ) : got && (
+          <button type="button" className="btn-small" disabled={busy} onClick={() => run(cliInstall)}>{got.state === "moved" ? "Reinstall" : "Install"}</button>
+        )}
+      </Row>
+      {error && <p className="set-error">{error}</p>}
+    </>
+  );
+}
+
 function General({ onShowFirstRun }: { onShowFirstRun: () => void }) {
   const [running, setRunning] = useState<boolean | null>(null);
   const [error, setError] = useState("");
@@ -170,6 +203,7 @@ function General({ onShowFirstRun }: { onShowFirstRun: () => void }) {
         <Row title="First run" sub="See the agents and projects Assieme found on this Mac.">
           <button type="button" className="btn-small" onClick={onShowFirstRun}>Show First run</button>
         </Row>
+        <CommandLineTools />
         <Row title="Musicians" sub="Agents appear as musicians. Still stops the motion; Off shows a dot.">
           <Musicians />
         </Row>

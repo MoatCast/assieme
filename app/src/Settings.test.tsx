@@ -5,6 +5,7 @@ const b = vi.hoisted(() => ({
   getSettings: vi.fn(), setSetting: vi.fn(), quietPairs: vi.fn(), quietSet: vi.fn(), listTeams: vi.fn(), stopTeam: vi.fn(),
   serviceInstall: vi.fn(), serviceRunning: vi.fn(), teamPresets: vi.fn(), setGroups: vi.fn(),
   assistantsStatus: vi.fn(), assistantsInstall: vi.fn(), assistantsRemove: vi.fn(), scheduleList: vi.fn(),
+  cliStatus: vi.fn(), cliInstall: vi.fn(), cliRemove: vi.fn(),
 }));
 vi.mock("./bridge", () => b);
 
@@ -43,6 +44,7 @@ beforeEach(() => {
   b.listTeams.mockResolvedValue({ teams: [], found_agents: [] });
   b.serviceRunning.mockResolvedValue(true);
   b.assistantsStatus.mockResolvedValue({ apps: [] });
+  b.cliStatus.mockResolvedValue({ state: "missing", path: null });
   b.teamPresets.mockResolvedValue({ practices: {
     groups: [{ id: "messages", title: "Fewer, cheaper messages", summary: "Short notes.", detail: "Every message wakes it.",
       rules: ["1", "2", "3"].map((x) => ({ id: `r${x}`, title: `Rule ${x}`, detail: "d", note: x === "1" ? "Learned from a real team." : undefined, text: "t" })) }],
@@ -80,6 +82,29 @@ test("General: running, then stopped with Start it", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Start it" }));
   await flush();
   expect(b.serviceInstall).toHaveBeenCalled();
+});
+
+test("General: Command line tools Install, then Installed with Remove", async () => {
+  b.cliInstall.mockResolvedValue({ state: "installed", path: "/Users/me/.local/bin/assieme" });
+  b.cliRemove.mockResolvedValue({ state: "missing", path: null });
+  await open();
+  expect(screen.getByText("Run assieme in Terminal, for scripts and quick checks. Installing adds it to your PATH.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Install" }));
+  await flush();
+  expect(screen.getByText("Installed")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Remove the command line tools" }));
+  await flush();
+  expect(b.cliRemove).toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();
+});
+
+test("General: a launcher for a moved app offers Reinstall; a refusal is shown", async () => {
+  b.cliStatus.mockResolvedValue({ state: "moved", path: "/usr/local/bin/assieme" });
+  b.cliInstall.mockRejectedValue("/Users/me/.local/bin/assieme already exists and was not written by Assieme.");
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Reinstall" }));
+  await flush();
+  expect(screen.getByText(/not written by Assieme/)).toBeTruthy();
 });
 
 test("General: the Musicians choice, Animated by default, saves what is picked", async () => {

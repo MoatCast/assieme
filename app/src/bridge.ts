@@ -286,6 +286,11 @@ export const windowTheme = async (t: "light" | "dark" | "system") => getCurrentW
 export const onOpenSettings = (run: () => void) => listen("assieme-settings", () => run());
 /** New Team (⌘N) in the File menu. */
 export const onNewTeam = (run: () => void) => listen("assieme-new-team", () => run());
+/** Command line tools: the `assieme` launcher on PATH. "moved": installed for an app that has since moved. */
+export type CliStatus = { state: "missing" | "installed" | "moved"; path: string | null };
+export const cliStatus = () => invoke<CliStatus>("cli_status");
+export const cliInstall = () => invoke<CliStatus>("cli_install");
+export const cliRemove = () => invoke<CliStatus>("cli_remove");
 /** Command Palette (⌘K) in the View menu. */
 export const onPalette = (run: () => void) => listen("assieme-palette", () => run());
 export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
