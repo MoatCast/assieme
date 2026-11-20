@@ -661,6 +661,27 @@ class BrainTest(MapCase):
         self.assertFalse([x for x in out if x['action'] in ('quiet', 'outcome')])
         self.assertFalse(quiet.is_quiet(f'{WT}/a', f'{WT}/b'))
 
+    def test_undo_outlasts_the_log_window(self):
+        self.tick_with_tip()
+        quiet.set_pair(f'{WT}/a', f'{WT}/b', 'a to b', False)
+        for i in range(600):
+            live.record('deliver', 'x', 'noise', now=NOW)
+        out = self.tick_with_tip()
+        self.assertFalse([x for x in out if x['action'] in ('quiet', 'outcome')])
+        self.assertFalse(quiet.is_quiet(f'{WT}/a', f'{WT}/b'))
+        self.assertTrue(quiet.opted_out(f'{WT}/a', f'{WT}/b'))  # read afresh from its file
+
+    def test_holding_by_hand_clears_the_opt_out(self):
+        quiet.set_pair(f'{WT}/a', f'{WT}/b', 'a to b', False)
+        quiet.set_pair(f'{WT}/a', f'{WT}/b', 'a to b')
+        self.assertFalse(quiet.opted_out(f'{WT}/a', f'{WT}/b'))
+
+    def test_a_damaged_opt_out_file_means_none(self):
+        quiet.set_pair(f'{WT}/a', f'{WT}/b', 'a to b', False)
+        with open(os.path.join(quiet.state_dir(), 'no_auto_hold.json'), 'w') as f:
+            f.write('{nope')
+        self.assertFalse(quiet.opted_out(f'{WT}/a', f'{WT}/b'))
+
     def test_a_pair_without_a_rate_reads_plainly(self):
         b = self.brain()
         built = {'edges': [], 'tips': [{'id': 'a>b', 'from': 'a', 'to': 'b', 'share': 0.3,

@@ -265,10 +265,9 @@ def apply_tip(team_name, tip_id, built, now=None):
 def hold_automatically(views, now=None):
     """The first tip of each team, held at once: it works from the next note, so it is judged fixed straight away."""
     out = []
-    tried = {tuple(e['pair'][:2]) for e in live.recent_actions(None, 500) if e.get('action') == 'quiet' and e.get('by') == 'auto'}
-    for name, built in views.items():  # a pair held once is never held again, so an Undo sticks
+    for name, built in views.items():  # a pair the person un-held is never held again by itself (quiet.opted_out)
         t = next((x for x in built.get('tips', []) if not quiet.is_quiet(x['from_cwd'], x['to_cwd'])
-                  and (x['from_cwd'], x['to_cwd']) not in tried), None)
+                  and not quiet.opted_out(x['from_cwd'], x['to_cwd'])), None)
         if not t:
             continue
         edge = next((e for e in built.get('edges', []) if (e['from'], e['to']) == (t['from'], t['to'])), None) or {}
