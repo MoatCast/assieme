@@ -4,13 +4,13 @@ import ConnectMachine, { AgentChecks } from "./ConnectMachine";
 import InstallSheet from "./InstallSheet";
 import { remoteCheck, remoteConnect, remoteMachines, remoteRepos, remoteTerminal, since, type Machine, type MachineCheck } from "./remote";
 import type { AgentKind } from "./bridge";
+import StepPanel, { useClickGuard, type Clis, type PanelProps } from "./StepPanel";
 import "./Remote.css";
 
-type Clis = { claude: boolean; codex: boolean };
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** New team's "Where should the agents run?": this Mac, or a machine Assieme is set up on, with its line and agents.
- *  machine: null for this Mac, "" for a remote machine not chosen yet. onAgents: the agents installed there once it
+/** New team's Where step body: push buttons for this Mac and each machine Assieme is set up on, with the chosen
+ *  machine's line and agents. machine: null for this Mac. onAgents: the agents installed there once it
  *  is ready, else null. From Paper "v2 — New team: remote machine" and "Connect a machine: other results". */
 export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5000 }: {
   machine: string | null;
@@ -25,11 +25,8 @@ export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
 
-  const load = () => remoteMachines().then((ms) => {
-    setMachines(ms);
-    if (machine === "" && ms.length) onMachine(ms[0].name);
-  }, (e) => setError(message(e)));
-  useEffect(() => { if (machine !== null) void load(); }, [machine === null]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = () => remoteMachines().then(setMachines, (e) => setError(message(e)));
+  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The chosen machine's line and agents; asked again while it isn't ready, so a reconnect shows by itself.
   useEffect(() => {
@@ -87,35 +84,20 @@ export default function RemoteMachine({ machine, onMachine, onAgents, pollMs = 5
   const known = machines ?? [];
   return (
     <div className="field rm-field">
-      <div className="label">Where should the agents run?</div>
-      <div className="rm-where" role="radiogroup" aria-label="Where should the agents run?">
-        <button type="button" role="radio" aria-checked={machine === null} className={machine === null ? "on" : ""} onClick={() => onMachine(null)}>
-          <i className="rm-radio" />
-          <span><span><b>This Mac</b><em> · recommended</em></span><small>Nothing to set up</small></span>
+      <div className="rm-where">
+        <button type="button" className={machine === null ? "option on" : "option"} aria-pressed={machine === null} onClick={() => onMachine(null)}>
+          <span className="text"><b>This Mac</b><small>Ready now</small></span>
         </button>
-        <button type="button" role="radio" aria-checked={machine !== null} className={machine !== null ? "on" : ""}
-          onClick={() => machine === null && onMachine(known[0]?.name ?? "")}>
-          <i className="rm-radio" />
-          <span><b>A remote machine</b><small>Keeps working when your laptop sleeps</small></span>
-        </button>
+        {known.map((m) => (
+          <button type="button" key={m.name} className={machine === m.name ? "option on" : "option"} aria-pressed={machine === m.name}
+            onClick={() => onMachine(m.name)}>
+            <span className="text"><b>{m.name}</b><small>{m.target === m.name ? "Keeps working while this Mac sleeps" : m.target}</small></span>
+          </button>
+        ))}
       </div>
-      {machine !== null && (
-        <div className="rm-machine">
-          <div className="rm-pick">
-            <span className="rm-label">Machine</span>
-            <select className="rm-select" aria-label="Machine" value={machine} disabled={!known.length}
-              onChange={(e) => onMachine(e.target.value)}>
-              {!known.length && <option value="">{machines ? "No machine yet" : "Looking…"}</option>}
-              {known.map((m) => <option key={m.name} value={m.name}>{m.name}  {m.target === m.name ? "" : m.target}</option>)}
-            </select>
-            <button type="button" className={known.length ? "rm-link" : "rm-act"} onClick={() => setConnecting({})}>
-              {known.length ? "Other ways to connect" : "Connect a machine"}
-            </button>
-          </div>
-          {machine && <div className="rm-status" role="status">{status()}</div>}
-          {error && <p className="error">{error}</p>}
-        </div>
-      )}
+      <button type="button" className="link" onClick={() => setConnecting({})}>Connect a machine…</button>
+      {machine && <div className="rm-machine"><div className="rm-status" role="status">{status()}</div></div>}
+      {error && <p className="error">{error}</p>}
       {connecting && createPortal(
         <ConnectMachine setUp={connecting.setUp} onClose={() => { setConnecting(null); void load(); setTick((t) => t + 1); }}
           onUse={(m) => { setConnecting(null); void load(); onMachine(m); setTick((t) => t + 1); }} />, document.body,
@@ -146,5 +128,26 @@ export function RemoteProject({ machine, value, onChange, onDone }: {
       <datalist id="rm-repos">{repos.map((r) => <option key={r} value={r} />)}</datalist>
       {machine && <span className="muted">on {machine}</span>}
     </>
+  );
+}
+
+/** New team, Where: this Mac moves on by itself; a remote machine waits for Continue, since its check is a network wait. */
+export function WhereStep({ panel, machine, there, onMachine, onAgents, onNext, onCancel, pollMs }: {
+  panel: PanelProps; machine: string | null; there: Clis | null; onMachine: (m: string | null) => void;
+  onAgents: (a: Clis | null) => void; onNext: () => void; onCancel: () => void; pollMs?: number;
+}) {
+  const guard = useClickGuard(panel.at);
+  return (
+    <StepPanel {...panel} title="Where should the agents run?" hint="Choosing This Mac moves to the next step." footer={<>
+      <span className="safe" />
+      <button type="button" className="quiet" onClick={onCancel}>Cancel</button>
+      {machine !== null && <button type="button" className="primary" disabled={!there} onClick={onNext}>Continue</button>}
+    </>}>
+      <RemoteMachine machine={machine} onAgents={onAgents} pollMs={pollMs} onMachine={(m) => {
+        if (guard()) return;
+        onMachine(m);
+        if (m === null) onNext();
+      }} />
+    </StepPanel>
   );
 }
