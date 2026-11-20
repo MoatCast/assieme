@@ -157,23 +157,39 @@ class OutcomeCase(unittest.TestCase):
         fixes.check_outcomes(w, self.rt, log=self.log, now=NOW + dt.timedelta(minutes=1))
         self.assertEqual(fixes.check_outcomes(w, self.rt, log=self.log, now=NOW + dt.timedelta(minutes=2)), [])
 
-    def tell_pane(self, n):
-        return dict(stuck('builder-3'), fix={'text': 'x', 'buttons': [
-            {'kind': 'action', 'action': 'tell', 'send': f'assieme: `make deploy` has been refused {n} times by rule. Do not retry it.'}]})
+    def tell_pane(self, refused=(), buttons=None):
+        iso = lambda m: (NOW + dt.timedelta(minutes=m)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        send = 'assieme: `make deploy` has been refused 2 times by rule. Do not retry it.'
+        return dict(stuck('builder-3'), refused=[(iso(m), 'make deploy') for m in refused], fix={'text': 'x', 'buttons': buttons or [
+            {'kind': 'action', 'action': 'tell', 'send': send}]})
 
-    def tell_at(self, n):
+    def tell_at(self):
         a = dict(AUTO, fixes=dict(AUTO['fixes'], tell='auto'))
-        return teammap.run_automatic(views(self.tell_pane(n)), a, self.rt, log=self.log, now=NOW)[0]
+        return teammap.run_automatic(views(self.tell_pane([-25, -1])), a, self.rt, log=self.log, now=NOW)[0]
 
     def test_an_obeyed_tell_is_fixed_though_old_refusals_stay_in_the_window(self):
-        fix = self.tell_at(2)
-        fixes.check_outcomes(views(self.tell_pane(2)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        fix = self.tell_at()
+        fixes.check_outcomes(views(self.tell_pane([-25, -1])), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
         self.assertEqual(self.row_of(fix['id'])['outcome'], 'fixed')
 
-    def test_a_tell_refused_again_is_still_stuck(self):
-        fix = self.tell_at(2)
-        fixes.check_outcomes(views(self.tell_pane(3)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+    def test_a_tell_refused_again_is_still_stuck_even_when_old_refusals_age_out(self):
+        fix = self.tell_at()
+        later = views(self.tell_pane([-25, -1, 5], buttons=[]))  # the loop's button is gone: one refusal is left in the window
+        fixes.check_outcomes(later, self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
         self.assertEqual(self.row_of(fix['id'])['outcome'], 'still_stuck')
+
+    def test_a_warning_tell_offered_later_is_not_a_refusal(self):
+        fix = self.tell_at()
+        warn = [{'kind': 'action', 'action': 'tell', 'send': 'assieme: your context is growing fast.'}]
+        fixes.check_outcomes(views(self.tell_pane([-25, -1], buttons=warn)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual(self.row_of(fix['id'])['outcome'], 'fixed')
+
+    def test_a_tell_from_before_this_field_gets_no_outcome(self):
+        from assieme import live
+        old = live.record('tell', 'builder-3', 'x', team='shop', by='auto', log=self.log, now=NOW, problem='k',
+                          check_until=fixes.check_until(NOW))
+        out = fixes.check_outcomes(views(self.tell_pane()), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual((out, self.row_of(old['id'])['outcome']), ([], None))
 
     def test_outcome_entries_are_not_rows(self):
         self.nudge_at(NOW)

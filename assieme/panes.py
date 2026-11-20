@@ -137,6 +137,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         p = {'role': role, 'agent': kind, 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
              'command': None, 'memory_full': _memory_full(a),
+             'refused': [(ts.strftime('%Y-%m-%dT%H:%M:%SZ'), label) for ts, label, _, _ in a.refused] if a else [],
              'busy': (r.get('status') or {}).get('state') == 'working'}  # mid-turn by its own hook, whatever the logs suggest
         if report:
             p['since_s'] = max(0, int(now.timestamp() - report['ms'] / 1000))

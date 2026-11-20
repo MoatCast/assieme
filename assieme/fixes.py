@@ -71,9 +71,14 @@ def check_outcomes(views, rt, log=None, now=None):
                 fixed = pane['state'] == 'working'
             elif action == 'compact':
                 fixed = not pane.get('memory_full')
-            else:  # tell: fixed unless a refusal newer than the fix is told again by the time is up
-                fixed = now >= until and not any(_refused_again(e.get('sent'), b) for b in (pane.get('fix') or {}).get('buttons', [])
-                                                 if b.get('action') == action)
+            else:  # tell: still stuck once the command it was about is refused after the fix, fixed if not by the time is up
+                at = status.parse_ts(e.get('at'))
+                if not e.get('refused') or not at:
+                    continue  # an older entry, or a warning tell: nothing to judge it by
+                again = any(label == e['refused'] and status.parse_ts(ts) > at for ts, label in pane.get('refused', []))
+                if not again and now < until:
+                    continue
+                fixed = not again
             if not fixed and now < until:
                 continue
             out.append(live.record('outcome', e['agent'], '', team=e.get('team'), by='auto', log=log, now=now,
@@ -81,7 +86,7 @@ def check_outcomes(views, rt, log=None, now=None):
     return out
 
 
-def _refused_again(sent, button):
-    """The same tell offered with a higher refusal count (old refusals stay in the 30-minute window), or other text."""
-    old, new = (re.search(r'refused (\d+) times', t or '') for t in (sent, button.get('send')))
-    return int(new[1]) > int(old[1]) if old and new else button.get('send') != sent
+def refused_command(send):
+    """The command a refusal-loop tell is about; None for any other tell."""
+    m = re.match(r'assieme: `(.+)` has been refused \d+ times', send or '')
+    return m[1] if m else None
