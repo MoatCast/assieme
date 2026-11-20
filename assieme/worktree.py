@@ -8,7 +8,11 @@ import subprocess
 
 
 class WorktreeError(RuntimeError):
-    pass
+    """message: what happened and what to do, in plain words. detail: git's own text or the path, for Details."""
+
+    def __init__(self, message, detail=''):
+        super().__init__(message)
+        self.detail = detail
 
 
 class NoCommitsError(WorktreeError):
@@ -33,10 +37,14 @@ def _git(cwd, *args):
 def check_repo(project):
     r = _git(project, 'rev-parse', '--show-toplevel')
     if r.returncode != 0:
-        raise WorktreeError(f'{project} is not a git repository. Make it one with: git init {project} '
-                            '(and make a first commit)')
+        raise WorktreeError(f"{_name(project)} isn't set up to keep versions yet. Choose it in New team to set it up.")
     if _git(project, 'rev-parse', '--verify', '--quiet', 'HEAD').returncode != 0:
-        raise NoCommitsError(f'{project} has no commits yet. Make a first commit, then start again.')
+        raise NoCommitsError(f'{_name(project)} has no saved version yet. '
+                             'Choose it in New team to save a first version.')
+
+
+def _name(project):
+    return os.path.basename(os.path.normpath(project))
 
 
 def exclude(project, line='.assieme/'):
@@ -104,37 +112,43 @@ def ensure(team, role):
     if os.path.isdir(path):
         top = _git(path, 'rev-parse', '--show-toplevel')
         if top.returncode != 0 or os.path.realpath(top.stdout.strip()) != os.path.realpath(path):
-            raise WorktreeError(f'{path} exists but is not a git worktree. Move it away, then start again.')
+            raise WorktreeError(f"A folder is in the way of {role.name}'s copy. Move it, then start again.", path)
         st = _git(path, 'status', '--porcelain')
         if st.returncode != 0 or st.stdout.strip():
-            raise WorktreeError(f'{path} has uncommitted changes. Commit or remove them, then start again.')
+            raise WorktreeError(f"{role.name}'s copy has changes that aren't saved yet. "
+                                'Save or remove them, then start again.', path)
         return path
     if role.container:
-        return _clone(team.project, path, branch, role.checkout == 'read-only')
+        return _clone(team.project, path, branch, role.checkout == 'read-only', role.name)
     if role.checkout == 'read-only':
         args = ['worktree', 'add', '--detach', path, 'HEAD']
     else:
         if _git(team.project, 'rev-parse', '--verify', '--quiet', f'refs/heads/{branch}').returncode == 0:
-            raise WorktreeError(f'branch {branch} already exists but has no worktree at {path}. '
-                                f'Delete it (git branch -D {branch}) or rename the team.')
+            raise WorktreeError(f'A copy named {branch} is left over from an earlier team. '
+                                'Rename this team, or remove the old copy.', f'git branch -D {branch}')
         args = ['worktree', 'add', '-b', branch, path, start]
     r = _git(team.project, *args)
     if r.returncode != 0:
-        raise WorktreeError(f'git {" ".join(args)} failed: {r.stderr.strip()}')
+        raise _failed(role.name, args, r)
     return path
 
 
-def _clone(project, path, branch, read_only):
+def _failed(name, args, r):
+    return WorktreeError(f"Assieme couldn't make {name}'s copy.", f'git {" ".join(args)}\n{r.stderr.strip()}')
+
+
+def _clone(project, path, branch, read_only, name):
     """The container's copy: its own branch, made in the project first so Review knows it."""
     # A branch already there (its work brought back by an undo) is where the copy starts.
     if not read_only and _git(project, 'rev-parse', '--verify', '--quiet', f'refs/heads/{branch}').returncode != 0:
         r = _git(project, 'branch', branch, 'HEAD')
         if r.returncode != 0:
-            raise WorktreeError(f'git branch {branch} failed: {r.stderr.strip()}')
+            raise _failed(name, ['branch', branch, 'HEAD'], r)
     # No hard links: the container must not be able to change the project's own object files.
-    r = _git(project, 'clone', '--quiet', '--no-hardlinks', *([] if read_only else ['--branch', branch]), project, path)
+    args = ['clone', '--quiet', '--no-hardlinks', *([] if read_only else ['--branch', branch]), project, path]
+    r = _git(project, *args)
     if r.returncode != 0:
-        raise WorktreeError(f'git clone failed: {r.stderr.strip()}')
+        raise _failed(name, args, r)
     if read_only:
         _git(path, 'checkout', '--quiet', '--detach')
     for key in ('user.name', 'user.email'):  # who the agent's commits are by, as in a worktree

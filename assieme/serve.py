@@ -57,7 +57,8 @@ def handle(request, handlers):
     try:
         return {'jsonrpc': '2.0', 'id': rid, 'result': fn(**(request.get('params') or {}))}
     except Exception as e:  # a failing handler is a reply, never a dead service
-        return {'jsonrpc': '2.0', 'id': rid, 'error': {'code': -32000, 'message': str(e)}}
+        detail = getattr(e, 'detail', '')  # the app shows it under Details (bridge.ts splitDetail)
+        return {'jsonrpc': '2.0', 'id': rid, 'error': {'code': -32000, 'message': str(e) + (f'\n\nDetails:\n{detail}' if detail else '')}}
     finally:
         _request.by = 'you'
 

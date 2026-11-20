@@ -32,7 +32,9 @@ LOCAL_CHANGES = ('Your main checkout has uncommitted changes in the same files. 
 
 
 class ReviewError(ValueError):
-    pass
+    def __init__(self, message, detail=''):
+        super().__init__(message)
+        self.detail = detail
 
 
 def test_command(path):
@@ -648,7 +650,7 @@ class Review:
                 tm = preset.load(os.path.join(self.teams, team))
                 started = team_mod.start(tm, text, self.rt, ask=lambda q: True, only=role)
             except (preset.PresetError, worktree.WorktreeError, team_mod.TeamError) as e:
-                raise ReviewError(f"{role} has stopped and couldn't start again: {e}") from None
+                raise ReviewError(f"{role} has stopped and couldn't start again: {e}", getattr(e, 'detail', '')) from None
             if started[0].state != 'running':
                 raise ReviewError(f"{role} has stopped and couldn't start again: {started[0].note or started[0].state}")
             restarted = True

@@ -35,9 +35,9 @@ NO_GIT = "This machine needs git. Install it there, then choose the folder again
 class NewTeamError(ValueError):
     """A problem the form shows next to `field` ('project', 'roles', 'role:<index>', 'start' or 'suggest')."""
 
-    def __init__(self, field, message):
+    def __init__(self, field, message, detail=''):
         super().__init__(f'{field}: {message}')
-        self.field, self.message = field, message
+        self.field, self.message, self.detail = field, message, detail
 
 
 def teams_dir():
@@ -424,7 +424,7 @@ class Starter:
                 for r in tm.roles:  # every worktree now, so a dirty one is reported to the form, not the log
                     worktree.ensure(tm, r)
             except worktree.WorktreeError as e:
-                raise NewTeamError('start', str(e)) from None
+                raise NewTeamError('start', str(e), e.detail) from None
         except Exception:
             with self.lock:
                 self.busy.pop(project, None)
@@ -507,7 +507,7 @@ class Starter:
             worktree.ensure(tm, next(r for r in tm.roles if r.name == name))
         except worktree.WorktreeError as e:
             forget_role(folder, name)
-            raise NewTeamError('start', str(e)) from None
+            raise NewTeamError('start', str(e), e.detail) from None
         rec = {'team': team_name, 'project': tm.project, 'done': False, 'error': None, 'done_at': None,
                'roles': [{'role': name, 'state': 'starting', 'detail': ''}]}
         with self.lock:

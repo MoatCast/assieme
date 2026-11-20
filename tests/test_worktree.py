@@ -42,14 +42,19 @@ class WorktreeTest(unittest.TestCase):
     def test_refuses_dirty_worktree(self):
         p = worktree.ensure(self.team, self.builder)
         open(f'{p}/x.txt', 'w').write('x')
-        with self.assertRaisesRegex(worktree.WorktreeError, 'uncommitted'):
+        with self.assertRaises(worktree.WorktreeError) as c:
             worktree.ensure(self.team, self.builder)
+        self.assertEqual(str(c.exception), "builder-1's copy has changes that aren't saved yet. "
+                                           'Save or remove them, then start again.')
+        self.assertEqual(c.exception.detail, p)
         self.assertTrue(os.path.exists(f'{p}/x.txt'))
 
     def test_plain_folder_is_not_reused(self):
         os.makedirs(f'{self.repo}/.assieme/worktrees/builder-1')
-        with self.assertRaisesRegex(worktree.WorktreeError, 'not a git worktree'):
+        with self.assertRaises(worktree.WorktreeError) as c:
             worktree.ensure(self.team, self.builder)
+        self.assertEqual(str(c.exception), "A folder is in the way of builder-1's copy. Move it, then start again.")
+        self.assertEqual(c.exception.detail, f'{self.repo}/.assieme/worktrees/builder-1')
 
     def test_exclude_added_once(self):
         worktree.ensure(self.team, self.builder)
@@ -61,8 +66,11 @@ class WorktreeTest(unittest.TestCase):
     def test_not_a_repo(self):
         d = tempfile.mkdtemp()
         try:
-            with self.assertRaisesRegex(worktree.WorktreeError, 'git init'):
+            with self.assertRaises(worktree.WorktreeError) as c:
                 worktree.check_repo(d)
+            self.assertEqual(str(c.exception), f"{os.path.basename(d)} isn't set up to keep versions yet. "
+                                               'Choose it in New team to set it up.')
+            self.assertEqual(c.exception.detail, '')
         finally:
             shutil.rmtree(d)
 
@@ -70,12 +78,31 @@ class WorktreeTest(unittest.TestCase):
         d = tempfile.mkdtemp()
         try:
             git(d, 'init', '-q')
-            with self.assertRaisesRegex(worktree.NoCommitsError, 'first commit'):
+            with self.assertRaises(worktree.NoCommitsError) as c:
                 worktree.check_repo(d)
+            self.assertEqual(str(c.exception), f'{os.path.basename(d)} has no saved version yet. '
+                                               'Choose it in New team to save a first version.')
+            self.assertEqual(c.exception.detail, '')
         finally:
             shutil.rmtree(d)
 
     def test_branch_taken_elsewhere(self):
         git(self.repo, 'branch', 'assieme/demo/builder-1')
-        with self.assertRaisesRegex(worktree.WorktreeError, 'assieme/demo/builder-1'):
+        with self.assertRaises(worktree.WorktreeError) as c:
             worktree.ensure(self.team, self.builder)
+        self.assertEqual(str(c.exception), 'A copy named assieme/demo/builder-1 is left over from an earlier team. '
+                                           'Rename this team, or remove the old copy.')
+        self.assertEqual(c.exception.detail, 'git branch -D assieme/demo/builder-1')
+
+    def test_git_failure_keeps_git_text_in_detail(self):
+        os.makedirs(f'{self.repo}/.assieme')
+        open(f'{self.repo}/.assieme/worktrees', 'w').write('in the way\n')  # git can't make a folder under a file
+        with self.assertRaises(worktree.WorktreeError) as c:
+            worktree.ensure(self.team, self.builder)
+        self.assertEqual(str(c.exception), "Assieme couldn't make builder-1's copy.")
+        self.assertTrue(c.exception.detail.startswith('git worktree add'), c.exception.detail)
+        self.assertNotIn('git', str(c.exception).replace('Assieme', ''))
+
+    def test_one_argument_error_has_no_detail(self):
+        self.assertEqual(worktree.WorktreeError('plain').detail, '')
+        self.assertEqual(str(worktree.WorktreeError('plain')), 'plain')
