@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fieldOf, suggestTeam, type Suggestion } from "./bridge";
+import { teamSummary } from "./newTeamSteps";
 import { suggestTeamOn } from "./remote";
 
 type Q = { key: "size" | "review" | "budget"; label: string; options: [string, string][] };
@@ -9,18 +10,21 @@ const QUESTIONS: Q[] = [
   { key: "budget", label: "Budget", options: [["lean", "Keep it lean"], ["fast", "Speed matters more"]] },
 ];
 
-/** Help me choose: three questions, then the person's own agent suggests a team. */
-export default function HelpMeChoose({ project, agent, onDone, onCancel, machine }: {
+/** Help me choose, inside the Team step: the person's own agent reads the task (or, with none, hears how big the change
+ *  is) and suggests a team, which the person confirms with Use this team. */
+export default function HelpMeChoose({ project, agent, task = "", onDone, onCancel, machine }: {
   /** Another machine (step 15): its own agent reads the project there. */
   machine?: string;
   project: string;
-  agent: "Claude Code" | "Codex";
+  agent: string;
+  task?: string;
   onDone: (s: Suggestion) => void;
   onCancel: () => void;
 }) {
   const [answers, setAnswers] = useState({ size: "feature", review: "every", budget: "lean" });
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState("");
+  const [got, setGot] = useState<Suggestion | null>(null);
   const gone = useRef(false); // set on Cancel or close: a late answer must not replace the person's agents
   useEffect(() => () => void (gone.current = true), []);
   const cancel = () => {
@@ -32,8 +36,9 @@ export default function HelpMeChoose({ project, agent, onDone, onCancel, machine
     setAsking(true);
     setError("");
     try {
-      const s = await (machine ? suggestTeamOn({ project, ...answers }, machine) : suggestTeam({ project, ...answers }));
-      if (!gone.current) onDone(s);
+      const a = task.trim() ? { project, ...answers, size: "", task: task.trim() } : { project, ...answers };
+      const s = await (machine ? suggestTeamOn(a, machine) : suggestTeam(a));
+      if (!gone.current) setGot(s);
     } catch (e) {
       if (!gone.current) setError(fieldOf(e).message);
     } finally {
@@ -41,10 +46,22 @@ export default function HelpMeChoose({ project, agent, onDone, onCancel, machine
     }
   };
 
+  if (got)
+    return (
+      <div className="sheet" role="group" aria-label="Help me choose">
+        <h2>Suggested team</h2>
+        <p className="muted">{got.why}</p>
+        <p><b>{teamSummary(got.roles)}</b></p>
+        <div className="actions">
+          <button type="button" className="quiet" onClick={() => setGot(null)}>Back</button>
+          <button type="button" className="primary" onClick={() => onDone(got)}>Use this team</button>
+        </div>
+      </div>
+    );
   return (
-    <div className="sheet" role="dialog" aria-label="Help me choose">
+    <div className="sheet" role="group" aria-label="Help me choose">
       <h2>Help me choose</h2>
-      {QUESTIONS.map((q) => (
+      {QUESTIONS.filter((q) => q.key !== "size" || !task.trim()).map((q) => (
         <div className="field" key={q.key}>
           <div className="label">{q.label}</div>
           <div className="chips">
