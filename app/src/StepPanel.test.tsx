@@ -69,7 +69,7 @@ test("every button in a panel ignores clicks for 300 ms after the step changes",
 test("the indicator uses no class that another screen styles on its own", async () => {
   const { readFileSync, readdirSync } = await import("node:fs");
   const bare = new Set<string>();
-  for (const f of readdirSync("src").filter((x) => x.endsWith(".css")))
+  for (const f of readdirSync("src").filter((x: string) => x.endsWith(".css")))
     for (const m of readFileSync(`src/${f}`, "utf8").matchAll(/^\.([\w-]+)\s*[{,]/gm)) bare.add(m[1]);
   render(panel("task"));
   const classes = [...screen.getByRole("navigation", { name: "Setup steps" }).querySelectorAll("li")].flatMap((li) => [...li.classList]);
