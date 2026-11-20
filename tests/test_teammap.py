@@ -630,6 +630,35 @@ class BrainTest(MapCase):
         self.assertEqual([e['action'] for e in got], ['nudge'])
         self.assertEqual(len(b.rt.sent), 1)
 
+    def tick_with_tip(self, from_='a', to='b', per_hour=30, fixes_quiet='auto', twice=False):
+        settings.set_value('fixes.quiet', fixes_quiet)
+        b = self.brain([row(from_), row(to)])
+        built = {'team': 'shop', 'found': False, 'panes': [], 'edges': [{'from': from_, 'to': to, 'wakes': 50, 'empty': 40,
+                                                                           'noisy': {'per_hour': per_hour}}],
+                 'tips': [{'id': f'{from_}>{to}', 'from': from_, 'to': to, 'share': 0.3,
+                           'from_cwd': f'{WT}/{from_}', 'to_cwd': f'{WT}/{to}'}]}
+        with mock.patch.object(b, '_map', return_value=built), mock.patch.object(b.today, 'refresh'):
+            out = b.tick(NOW)
+            return out + b.tick(NOW) if twice else out
+
+    def test_noisy_pair_is_held_automatically(self):
+        out = self.tick_with_tip(from_='reviewer', to='builder-1', per_hour=41)
+        e = next(x for x in out if x['action'] == 'quiet')
+        self.assertEqual((e['by'], e['title']), ('auto', "Held reviewer's routine notes until builder-1 was free"))
+        self.assertEqual(e['measured'], {'what': '41 wake-ups an hour with no work', 'minutes': None, 'tokens': None})
+        self.assertTrue(quiet.is_quiet(f'{WT}/reviewer', f'{WT}/builder-1'))
+        o = next(x for x in out if x['action'] == 'outcome')
+        self.assertEqual((o['of'], o['result'], o['by'], o['team']), (e['id'], 'fixed', 'auto', 'shop'))
+
+    def test_a_held_pair_is_not_held_twice(self):
+        out = self.tick_with_tip(twice=True)
+        self.assertEqual(len([x for x in out if x['action'] == 'quiet']), 1)
+
+    def test_ask_first_keeps_the_tip(self):
+        out = self.tick_with_tip(fixes_quiet='ask')
+        self.assertFalse([x for x in out if x['action'] == 'quiet'])
+        self.assertFalse(quiet.is_quiet(f'{WT}/a', f'{WT}/b'))
+
     def test_tick_reads_no_teams_while_everything_asks_first(self):
         for k in settings.defaults()['fixes']:
             settings.set_value(f'fixes.{k}', 'ask')

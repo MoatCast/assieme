@@ -247,15 +247,35 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             'spend_ready': getattr(today, 'ready', True)}
 
 
+def _hold_pair(team_name, t, now=None, **extra):
+    label = f"{t['from']} to {t['to']}"
+    quiet.set_pair(t['from_cwd'], t['to_cwd'], label)
+    return live.record('quiet', label, f"{round(t['share'] * 100)}% of today's tokens went on these wake-ups.", team=team_name,
+                       now=now, pair=[t['from_cwd'], t['to_cwd'], label], **extra)
+
+
 def apply_tip(team_name, tip_id, built, now=None):
     t = next((x for x in built['tips'] if x['id'] == tip_id), None)
     if not t:
         return {'ok': False, 'detail': 'This tip has changed. Take another look.'}
-    label = f"{t['from']} to {t['to']}"
-    quiet.set_pair(t['from_cwd'], t['to_cwd'], label)
-    live.record('quiet', label, f"{round(t['share'] * 100)}% of today's tokens went on these wake-ups.", team=team_name, now=now,
-                pair=[t['from_cwd'], t['to_cwd'], label])
+    _hold_pair(team_name, t, now)
     return {'ok': True, 'detail': ''}
+
+
+def hold_automatically(views, now=None):
+    """The first tip of each team, held at once: it works from the next note, so it is judged fixed straight away."""
+    out = []
+    for name, built in views.items():
+        t = next((x for x in built.get('tips', []) if not quiet.is_quiet(x['from_cwd'], x['to_cwd'])), None)
+        if not t:
+            continue
+        edge = next((e for e in built.get('edges', []) if (e['from'], e['to']) == (t['from'], t['to'])), None) or {}
+        n = (edge.get('noisy') or {}).get('per_hour')
+        what = f'{n} wake-ups an hour with no work' if n is not None else f"{edge.get('empty', 0)} wake-ups with no work"
+        e = _hold_pair(name, t, now, by='auto', title=f"Held {t['from']}'s routine notes until {t['to']} was free",
+                       measured={'what': what, 'minutes': None, 'tokens': None})
+        out += [e, live.record('outcome', e['agent'], '', team=name, by='auto', now=now, of=e['id'], result='fixed')]
+    return out
 
 
 def _wakers(a, alias, now):
@@ -541,6 +561,8 @@ class Brain:
         if not auto:
             return []
         done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now))
+        if st['fixes'].get('quiet') == 'auto':
+            done += hold_automatically({n: v for n, v in views.items() if not v.get('found')}, now)
         return done + fixes.check_outcomes(views, self.rt, now=now)
 
     def _problem_tokens(self, views, now):
