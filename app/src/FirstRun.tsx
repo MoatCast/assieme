@@ -115,6 +115,10 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   // at what is missing (developer tools, an agent); everyone else keeps this screen.
   const newUser = shown && !!snap && !agents.length && !(snap.teams ?? []).some((t) => t.state === "live") && !starting.length
     && !dismissed && !creating;
+  // Once open, the steps stay until the person closes them or Start finishes: signing in to an agent mid-setup starts a
+  // session, which the next snapshot lists as an agent, and that must not unmount the steps and lose their answers.
+  const [inSteps, setInSteps] = useState(false);
+  if (newUser && !inSteps) setInSteps(true);
   const privacy = onOpenSettings ? (
     <button type="button" className="link-btn" onClick={() => onOpenSettings("privacy")}>Settings, Privacy</button>
   ) : "Settings, Privacy";
@@ -133,8 +137,8 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
           setCreating(true);
         }} />
       )}
-      {newUser ? (
-        <NewTeam clis={installedOf(snap?.clis)} onClose={() => setDismissed(true)} onStarted={onOpenTeam} />
+      {newUser || inSteps ? (
+        <NewTeam clis={installedOf(snap?.clis)} onClose={() => { setInSteps(false); setDismissed(true); }} onStarted={onOpenTeam} />
       ) : (<>
       <section className="intro">
         <div className="eyebrow">Welcome to Assieme</div>

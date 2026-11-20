@@ -286,6 +286,19 @@ test("a new user goes straight into the steps, starting at what is missing", asy
   expect(openTeam).toHaveBeenCalledTimes(1);
 });
 
+test("the steps stay open, on the same step, when an agent turns up mid-setup", async () => {
+  snapshot.mockResolvedValue(NEW_USER);
+  render(<FirstRun pollMs={5000} onOpenTeam={() => {}} />);
+  await flush();
+  const steps = screen.getByText("New team screen");
+  snapshot.mockResolvedValue({ ...NEW_USER, agents: SNAP.agents }); // signing in started a session
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(screen.getByText("New team screen")).toBe(steps); // the same mounted steps, not new ones
+  expect(screen.queryByText("Grouped into teams by project folder")).toBeNull();
+  fireEvent.click(screen.getByText("close new team"));
+  screen.getByText("Grouped into teams by project folder");
+});
+
 test("a new user who closes the steps sees the welcome screen, with New team", async () => {
   snapshot.mockResolvedValue(NEW_USER);
   const openTeam = vi.fn();
