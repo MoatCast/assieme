@@ -484,6 +484,60 @@ class RunAutomaticTest(MapCase):
         self.assertEqual([e['ok'] for e in got], [False, True])
 
 
+class FoundRunTest(MapCase):
+    def setUp(self):
+        super().setUp()
+        outer = self
+        self.herdr_sent, self.sent = [], []
+
+        class Rt:
+            def send(self, t, text):
+                outer.sent.append(t)
+        self.rt = Rt()
+
+        class Herdr:
+            def send(self, t, text):
+                outer.herdr_sent.append(t)
+        self.herdr = Herdr()
+        settings.set_value('fixes.nudge', 'auto')
+
+    def found_views(self, plain=False):
+        a = FoundTest.agent(self, 'a', '/w/a', 'stuck', address=None if plain else 'w1:2')
+        a.detail = 'silent 18 min'
+        return {'herdr-shop': self.build(teammap.found_rows('herdr-shop', [a]), [a], found=True)}
+
+    def run_found(self, views, on=True):
+        st = settings.load()
+        st['run_found'] = {'herdr-shop': True} if on else {}
+        return teammap.run_automatic(views, st, self.rt, now=NOW, herdr=self.herdr)
+
+    def test_found_team_is_left_alone_until_asked(self):
+        self.assertEqual(self.run_found(self.found_views(), on=False), [])
+        self.assertEqual(self.herdr_sent, [])
+
+    def test_found_team_runs_after_opt_in(self):
+        out = self.run_found(self.found_views())
+        self.assertEqual(self.herdr_sent, ['w1:2'])
+        self.assertEqual(self.sent, [])
+        self.assertIn('found in herdr', out[0]['reason'])
+
+    def test_plain_terminal_agents_stay_needs_you(self):
+        self.assertEqual(self.run_found(self.found_views(plain=True)), [])
+
+    def test_map_says_whether_assieme_runs_a_found_team(self):
+        m = self.build([row('a')], found=True)
+        self.assertIs(m['run_by_assieme'], False)
+        self.assertNotIn('run_by_assieme', self.build([row('a')]))
+
+    def test_run_found_is_saved_and_undone(self):
+        brain = teammap.Brain('/c', '/x', self.rt, None, NoAnswers())
+        self.assertEqual(brain.run_found('herdr-shop', True), {'ok': True})
+        self.assertTrue(settings.load()['run_found']['herdr-shop'])
+        [e] = [x for x in live.recent_actions(None, 5) if x['action'] == 'run_found']
+        activity.undo(e['id'], self.rt)
+        self.assertFalse(settings.load()['run_found'].get('herdr-shop'))
+
+
 class FakeRt:
     session, sock = 'assieme', '/s/hc.sock'
 

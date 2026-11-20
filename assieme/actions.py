@@ -36,6 +36,8 @@ CATALOGUE = {
     'team.add_agent': Action('Adds an agent to a running team.', {'team': T, 'role': 'the role, as in New team'}, True),
     'team.allow_script': Action('Allows one setup or test script a team brought over may run.',
                                 {'team': T, 'which': 'setup or test', 'line': 'the exact command line'}, True),
+    'team.run_found': Action('Lets Assieme apply automatic fixes on a team found in herdr, or takes that back.',
+                             {'team': T, 'on': 'true or false'}, True),
     'team.band': Action('Shows the instrument each agent plays.', {'team': T}),
     'team.improve': Action('Checks a running team and lists improvements to its setup.', {'team': T}),
     'team.improve_apply': Action('Applies chosen improvements to a team.', {'team': T, 'ids': 'list of improvement ids'}, True),

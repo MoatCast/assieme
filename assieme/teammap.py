@@ -238,7 +238,7 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
                     f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
                     + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
     done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
-    return {'team': team_name, 'found': found,
+    return {'team': team_name, 'found': found, **({'run_by_assieme': bool(st['run_found'].get(team_name))} if found else {}),
             'stopped': not any(r.get('state') == 'live' for r in rows),
             'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
@@ -318,8 +318,9 @@ def detail(team_name, role, built, agents, roster, now, rows=None, show_commands
             'wakers': _wakers(a, alias, now) if a else [], 'empty_wakes': sum(e['empty'] for e in edge_in)}
 
 
-def run_automatic(views, st, rt, log=None, now=None, tokens=None):
-    """Carry out the fixes switched to automatic, on teams started in Assieme only. Only buttons that are fixes: a
+def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
+    """Carry out the fixes switched to automatic, on teams started in Assieme and on found teams the person let Assieme
+    run (st['run_found']), the latter through `herdr` and only for agents in a herdr terminal. Only buttons that are fixes: a
     question is the person's to answer. One attempt per problem (fixes.problem_key), measured as it starts.
     `tokens` is role -> (tokens now, tokens when the problem began)."""
     now = now or status.now_utc()
@@ -327,9 +328,12 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None):
     with fixes.LOCK:  # a failed try counts as the attempt too: otherwise it would retry and log a row every tick
         entries = live.recent_actions(log, 500)
         for name, built in views.items():
-            if built.get('found'):
+            found = built.get('found')
+            if found and not st['run_found'].get(name):
                 continue
             for p in built['panes']:
+                if found and not p['reachable']:
+                    continue  # a plain terminal agent can only be watched
                 for b in (p['fix'] or {}).get('buttons', []):
                     action = b.get('action')
                     if b['kind'] != 'action' or st['fixes'].get(action) != 'auto':
@@ -343,12 +347,14 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None):
                            for k in (-1, 0, 1)):
                         continue
                     try:
-                        rt.send(p['address'], b['send'])
+                        if found:
+                            herdr = herdr or HerdrRt()
+                        (herdr if found else rt).send(p['address'], b['send'])
                         ok, detail_ = True, 'sent'
                     except Exception as e:  # a failed fix is a row in Activity, and the others still run
                         ok, detail_ = False, str(e)[:120]
                     now_t, start_t = (tokens or {}).get(p['role'], (None, None))
-                    entry = live.record(action, p['role'], p['fix']['text'], ok, detail_, team=name, by='auto',
+                    entry = live.record(action, p['role'], p['fix']['text'] + (' (team found in herdr)' if found else ''), ok, detail_, team=name, by='auto',
                                         address=p['address'], log=log, now=now, problem=key, refused=fixes.refused_command(b['send']),
                                         measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now))
                     entries.append(entry)
@@ -513,6 +519,12 @@ class Brain:
             settings.set_value(key, value)
         return settings.load()
 
+    def run_found(self, team_name, on):
+        old = bool(settings.load()['run_found'].get(team_name))
+        settings.set_value(f'run_found.{team_name}', bool(on))
+        live.record('run_found', team_name, 'You let Assieme run this team.', team=team_name, old=old, new=bool(on))
+        return {'ok': True}
+
     def pairs(self, team_name=None):
         now = status.now_utc()
         rows = self._assieme_rows()
@@ -608,6 +620,7 @@ class Brain:
                 'settings.set': lambda key, value: self.change_setting(key, value),
                 'quiet.pairs': lambda team=None: self.pairs(team),
                 'quiet.set': lambda from_cwd, to_cwd, label='', on=True: self.set_pair(from_cwd, to_cwd, label, on),
+                'team.run_found': lambda team, on: self.run_found(team, on),
                 'groups.set': lambda groups: settings.set_value('groups', groups)}
 
 

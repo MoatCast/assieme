@@ -304,6 +304,8 @@ export type ActivityRow = {
 export type TeamMap = {
   team: string;
   found: boolean;
+  /** Found teams only: the person let Assieme apply automatic fixes there. */
+  run_by_assieme?: boolean;
   stopped: boolean;
   /** Its machine can't be reached: this is the last view from there (step 15). */
   unreachable?: import("./remote").Machine;

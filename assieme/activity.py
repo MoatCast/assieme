@@ -18,7 +18,7 @@ TITLES = {'quiet': 'Started holding notes from {agent}',
           'tell': 'Told {agent} why a command is blocked', 'add_agent': 'Added {agent}',
           'menu': 'Answered {agent}', 'answer': 'Answered {agent}', 'deliver': 'Delivered held notes to {agent}',
           'dropped': "Couldn't deliver held notes to {agent}",
-          'send': 'Sent a message to {agent}', 'stop_agent': 'Stopped {agent}'}
+          'run_found': 'Let Assieme run {agent}', 'send': 'Sent a message to {agent}', 'stop_agent': 'Stopped {agent}'}
 
 
 FIX_NAMES = {'nudge': 'Ask stuck agents to try another way', 'compact': 'Free up memory between tasks', 'tell': 'Explain blocked commands',
@@ -54,6 +54,10 @@ def _undo_quiet(e, rt):
 
 def _undo_fix(e, rt):
     settings.set_value(f'fixes.{e["fix"]}', e['old'])
+
+
+def _undo_run_found(e, rt):
+    settings.set_value(f'run_found.{e["team"]}', False)
 
 
 def _undo_practice(e, rt):
@@ -107,6 +111,7 @@ UNDO = {'quiet': (_undo_quiet, 'Stop', None),
         'tools': (_undo_tools, 'Undo', UNDO_S),
         'bringover': (_undo_bringover, 'Undo', UNDO_S),
         'fix_mode': (_undo_fix, 'Undo', UNDO_S),
+        'run_found': (_undo_run_found, 'Undo', UNDO_S),
         'practice': (_undo_practice, 'Undo', UNDO_S),
         'improve': (_undo_improve, 'Undo', UNDO_S),
         'add_agent': (_undo_add, 'Stop', UNDO_S)}
