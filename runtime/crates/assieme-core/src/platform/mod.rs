@@ -112,7 +112,10 @@ pub fn deny_programs(
                 return Err(RpcError::invalid_params(format!("{name:?} is not a program name")));
             }
             let base = name.rsplit('/').next().unwrap_or(name);
-            rules.push(format!("(deny process-exec file-read-data (regex #\"/{}$\"))", base.replace('.', "\\.").replace('+', "\\+")));
+            rules.push(format!(
+                "(deny process-exec file-read-data (regex #\"/{}$\"))",
+                base.replace('.', "\\.").replace('+', "\\+")
+            ));
             // The kernel sees where a link leads, so a link's target is denied too.
             let path = env.get("PATH").cloned().or_else(|| std::env::var("PATH").ok()).unwrap_or_default();
             let found = std::env::split_paths(&path).map(|dir| dir.join(name)).chain([std::path::PathBuf::from(name)]);

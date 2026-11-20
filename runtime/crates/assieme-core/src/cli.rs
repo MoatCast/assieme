@@ -469,8 +469,9 @@ fn run(cmd: Option<Cmd>, json: bool, asked: bool) -> Result<Option<Out>, RpcErro
             if r["why"] == "working" {
                 human.push_str("\n[asm] only its screen: it is working; read again once it stops for its history");
             } else if let Some(state @ ("blocked" | "error")) = r["why"].as_str() {
-                human
-                    .push_str(&format!("\n[asm] only its screen: it is {state}; history is not scrolled in this state"));
+                human.push_str(&format!(
+                    "\n[asm] only its screen: it is {state}; history is not scrolled in this state"
+                ));
             } else if r["complete"] == false {
                 human.push_str("\n[asm] incomplete: older output may be missing");
             }
@@ -753,7 +754,9 @@ fn ran(r: &Value) -> Result<Option<Out>, RpcError> {
             (_, Some(sig)) => (Some(format!("{t} ended by signal {sig}")), 128 + sig as i32),
             _ => (Some(format!("{t} ended")), 1),
         },
-        _ if status == "blocked" => (Some(format!("{t} is blocked: read it, then answer with asm send or asm keys")), 0),
+        _ if status == "blocked" => {
+            (Some(format!("{t} is blocked: read it, then answer with asm send or asm keys")), 0)
+        }
         _ => (Some(format!("{t} is {status}: asm send {t} <text>")), 0),
     };
     let mut text = r["output"].as_str().unwrap_or_default().trim_end().to_string();
@@ -830,8 +833,7 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("machine rm", "machine.rm"),
 ];
 /// Client-only methods: handshake and opaque document storage.
-pub const API_ONLY: &[&str] = &[
-    "terminal.status.set","hello", "doc.get", "doc.set"];
+pub const API_ONLY: &[&str] = &["terminal.status.set", "hello", "doc.get", "doc.set"];
 
 #[cfg(test)]
 mod tests {
@@ -981,7 +983,9 @@ mod tests {
     #[test]
     fn older_compares_versions_as_numbers() {
         assert!(older("asm 0.1.9", "asm 0.2.0") && older("asm 0.2.0", "asm 0.10.0"));
-        assert!(!older("asm 0.2.0", "asm 0.2.0") && !older("asm 0.10.0", "asm 0.9.9") && !older("asm dev", "asm 0.2.0"));
+        assert!(
+            !older("asm 0.2.0", "asm 0.2.0") && !older("asm 0.10.0", "asm 0.9.9") && !older("asm dev", "asm 0.2.0")
+        );
     }
 
     #[test]

@@ -2,9 +2,9 @@
 #![cfg(unix)]
 mod common;
 
+use assieme_core::wire;
 use common::framed::Viewer;
 use common::*;
-use assieme_core::wire;
 use serde_json::json;
 use std::time::Duration;
 

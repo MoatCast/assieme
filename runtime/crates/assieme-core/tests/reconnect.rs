@@ -2,8 +2,8 @@
 #![cfg(unix)]
 mod common;
 
-use common::Session;
 use assieme_core::holder_proto as proto;
+use common::Session;
 use std::io::{self, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::{Arc, Mutex};

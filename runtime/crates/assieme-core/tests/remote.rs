@@ -214,7 +214,8 @@ fn a_remote_templates_readiness_wait_leaves_its_child_able_to_report_back() {
     let mut s = Session::new();
     s.env.push(fake_ssh(&s, &[("rohan", &rohan)]));
     s.env.extend(
-        [("ASM_READY_MS", "1500"), ("ASM_QUIET_MS", "0"), ("ASM_HEARTBEAT_MS", "100")].map(|(k, v)| (k.into(), v.into())),
+        [("ASM_READY_MS", "1500"), ("ASM_QUIET_MS", "0"), ("ASM_HEARTBEAT_MS", "100")]
+            .map(|(k, v)| (k.into(), v.into())),
     );
     let config = s.root.join("config/assieme-core/config.toml");
     std::fs::create_dir_all(config.parent().unwrap()).unwrap();
@@ -286,8 +287,12 @@ fn a_child_ends_with_its_parent_on_another_machine_too() {
     let (rohan, s) = with_rohan();
     // `--rm`: the parent is forgotten at once, but its children there still hear.
     let parent = run(&s, &["--rm", "sh", "-c", &script(&s, "r state=idle; w go")]);
-    let out =
-        s.cmd().env("ASM_TERMINAL_ID", &parent).args(["run", "--bg", "--on", "rohan", "sleep", "100"]).output().unwrap();
+    let out = s
+        .cmd()
+        .env("ASM_TERMINAL_ID", &parent)
+        .args(["run", "--bg", "--on", "rohan", "sleep", "100"])
+        .output()
+        .unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     touch(&s, "go");
     wait_until("the child there ended", || get(&rohan, "t1")["state"] == "finished");

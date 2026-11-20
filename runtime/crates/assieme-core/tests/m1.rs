@@ -3,8 +3,8 @@
 
 mod common;
 
-use common::*;
 use assieme_core::holder_proto as proto;
+use common::*;
 use serde_json::Value;
 use std::time::Duration;
 

@@ -3,8 +3,8 @@
 
 mod common;
 
-use common::*;
 use assieme_core::wire;
+use common::*;
 use serde_json::{Value, json};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::Stdio;

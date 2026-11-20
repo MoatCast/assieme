@@ -470,7 +470,11 @@ pub fn install(paths: &crate::paths::Paths, to: Reach, session: Option<&str>) ->
     };
     if windows {
         if to.via {
-            return Err(RpcError::new("install_failed", format!("{target} runs Windows"), "install asm there yourself"));
+            return Err(RpcError::new(
+                "install_failed",
+                format!("{target} runs Windows"),
+                "install asm there yourself",
+            ));
         }
         WINDOWS.lock().unwrap_or_else(|p| p.into_inner()).push(target.to_string());
         return Err(RpcError::new("install_failed", format!("{target} runs Windows"), "install asm there yourself"));
