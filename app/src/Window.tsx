@@ -1,0 +1,199 @@
+// One window (spec 2026-11-20): the list of agents on the left, the panel for the selected row on the right.
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Pane, Starting, TeamMap } from "./bridge";
+import Activity from "./Activity";
+import AgentList, { type Selection, type View } from "./AgentList";
+import AgentPanel from "./AgentPanel";
+import Board from "./Board";
+import { isGroup, listModel, type ListModel, type Row } from "./listModel";
+import TeamOverview from "./TeamOverview";
+import Terminals from "./Terminals";
+import { useTeamMap } from "./useTeamMap";
+import "./Window.css";
+
+export type OpenLink = { role: string | null; view: "review" | null; nonce: number };
+
+const FIXED_SHOWS_MIN = 10;
+const KEY_VIEWS: Record<string, View> = { "1": "overview", "2": "terminals", "3": "board", "4": "activity" };
+
+const rows = (m: ListModel): Row[] => [...m.needs, ...[...m.working, ...m.done].flatMap((x) => (isGroup(x) ? x.rows : [x]))];
+
+/** The Needs-you row that has waited longest, else Team overview. */
+export function initialSelection(model: ListModel): Selection {
+  const first = model.needs[0]; // listModel orders Needs you by wait
+  return first ? { kind: "agent", role: first.role } : { kind: "view", view: "overview" };
+}
+
+/** Minutes from "HH:MM" today to now; null when it can't be read. */
+function minutesSince(hhmm: string | null, now: Date) {
+  const [h, m] = (hhmm ?? "").split(":").map(Number);
+  if (!hhmm || Number.isNaN(h) || Number.isNaN(m)) return null;
+  const at = new Date(now);
+  at.setHours(h, m, 0, 0);
+  return (now.getTime() - at.getTime()) / 60000;
+}
+
+/** Fixes that worked in the last 10 minutes and whose row the person hasn't selected since: role → "HH:MM". */
+function fixedRecently(map: TeamMap, dismissed: Set<string>, now: Date) {
+  const out: Record<string, string> = {};
+  for (const r of map.done) {
+    if (!r.agent || r.outcome !== "fixed" || out[r.agent] || dismissed.has(r.id ?? "")) continue;
+    const m = minutesSince(r.outcome_at, now);
+    if (m !== null && m >= 0 && m <= FIXED_SHOWS_MIN) out[r.agent] = r.outcome_at!;
+  }
+  return out;
+}
+
+/** What changed since the last poll, said politely: new Needs-you rows and fix outcomes. */
+function changes(before: TeamMap, after: TeamMap, beforeModel: ListModel, afterModel: ListModel) {
+  const said: string[] = [];
+  const had = new Set(beforeModel.needs.map((r) => r.role));
+  for (const r of afterModel.needs) if (!had.has(r.role)) said.push(`${r.role} needs you`);
+  const was = new Map(before.done.map((r) => [r.id, r.outcome]));
+  for (const r of after.done) {
+    if (!r.agent || was.get(r.id) === r.outcome) continue;
+    if (r.outcome === "fixed") said.push(`${r.agent}: Fixed by Assieme`);
+    if (r.outcome === "still_stuck") said.push(`${r.agent}: still stuck after Assieme's fix`);
+  }
+  return said.join(". ");
+}
+
+/** A row with no pane yet (an agent still starting) still opens a panel. */
+const bare = (role: string): Pane => ({ role, agent: "claude", address: "", state: "working", since_s: null, detail: "", live: false, fix: null });
+
+export default function Window({ team, starting, open, pollMs = 5000, boardKey = 0, onNewTeam, onNewTask, onReview }: {
+  team: string | null;
+  starting: Starting[];
+  /** A link from outside (menu bar, notification): select that agent, or open its review. */
+  open: OpenLink | null;
+  pollMs?: number;
+  boardKey?: number;
+  onNewTeam: () => void;
+  onNewTask: () => void;
+  onReview: (team: string, role: string) => void;
+}) {
+  const { map, waiting, refresh } = useTeamMap(team, pollMs);
+  const [chosen, setChosen] = useState<{ team: string; sel: Selection } | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [said, setSaid] = useState("");
+  const [intoPanel, setIntoPanel] = useState(0);
+  const list = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const last = useRef<{ map: TeamMap; model: ListModel } | null>(null);
+
+  const now = new Date();
+  const recent = map ? fixedRecently(map, dismissed, now) : {};
+  const model = useMemo(() => (map ? listModel(map, waiting, starting, recent) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [map, waiting, starting, JSON.stringify(recent)]);
+  const sel = chosen && chosen.team === team ? chosen.sel : null;
+
+  const select = (s: Selection) => {
+    if (!team) return;
+    setChosen({ team, sel: s });
+    if (s.kind === "agent" && map) {
+      const ids = map.done.filter((r) => r.agent === s.role && r.outcome === "fixed").map((r) => r.id ?? "");
+      if (ids.some((id) => !dismissed.has(id))) setDismissed(new Set([...dismissed, ...ids]));
+    }
+  };
+
+  // A team opens on its own rule; a selected agent that stops hands the panel to Team overview.
+  useEffect(() => {
+    if (!model || !team) return;
+    if (!sel) return setChosen({ team, sel: initialSelection(model) });
+    if (sel.kind === "agent" && !rows(model).some((r) => r.role === sel.role))
+      setChosen({ team, sel: { kind: "view", view: "overview" } });
+  }, [model, team, sel]);
+
+  useEffect(() => {
+    if (!map || !model) return;
+    const prev = last.current;
+    if (prev && prev.map.team === map.team && prev.map !== map) {
+      const text = changes(prev.map, map, prev.model, model);
+      if (text) setSaid(text);
+    }
+    last.current = { map, model };
+  }, [map, model]);
+
+  // ⌘L leaves the terminal for the list; ⌘1–⌘4 pick a view. Escape is left alone: agents use it to interrupt.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.metaKey || e.altKey || e.ctrlKey) return;
+      if (e.key.toLowerCase() === "l") {
+        const row = list.current?.querySelector<HTMLElement>("[aria-current='true']");
+        if (!row) return;
+        e.preventDefault();
+        e.stopPropagation();
+        row.focus();
+      } else if (KEY_VIEWS[e.key] && team) {
+        e.preventDefault();
+        setChosen({ team, sel: { kind: "view", view: KEY_VIEWS[e.key] } });
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [team]);
+
+  // Return: the card's first button when the panel has a card, else the terminal.
+  useEffect(() => {
+    if (!intoPanel) return;
+    const p = panel.current;
+    (p?.querySelector<HTMLElement>("[data-card] button") ?? p?.querySelector<HTMLElement>("[data-terminal]"))?.focus();
+  }, [intoPanel]);
+
+  const entrySelection = (el: Element | null): Selection | null => {
+    const v = el?.getAttribute("data-entry") ?? "";
+    if (v.startsWith("agent:")) return { kind: "agent", role: v.slice(6) };
+    if (v.startsWith("view:")) return { kind: "view", view: v.slice(5) as View };
+    return null;
+  };
+  const onListKey = (e: React.KeyboardEvent) => {
+    const entries = [...(list.current?.querySelectorAll<HTMLElement>("[data-entry]") ?? [])];
+    const i = entries.indexOf(document.activeElement as HTMLElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const next = entries[Math.min(entries.length - 1, Math.max(0, i + (e.key === "ArrowDown" ? 1 : -1)))];
+      next?.focus();
+      const s = entrySelection(next ?? null);
+      if (s) select(s);
+    } else if (e.key === "Enter") {
+      const s = entrySelection(document.activeElement);
+      if (!s) return;
+      e.preventDefault();
+      select(s);
+      setIntoPanel((n) => n + 1);
+    }
+  };
+
+  void open; // links from outside: Task 11
+
+  if (!team || !map || !model) return <div className="window" />;
+  const live = map.panes.filter((p) => p.state !== "exited").length;
+  const fixed = map.fixes_today?.fixed ?? 0;
+  const views: Record<View, string> = {
+    overview: fixed ? `${fixed} fixed today` : "",
+    terminals: live ? `${live} running` : "",
+    board: map.open_tasks ? `${map.open_tasks} open task${map.open_tasks === 1 ? "" : "s"}` : "",
+    activity: map.last_at ? `Last at ${map.last_at}` : "",
+  };
+  const selectedPane = sel?.kind === "agent" ? map.panes.find((p) => p.role === sel.role) ?? bare(sel.role) : null;
+
+  return (
+    <div className="window">
+      <div ref={list} className="window-list" onKeyDown={onListKey}>
+        {sel && <AgentList model={model} selected={sel} views={views} onSelect={select} />}
+      </div>
+      <div ref={panel} className="window-panel">
+        {selectedPane && <AgentPanel key={`${team}/${selectedPane.role}`} team={team} pane={selectedPane} onChanged={refresh} onReview={onReview} />}
+        {sel?.kind === "view" && sel.view === "overview" && <TeamOverview team={team} />}
+        {sel?.kind === "view" && sel.view === "terminals" && <Terminals team={team} pollMs={3000} onNewTeam={onNewTeam} onReview={onReview} />}
+        {sel?.kind === "view" && sel.view === "board" && (
+          <Board team={team} pollMs={5000} refreshKey={boardKey} onNewTeam={onNewTeam} onNewTask={onNewTask}
+            onOpenTerminal={(role) => select({ kind: "agent", role })} onReview={onReview} />
+        )}
+        {sel?.kind === "view" && sel.view === "activity" && <Activity team={team} />}
+      </div>
+      <div role="status" aria-live="polite" className="sr-only">{said}</div>
+    </div>
+  );
+}

@@ -1,22 +1,18 @@
 import { useEffect, useState } from "react";
 import { onNewTeam, onOpen, onOpenSettings,reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import { installedOf } from "./kinds";
-import Activity from "./Activity";
 import AddAgent from "./AddAgent";
 import Appearance from "./Appearance";
-import Board, { NewTask } from "./Board";
+import { NewTask } from "./Board";
 import FirstRun from "./FirstRun";
 import NewTeam from "./NewTeam";
 import Review, { Notice } from "./Review";
 import Settings from "./Settings";
-import Team from "./Team";
 import TeamBrief from "./TeamBrief";
-import Terminals from "./Terminals";
+import Window, { type OpenLink } from "./Window";
 import "./Shell.css";
 
-type Tab = "first-run" | "team" | "board" | "terminals" | "activity";
-
-const TABS = [["team", "Team"], ["board", "Board"], ["terminals", "Terminals"], ["activity", "Activity"]] as const;
+type Tab = "first-run" | "window";
 
 /** The live team names, and the one to open on: most agents at a prompt, else the last listed, else a found team. */
 export function liveTeams(snap: Snapshot | null): { names: string[]; neediest: string | null } {
@@ -32,7 +28,8 @@ export function liveTeams(snap: Snapshot | null): { names: string[]; neediest: s
   return { names, neediest };
 }
 
-/** The app's frame: the top bar with its team picker and tabs, and First run until "Open my team" is pressed. */
+/** The app's frame: the top bar with its team picker, the one window (list and panel), and First run until
+ * "Open my team" is pressed. */
 export default function Shell() {
   const [tab, setTab] = useState<Tab | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -44,7 +41,7 @@ export default function Shell() {
   const [boardKey, setBoardKey] = useState(0);
   const [settings, setSettings] = useState(false);
   const [settingsAt, setSettingsAt] = useState<string | undefined>();
-  const [focus, setFocus] = useState<string | null>(null);
+  const [open, setOpen] = useState<OpenLink | null>(null);
   const [review, setReview] = useState<{ team: string; role: string } | null>(null);
   const [merged, setMerged] = useState<MergeResult | null>(null);
   const [notice, setNotice] = useState("");
@@ -55,7 +52,7 @@ export default function Shell() {
   const row = (snap?.teams ?? []).find((t) => t.team === team); // a team on another machine says which (step 15)
   const away = row?.reachable === false;
   // Until the first snapshot answers, nothing decides: First run is what a new person should see.
-  const shown: Tab = tab ?? (snap?.first_run_done ? "team" : "first-run");
+  const shown: Tab = tab ?? (snap?.first_run_done ? "window" : "first-run");
 
   useEffect(() => {
     const asked = onOpenSettings(() => { setSettingsAt(undefined); setSettings(true); });
@@ -65,14 +62,20 @@ export default function Shell() {
       setSettings(false);
       if (view === "review" && role) return setReview({ team: t, role });
       setReview(null);
-      setFocus(role);
-      setTab("terminals");
+      setOpen({ role, view: null, nonce: Date.now() });
+      setTab("window");
     });
     return () => { void stop.then((off) => off()); void asked.then((off) => off()); void newTeam.then((off) => off()); };
   }, []);
 
+  // The team shown stays put while another becomes neediest: switching under the person would move focus, and
+  // typing, to another team's agent. It changes when they pick one or it stops.
+  useEffect(() => {
+    if (shown === "window" && team && !(picked && names.includes(picked))) setPicked(team);
+  }, [shown, team, picked, names]);
+
   const openTeam = () => {
-    setTab("team");
+    setTab("window");
     void setSetting("first_run_done", true).catch(() => {}); // only a convenience: it asks again next time
   };
 
@@ -128,7 +131,6 @@ export default function Shell() {
                 onChange={(e) => {
                   if (e.target.value === "new") return setCreating(true); // the picker keeps showing this team
                   setPicked(e.target.value);
-                  setFocus(null);
                 }}>
                 {names.map((n) => <option key={n} value={n}>{n}</option>)}
                 {/* Paper "v3 — Team menu open: New team"; the Mac's own menu, so a disabled rule stands for the divider. */}
@@ -138,29 +140,9 @@ export default function Shell() {
             )}
             {names.length > 0 && <span className="where">· {row?.machine ?? "This Mac"}</span>}
           </div>
-          <div className="tabs" role="tablist">
-            {TABS.map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={shown === id} className={shown === id ? "on" : ""}
-                onClick={() => {
-                  // A tab keeps its team: switching under the person would move focus, and typing, to another
-                  // team's agent.
-                  if (!(picked && names.includes(picked))) setPicked(neediest);
-                  setFocus(null);
-                  setTab(id);
-                }}>{label}</button>
-            ))}
-          </div>
           <div className="shell-right" data-tauri-drag-region>
             {started && <button type="button" className="add-agent" disabled={away} onClick={() => setBriefing(true)}>Team brief</button>}
-            {team && shown === "board" && (
-              <button type="button" className="add-agent" onClick={() => setTasking(true)}>
-                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                  <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                New task
-              </button>
-            )}
-            {started && shown !== "board" && (
+            {started && (
               <button type="button" className="add-agent" disabled={away} onClick={() => setAdding(true)}>
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
                   <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
@@ -179,36 +161,16 @@ export default function Shell() {
         <FirstRun pollMs={5000} onSnapshot={setSnap} onOpenTeam={openTeam} shown={shown === "first-run" && !review}
           onOpenSettings={(section) => { setSettingsAt(section); setSettings(true); }} />
       </div>
-      {shown === "team" && !review && (
-        <div className="shell-page">
-          <Team key={team ?? ""} team={team} pollMs={5000} starting={snap?.starting ?? []}
-            onNewTeam={() => setCreating(true)}
-            onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
-            onSeeAll={() => setTab("activity")}
+      {shown === "window" && (
+        <div className="shell-page" hidden={!!review}>
+          <Window team={team} starting={snap?.starting ?? []} open={open} boardKey={boardKey}
+            onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
             onReview={(t, role) => setReview({ team: t, role })} />
-        </div>
-      )}
-      {shown === "board" && !review && (
-        <div className="shell-page">
-          <Board key={team ?? ""} team={team} pollMs={5000} refreshKey={boardKey} onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
-            onOpenTerminal={(role) => { setPicked(team); setFocus(role); setTab("terminals"); }}
-            onReview={(t, role) => setReview({ team: t, role })} />
-        </div>
-      )}
-      {shown === "terminals" && !review && (
-        <div className="shell-page">
-          <Terminals key={`${team ?? ""}:${focus ?? ""}`} team={team} pollMs={3000} initialFocus={focus} onNewTeam={() => setCreating(true)}
-            onReview={(t, role) => setReview({ team: t, role })} />
-        </div>
-      )}
-      {shown === "activity" && !review && (
-        <div className="shell-page">
-          <Activity key={team ?? ""} team={team} />
         </div>
       )}
       {review && (
         <div className="shell-page">
-          <Review key={`${review.team}/${review.role}`} team={review.team} role={review.role} from={TABS.find(([id]) => id === shown)?.[1]} onBack={() => setReview(null)}
+          <Review key={`${review.team}/${review.role}`} team={review.team} role={review.role} from="Team" onBack={() => setReview(null)}
             onMerged={(m) => {
               setReview(null);
               setNotice("");
@@ -252,8 +214,8 @@ export default function Shell() {
             setSettings(false);
             setPicked(t);
             if (role) return setReview({ team: t, role });
-            setFocus(null);
-            setTab("terminals");
+            setOpen(null);
+            setTab("window");
           }} />
       )}
     </div>

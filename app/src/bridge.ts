@@ -331,6 +331,9 @@ export type TeamMap = {
   fixes_today?: { fixed: number; checking: number };
   /** A stopped team's last run, for the list's heading; null while it runs. */
   run?: { minutes: number; fixed: number; tasks_done: number; stopped_at: string } | null;
+  /** The list's views: the board's open tasks and the time of the last Activity row. */
+  open_tasks?: number;
+  last_at?: string | null;
   spend: { tokens: number; waste_share: number } | null;
   spend_ready?: boolean;
   /** Daily limits, in tokens. Null for agents found on this Mac: they get none. */

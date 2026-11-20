@@ -16,11 +16,15 @@ vi.mock("./FirstRun", async () => {
   };
 });
 const undo = vi.hoisted(() => vi.fn());
-vi.mock("./Terminals", () => ({
-  default: ({ team, onNewTeam, onReview }: { team: string | null; onNewTeam: () => void; onReview: (t: string, r: string) => void }) => (
+vi.mock("./Window", () => ({
+  default: ({ team, open, boardKey, onNewTeam, onNewTask, onReview }: {
+    team: string | null; open: { role: string | null; view: string | null } | null; boardKey: number;
+    onNewTeam: () => void; onNewTask: () => void; onReview: (t: string, r: string) => void;
+  }) => (
     <div>
-      <span>terminals for {team ?? "none"}</span>
+      <span>window for {team ?? "none"}</span><span>read {boardKey}</span>{open?.role && <span>selected {open.role}</span>}
       <button type="button" onClick={onNewTeam}>empty new team</button>
+      <button type="button" onClick={onNewTask}>board new task</button>
       <button type="button" onClick={() => onReview("shop", "builder-1")}>open review</button>
     </div>
   ),
@@ -48,25 +52,12 @@ vi.mock("./Review", () => ({
 vi.mock("./NewTeam", () => ({ default: ({ draft, onClose }: { draft?: { why: string } | null; onClose: () => void }) => (
   <div><span>new team screen{draft ? `, drafted: ${draft.why}` : ""}</span><button type="button" onClick={onClose}>close new team</button></div>
 ) }));
-vi.mock("./Team", () => ({
-  default: ({ team, onOpenTerminal }: { team: string | null; onOpenTerminal: (r: string) => void }) => (
-    <div><span>team tab for {team ?? "none"}</span><button type="button" onClick={() => onOpenTerminal("a")}>open a</button></div>
-  ),
-}));
-vi.mock("./Activity", () => ({ default: ({ team }: { team: string | null }) => <div>activity for {team}</div> }));
 vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun, section }: { onClose: () => void; onShowFirstRun: () => void; section?: string }) => (
   <div><span>settings screen{section ? ` at ${section}` : ""}</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button></div>
 ) }));
 vi.mock("./Board", () => ({
   NewTask: ({ team, roles, onClose }: { team: string; roles: string[]; onClose: (added: boolean, note?: string) => void }) => (
     <div><span>new task for {team}: {roles.join(",")}</span><button type="button" onClick={() => onClose(true, "b wasn't told.")}>task added</button></div>
-  ),
-  default: ({ team, refreshKey, onReview, onOpenTerminal }: { team: string | null; refreshKey: number; onReview: (t: string, r: string) => void; onOpenTerminal: (r: string) => void }) => (
-    <div>
-      <span>board for {team ?? "none"}</span><span>read {refreshKey}</span>
-      <button type="button" onClick={() => onReview("beta", "b")}>card review</button>
-      <button type="button" onClick={() => onOpenTerminal("b")}>card terminal</button>
-    </div>
   ),
 }));
 vi.mock("./AddAgent", () => ({ default: ({ team, roles }: { team: string; roles: string[] }) => <div>add agent to {team}: {roles.join(",")}</div> }));
@@ -104,67 +95,43 @@ test("opens on First run until it's done, with no top bar", async () => {
   render(<Shell />);
   await flush();
   expect(screen.getByText("first run screen")).toBeTruthy();
-  expect(screen.queryByRole("tab", { name: "Team" })).toBeNull();
+  expect(screen.queryByLabelText("Team")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Open my team" }));
   await flush();
   expect(setSetting).toHaveBeenCalledWith("first_run_done", true);
-  expect(screen.getByRole("tab", { name: "Team" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByText("window for none")).toBeTruthy();
 });
 
-test("opens on Team after that, on the neediest team", async () => {
+test("opens on the window after that, on the neediest team", async () => {
   render(<Shell />);
   await flush();
-  expect(screen.getByText("team tab for beta")).toBeTruthy();
+  expect(screen.getByText("window for beta")).toBeTruthy();
 });
 
-test("tabs switch between Team, Terminals and Activity", async () => {
+test("no tabs: the window holds every view, and New task lives on the Board", async () => {
   render(<Shell />);
   await flush();
-  fireEvent.click(screen.getByRole("tab", { name: "Terminals" }));
-  expect(screen.getByText("terminals for beta")).toBeTruthy();
-  fireEvent.click(screen.getByRole("tab", { name: "Activity" }));
-  expect(screen.getByText("activity for beta")).toBeTruthy();
-  fireEvent.click(screen.getByRole("tab", { name: "Team" }));
-  expect(screen.getByText("team tab for beta")).toBeTruthy();
-});
-
-test("the Board tab sits after Team; its cards open Review and Terminals", async () => {
-  render(<Shell />);
-  await flush();
-  expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Team", "Board", "Terminals", "Activity"]);
-  fireEvent.click(screen.getByRole("tab", { name: "Board" }));
-  expect(screen.getByText("board for beta")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Add agent" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "New task" }));
+  expect(screen.queryByRole("tablist")).toBeNull();
+  expect(screen.queryByRole("tab")).toBeNull();
+  expect(screen.queryByRole("button", { name: "New task" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Add agent" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "board new task" }));
   expect(screen.getByText("new task for beta: b")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "task added" }));
   expect(screen.queryByText("new task for beta: b")).toBeNull();
   expect(screen.getByText("read 1")).toBeTruthy(); // the board reads again at once
   expect(screen.getByTestId("notice").textContent).toBe("b wasn't told.");
-  fireEvent.click(screen.getByRole("button", { name: "card review" }));
-  expect(screen.getByText("review of beta/b")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "back" }));
-  expect(screen.getByText("board for beta")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "card terminal" }));
-  expect(screen.getByText("terminals for beta")).toBeTruthy();
-});
-
-test("Team's Open terminal goes to Terminals", async () => {
-  render(<Shell />);
-  await flush();
-  fireEvent.click(screen.getByRole("button", { name: "open a" }));
-  expect(screen.getByText("terminals for beta")).toBeTruthy();
 });
 
 test("a pick sticks while new teams appear, until that team stops", async () => {
   render(<Shell />);
   await flush();
   fireEvent.change(screen.getByLabelText("Team"), { target: { value: "gamma" } });
-  expect(screen.getByText("team tab for gamma")).toBeTruthy();
+  expect(screen.getByText("window for gamma")).toBeTruthy();
   act(() => snap.report!(SNAP([row("alpha", "a", "blocked"), row("gamma", "c")])));
-  expect(screen.getByText("team tab for gamma")).toBeTruthy();
+  expect(screen.getByText("window for gamma")).toBeTruthy();
   act(() => snap.report!(SNAP([row("alpha", "a", "blocked")])));
-  expect(screen.getByText("team tab for alpha")).toBeTruthy();
+  expect(screen.getByText("window for alpha")).toBeTruthy();
 });
 
 test("the team picker lists found teams too", async () => {
@@ -250,44 +217,39 @@ test("Settings… in the app menu opens Settings from any screen", async () => {
   expect(screen.getByText("settings screen")).toBeTruthy();
 });
 
-test("no team at all still reaches the tabs", async () => {
+test("no team at all still reaches the window", async () => {
   snap.current = SNAP([]);
   render(<Shell />);
   await flush();
-  expect(screen.getByText("team tab for none")).toBeTruthy();
+  expect(screen.getByText("window for none")).toBeTruthy();
   expect(screen.queryByLabelText("Team")).toBeNull();
 });
 
-test("the empty Terminals view's New team button opens New team", async () => {
+test("the empty window's New team button opens New team", async () => {
   snap.current = SNAP([]);
   render(<Shell />);
   await flush();
-  fireEvent.click(screen.getByRole("tab", { name: "Terminals" }));
   fireEvent.click(screen.getByRole("button", { name: "empty new team" }));
   expect(screen.getByText("new team screen")).toBeTruthy();
 });
 
-test("the team stays fixed while Terminals is open, however it was reached", async () => {
-  for (const reach of ["tab", "card"]) {
-    snap.current = SNAP([row("alpha", "a"), row("beta", "b", "blocked")]);
-    render(<Shell />);
-    await flush();
-    fireEvent.click(reach === "tab" ? screen.getByRole("tab", { name: "Terminals" }) : screen.getByRole("button", { name: "open a" }));
-    expect(screen.getByText("terminals for beta")).toBeTruthy();
-    act(() => snap.report!(SNAP([row("alpha", "a", "blocked"), row("alpha", "b", "blocked"), row("beta", "b", "blocked")])));
-    expect(screen.getByText("terminals for beta")).toBeTruthy();
-    cleanup();
-  }
+test("the team shown stays fixed while another team becomes neediest", async () => {
+  snap.current = SNAP([row("alpha", "a"), row("beta", "b", "blocked")]);
+  render(<Shell />);
+  await flush();
+  expect(screen.getByText("window for beta")).toBeTruthy();
+  // Switching under the person would move focus, and typing, to another team's agent.
+  act(() => snap.report!(SNAP([row("alpha", "a", "blocked"), row("alpha", "b", "blocked"), row("beta", "b", "blocked")])));
+  expect(screen.getByText("window for beta")).toBeTruthy();
 });
 
 async function openReview() {
   render(<Shell />);
   await flush();
-  fireEvent.click(screen.getByRole("tab", { name: "Terminals" }));
   fireEvent.click(screen.getByRole("button", { name: "open review" }));
 }
 
-test("Review replaces the frame and goes back to Terminals", async () => {
+test("Review replaces the frame and goes back to the window", async () => {
   await openReview();
   expect(screen.getByText("review of shop/builder-1")).toBeTruthy();
   expect(screen.queryByRole("tablist")).toBeNull();
@@ -295,7 +257,7 @@ test("Review replaces the frame and goes back to Terminals", async () => {
   expect(screen.getByRole("button", { name: "open review" })).toBeTruthy();
 });
 
-test("a merge returns to Terminals with the notice, and Undo reports back", async () => {
+test("a merge returns to the window with the notice, and Undo reports back", async () => {
   undo.mockResolvedValue({ role: "builder-1", base: "main" });
   await openReview();
   fireEvent.click(screen.getByRole("button", { name: "merge" }));

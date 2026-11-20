@@ -239,13 +239,15 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
                     f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
                     + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
     today_ = now.astimezone().strftime('%Y-%m-%d')
-    done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:DONE_ROWS]
+    every = activity.list_rows(team=team_name, now=now)['rows']
+    done = [r for r in every if r['action'] in DONE_FOR_YOU][:DONE_ROWS]
     mine = [r for r in done if r['day'] == today_ and r['by'] == 'auto']
     fixes_today = {'fixed': sum(r['outcome'] == 'fixed' or r['action'] == 'quiet' for r in mine),
                    'checking': sum(r['outcome'] == 'checking' for r in mine)}
     stopped = not any(r.get('state') == 'live' for r in rows)
     return {'team': team_name, 'found': found, **({'run_by_assieme': bool(st['run_found'].get(team_name))} if found else {}),
-            'stopped': stopped, 'fixes_today': fixes_today,
+            'stopped': stopped, 'fixes_today': fixes_today, 'last_at': every[0]['at'] if every else None,
+            'open_tasks': sum(c.get('status') != 'done' for c in tasks.board(team_name)['cards']),
             'run': _run(rows, fixes_today['fixed'], team_name) if stopped and rows else None,
             'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,

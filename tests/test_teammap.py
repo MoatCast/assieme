@@ -957,3 +957,12 @@ class OneWindowDataTest(MapCase):
         for r in ('a', 'b', 'c', 'd'):
             self.log_fix(r, 'fixed')
         self.assertEqual(len(self.build([row('a')])['done']), 4)
+
+    def test_views_counts_open_tasks_and_last_activity(self):
+        from assieme import tasks
+        for t in ('one', 'two', 'three'):
+            tasks.add('shop', t)
+        tasks.move('shop', '3', 'done')
+        live.record('merge', 'a', 'x', team='shop', now=NOW, title='Merged a into main')
+        m = self.build([row('a')])
+        self.assertEqual((m['open_tasks'], m['last_at']), (2, NOW.astimezone().strftime('%H:%M')))
