@@ -45,6 +45,7 @@ export type Snapshot = {
   /** Teams of scheduled runs: kept in the team picker after their agents stop. */
   scheduled_teams?: string[];
   first_run_done?: boolean;
+  limits?: Record<string, Limit>;
   /** An assistant's draft waiting to open in New team. */
   draft?: string | null;
 };
@@ -261,7 +262,10 @@ export const paneAct = (a: { team: string; role: string; fix: string; button: st
 export type MenuButton = { id: string; label: string; kind: PaneButton["kind"] };
 export type MenuItem = { role: string; state: Pane["state"]; since_s: number | null; text: string; says: string; fix: string | null; buttons: MenuButton[] };
 export type MenuTeam = { name: string; where: string; need: number; items: MenuItem[] };
-export type MenuState = { count: number; teams: MenuTeam[]; spend_tokens: number | null; auto_fixes: number; paused_until: string | null };
+export type MenuState = { count: number; teams: MenuTeam[]; spend_tokens: number | null; auto_fixes: number; paused_until: string | null;
+  limits?: Record<string, Limit> };
+/** A plan's limit: `used` in percent (null when the logs give none), `resets_at` in epoch seconds. */
+export type Limit = { used: number | null; reached: boolean; resets_at: number | null };
 
 export const menuState = () => brain<MenuState>("menu.state");
 export const notificationsPause = () => brain<MenuState>("notifications.pause");
@@ -341,6 +345,10 @@ export type TeamMap = {
   running_min?: number | null;
   last_at?: string | null;
   spend: { tokens: number; waste_share: number } | null;
+  /** Plan limits by agent kind, per account; a kind with no data in its logs is left out. */
+  limits?: Record<string, Limit>;
+  /** Each agent's share of the team's tokens today, in percent. */
+  shares?: Record<string, number>;
   spend_ready?: boolean;
   /** Daily limits, in tokens. Null for agents found on this Mac: they get none. */
   budget?: Budget | null;

@@ -6,6 +6,7 @@ import AgentList, { type Selection, type View } from "./AgentList";
 import AgentPanel from "./AgentPanel";
 import Board from "./Board";
 import Offline from "./Offline";
+import PlanBars from "./PlanBars";
 import Unreachable, { awayTitle } from "./Unreachable";
 import Review from "./Review";
 import { failedStart, isGroup, listModel, ran, today, type ListModel, type Row } from "./listModel";
@@ -275,7 +276,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   return (
     <div className="window">
       <div ref={list} className="window-list" hidden={full && sel?.kind === "agent"} onKeyDown={onListKey}>
-        {sel && <AgentList model={model} selected={sel} views={views} onSelect={select} />}
+        {sel && <AgentList model={model} selected={sel} views={views} onSelect={select}><PlanBars limits={map.limits ?? {}} /></AgentList>}
       </div>
       <div ref={panel} className="window-panel">
         {offline && <div className="panel-offline"><Offline team /></div>}

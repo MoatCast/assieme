@@ -305,3 +305,25 @@ class SettingsTest(Case):
         self.assertIsNone(settings.load()['notify_paused_until'])
         with self.assertRaises(ValueError):
             settings.set_value('notify_paused_until', 5)
+
+
+class LimitTest(Case):
+    RESET = NOW.timestamp() + 3 * 3600
+    LIM = {'codex': {'used': 100.0, 'reached': True, 'resets_at': RESET}}
+
+    def test_one_notification_per_reached_limit(self):
+        waiting = [dict(pane(r, 'at-limit'), agent='codex') for r in ('b1', 'b2')] + [dict(pane('p', 'working'), agent='claude')]
+        t = team(*waiting)
+        got = self.m.events([t], [], [], NOW, ST, self.LIM)
+        back = dt.datetime.fromtimestamp(self.RESET).strftime('%H:%M')
+        self.assertEqual([(e['title'], e['body']) for e in got], [('Codex reached its limit', f'2 agents wait until {back}.')])
+        self.assertEqual(self.m.events([t], [], [], NOW, ST, self.LIM), [])  # once per reset
+
+    def test_no_waiting_agent_no_notification(self):
+        self.assertEqual(self.m.events([team(dict(pane('p', 'working'), agent='claude'))], [], [], NOW, ST, self.LIM), [])
+
+    def test_menu_bar_text_matches(self):
+        self.m.brain = mock.Mock()
+        self.m.brain.today.ready = True
+        self.m.brain.limits.return_value = self.LIM
+        self.assertEqual(self.m._panel([], ST)['limits'], self.LIM)

@@ -230,11 +230,12 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             v['strip'] = [s for s in v['strip'] if s['role'] != p['role']] + [
                 {'role': p['role'], 'state': 'stuck', 'text': f"{p['role']} is paused: still stuck after a fix"}]
     v['strip'].sort(key=lambda x: panes.URGENT.index(x['state']))
-    for p in v['panes']:  # at its plan's limit an agent waits for the reset: the person can do nothing about it
+    for p, n in zip(v['panes'], nodes):  # at its plan's limit an agent waits for the reset: the person can do nothing about it
         lim = (plan_limits or {}).get(p['agent']) or {}
         if lim.get('reached') and p['state'] in ('working', 'stuck') and not p.get('paused_by_fix') and not (p['fix'] or {}).get('budget'):
             back = dt.datetime.fromtimestamp(lim['resets_at']).strftime('%H:%M') if lim.get('resets_at') else None
-            p['state'], p['fix'] = 'at-limit', None
+            p['state'] = n['state'] = 'at-limit'
+            p['fix'] = None
             p['detail'] = f"{KIND_NAMES.get(p['agent'], p['agent'])} limit" + (f' · back at {back}' if back else '')
             v['strip'] = [s for s in v['strip'] if s['role'] != p['role']]
     need = sum(needs_you(p) for p in v['panes'])
@@ -261,6 +262,7 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
             'tips': tips, 'done': done, 'limits': plan_limits or {},
+            'shares': {r: round(100 * x['tokens'] / total) for r, x in rep['agents'].items() if r in roles} if total else {},
             'spend': {'tokens': total, 'waste_share': round(rep['empty_tokens'] / total, 4)} if total else None,
             'spend_ready': getattr(today, 'ready', True)}
 
