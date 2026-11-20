@@ -1,11 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { RoleDraft } from "./bridge";
 import StartStep from "./StartStep";
 import { PRACTICES } from "./practicesFixture";
 
-afterEach(cleanup);
+beforeEach(() => vi.useFakeTimers({ toFake: ["Date"] }));
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 const r = (name: string, agent = "claude"): RoleDraft => ({ name, agent: agent as RoleDraft["agent"], job: "", checkout: "branch", parent: null, brief: "" });
 const PANEL = { steps: ["project", "task", "team", "start"] as ("project" | "task" | "team" | "start")[], at: "start" as const, answers: {}, onGo: () => {} };
 const AUTO = { nudge: "auto", compact: "auto", tell: "auto", quiet: "auto" } as const;
@@ -85,6 +86,9 @@ test("See all 5 opens the always-on list", () => {
 test("Start is pressed once, and is off while pending", async () => {
   const h = step();
   const start = screen.getByRole("button", { name: "Start 2 agents" });
+  fireEvent.click(start);
+  expect(h.onStart).not.toHaveBeenCalled(); // inside the click guard: a double-click from Team
+  vi.setSystemTime(new Date(Date.now() + 400));
   fireEvent.click(start);
   expect(h.onStart).toHaveBeenCalledTimes(1);
   cleanup();

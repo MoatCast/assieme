@@ -15,6 +15,7 @@ vi.mock("./remote", async (orig) => ({ ...(await orig<typeof import("./remote")>
 vi.mock("./Terminal", () => ({ default: () => <div /> }));
 
 import ConnectMachine from "./ConnectMachine";
+import { PRACTICES } from "./practicesFixture";
 import RemoteMachine, { WhereStep } from "./RemoteMachine";
 import NewTeam from "./NewTeam";
 import Unreachable, { awayTitle } from "./Unreachable";
@@ -22,7 +23,6 @@ import Unreachable, { awayTitle } from "./Unreachable";
 const flush = () => act(async () => {});
 const ROLE = { name: "builder", agent: "codex" as const, job: "builds", checkout: "branch" as const, parent: null, brief: "You build." };
 const PRESETS = [{ id: "one-agent", label: "One agent", roles: [ROLE] }];
-const PRACTICES = { groups: [{ id: "safety", title: "Safe by default", summary: "s", rules: ["a"] }], basics: [] };
 const MODELS = { claude: { models: [], efforts: [] }, codex: { models: [], efforts: [] } };
 const GPU = { name: "gpu-box", target: "gpu-box", state: "connected" as const };
 const READY = { ...GPU, ready: true, outdated: false, git: true,
@@ -42,61 +42,8 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-test.skip("New team on a remote machine: its agents, a project typed there, and the start goes there", async () => {
-  const onClose = vi.fn();
-  render(<NewTeam clis={{ claude: true, codex: true }} onClose={onClose} />);
-  await flush();
-  fireEvent.click(screen.getByRole("radio", { name: /A remote machine/ }));
-  await flush();
-  await flush();
-  expect((screen.getByLabelText("Machine") as HTMLSelectElement).value).toBe("gpu-box");
-  screen.getByText("Connected");
-  screen.getByText("Claude Code signed in");
-  screen.getByText("Codex not installed");
-  screen.getByRole("button", { name: "Install Codex" });
-  // Codex isn't there: the agent becomes Claude Code, the only kind on gpu-box.
-  expect(screen.queryByRole("button", { name: "Codex" })).toBeNull();
-  const path = screen.getByLabelText("Project folder");
-  fireEvent.change(path, { target: { value: "~/checkout-service" } });
-  fireEvent.blur(path);
-  await flush();
-  expect(r.checkProjectOn).toHaveBeenCalledWith("~/checkout-service", "gpu-box");
-  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Fix login" } });
-  fireEvent.click(screen.getByText("Start with recommended"));
-  await flush();
-  expect(r.startTeamOn).toHaveBeenCalledWith(expect.objectContaining({ project: "~/checkout-service", task: "Fix login",
-    roles: [{ ...ROLE, agent: "claude", kind: "builder", level: "safe" }] }), "gpu-box");
-  expect(b.startTeam).not.toHaveBeenCalled();
-  expect(onClose).toHaveBeenCalled();
-});
 
-test.skip("no machine yet: Start waits and Connect a machine opens the sheet", async () => {
-  r.remoteMachines.mockResolvedValue([]);
-  render(<NewTeam clis={{ claude: true, codex: true }} onClose={() => {}} />);
-  await flush();
-  fireEvent.click(screen.getByRole("radio", { name: /A remote machine/ }));
-  await flush();
-  screen.getByText("No machine yet");
-  screen.getByText("Connect a machine to continue.");
-  fireEvent.click(screen.getByRole("button", { name: "Connect a machine" }));
-  await flush();
-  screen.getByRole("dialog", { name: "Connect a machine" });
-});
 
-test.skip("a machine that can't be reached says so, and Try now dials it", async () => {
-  r.remoteCheck.mockResolvedValue({ ...GPU, state: "unreachable", since_ms: Date.UTC(2026, 10, 13, 14, 2), ready: false });
-  r.remoteConnect.mockResolvedValue(GPU);
-  render(<NewTeam clis={{ claude: true, codex: true }} onClose={() => {}} />);
-  await flush();
-  fireEvent.click(screen.getByRole("radio", { name: /A remote machine/ }));
-  await flush();
-  await flush();
-  screen.getByText(/Can’t reach gpu-box since .*Its agents keep working there\./);
-  screen.getByText("Waiting for gpu-box to be ready.");
-  fireEvent.click(screen.getByRole("button", { name: "Try now" }));
-  await flush();
-  expect(r.remoteConnect).toHaveBeenCalledWith("gpu-box");
-});
 
 test("Connect a machine: pick a host, test, set up with progress, then use it", async () => {
   const onUse = vi.fn();
@@ -221,17 +168,6 @@ test("every kind of agent on the machine is passed on, not only Claude Code and 
   expect(onAgents).toHaveBeenLastCalledWith({ claude: true, codex: false, gemini: true });
 });
 
-test.skip("an agent installed there but signed out isn't ready: Start waits and Sign in is offered", async () => {
-  r.remoteCheck.mockResolvedValue({ ...READY, agents: { claude: { installed: true, signed_in: false }, codex: { installed: false, signed_in: false } } });
-  render(<NewTeam clis={{ claude: true, codex: true }} onClose={() => {}} />);
-  await flush();
-  fireEvent.click(screen.getByRole("radio", { name: /A remote machine/ }));
-  await flush();
-  await flush();
-  screen.getByRole("button", { name: "Sign in to Claude Code" });
-  screen.getByText("Install or sign in to an agent on gpu-box, above.");
-  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(true);
-});
 
 const WHERE = { steps: ["where", "project", "task", "team", "start"] as const, at: "where" as const, answers: {}, onGo: () => {} };
 function where(machine: string | null, there: Record<string, boolean> | null = null) {
@@ -292,4 +228,74 @@ test("a click right after Where appears is ignored", async () => {
   fireEvent.click(screen.getByRole("button", { name: /This Mac/ }));
   expect(h.onNext).not.toHaveBeenCalled();
   vi.useRealTimers();
+});
+
+test("New team on a remote machine: Where first, its agents, a project typed there, and the start goes there", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  const onClose = vi.fn();
+  render(<NewTeam clis={{ claude: true, codex: true }} onClose={onClose} />);
+  await flush();
+  await flush();
+  screen.getByRole("heading", { name: "Where should the agents run?" });
+  later();
+  fireEvent.click(screen.getByRole("button", { name: /gpu-box/ }));
+  await flush();
+  screen.getByText("Connected");
+  screen.getByText("Claude Code signed in");
+  screen.getByRole("button", { name: "Install Codex" });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  const path = screen.getByLabelText("Project folder");
+  fireEvent.change(path, { target: { value: "~/checkout-service" } });
+  fireEvent.keyDown(path, { key: "Enter" });
+  await flush();
+  expect(r.checkProjectOn).toHaveBeenCalledWith("~/checkout-service", "gpu-box");
+  fireEvent.change(screen.getByRole("textbox", { name: "What should the team work on?" }), { target: { value: "Fix login" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  later();
+  fireEvent.click(screen.getByRole("button", { name: /One agent/ }));
+  await flush();
+  screen.getByText("1 agent on gpu-box");
+  later();
+  fireEvent.click(screen.getByRole("button", { name: "Start 1 agent" }));
+  await flush();
+  // Codex isn't there: the agent becomes Claude Code, the only kind on gpu-box.
+  expect(r.startTeamOn).toHaveBeenCalledWith(expect.objectContaining({ project: "~/checkout-service", task: "Fix login",
+    roles: [{ ...ROLE, agent: "claude", kind: "builder", level: "safe" }] }), "gpu-box");
+  expect(b.startTeam).not.toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalled();
+  vi.useRealTimers();
+});
+
+test("no machine yet: New team skips Where, and Connect a machine… opens the sheet from Where", async () => {
+  r.remoteMachines.mockResolvedValue([]);
+  render(<NewTeam clis={{ claude: true, codex: true }} onClose={() => {}} />);
+  await flush();
+  screen.getByRole("heading", { name: "Which project should the team work on?" });
+  cleanup();
+  where(null);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "Connect a machine…" }));
+  await flush();
+  screen.getByRole("dialog", { name: "Connect a machine" });
+});
+
+test("a machine that can't be reached says so, Continue waits, and Try now dials it", async () => {
+  r.remoteCheck.mockResolvedValue({ ...GPU, state: "unreachable", since_ms: Date.UTC(2026, 10, 13, 14, 2), ready: false });
+  r.remoteConnect.mockResolvedValue(GPU);
+  where("gpu-box");
+  await flush();
+  screen.getByText(/Can’t reach gpu-box since .*Its agents keep working there\./);
+  expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Try now" }));
+  await flush();
+  expect(r.remoteConnect).toHaveBeenCalledWith("gpu-box");
+});
+
+test("an agent installed there but signed out isn't ready: Sign in is offered and Continue waits", async () => {
+  r.remoteCheck.mockResolvedValue({ ...READY, agents: { claude: { installed: true, signed_in: false }, codex: { installed: false, signed_in: false } } });
+  const h = where("gpu-box");
+  await flush();
+  screen.getByRole("button", { name: "Sign in to Claude Code" });
+  expect(h.onAgents).toHaveBeenLastCalledWith({ claude: false, codex: false });
+  expect((screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement).disabled).toBe(true);
 });

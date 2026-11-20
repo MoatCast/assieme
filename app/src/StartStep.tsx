@@ -3,19 +3,21 @@ import type { Practices, RoleDraft, Settings } from "./bridge";
 import { kindName } from "./kinds";
 import { rulesLine, teamSummary, whileTheyWork } from "./newTeamSteps";
 import { AlwaysOnSheet, RESEARCHER, agentCount, type Choice } from "./Practices";
-import StepPanel, { type PanelProps } from "./StepPanel";
+import StepPanel, { useClickGuard, type PanelProps } from "./StepPanel";
 
 const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 /** New team, Start: what Assieme does for this team, the team line, and the only Start button.
  *  Paper "v3 — New team: Start, what Assieme does" (and its dark twin). */
 export default function StartStep({ panel, practices, value, roles, machine, fixes, onRules, onEditAgents, onBigger, onBack,
-  onStart, pending, error }: {
+  onStart, pending, error, notice }: {
   panel: PanelProps; practices: Practices; value: Choice; roles: RoleDraft[]; machine: string | null;
   fixes: Settings["fixes"] | null; onRules: () => void; onEditAgents: () => void; onBigger: (key: string, on: boolean) => void;
   onBack: () => void; onStart: () => void; pending: boolean; error: string;
+  notice?: React.ReactNode; // an import's team still running in its old tool
 }) {
   const [always, setAlways] = useState(false);
+  const guard = useClickGuard(panel.at); // a double-click on Team's option must not press Start
   const n = agentCount(roles, value);
   const research = practices.bigger.find((x) => x.id === "research-pairs");
   const bigger = (key: string, text: string, addLabel: string, added: string) => (
@@ -32,8 +34,9 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
         <span className="safe">You can change these any time in Settings.</span>
         {error && <span className="error" role="alert">{error}</span>}
         <button type="button" className="quiet" onClick={onBack}>Back</button>
-        <button type="button" className="primary" disabled={pending} onClick={onStart}>{n === 1 ? "Start 1 agent" : `Start ${n} agents`}</button>
+        <button type="button" className="primary" disabled={pending} onClick={() => !guard() && onStart()}>{n === 1 ? "Start 1 agent" : `Start ${n} agents`}</button>
       </>}>
+      {notice}
       <div className="does">
         <div className="does-row">
           <b>Before they start</b>

@@ -1,7 +1,9 @@
+import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Preset, RoleDraft } from "./bridge";
 import { KINDS, TABLE } from "./editorFixtures";
+import { PRACTICES } from "./practicesFixture";
 
 const b = vi.hoisted(() => ({
   teamPresets: vi.fn(),
@@ -25,6 +27,9 @@ const b = vi.hoisted(() => ({
   containerOpen: vi.fn(),
   toolsFind: vi.fn(),
   toolsSuggest: vi.fn(),
+  setupStatus: vi.fn(),
+  confirmDiscard: vi.fn(),
+  getSettings: vi.fn(),
 }));
 vi.mock("./bridge", async (orig) => ({ ...(await orig<typeof import("./bridge")>()), ...b }));
 
@@ -35,18 +40,9 @@ const r = (name: string, extra: Partial<RoleDraft> = {}): RoleDraft => ({
 });
 const PRESETS: Preset[] = [
   { id: "one-agent", label: "One agent", roles: [r("builder")] },
-  { id: "builder-reviewer", label: "Builder + reviewer", roles: [r("builder"), r("reviewer", { checkout: "read-only", parent: "builder" })] },
-  { id: "full", label: "Planner, 3 builders, reviewer, tester", roles: [r("planner"), r("builder-1")] },
+  { id: "builder-reviewer", label: "Builder and reviewer", roles: [r("builder"), r("reviewer", { checkout: "read-only", parent: "builder" })] },
+  { id: "full", label: "Full team", roles: [r("planner"), r("builder-1")] },
 ];
-export const PRACTICES = {
-  groups: ["messages", "safety", "reviews", "stopping", "machine"].map((id) => ({
-    id, title: { messages: "Fewer, cheaper messages", safety: "Safe by default", reviews: "Careful reviews",
-      stopping: "Know when to stop", machine: "Easy on your Mac" }[id]!, summary: `${id} summary`, detail: `${id} detail`,
-    rules: ["a", "b"].map((x) => ({ id: `${id}-${x}`, title: `${id} rule ${x}`, detail: "d", text: "t" })),
-  })),
-  basics: [1, 2, 3, 4, 5].map((i) => ({ title: `Basic ${i}`, detail: "d" })),
-  bigger: [{ id: "steward", title: "Steward agent", summary: "s", detail: "d" }, { id: "research-pairs", title: "Research pairs", summary: "r", detail: "d" }],
-};
 
 /** What New team sends: every agent with a role (from its name) and a permission level. */
 const sent = (rs: RoleDraft[]) => rs.map((x) => ({ ...x, kind: /^(planner|builder|reviewer|tester)/.exec(x.name)?.[1] ?? null,
@@ -63,500 +59,196 @@ const MODELS = {
 
 const flush = () => act(async () => {});
 const both = { claude: true, codex: true };
+const READY = { git: true, agents: { claude: { installed: true, signed_in: true }, codex: { installed: true, signed_in: true } } };
+const SETUP = { ok: false, setup: true, reason: "This folder has no saved version yet." };
+const PREVIEW = { files: 214, sample: ["index.html"], first: true, empty: false, left_out: [] };
+const deferred = <T,>() => {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((res) => (resolve = res));
+  return { promise, resolve };
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.useFakeTimers({ toFake: ["Date"] }); // the 300 ms click guard reads the clock
   b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS, kinds: KINDS, permissions: TABLE });
   b.checkProject.mockResolvedValue({ ok: true });
   b.pickFolder.mockResolvedValue("/Users/me/shop");
+  b.setupStatus.mockResolvedValue(READY);
+  b.getSettings.mockResolvedValue({ fixes: { nudge: "auto", compact: "auto", tell: "auto", quiet: "auto" } });
+  b.confirmDiscard.mockResolvedValue(true);
+  b.toolsFind.mockResolvedValue({ items: [], notices: [] });
+  b.toolsSuggest.mockResolvedValue([]);
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
+/** Past the click guard: a click right after a step change is ignored on purpose. */
+const later = () => vi.setSystemTime(new Date(Date.now() + 400));
+const heading = () => screen.getByRole("heading", { level: 1 }).textContent;
 const names = () => screen.getAllByLabelText("Agent name").map((e) => (e as HTMLInputElement).value);
+const button = (name: string | RegExp) => screen.getByRole("button", { name }) as HTMLButtonElement;
 
-async function open(clis = both) {
+async function open(clis: Record<string, boolean> | null = both, extra: Partial<Parameters<typeof NewTeam>[0]> = {}) {
   const onClose = vi.fn();
-  render(<NewTeam clis={clis} onClose={onClose} />);
+  render(<NewTeam clis={clis} onClose={onClose} {...extra} />);
   await flush();
   return onClose;
 }
-
-async function fillProjectAndTask() {
-  fireEvent.click(screen.getByText("Choose…"));
+async function chooseFolder() {
+  fireEvent.click(button(/Choose a folder…/));
   await flush();
-  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Fix login" } });
+}
+async function toTeam(task = "Fix login") {
+  await chooseFolder();
+  if (task) {
+    fireEvent.change(screen.getByRole("textbox", { name: "What should the team work on?" }), { target: { value: task } });
+    fireEvent.click(button("Continue"));
+  } else fireEvent.click(button("Skip"));
+  await flush();
+}
+async function pick(name: RegExp) {
+  later();
+  fireEvent.click(button(name));
+  await flush();
+}
+async function toStart(preset = /Builder and reviewer/, task = "Fix login") {
+  await toTeam(task);
+  await pick(preset);
+  later();
+}
+async function editAgents() {
+  fireEvent.click(button("Edit agents ›"));
+  await flush();
 }
 
-test("choosing a starting team fills the agents", async () => {
-  await open();
-  expect(names()).toEqual(["builder"]);
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  expect(names()).toEqual(["builder", "reviewer"]);
-});
-
-test("only installed CLIs are offered", async () => {
-  await open({ claude: true, codex: false });
-  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
-  expect(screen.queryByRole("menuitemradio", { name: /Codex/ })).toBeNull();
-  expect(screen.getByRole("menuitem", { name: /Codex.*Install…/ })).toBeTruthy();
-  cleanup();
-  await open({ claude: false, codex: false });
-  expect(screen.getByText("Install Claude Code or Codex, then reopen New team.")).toBeTruthy();
-});
-
-test("says what's missing until Next can be pressed, then what agents are told", async () => {
-  await open();
-  expect(screen.getByText("Choose a project folder to continue.")).toBeTruthy();
-  fireEvent.click(screen.getByText("Choose…"));
-  await flush();
-  expect(screen.getByText("Say what the team should work on to continue.")).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Fix login" } });
-  screen.getByText("Agents work on their own copy and can’t git push. They’re told not to deploy.");
-});
-
-test("the footer says can’t git push with Safe by default on, and can git push with it off", async () => {
-  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS, practice_defaults: { safety: false } });
-  await open();
-  await fillProjectAndTask();
-  screen.getByText("Agents work on their own copy and can git push.");
-  fireEvent.click(screen.getByText("Customise"));
-  screen.getByText("You can change these any time in Settings.");
-  fireEvent.click(screen.getByRole("switch", { name: "Safe by default" }));
-  fireEvent.click(screen.getByText("Back"));
-  screen.getByText("Agents work on their own copy and can’t git push. They’re told not to deploy.");
-});
-
-test("Start with recommended starts the team without step 2", async () => {
+test("a new team goes Project → Task → Team → Start and starts with what was chosen", async () => {
   b.startTeam.mockResolvedValue({ team: "shop" });
-  const onClose = vi.fn();
-  const onStarted = vi.fn();
-  render(<NewTeam clis={both} onClose={onClose} onStarted={onStarted} />);
-  await flush();
-  const go = screen.getByText("Start with recommended") as HTMLButtonElement;
-  expect(go.disabled).toBe(true);
-  await fillProjectAndTask();
-  fireEvent.click(go);
-  await flush();
-  expect(b.startTeam).toHaveBeenCalledWith({
-    project: "/Users/me/shop", task: "Fix login", roles: sent(PRESETS[0].roles), practices: {},
-  });
-  expect(onStarted).toHaveBeenCalled();
-  expect(onClose).toHaveBeenCalled();
-});
-
-test("Start with recommended keeps the Settings defaults, and shows what went wrong", async () => {
-  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS, practice_defaults: { reviews: false } });
-  b.startTeam.mockRejectedValueOnce("start: not installed: codex. Install it, then start again.");
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Start with recommended"));
-  await flush();
-  expect(b.startTeam.mock.calls[0][0].practices).toEqual({ reviews: false });
-  screen.getByText("not installed: codex. Install it, then start again.");
-  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(false);
-});
-
-test("Start with recommended checks the agent names first", async () => {
-  await open();
-  await fillProjectAndTask();
-  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "Bad Name" } });
-  fireEvent.click(screen.getByText("Start with recommended"));
-  screen.getByText("Names use lower-case letters, digits and dashes, and must differ.");
-  expect(b.startTeam).not.toHaveBeenCalled();
-});
-
-test("Customise opens Recommended setup", async () => {
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Customise"));
-  screen.getByText("Recommended setup");
-  expect(b.startTeam).not.toHaveBeenCalled();
-});
-
-test("Where should the agents run starts on this Mac, with nothing to set up", async () => {
-  await open();
-  screen.getByText("Where should the agents run?");
-  expect(screen.getByRole("radio", { name: /This Mac/ }).getAttribute("aria-checked")).toBe("true");
-  expect(screen.queryByLabelText("Machine")).toBeNull();
-});
-
-test("Mix any agents shows only when more than one is installed", async () => {
-  await open({ claude: true, codex: false });
-  expect(screen.queryByText(/Mix any agents/)).toBeNull();
-  cleanup();
-  await open(both);
-  screen.getByText("Mix any agents on this Mac. The box icon means it runs in a container.");
-});
-
-test("an agent can run in a container: the box shows, and Start waits for the container", async () => {
-  b.containerStatus.mockResolvedValue({ tool: "docker", running: true, image_ready: false });
-  await open(both);
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
-  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Run in a container/ }));
-  await flush();
-  expect(screen.getByRole("button", { name: "Agent: Claude Code, in a container" })).toBeTruthy();
-  expect(screen.getByText("Uses Docker. The first time, it downloads and builds the container, about 1.5 GB.")).toBeTruthy();
-  expect(screen.getByText("Get the container ready to continue.")).toBeTruthy();
-});
-
-test("a stopped service isn't reported as missing agents, and New team recovers", async () => {
-  b.teamPresets.mockRejectedValue(new Error("no brain"));
-  render(<NewTeam clis={null} retryMs={1} onClose={vi.fn()} />);
-  await flush();
-  expect(screen.getByText(/service isn’t running/)).toBeTruthy();
-  expect(screen.queryByText(/Install Claude Code or Codex/)).toBeNull();
-  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS });
-  expect(await screen.findByText("One agent")).toBeTruthy();
-  expect(screen.queryByText(/service isn’t running/)).toBeNull();
-});
-
-test("while the agent check hasn't answered, it doesn't say to install one", async () => {
-  render(<NewTeam clis={null} onClose={vi.fn()} />);
-  await flush();
-  expect(screen.queryByText(/Install Claude Code or Codex/)).toBeNull();
-  expect(screen.getByText("Checking which agents are installed…")).toBeTruthy();
-});
-
-test("add, rename, remove and edit a brief", async () => {
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Add an agent"));
-  expect(names()).toEqual(["builder", "builder-2"]);
-  fireEvent.click(screen.getAllByLabelText("Remove agent")[1]);
-  expect(names()).toEqual(["builder"]);
-  fireEvent.click(screen.getByText("Brief"));
-  fireEvent.change(screen.getByLabelText("Brief for builder"), { target: { value: "New brief." } });
-  fireEvent.click(screen.getByText("Save brief"));
-  fireEvent.click(screen.getByText("Brief"));
-  expect((screen.getByLabelText("Brief for builder") as HTMLTextAreaElement).value).toBe("New brief.");
-  fireEvent.click(screen.getByText("Cancel", { selector: ".editor .btn-quiet" }));
-  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "Bad Name" } });
-  fireEvent.click(screen.getByText("Customise"));
-  expect(screen.getByText("Names use lower-case letters, digits and dashes, and must differ.")).toBeTruthy();
-  expect(screen.queryByText("Recommended setup")).toBeNull();
-});
-
-test("project problem blocks Next; task is required", async () => {
-  b.checkProject.mockResolvedValue({ ok: false, reason: "This folder isn't a git repository. Assieme gives each agent its own branch, so it needs one." });
-  await open();
-  const next = screen.getByText("Customise") as HTMLButtonElement;
-  expect(next.disabled).toBe(true);
-  await fillProjectAndTask();
-  expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
-  expect(screen.getByText(/isn't a git repository/)).toBeTruthy();
-  expect(next.disabled).toBe(true);
-  b.checkProject.mockResolvedValue({ ok: true });
-  fireEvent.click(screen.getByText("Choose…"));
-  await flush();
-  expect(next.disabled).toBe(false);
-  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "  " } });
-  expect(next.disabled).toBe(true);
-});
-
-const SETUP = { ok: false, setup: true, reason: "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one." };
-const PREVIEW = { files: 214, sample: ["index.html"], left_out: [".env"], empty: false, first: true };
-const checking = (c: object) => b.checkProject.mockResolvedValue(c);
-
-test("not ready: developer tools missing offers the installer and rechecks when it's done", async () => {
-  checking({ ok: false, tools: true, reason: "This needs Apple’s developer tools first." });
-  b.installTools.mockResolvedValue({ ok: true });
-  render(<NewTeam clis={both} retryMs={1} recheckMs={5} onClose={vi.fn()} />);
-  await flush();
-  await fillProjectAndTask();
-  screen.getByText("This needs Apple’s developer tools first.");
-  screen.getByText("Install developer tools to continue.");
-  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByText("Install developer tools"));
-  await flush();
-  expect(b.installTools).toHaveBeenCalled();
-  checking({ ok: true });
-  await waitFor(() => expect(screen.queryByText("Install developer tools")).toBeNull());
-  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(false);
-});
-
-test("an installer that can't open says so next to its button", async () => {
-  checking({ ok: false, tools: true, reason: "This needs Apple’s developer tools first." });
-  b.installTools.mockRejectedValue(new Error("xcode-select: not found"));
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Install developer tools"));
-  await flush();
-  screen.getByText("xcode-select: not found");
-});
-
-test("folder too large says to choose another and blocks both buttons", async () => {
-  checking({ ok: false, too_large: true, reason: "This folder is very large. Choose the folder for just this project." });
-  await open();
-  await fillProjectAndTask();
-  screen.getByText("This folder is very large. Choose the folder for just this project.");
-  screen.getByText("Choose a different folder to continue.");
-  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(true);
-});
-
-test("a folder with no saved version offers Set up this folder, in neutral text", async () => {
-  checking(SETUP);
-  b.folderPreview.mockResolvedValue(PREVIEW);
-  await open();
-  await fillProjectAndTask();
-  expect(screen.getByText(SETUP.reason).closest(".folder-note")).not.toBeNull(); // neutral note, not the red error line
-  screen.getByText("Set up this folder to continue.");
-  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(true);
-});
-
-test("Save and continue clears the problem and enables the buttons", async () => {
-  checking(SETUP);
-  b.folderPreview.mockResolvedValue(PREVIEW);
-  b.folderSave.mockResolvedValue({ ok: true });
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Set up this folder"));
-  await flush();
-  screen.getByRole("heading", { name: "Save 214 files as the first version?" });
-  checking({ ok: true });
-  b.checkProject.mockClear();
-  fireEvent.click(screen.getByText("Save and continue"));
-  await flush();
-  expect(b.folderSave).toHaveBeenCalledWith("/Users/me/shop");
-  expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
-  expect(screen.queryByRole("dialog")).toBeNull();
-  expect(screen.queryByText("Set up this folder")).toBeNull();
-  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(false);
-  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(false);
-});
-
-test("Not now changes nothing", async () => {
-  checking(SETUP);
-  b.folderPreview.mockResolvedValue(PREVIEW);
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Set up this folder"));
-  await flush();
-  fireEvent.click(screen.getByText("Not now"));
-  expect(screen.queryByRole("dialog")).toBeNull();
-  expect(b.folderSave).not.toHaveBeenCalled();
-  screen.getByText(SETUP.reason);
-  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(true);
-});
-
-test("uncommitted files warn but keep the buttons enabled", async () => {
-  checking({ ok: true, uncommitted: 3 });
-  await open();
-  await fillProjectAndTask();
-  screen.getByText("3 files have changes that aren’t in a saved version (uncommitted), so agents won’t see them.");
-  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(false);
-  expect((screen.getByText("Start with recommended") as HTMLButtonElement).disabled).toBe(false);
-  checking({ ok: true, uncommitted: 1 });
-  fireEvent.click(screen.getByText("Choose…"));
-  await flush();
-  screen.getByText("1 file has changes that aren’t in a saved version (uncommitted), so agents won’t see them.");
-});
-
-test("Save them first reuses the dialog with its own title, and keeps Customise enabled when declined", async () => {
-  checking({ ok: true, uncommitted: 3 });
-  b.folderPreview.mockResolvedValue({ files: 3, sample: ["a", "b", "c"], left_out: [], empty: false, first: false });
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Save them first"));
-  await flush();
-  screen.getByRole("heading", { name: "Save 3 files as a new version?" });
-  fireEvent.click(screen.getByText("Not now"));
-  expect(screen.queryByRole("dialog")).toBeNull();
-  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(false);
-  fireEvent.click(screen.getByText("Save them first"));
-  await flush();
-  checking({ ok: true });
-  fireEvent.click(screen.getByText("Save and continue"));
-  await flush();
-  expect(b.folderSave).toHaveBeenCalledTimes(1);
-  expect(screen.queryByText("Save them first")).toBeNull();
-});
-
-test("a failed save shows what git said, with Cancel and Try again", async () => {
-  checking(SETUP);
-  b.folderPreview.mockResolvedValue(PREVIEW);
-  b.folderSave.mockRejectedValueOnce("Unable to create .git/index.lock: File exists");
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Set up this folder"));
-  await flush();
-  fireEvent.click(screen.getByText("Save and continue"));
-  await flush();
-  screen.getByText("Git said: Unable to create .git/index.lock: File exists");
-  fireEvent.click(screen.getByText("Cancel", { selector: ".modal button" }));
-  expect(screen.queryByRole("dialog")).toBeNull();
-  screen.getByText(SETUP.reason);
-});
-
-test("an empty folder is started from the same button", async () => {
-  checking(SETUP);
-  b.folderPreview.mockResolvedValue({ files: 0, sample: [], left_out: [], empty: true, first: true });
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Set up this folder"));
-  await flush();
-  screen.getByRole("heading", { name: "Start this empty project?" });
-  checking({ ok: true });
-  fireEvent.click(screen.getByText("Start project"));
-  await flush();
-  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(false);
-});
-
-test("New folder creates it and offers to set it up", async () => {
-  b.pickNewFolder.mockResolvedValue("/Users/me/recipes");
-  b.folderCreate.mockResolvedValue({ path: "/Users/me/recipes" });
-  checking(SETUP);
-  b.folderPreview.mockResolvedValue({ files: 0, sample: [], left_out: [], empty: true, first: true });
-  await open();
-  fireEvent.click(screen.getByText("New folder…"));
-  await flush();
-  expect(b.folderCreate).toHaveBeenCalledWith("/Users/me/recipes");
-  expect(b.checkProject).toHaveBeenCalledWith("/Users/me/recipes");
-  screen.getByText("~/recipes");
-  screen.getByText(SETUP.reason);
-  screen.getByText("Set up this folder");
-});
-
-test("New folder: cancelling the picker does nothing, and a refusal shows next to the button", async () => {
-  b.pickNewFolder.mockResolvedValue(null);
-  await open();
-  fireEvent.click(screen.getByText("New folder…"));
-  await flush();
-  expect(b.folderCreate).not.toHaveBeenCalled();
-  b.pickNewFolder.mockResolvedValue("/Users/me/shop");
-  b.folderCreate.mockRejectedValue("That folder already exists.");
-  fireEvent.click(screen.getByText("New folder…"));
-  await flush();
-  screen.getByText("That folder already exists.");
-  screen.getByText("No folder chosen");
-});
-
-test("help me choose fills the agents", async () => {
-  b.suggestTeam.mockResolvedValue({ roles: [r("solo", { job: "Does it all" })], why: "A small change needs one agent." });
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Help me choose"));
-  fireEvent.click(screen.getByText("Suggest a team"));
-  expect(screen.getByText("Asking Claude Code…")).toBeTruthy();
-  await flush();
-  expect(b.suggestTeam).toHaveBeenCalledWith({ project: "/Users/me/shop", size: "feature", review: "every", budget: "lean" });
-  expect(names()).toEqual(["solo"]);
-  expect(screen.getByText("A small change needs one agent.")).toBeTruthy();
-
-  b.suggestTeam.mockRejectedValue("suggest: Couldn't get a suggestion: Please run /login");
-  fireEvent.click(screen.getByText("Help me choose"));
-  fireEvent.click(screen.getByText("Suggest a team"));
-  await flush();
-  expect(screen.getByText("Couldn't get a suggestion: Please run /login")).toBeTruthy();
-  fireEvent.click(screen.getByText("Cancel", { selector: ".sheet button" }));
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  expect(names()).toEqual(["builder", "reviewer"]);
-});
-
-test("a suggested model and effort show on the row and reach Start", async () => {
-  b.suggestTeam.mockResolvedValue({ roles: [r("builder"), r("reviewer", { model: "opus", effort: "high" })], why: "w" });
-  b.startTeam.mockResolvedValue({ team: "shop" });
-  await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Help me choose"));
-  fireEvent.click(screen.getByText("Suggest a team"));
-  await flush();
-  expect(screen.getByRole("button", { name: "Model and effort for builder" }).textContent).toBe("Default");
-  expect(screen.getByRole("button", { name: "Model and effort for reviewer" }).textContent).toBe("Opus · High");
-  fireEvent.click(screen.getByText("Customise"));
-  fireEvent.click(screen.getByText("Start 2 agents"));
-  await flush();
-  expect(b.startTeam.mock.calls[0][0].roles[1]).toMatchObject({ model: "opus", effort: "high" });
-});
-
-test("replacing an edited list asks first", async () => {
-  await open();
-  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
-  const confirm = vi.spyOn(window, "confirm");
-  b.confirmReplace.mockResolvedValue(false);
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  await flush();
-  expect(b.confirmReplace).toHaveBeenCalled();
-  expect(confirm).not.toHaveBeenCalled(); // shows nothing in the app's web view
-  expect(names()).toEqual(["lead"]);
-  b.confirmReplace.mockResolvedValue(true);
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  await flush();
-  expect(names()).toEqual(["builder", "reviewer"]);
-});
-
-test("cancel closes", async () => {
   const onClose = await open();
-  fireEvent.click(within(screen.getByRole("contentinfo")).getByText("Cancel"));
+  expect(heading()).toBe("Which project should the team work on?");
+  await chooseFolder();
+  expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
+  expect(heading()).toBe("What should the team work on?");
+  fireEvent.change(screen.getByRole("textbox", { name: "What should the team work on?" }), { target: { value: "Fix login" } });
+  fireEvent.click(button("Continue"));
+  await flush();
+  expect(heading()).toBe("Who should work on it?");
+  await pick(/Full team/);
+  later();
+  expect(heading()).toBe("What Assieme does for this team");
+  expect(screen.getByRole("navigation", { name: "Setup steps" }).textContent).toContain("✓ Full team");
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  expect(b.startTeam).toHaveBeenCalledWith({ project: "/Users/me/shop", task: "Fix login", roles: sent(PRESETS[2].roles), practices: {} });
   expect(onClose).toHaveBeenCalled();
 });
 
-async function toSetup(onClose?: () => void) {
-  render(<NewTeam clis={both} onClose={onClose ?? vi.fn()} />);
+test("Back keeps every answer", async () => {
+  await open();
+  await toStart();
+  fireEvent.click(button("Back"));
+  expect(heading()).toBe("Who should work on it?");
+  fireEvent.click(button("Back"));
+  expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("Fix login");
+  fireEvent.click(button("Back"));
+  expect(heading()).toBe("Which project should the team work on?");
+  screen.getByText("~/shop");
   await flush();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  fireEvent.click(screen.getByText("Customise"));
-}
+  expect(heading()).toBe("Which project should the team work on?"); // a good folder doesn't move on again by itself
+});
 
-test("groups are on and switch off", async () => {
+test("a skipped task starts with an empty task", async () => {
   b.startTeam.mockResolvedValue({ team: "shop" });
-  await toSetup();
-  expect(screen.getByText("Recommended setup")).toBeTruthy();
-  const switches = screen.getAllByRole("switch") as HTMLInputElement[];
-  expect(switches.map((s) => s.checked)).toEqual([true, true, true, true, true, false, false]);  // then the two for bigger teams
-  fireEvent.click(screen.getByRole("switch", { name: "Careful reviews" }));
-  fireEvent.click(screen.getByText("Start 2 agents"));
+  await open();
+  await toStart(/One agent/, "");
+  expect(screen.getByRole("navigation", { name: "Setup steps" }).textContent).toContain("✓ No task");
+  fireEvent.click(button("Start 1 agent"));
   await flush();
-  expect(b.startTeam).toHaveBeenCalledWith({ project: "/Users/me/shop", task: "Fix login", roles: sent(PRESETS[1].roles), practices: { reviews: false } });
+  expect(b.startTeam.mock.calls[0][0].task).toBe("");
 });
 
-test("a group's chevron opens its rules, each with a switch that follows the group", async () => {
+test("the indicator's done steps go back", async () => {
+  await open();
+  await toStart();
+  fireEvent.click(button("✓ Fix login"));
+  expect(heading()).toBe("What should the team work on?");
+  fireEvent.click(button("✓ shop"));
+  expect(heading()).toBe("Which project should the team work on?");
+  expect(screen.queryByRole("button", { name: "✓ Fix login" })).toBeNull(); // later steps aren't buttons
+});
+
+test("a slow check for an earlier folder can't move on for the current one", async () => {
+  const a = deferred<object>();
+  b.pickFolder.mockResolvedValueOnce("/Users/me/a").mockResolvedValueOnce("/Users/me/b");
+  b.checkProject.mockImplementation((p: string) => (p.endsWith("/a") ? a.promise : Promise.resolve(SETUP)));
+  b.folderPreview.mockResolvedValue(PREVIEW);
+  await open();
+  fireEvent.click(button(/Choose a folder…/));
+  await flush();
+  fireEvent.click(button("Choose another…"));
+  await flush();
+  screen.getByText("This folder has no saved version yet");
+  await act(async () => a.resolve({ ok: true }));
+  expect(heading()).toBe("Which project should the team work on?");
+  screen.getByText("This folder has no saved version yet");
+});
+
+test("a double-click on a team option doesn't press the next panel", async () => {
   b.startTeam.mockResolvedValue({ team: "shop" });
-  await toSetup();
-  fireEvent.click(screen.getByRole("button", { name: "Careful reviews: each rule" }));
-  const rule = screen.getByRole("switch", { name: "reviews rule a" }) as HTMLInputElement;
-  expect(rule.checked).toBe(true);
-  fireEvent.click(rule);
-  const sheet = screen.getByRole("dialog", { name: "Careful reviews" });
-  fireEvent.click(sheet.querySelector<HTMLInputElement>("input[aria-label='Careful reviews']")!);
-  expect((screen.getByRole("switch", { name: "reviews rule b" }) as HTMLInputElement).disabled).toBe(true);
-  fireEvent.keyDown(sheet, { key: "Escape" });
-  fireEvent.click(screen.getByText("Start 2 agents"));
+  await open();
+  await toTeam();
+  later();
+  fireEvent.click(button(/Builder and reviewer/));
   await flush();
-  expect(b.startTeam.mock.calls[0][0].practices).toEqual({ "reviews-a": false, reviews: false });
-});
-
-test("a steward adds one agent to the count, and reaches Start", async () => {
-  b.startTeam.mockResolvedValue({ team: "shop" });
-  await toSetup();
-  const label = () => document.querySelector(".bigger-label")!.textContent;
-  expect(label()).toBe("For bigger teams · off");
-  fireEvent.click(screen.getByRole("switch", { name: "Steward agent" }));
-  expect(label()).toBe("For bigger teams · on");
-  fireEvent.click(screen.getByText("Start 3 agents"));
+  vi.setSystemTime(new Date(Date.now() + 50));
+  // The second click lands where the option was: Start's primary sits elsewhere, and a click inside the guard does nothing.
+  const startButton = button("Start 2 agents");
+  fireEvent.click(startButton);
   await flush();
-  expect(b.startTeam.mock.calls[0][0].practices).toEqual({ steward: true });
+  expect(heading()).toBe("What Assieme does for this team");
+  expect(b.startTeam).not.toHaveBeenCalled();
 });
 
-test("basics count comes from the list", async () => {
-  await toSetup();
-  expect(screen.getByText("5 basics that are always on").closest(".basics")?.textContent).toMatch(/^Plus 5 basics that are always on/);
-  fireEvent.click(screen.getByText("See all"));
-  expect(screen.getByRole("dialog", { name: "Always on" }).textContent).toContain("3Basic 3");
-});
+test("errors go back to their step", async () => {
+  b.startTeam.mockRejectedValueOnce("project: This project already has a running team: shop. Stop it first.");
+  const onClose = await open();
+  await toStart();
+  later();
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  expect(heading()).toBe("Which project should the team work on?");
+  screen.getByText("This project already has a running team: shop. Stop it first.");
 
-test("start button counts agents and shows the trust line", async () => {
-  await toSetup();
-  expect(screen.getByText("Start 2 agents")).toBeTruthy();
-  expect(screen.getByText("You can change these any time in Settings.")).toBeTruthy();
-  expect(screen.getAllByText("2 rules").length).toBe(5);
+  b.startTeam.mockRejectedValueOnce("role:0: Names use lower-case letters, digits and dashes, and must differ.");
+  fireEvent.click(button("Continue"));
+  fireEvent.click(button("Continue"));
+  await flush();
+  fireEvent.click(button("✓ Fix login"));
+  fireEvent.click(button("Continue"));
+  await pick(/Builder and reviewer/);
+  later();
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  screen.getByRole("dialog", { name: "Agents for shop" });
+  screen.getByText("Names use lower-case letters, digits and dashes, and must differ.");
+  fireEvent.click(button("Done"));
+
+  b.startTeam.mockRejectedValueOnce("start: not installed: codex. Install it, then start again.");
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  screen.getByText("not installed: codex. Install it, then start again.");
+  expect(heading()).toBe("What Assieme does for this team");
+
+  b.startTeam.mockResolvedValueOnce({ team: "shop" });
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  expect(onClose).toHaveBeenCalled();
 });
 
 test("start is pressed once", async () => {
   b.startTeam.mockReturnValue(new Promise(() => {}));
-  await toSetup();
-  const start = screen.getByText("Start 2 agents") as HTMLButtonElement;
+  await open();
+  await toStart();
+  const start = button("Start 2 agents");
   fireEvent.click(start);
   fireEvent.click(start);
   await flush();
@@ -564,196 +256,40 @@ test("start is pressed once", async () => {
   expect(start.disabled).toBe(true);
 });
 
-test("errors go back to their field; success closes", async () => {
-  b.startTeam.mockRejectedValueOnce("role:0: Names use lower-case letters, digits and dashes, and must differ.");
-  const onClose = vi.fn();
-  await toSetup(onClose);
-  fireEvent.click(screen.getByText("Start 2 agents"));
-  await flush();
-  expect(screen.getByText("New team")).toBeTruthy();
-  expect(screen.getByText("Names use lower-case letters, digits and dashes, and must differ.")).toBeTruthy();
-
-  fireEvent.click(screen.getByText("Customise"));
-  b.startTeam.mockRejectedValueOnce("start: not installed: codex. Install it, then start again.");
-  fireEvent.click(screen.getByText("Start 2 agents"));
-  await flush();
-  expect(screen.getByText("not installed: codex. Install it, then start again.")).toBeTruthy();
-  expect(screen.getByText("Recommended setup")).toBeTruthy();
-
-  b.startTeam.mockResolvedValueOnce({ team: "shop" });
-  fireEvent.click(screen.getByText("Start 2 agents"));
-  await flush();
-  expect(onClose).toHaveBeenCalled();
-
-  fireEvent.click(screen.getByText("Back"));
-  expect(screen.getByText("New team")).toBeTruthy();
-});
-
-test("renaming an agent keeps the agents that report to it", async () => {
-  b.startTeam.mockResolvedValue({ team: "shop" });
-  await toSetup();
-  fireEvent.click(screen.getByText("Back"));
-  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
-  fireEvent.click(screen.getByText("Customise"));
-  fireEvent.click(screen.getByText("Start 2 agents"));
-  await flush();
-  const sent = b.startTeam.mock.calls[0][0].roles;
-  expect(sent.map((x: RoleDraft) => [x.name, x.parent])).toEqual([["lead", null], ["reviewer", "lead"]]);
-});
-
-test("a cancelled suggestion never replaces the agents", async () => {
-  let answer: (v: unknown) => void = () => {};
-  b.suggestTeam.mockReturnValue(new Promise((res) => (answer = res)));
+test("a bad agent name opens Edit agents with the error instead of starting", async () => {
   await open();
-  await fillProjectAndTask();
-  fireEvent.click(screen.getByText("Help me choose"));
-  fireEvent.click(screen.getByText("Suggest a team"));
-  fireEvent.click(screen.getByText("Cancel", { selector: ".sheet button" }));
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  answer({ roles: [r("solo")], why: "late" });
+  await toStart();
+  await editAgents();
+  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "Bad Name" } });
+  fireEvent.click(button("Done"));
+  fireEvent.click(button("Start 2 agents"));
   await flush();
-  expect(names()).toEqual(["builder", "reviewer"]);
-  expect(screen.queryByText("late")).toBeNull();
+  expect(b.startTeam).not.toHaveBeenCalled();
+  screen.getByText("Names use lower-case letters, digits and dashes, and must differ.");
 });
 
-const efforts = () => Array.from((screen.getByLabelText("Thinking effort") as HTMLSelectElement).options).map((o) => o.text);
-
-test("model menu shows Default, then the choice, and it reaches Start", async () => {
-  b.startTeam.mockResolvedValue({ team: "shop" });
-  await open();
-  await fillProjectAndTask();
-  const menu = screen.getByRole("button", { name: "Model and effort for builder" });
-  expect(menu.textContent).toBe("Default");
-  fireEvent.click(menu);
-  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "opus" } });
-  fireEvent.change(screen.getByLabelText("Thinking effort"), { target: { value: "xhigh" } });
-  expect(menu.textContent).toBe("Opus · Extra high");
-  fireEvent.click(screen.getByText("Customise"));
-  fireEvent.click(screen.getByText("Start 1 agent"));
-  await flush();
-  expect(b.startTeam.mock.calls[0][0].roles[0]).toMatchObject({ model: "opus", effort: "xhigh" });
-});
-
-test("codex efforts follow the chosen model; switching agent resets the choice", async () => {
-  await open();
-  const menu = screen.getByRole("button", { name: "Model and effort for builder" });
-  fireEvent.click(menu);
-  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "opus" } });
-  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
-  fireEvent.click(screen.getByRole("menuitemradio", { name: /Codex/ }));
-  expect(menu.textContent).toBe("Default");
-  expect(efforts()).toEqual(["Default", "Low", "Medium", "High", "Extra high", "Max"]);
-  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-6.1-sol" } });
-  expect(efforts()).toContain("Ultra");
-  fireEvent.change(screen.getByLabelText("Thinking effort"), { target: { value: "ultra" } });
-  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "gpt-6-luna" } });
-  expect(efforts()).not.toContain("Ultra");
-  expect(menu.textContent).toBe("gpt-6-luna");
-});
-
-test("a draft from an assistant fills the form and keeps its practice choices", async () => {
+test("a draft opens at Start; a draft whose folder fails opens at Project", async () => {
   const draft = { id: "d1", project: "/Users/me/shop", task: "Add a footer", why: "A small change.", practices: { safety: false },
     roles: [r("builder"), r("reviewer", { agent: "codex", checkout: "read-only", parent: "builder" })] };
-  render(<NewTeam clis={both} draft={draft} onClose={() => {}} />);
-  await flush();
-  screen.getByText("~/shop");
-  expect((screen.getByPlaceholderText(/rate limiting/) as HTMLInputElement).value).toBe("Add a footer");
+  await open(both, { draft });
+  expect(heading()).toBe("What Assieme does for this team");
+  screen.getByText(/Safe by default off/);
+  await editAgents();
   screen.getByText("A small change.");
-  expect(screen.getByDisplayValue("reviewer")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /Customise/}));
-  await flush();
-  const safety = screen.getByRole("switch", { name: /Safe by default/ }) as HTMLInputElement;
-  expect(safety.checked).toBe(false);
-});
-
-const deferred = <T,>() => {
-  let resolve!: (v: T) => void;
-  const promise = new Promise<T>((res) => (resolve = res));
-  return { promise, resolve };
-};
-const go = () => screen.getByText("Start with recommended") as HTMLButtonElement;
-
-test("the buttons wait for the folder check, and say so", async () => {
-  const slow = deferred<{ ok: boolean }>();
-  b.checkProject.mockReturnValue(slow.promise);
-  await open();
-  await fillProjectAndTask();
-  screen.getByText("Checking this folder…");
-  expect(go().disabled).toBe(true);
-  expect((screen.getByText("Customise") as HTMLButtonElement).disabled).toBe(true);
-  await act(async () => slow.resolve({ ok: true }));
-  expect(go().disabled).toBe(false);
-});
-
-test("a folder check that fails shows why, keeps the buttons off, and Choose… tries again", async () => {
-  b.checkProject.mockRejectedValueOnce(new Error("service went away"));
-  await open();
-  await fillProjectAndTask();
-  screen.getByText("service went away");
-  screen.getByText("Couldn’t check this folder. Choose it again to continue.");
-  expect(go().disabled).toBe(true);
-  fireEvent.click(screen.getByText("Choose…"));
-  await flush();
-  expect(go().disabled).toBe(false);
-  expect(screen.queryByText("service went away")).toBeNull();
-});
-
-test("a slow check for an earlier folder can't enable the buttons for the current one", async () => {
-  const a = deferred<object>();
-  b.pickFolder.mockResolvedValueOnce("/Users/me/a").mockResolvedValueOnce("/Users/me/b");
-  b.checkProject.mockImplementation((p: string) => (p.endsWith("/a") ? a.promise : Promise.resolve(SETUP)));
-  await open();
-  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Fix login" } });
-  fireEvent.click(screen.getByText("Choose…"));
-  await flush();
-  fireEvent.click(screen.getByText("Choose…"));
-  await flush();
-  screen.getByText("Set up this folder");
-  await act(async () => a.resolve({ ok: true }));
-  screen.getByText("Set up this folder");
-  expect(go().disabled).toBe(true);
-});
-
-test("a picker that fails says so", async () => {
-  b.pickFolder.mockRejectedValue(new Error("dialog refused"));
-  await open();
-  fireEvent.click(screen.getByText("Choose…"));
-  await flush();
-  screen.getByText("dialog refused");
-});
-
-test("an assistant's draft folder goes through the same check and offers the same click", async () => {
-  checking(SETUP);
-  const draft = { id: "d1", project: "/Users/me/shop", task: "Add a footer", why: "x", practices: {}, roles: [r("builder")] };
-  render(<NewTeam clis={both} draft={draft} onClose={() => {}} />);
-  await flush();
+  expect(names()).toEqual(["builder", "reviewer"]);
+  cleanup();
+  b.checkProject.mockResolvedValue(SETUP);
+  b.folderPreview.mockResolvedValue(PREVIEW);
+  await open(both, { draft });
   expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
-  screen.getByText("Set up this folder");
-  expect(go().disabled).toBe(true);
-});
-
-test("the developer tools poll waits for the answer before asking again", async () => {
-  vi.useFakeTimers();
-  try {
-    const slow = deferred<object>();
-    b.checkProject.mockResolvedValueOnce({ ok: false, tools: true, reason: "This needs Apple’s developer tools first." });
-    render(<NewTeam clis={both} recheckMs={10} onClose={vi.fn()} />);
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-    fireEvent.click(screen.getByText("Choose…"));
-    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
-    b.checkProject.mockReturnValue(slow.promise);
-    b.checkProject.mockClear();
-    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
-    expect(b.checkProject).toHaveBeenCalledTimes(1);
-  } finally {
-    vi.useRealTimers();
-  }
+  expect(heading()).toBe("Which project should the team work on?");
+  screen.getByText("This folder has no saved version yet");
 });
 
 const herdrRow = (id: string, label: string, summary: string, running: string | null = null) =>
   ({ projects: [{ id: `herdr:${id}`, tool: "herdr", label, summary, count: 1, running }], unreadable: [], problems: [], looked_for: [] });
 
-test("an import from herdr fills the form, says what didn't carry over, and a preset takes it back out", async () => {
+test("herdr imports open at Start with their notes in Edit agents", async () => {
   b.bringOverFind.mockResolvedValue(herdrRow("running:shop", "shop", "Running in herdr · 2 agents", "Still running in herdr: stop it there first."));
   b.herdrImport.mockResolvedValue({
     id: "d1", from: "herdr", project: "/Users/me/shop", task: "Add a cart", why: "", practices: {}, running: "shop",
@@ -761,27 +297,20 @@ test("an import from herdr fills the form, says what didn't carry over, and a pr
     notes: [{ text: "2 agents ran with wider permissions (auto mode).", agents: ["lead", "builder"] }],
   });
   await open();
-  expect(screen.getByText("Start with recommended")).toBeTruthy();
-  fireEvent.click(screen.getByText("From another tool…"));
+  await toTeam();
+  fireEvent.click(button("Bring your team over ›"));
   await flush();
   fireEvent.click(screen.getByText("Bring over"));
   await flush();
   expect(b.herdrImport).toHaveBeenCalledWith("running:shop");
+  expect(heading()).toBe("What Assieme does for this team");
+  screen.getByText("shop is still running in herdr");
+  expect(screen.getByRole("navigation", { name: "Setup steps" }).textContent).toContain("✓ Brought over");
+  await editAgents();
   expect(names()).toEqual(["lead", "builder"]);
-  expect((screen.getByLabelText("What should the team work on?") as HTMLInputElement).value).toBe("Add a cart");
-  expect(b.checkProject).toHaveBeenCalledWith("/Users/me/shop");
-  expect(screen.getByText("shop is still running in herdr")).toBeTruthy();
-  expect(screen.getByText("2 agents ran with wider permissions (auto mode).")).toBeTruthy();
-  expect(screen.getByText("lead, builder")).toBeTruthy();
-  expect(screen.getByText("Opus · High")).toBeTruthy(); // each agent's model and effort, as New team shows them
-  expect(screen.getByText("Start team")).toBeTruthy();
-  expect(screen.getByText("From another tool…").getAttribute("aria-pressed")).toBe("true");
-  b.confirmReplace.mockResolvedValue(true);
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  await flush();
-  expect(screen.queryByText("shop is still running in herdr")).toBeNull();
-  expect(screen.queryByText("lead, builder")).toBeNull();
-  expect(screen.getByText("Start with recommended")).toBeTruthy();
+  screen.getByText("2 agents ran with wider permissions (auto mode).");
+  screen.getByText("lead, builder");
+  screen.getByText("Opus · High");
 });
 
 test("an import over edited agents asks first, and No keeps them", async () => {
@@ -789,15 +318,19 @@ test("an import over edited agents asks first, and No keeps them", async () => {
   b.herdrImport.mockResolvedValue({ id: "d2", from: "herdr", project: "/Users/me/docs", task: "", why: "", practices: {},
     roles: [r("writer")], notes: [] });
   await open();
+  await toStart(/One agent/);
+  await editAgents();
   fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
+  fireEvent.click(button("Done"));
+  fireEvent.click(button("Back"));
   b.confirmReplace.mockResolvedValue(false);
-  fireEvent.click(screen.getByText("From another tool…"));
+  fireEvent.click(button("Bring your team over ›"));
   await flush();
   fireEvent.click(screen.getByText("Bring over"));
   await flush();
   expect(b.confirmReplace).toHaveBeenCalled();
-  expect(names()).toEqual(["lead"]);
   expect(screen.queryByText("Bring your team over")).toBeNull(); // the sheet closes either way
+  expect(heading()).toBe("Who should work on it?");
 });
 
 test("a team brought over from Conductor starts with its scripts, the ones said yes to, its cards and where it came from", async () => {
@@ -811,9 +344,10 @@ test("a team brought over from Conductor starts with its scripts, the ones said 
     task: "", why: "", practices: {}, roles, scripts: { setup: "npm ci" }, running: null,
     cards: [{ title: "Retry", status: "doing", role: "builder-1" }],
     notes: [{ text: "They start with Assieme's safe permissions.", agents: [] }] });
-  b.checkProject.mockResolvedValue({ ok: true, reason: "" });
+  b.startTeam.mockResolvedValue({ team: "shop" });
   await open();
-  fireEvent.click(screen.getByText("From another tool…"));
+  await toTeam("Finish the retry");
+  fireEvent.click(button("Bring your team over ›"));
   await flush();
   fireEvent.click(screen.getByText("Bring over"));
   await flush();
@@ -821,15 +355,194 @@ test("a team brought over from Conductor starts with its scripts, the ones said 
   fireEvent.click(screen.getByText("Bring over 1 agent"));
   await flush();
   expect(b.bringOverImport).toHaveBeenCalledWith("conductor:/Users/me/shop", ["tokyo"]);
-  expect(screen.getByText("Brought over from Conductor. What didn’t carry over")).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("What should the team work on?"), { target: { value: "Finish the retry" } });
-  fireEvent.click(screen.getByText("Start team"));
+  await editAgents();
+  screen.getByText("Brought over from Conductor. What didn’t carry over");
+  fireEvent.click(button("Done"));
+  later();
+  fireEvent.click(button("Start 1 agent"));
   await flush();
   expect(b.startTeam).toHaveBeenCalledWith(expect.objectContaining({
     scripts: { setup: "npm ci" }, allow_scripts: ["setup"], cards: [{ title: "Retry", status: "doing", role: "builder-1" }],
     origin: { tool: "Conductor", label: "shop" },
     roles: [expect.objectContaining({ worktree: "/Users/me/conductor/workspaces/shop/tokyo", branch: "feature/retry", resume: "abc" })],
   }));
+});
+
+test("Escape asks before discarding once a folder is chosen", async () => {
+  const onClose = await open();
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  expect(b.confirmDiscard).not.toHaveBeenCalled();
+  expect(onClose).toHaveBeenCalledTimes(1);
+  cleanup();
+  const close2 = await open();
+  await chooseFolder();
+  b.confirmDiscard.mockResolvedValueOnce(false);
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  expect(b.confirmDiscard).toHaveBeenCalled();
+  expect(close2).not.toHaveBeenCalled();
+  expect(heading()).toBe("What should the team work on?"); // never Back
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  expect(close2).toHaveBeenCalled();
+});
+
+test("Escape closes Team rules before it means Cancel", async () => {
+  const onClose = await open();
+  await toStart();
+  fireEvent.click(button("Review team rules ›"));
+  expect(heading()).toBe("Team rules for shop");
+  fireEvent.keyDown(window, { key: "Escape" });
+  await flush();
+  expect(heading()).toBe("What Assieme does for this team");
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test("cancel closes", async () => {
+  const onClose = await open();
+  fireEvent.click(within(screen.getByRole("contentinfo")).getByText("Cancel"));
+  await flush();
+  expect(onClose).toHaveBeenCalled();
+});
+
+test("a stopped service shows Offline and recovers", async () => {
+  b.teamPresets.mockRejectedValue(new Error("no brain"));
+  render(<NewTeam clis={null} retryMs={1} onClose={vi.fn()} />);
+  await flush();
+  screen.getByText(/service isn’t running/);
+  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: null, models: MODELS });
+  await waitFor(() => expect(screen.queryByText(/service isn’t running/)).toBeNull());
+  expect(heading()).toBe("Which project should the team work on?");
+});
+
+test("a new user without developer tools or a signed-in agent starts at Developer tools", async () => {
+  b.setupStatus.mockResolvedValue({ git: false, agents: {} });
+  await open({ claude: false, codex: false });
+  expect(heading()).toBe("Install Apple’s developer tools");
+  expect(screen.getByRole("navigation", { name: "Setup steps" }).textContent).toContain("Agent");
+  fireEvent.click(button("Install developer tools"));
+  await flush();
+  fireEvent.click(button("Continue while it installs"));
+  expect(heading()).toBe("Which agent do you pay for?");
+});
+
+test("an agent installed but signed out adds the Agent step", async () => {
+  b.setupStatus.mockResolvedValue({ git: true, agents: { claude: { installed: true, signed_in: false } } });
+  await open({ claude: true });
+  expect(heading()).toBe("Which agent do you pay for?");
+});
+
+test("Same as last time comes first", async () => {
+  b.teamPresets.mockResolvedValue({ presets: PRESETS, practices: PRACTICES, last: { id: "shop", label: "Same as last time", roles: [r("planner"), r("builder-1")] },
+    models: MODELS, recent: ["/Users/me/recipes"] });
+  await open();
+  screen.getByRole("button", { name: /recipes/ });
+  await toTeam();
+  const options = screen.getAllByRole("button").filter((x) => x.classList.contains("option"));
+  expect(options[0].textContent).toContain("Same as last time");
+});
+
+test("developer tools missing for the folder: install, then a recheck offers Continue", async () => {
+  b.checkProject.mockResolvedValueOnce({ ok: false, tools: true, reason: "x" });
+  b.installTools.mockResolvedValue({ ok: true });
+  render(<NewTeam clis={both} recheckMs={5} onClose={vi.fn()} />);
+  await flush();
+  await chooseFolder();
+  fireEvent.click(button("Install developer tools"));
+  await flush();
+  expect(b.installTools).toHaveBeenCalled();
+  b.checkProject.mockResolvedValue({ ok: true });
+  await waitFor(() => screen.getByRole("button", { name: "Continue" }));
+  expect(heading()).toBe("Which project should the team work on?");
+  fireEvent.click(button("Continue"));
+  expect(heading()).toBe("What should the team work on?");
+});
+
+test("a folder with no saved version: Save and continue rechecks, then Continue", async () => {
+  b.checkProject.mockResolvedValueOnce(SETUP);
+  b.folderPreview.mockResolvedValue(PREVIEW);
+  b.folderSave.mockResolvedValue({ ok: true });
+  await open();
+  await chooseFolder();
+  fireEvent.click(button("Save and continue"));
+  await flush();
+  expect(b.folderSave).toHaveBeenCalledWith("/Users/me/shop");
+  expect(b.checkProject).toHaveBeenCalledTimes(2);
+  fireEvent.click(button("Continue"));
+  expect(heading()).toBe("What should the team work on?");
+});
+
+test("replacing edited agents asks first", async () => {
+  await open();
+  await toStart(/One agent/);
+  await editAgents();
+  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
+  fireEvent.click(button("Done"));
+  fireEvent.click(button("Back"));
+  b.confirmReplace.mockResolvedValue(false);
+  await pick(/Builder and reviewer/);
+  expect(b.confirmReplace).toHaveBeenCalled();
+  expect(heading()).toBe("Who should work on it?");
+  b.confirmReplace.mockResolvedValue(true);
+  await pick(/Builder and reviewer/);
+  await editAgents();
+  expect(names()).toEqual(["builder", "reviewer"]);
+});
+
+test("renaming an agent keeps the agents that report to it", async () => {
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await open();
+  await toStart();
+  await editAgents();
+  fireEvent.change(screen.getAllByLabelText("Agent name")[0], { target: { value: "lead" } });
+  fireEvent.click(button("Done"));
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  expect(b.startTeam.mock.calls[0][0].roles.map((x: RoleDraft) => [x.name, x.parent])).toEqual([["lead", null], ["reviewer", "lead"]]);
+});
+
+test("Help me choose reads the task, and the suggestion's models reach Start", async () => {
+  b.suggestTeam.mockResolvedValue({ roles: [r("builder"), r("reviewer", { model: "opus", effort: "high" })], why: "A small change with a check." });
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await open();
+  await toTeam();
+  await pick(/Help me choose/);
+  fireEvent.click(button("Suggest a team"));
+  await flush();
+  expect(b.suggestTeam).toHaveBeenCalledWith({ project: "/Users/me/shop", size: "", review: "every", budget: "lean", task: "Fix login" });
+  fireEvent.click(button("Use this team"));
+  await flush();
+  later();
+  expect(screen.getByRole("navigation", { name: "Setup steps" }).textContent).toContain("✓ Suggested team");
+  await editAgents();
+  screen.getByText("A small change with a check.");
+  expect(button("Model and effort for reviewer").textContent).toBe("Opus · High");
+  fireEvent.click(button("Done"));
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  expect(b.startTeam.mock.calls[0][0].roles[1]).toMatchObject({ model: "opus", effort: "high" });
+});
+
+test("a group turned off in Team rules reaches Start for this team", async () => {
+  b.startTeam.mockResolvedValue({ team: "shop" });
+  await open();
+  await toStart();
+  fireEvent.click(button("Review team rules ›"));
+  fireEvent.click(screen.getByRole("switch", { name: "Careful reviews" }));
+  fireEvent.click(button("Done"));
+  later();
+  screen.getByText(/Each agent gets 8 team rules \(Careful reviews off\)/);
+  fireEvent.click(button("Start 2 agents"));
+  await flush();
+  expect(b.startTeam.mock.calls[0][0].practices).toEqual({ reviews: false });
+});
+
+test("While they work follows Settings › Fixes", async () => {
+  b.getSettings.mockResolvedValue({ fixes: { nudge: "ask", compact: "auto", tell: "auto", quiet: "auto" } });
+  await open();
+  await toStart();
+  screen.getByText(/Change this in Settings › Fixes\./);
 });
 
 test("each agent shows its tools, suggested for its role, and Start sends the choice", async () => {
@@ -839,59 +552,49 @@ test("each agent shows its tools, suggested for its role, and Start sends the ch
   b.toolsSuggest.mockImplementation(async (kind: string | null) => (kind === "reviewer" ? ["server:browser-mcp"] : []));
   b.startTeam.mockResolvedValue({ team: "shop" });
   await open();
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  await fillProjectAndTask();
+  await toStart();
   await flush();
-  expect(screen.getByRole("button", { name: "Tools for builder: 3 of 3" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Tools for reviewer: 2 of 3" }));
-  expect(screen.getByText("Suggested for a reviewer: browser and deploy tools are off.")).toBeTruthy();
+  await editAgents();
+  screen.getByRole("button", { name: "Tools for builder: 3 of 3" });
+  fireEvent.click(button("Tools for reviewer: 2 of 3"));
+  screen.getByText("Suggested for a reviewer: browser and deploy tools are off.");
   fireEvent.click(screen.getByRole("checkbox", { name: "planban" }));
-  fireEvent.click(screen.getByText("Done"));
-  expect(screen.getByRole("button", { name: "Tools for reviewer: 1 of 3" })).toBeTruthy();
-  fireEvent.click(screen.getByText("Start team".replace("team", "with recommended")));
+  fireEvent.click(within(screen.getAllByRole("dialog").pop()!).getByText("Done"));
+  screen.getByRole("button", { name: "Tools for reviewer: 1 of 3" });
+  fireEvent.click(button("Done"));
+  fireEvent.click(button("Start 2 agents"));
   await flush();
   const roles = b.startTeam.mock.calls[0][0].roles as RoleDraft[];
   expect(roles[1].tools_off).toEqual(["server:browser-mcp", "plugin:planban@planban"]);
   expect(roles[0].tools_off).toEqual([]);
 });
 
-test("switching kind away and back suggests again; a read-only agent's list is read as shared", async () => {
-  b.toolsFind.mockImplementation(async () => ({ items: [{ id: "server:browser", type: "server", name: "browser",
-    description: "", locked: false, why: "" }], notices: [] }));
-  b.toolsSuggest.mockResolvedValue(["server:browser"]);
-  await open();
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  await fillProjectAndTask();
-  await flush();
-  expect(b.toolsFind).toHaveBeenCalledWith("claude", "/Users/me/shop", false);  // the read-only reviewer
-  expect(screen.getByRole("button", { name: "Tools for builder: 0 of 1" })).toBeTruthy();
-  fireEvent.click(screen.getAllByRole("button", { name: "Agent: Claude Code" })[0]);
-  fireEvent.click(screen.getByRole("menuitemradio", { name: /Codex/ }));
-  await flush();
-  fireEvent.click(screen.getAllByRole("button", { name: "Agent: Codex" })[0]);
-  fireEvent.click(screen.getByRole("menuitemradio", { name: /Claude Code/ }));
-  await flush();
-  expect(screen.getByRole("button", { name: "Tools for builder: 0 of 1" })).toBeTruthy();
-});
-
-test("changing an agent's kind picks its tools again", async () => {
+test("changing an agent's kind resets its model and picks its tools again", async () => {
   b.toolsFind.mockImplementation(async (kind: string) => ({ items: [{ id: `server:${kind}-only`, type: "server", name: `${kind}-only`,
     description: "", locked: false, why: "" }], notices: [] }));
-  b.toolsSuggest.mockResolvedValue([]);
   await open();
-  await fillProjectAndTask();
+  await toStart(/One agent/);
   await flush();
-  expect(screen.getByRole("button", { name: "Tools for builder: 1 of 1" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Agent: Claude Code" }));
+  await editAgents();
+  fireEvent.click(button("Model and effort for builder"));
+  fireEvent.change(screen.getByLabelText("Model"), { target: { value: "opus" } });
+  fireEvent.click(button("Agent: Claude Code"));
   fireEvent.click(screen.getByRole("menuitemradio", { name: /Codex/ }));
   await flush();
-  fireEvent.click(screen.getByRole("button", { name: "Tools for builder: 1 of 1" }));
-  expect(screen.getByRole("checkbox", { name: "codex-only" })).toBeTruthy();
+  expect(button("Model and effort for builder").textContent).toBe("Default");
+  fireEvent.click(button("Tools for builder: 1 of 1"));
+  screen.getByRole("checkbox", { name: "codex-only" });
 });
 
-test("faces: each agent row shows the musician it will be saved with", async () => { // step 31
+test("an agent can run sealed off, and Start waits for the container", async () => {
+  b.containerStatus.mockResolvedValue({ tool: "docker", running: true, image_ready: false });
   await open();
-  fireEvent.click(screen.getByText("Builder + reviewer"));
-  expect(screen.getByRole("img", { name: "builder, violin, idle" })).toBeTruthy();
-  expect(screen.getByRole("img", { name: "reviewer, score, idle" })).toBeTruthy();
+  await toStart(/One agent/);
+  await editAgents();
+  fireEvent.click(button("Agent: Claude Code"));
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Run sealed off/ }));
+  await flush();
+  fireEvent.click(button("Done"));
+  screen.getByText("Get the container ready to continue.");
+  expect(button("Start 1 agent").disabled).toBe(true);
 });

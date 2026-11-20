@@ -95,7 +95,7 @@
 .newteam .model-menu select { font: inherit; font-size: 13px; color: var(--quiet-ink); padding: 5px 8px; min-width: 150px;
   border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner); background: var(--quiet-surface); }
 
-/* Set up this folder / Save them first, from Paper "New team: set up folder, confirm". Outside .newteam: it is a modal. */
+/* Set up this folder / Save them first, now only for Schedules. Outside .newteam: it is a modal. */
 .modal.folder { width: 480px; }
 .modal.folder .folder-small { color: var(--quiet-mute); font-size: 13px; line-height: 18px; }
 .modal.folder .folder-files { display: flex; flex-direction: column; gap: 6px; }

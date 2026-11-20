@@ -1,88 +1,95 @@
 import { useEffect, useRef, useState } from "react";
-import AgentMenu, { ContainerLine } from "./AgentMenu";
-import { checkProject, confirmReplace, fieldOf, folderCreate, installTools, pickFolder, pickNewFolder, startTeam, teamPresets, toolsFind, toolsSuggest, type AgentKind, type ToolItem, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft, type TeamDraft } from "./bridge";
+import { checkProject, confirmDiscard, confirmReplace, fieldOf, getSettings, installTools, startTeam, teamPresets, toolsFind, toolsSuggest,
+  type AgentKind, type KindInfo, type ModelOptions, type PermissionTable, type Practices, type Preset, type ProjectCheck, type RoleDraft,
+  type Settings, type Suggestion, type TeamDraft, type ToolItem } from "./bridge";
+import { AgentStep } from "./AgentStep";
 import BriefEditor, { guessKind } from "./BriefEditor";
-import { AGENT_KINDS } from "./kinds";
-import { defaultLevel } from "./PermissionsEditor";
-import FolderSheet from "./FolderSheet";
-import HelpMeChoose from "./HelpMeChoose";
 import BringOver from "./BringOver";
+import EditAgents, { type Imported } from "./EditAgents";
 import InstallSheet from "./InstallSheet";
-import ModelMenu, { choiceLabel } from "./ModelMenu";
+import { AGENT_KINDS, kindName } from "./kinds";
+import { folderMovesOn, nextStep, prevStep, stepsShown, STEP_LABEL, taskAnswer, type Needs, type StepId } from "./newTeamSteps";
 import Offline from "./Offline";
-import { pushesBlocked } from "./Practices";
-import RecommendedSetup, { footerNote } from "./RecommendedSetup";
-import RemoteMachine, { RemoteProject } from "./RemoteMachine";
-import { checkProjectOn, startTeamOn } from "./remote";
+import { defaultLevel } from "./PermissionsEditor";
+import ProjectStep from "./ProjectStep";
+import { WhereStep } from "./RemoteMachine";
+import { checkProjectOn, remoteMachines, startTeamOn } from "./remote";
+import StartStep from "./StartStep";
+import type { Clis, PanelProps } from "./StepPanel";
+import TaskStep from "./TaskStep";
+import TeamRules from "./TeamRules";
+import TeamStep from "./TeamStep";
+import ToolPicker from "./ToolPicker";
+import { ToolsStep } from "./ToolsStep";
 import { useSetupStatus } from "./NewUserChecklist";
-import ToolPicker, { toolSummary } from "./ToolPicker";
-import { kindName } from "./kinds";
 import "./NewTeam.css";
-import { assignMusicians } from "./band";
-import Musician from "./Musician";
 
-type Clis = Partial<Record<AgentKind, boolean>>;
 const NAME = /^[a-z0-9-]+$/;
 const BAD_NAME = "Names use lower-case letters, digits and dashes, and must differ.";
-const shortPath = (p: string) => p.replace(/^\/Users\/[^/]+/, "~");
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const changes = (n: number) =>
-  `${n === 1 ? "1 file has" : `${n} files have`} changes that aren’t in a saved version (uncommitted), so agents won’t see them.`;
+const base = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 
 /** The first agent name that breaks the brain's rule, by index (the brain checks again on Start). */
 export function badName(roles: RoleDraft[]): number {
   return roles.findIndex((r, i) => !NAME.test(r.name) || roles.findIndex((x) => x.name === r.name) !== i);
 }
 
-/** New team, step 1: project, task, starting team and agents. Step 2 is Recommended setup. */
-/** clis: null until the service has said which are installed. */
+/** New team, one question per step: (Developer tools) → (Agent) → (Where) → Project → Task → Team → Start. This owns
+ *  the form's state and the start; each step is a component of its own. A new user's first run is this same flow.
+ *  clis: null until the service has said which are installed. */
 export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000, onClose, onStarted }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; recheckMs?: number; onClose: () => void; onStarted?: () => void }) {
-  const [machine, setMachine] = useState<string | null>(null); // null: this Mac; "": a remote machine, none chosen yet
+  const [machine, setMachine] = useState<string | null>(null); // null: this Mac
   const [there, setThere] = useState<Clis | null>(null); // the agents on that machine, once it is ready
   const have = machine === null ? clis : there;
   const installed = AGENT_KINDS.filter((k) => have?.[k.id]).map((k) => [k.id, k.name] as const);
   const [installing, setInstalling] = useState<AgentKind | null>(null);
-  const setup = useSetupStatus(installing !== null);
+  // Which steps show. A step shown once stays for the rest of this setup; Developer tools and Agent come from the
+  // setup status, Where from the machines Assieme knows.
+  const [needs, setNeeds] = useState<Needs>({ tools: false, agent: !!clis && !Object.values(clis).some(Boolean), remote: false });
+  const steps = stepsShown(needs);
+  const [at, setAt] = useState<StepId>(steps[0]);
+  const statusSeen = useRef(false);
+  const setup = useSetupStatus(installing !== null || at === "tools" || at === "agent" || !statusSeen.current);
   const [notReady, setNotReady] = useState<Record<AgentKind, boolean>>({} as Record<AgentKind, boolean>);
   const [offline, setOffline] = useState(false);
   const [presets, setPresets] = useState<Preset[]>([]);
+  const [last, setLast] = useState<Preset | null>(null);
+  const [recent, setRecent] = useState<string[]>([]);
   const [practices, setPractices] = useState<Practices | null>(null);
+  const [fixes, setFixes] = useState<Settings["fixes"] | null>(null);
   const [project, setProject] = useState("");
   const [projectError, setProjectError] = useState("");
   const [check, setCheck] = useState<ProjectCheck | null>(null);
-  const [folderSheet, setFolderSheet] = useState(false);
   const [checkError, setCheckError] = useState("");
-  const latest = useRef(0); // only the newest folder check may change what is shown
-  const [noteError, setNoteError] = useState(""); // what went wrong with New folder or the installer
+  const latest = useRef(0); // only the newest folder check may change what is shown, or move on
+  const jump = useRef<StepId | null>(null); // a draft or import: where to go once its folder passes the check
+  const [announce, setAnnounce] = useState<string | undefined>(undefined);
   const [task, setTask] = useState("");
   const [chosen, setChosen] = useState("");
   const [roles, setRoles] = useState<RoleDraft[]>([]);
-  const seats = assignMusicians(roles); // step 31: the instrument each will be saved with
   const [edited, setEdited] = useState(false);
   const [briefOf, setBriefOf] = useState<number | null>(null);
-  const [modelOf, setModelOf] = useState<number | null>(null);
   const [models, setModels] = useState<ModelOptions | null>(null);
   const [kinds, setKinds] = useState<Record<string, KindInfo>>({});
   const [perms, setPerms] = useState<PermissionTable | null>(null);
   const [roleErrors, setRoleErrors] = useState<Record<number, string>>({});
-  const [helping, setHelping] = useState(false);
   const [why, setWhy] = useState("");
-  // An import from herdr: what didn't carry over, and the herdr team still running (if it is). A preset replaces it.
-  const [imported, setImported] = useState<Pick<TeamDraft, "notes" | "running" | "from" | "tool" | "label" | "scripts"
-    | "allow_scripts" | "cards"> | null>(null);
+  const [imported, setImported] = useState<Imported | null>(null);
   const [importing, setImporting] = useState(false);
-  const [step, setStep] = useState(1);
+  const [agentsOpen, setAgentsOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [practiceOn, setPracticeOn] = useState<Record<string, boolean>>({});
   const [startError, setStartError] = useState("");
   const [pending, setPending] = useState(false);
   const starting = useRef(false); // a second click before React re-renders must not start a second team
+
   // Step 32: what each agent kind has installed on this Mac, and which agent's picker is open. Each agent without a
   // choice of its own gets its role's suggestion once its kind's list is in.
   // Lists are read per kind and per where the agent works: a read-only agent shares the project folder, where some
   // kinds can't be limited, and its list says so.
   const [tools, setTools] = useState<Record<string, ToolItem[]>>({});  // "kind|own" → items
   const [toolsOf, setToolsOf] = useState<number | null>(null);
-  const [suggested, setSuggested] = useState<Record<string, string[]>>({});  // suggestKey → its role's suggestion
+  const [suggestedTools, setSuggested] = useState<Record<string, string[]>>({});  // suggestKey → its role's suggestion
   const inFlight = useRef(new Set<string>());
   const toolsHere = machine === null && project ? project : "";
   const here = useRef(toolsHere);
@@ -106,7 +113,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   useEffect(() => {
     for (const r of roles) {
       const key = suggestKey(r);
-      if (!tools[listKey(r)]?.length || (r.tools_off !== undefined && key in suggested) || inFlight.current.has(key)) continue;
+      if (!tools[listKey(r)]?.length || (r.tools_off !== undefined && key in suggestedTools) || inFlight.current.has(key)) continue;
       inFlight.current.add(key);
       Promise.resolve(toolsSuggest(r.kind ?? guessKind(r.name), r.agent, toolsHere, own(r))).then((ids) => {
         if (here.current !== toolsHere) return;
@@ -115,7 +122,7 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
           ? { ...x, tools_off: ids ?? [], tools_new: true } : x)));
       }, () => {}).finally(() => inFlight.current.delete(key));
     }
-  }, [roles, tools, toolsHere, suggested]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roles, tools, toolsHere, suggestedTools]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Every agent gets a role and a permission level here, shown in its Brief before Start.
   const fit = (rs: RoleDraft[]) =>
@@ -128,8 +135,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     const loaded = (p: Awaited<ReturnType<typeof teamPresets>>) => {
       if (stopped) return;
       setOffline(false);
-      const all = p.last ? [...p.presets, p.last] : p.presets;
-      setPresets(all);
+      const all = p.last ? [p.last, ...p.presets] : p.presets;
+      setPresets(p.presets);
+      setLast(p.last);
+      setRecent(p.recent ?? []);
       setPractices(p.practices);
       setModels(p.models);
       setKinds(p.kinds ?? {});
@@ -156,13 +165,14 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   // Another machine has its own agents: each role uses one that is there.
   useEffect(() => { if (have) setRoles((rs) => fit(rs)); }, [have?.claude, have?.codex]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** An assistant's draft, or an import from herdr: the whole form, which the person checks before Start. */
+  /** An assistant's draft, or an import: the whole form, which the person checks at Start. */
   function apply(d: TeamDraft) {
     setProject(d.project);
     setProjectError("");
-    if (d.project) void verify(d.project); // a draft's folder needs the same setup click as a chosen one
-    else setCheck(null);
-    setTask(d.task);
+    // A draft's folder needs the same check as a chosen one; it opens at Start once that passes.
+    if (d.project) { jump.current = "start"; void verify(d.project); }
+    else { setCheck(null); go("project"); }
+    setTask((t) => d.task || t); // an import with no task keeps the one typed here
     setRoles(fit(d.roles));
     setChosen("");
     setEdited(true); // a preset's click must ask before replacing it
@@ -174,14 +184,16 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       : null);
   }
 
+  /** False when the person kept the agents they had edited. */
   const choose = async (p: Preset) => {
-    if (edited && !(await confirmReplace())) return;
+    if (edited && !(await confirmReplace())) return false;
     setImported(null);
     setChosen(p.id);
     setRoles(fit(p.roles));
     setEdited(false);
     setWhy("");
     setRoleErrors({});
+    return true;
   };
 
   const edit = (i: number, change: Partial<RoleDraft>) => {
@@ -208,57 +220,36 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
   };
 
   const remove = (i: number) => {
-    setModelOf(null);
     const gone = roles[i].name;
     setRoles(roles.filter((_, j) => j !== i).map((r) => (r.parent === gone ? { ...r, parent: null } : r)));
     setEdited(true);
   };
 
-  /** keep: leave the shown result in place until the new one arrives (after a save). */
-  const verify = async (p: string, keep = false) => {
-    const id = ++latest.current;
-    setCheckError("");
-    if (!keep) setCheck(null);
-    try {
-      const c = await (machine ? checkProjectOn(p, machine) : checkProject(p));
-      if (id === latest.current) setCheck(c);
-    } catch (e) {
-      if (id === latest.current) setCheckError(message(e));
-    }
-  };
-  const use = async (p: string) => {
-    setProject(p);
-    setProjectError("");
-    await verify(p);
-  };
-  const chooseFolder = async () => {
-    setNoteError("");
-    try {
-      const p = await pickFolder();
-      if (p) await use(p);
-    } catch (e) {
-      setNoteError(message(e));
-    }
-  };
-  const newFolder = async () => {
-    setNoteError("");
-    try {
-      const p = await pickNewFolder();
-      if (!p) return;
-      await folderCreate(p);
-      await use(p);
-    } catch (e) {
-      setNoteError(message(e));
-    }
-  };
-  const installDevTools = () => {
-    setNoteError("");
-    installTools().catch((e) => setNoteError(message(e)));
-  };
-  const saved = () => {
-    setFolderSheet(false);
-    return verify(project, true);
-  };
+
+  // The setup status says which first-run steps show; only before a folder is chosen can they still be added.
+  useEffect(() => {
+    const s = setup.status;
+    if (!s) return;
+    const first = !statusSeen.current;
+    statusSeen.current = true;
+    if (!first || project) return;
+    const signedIn = AGENT_KINDS.some((k) => s.agents[k.id]?.installed && s.agents[k.id]?.signed_in);
+    setNeeds((n) => ({ ...n, tools: n.tools || !s.git, agent: n.agent || !signedIn }));
+  }, [setup.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Machines Assieme is set up on add Where, before Project, while no folder is chosen yet.
+  useEffect(() => {
+    void Promise.resolve(remoteMachines()).then((ms) => {
+      if (ms?.length) setNeeds((n) => (n.remote ? n : { ...n, remote: true }));
+    }, () => {});
+  }, []);
+  // A step added in front of where the person is, before they chose a folder, becomes the first step.
+  const firstShown = steps[0];
+  const wasFirst = useRef(firstShown);
+  useEffect(() => {
+    if (!project && at === wasFirst.current && !jump.current) setAt(firstShown);
+    wasFirst.current = firstShown;
+  }, [firstShown]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void Promise.resolve(getSettings()).then((s) => setFixes(s?.fixes ?? null), () => {}); }, []);
 
   // Developer tools install in Apple's own window: ask again until they are there.
   useEffect(() => {
@@ -283,23 +274,77 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     };
   }, [check?.tools, project, recheckMs]);
 
-  // Names are checked here and again by the brain on Start.
-  const named = () => {
-    const bad = badName(roles);
-    if (bad >= 0) setRoleErrors({ [bad]: BAD_NAME });
-    return bad < 0;
+  /** keep: leave the shown result in place until the new one arrives (after a save). Returns the check, or null when a
+   *  newer check replaced it or it failed. */
+  const verify = async (p: string, keep = false): Promise<ProjectCheck | null> => {
+    const id = ++latest.current;
+    setCheckError("");
+    if (!keep) setCheck(null);
+    try {
+      const c = await (machine ? checkProjectOn(p, machine) : checkProject(p));
+      if (id !== latest.current) return null;
+      setCheck(c);
+      if (folderMovesOn(c)) setAnnounce(`${base(p)} checked`);
+      // A draft or an import goes to its step once its folder passes; one that fails opens at Project.
+      if (jump.current) {
+        setAt(folderMovesOn(c) ? jump.current : "project");
+        jump.current = null;
+      }
+      return c;
+    } catch (e) {
+      if (id === latest.current) {
+        setCheckError(message(e));
+        if (jump.current) { setAt("project"); jump.current = null; }
+      }
+      return null;
+    }
   };
-  const next = () => {
-    if (!named()) return;
-    setStartError("");
-    setStep(2);
+  /** The only automatic move off Project: a fresh choice whose check is still the newest and needs nothing. */
+  const use = async (p: string) => {
+    setProject(p);
+    setProjectError("");
+    const c = await verify(p);
+    if (c && folderMovesOn(c)) go(nextStep(steps, "project"));
   };
-  const quick = () => {
-    if (named()) void start();
+  const installDevTools = () => {
+    setCheckError("");
+    installTools().catch((e) => setCheckError(message(e)));
   };
+
+  const go = (s: StepId) => {
+    setAt(s);
+    setAnnounce(undefined);
+  };
+  const next = () => go(nextStep(steps, at));
+  const back = () => { const p = prevStep(steps, at); if (p) go(p); };
+
+  const cancel = async () => {
+    if (project && !(await confirmDiscard())) return;
+    onClose();
+  };
+  // Escape closes the innermost sheet (each modal handles its own), then Team rules, then means Cancel. Never Back.
+  const escape = useRef(() => {});
+  escape.current = () => {
+    if (rulesOpen) setRulesOpen(false);
+    else void cancel();
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || document.querySelector("[aria-modal='true']")) return;
+      escape.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const start = async () => {
     if (starting.current) return;
+    const bad = badName(roles);
+    if (bad >= 0) {
+      setRoleErrors({ [bad]: BAD_NAME });
+      setAgentsOpen(true);
+      return;
+    }
     starting.current = true;
     setPending(true);
     setStartError("");
@@ -316,10 +361,10 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       const { field, message } = fieldOf(e);
       if (field === "project") {
         setProjectError(message);
-        setStep(1);
+        go("project");
       } else if (field.startsWith("role:")) {
         setRoleErrors({ [Number(field.slice(5))]: message });
-        setStep(1);
+        setAgentsOpen(true);
       } else setStartError(message);
     } finally {
       starting.current = false;
@@ -327,202 +372,75 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
     }
   };
 
-  // The first thing still missing, or nothing once Next can be pressed.
-  const missing = offline ? "Waiting for Assieme’s service."
-    : machine === "" ? "Connect a machine to continue."
-    : machine && !there ? `Waiting for ${machine} to be ready.`
-    : !project ? "Choose a project folder to continue."
-    : !check ? (checkError ? "Couldn’t check this folder. Choose it again to continue." : "Checking this folder…")
-    : check.tools ? "Install developer tools to continue."
-    : check.setup ? "Set up this folder to continue."
-    : projectError || !check.ok ? "Choose a different folder to continue."
-    : !task.trim() ? "Say what the team should work on to continue."
-    : have && !installed.length ? "Install Claude Code or Codex to continue."
-    : installed.length && !roles.length ? "Add an agent to continue."
-    : roles.some((r) => r.container && notReady[r.agent]) ? "Get the container ready to continue."
-    : "";
-  const ready = !missing && installed.length > 0;
+  const pickTeam = async (p: Preset) => {
+    if (await choose(p)) next();
+  };
+  const suggested = (s: Suggestion) => {
+    setRoles(fit(s.roles));
+    setWhy(s.why);
+    setImported(null);
+    setChosen("");
+    setEdited(false);
+    setRoleErrors({});
+    next();
+  };
 
-  if (step === 2 && practices)
-    return (
-      <RecommendedSetup practices={practices} roles={roles} value={practiceOn}
-        onChange={setPracticeOn} onBack={() => setStep(1)} onStart={start} pending={pending} error={startError} />
-    );
+  const signedInKind = AGENT_KINDS.find((k) => setup.status?.agents[k.id]?.signed_in);
+  const answers: Partial<Record<StepId, string>> = {
+    tools: STEP_LABEL.tools, agent: signedInKind?.name ?? STEP_LABEL.agent, where: machine ?? "This Mac",
+    project: project ? base(project) : "", task: taskAnswer(task),
+    team: imported ? "Brought over" : chosen ? presets.find((p) => p.id === chosen)?.label ?? last?.label ?? "" : why ? "Suggested team" : "",
+  };
+  const panel: PanelProps = { steps, at, answers, announce, onGo: go };
+  const containerWaiting = roles.some((r) => r.container && notReady[r.agent]);
 
-  const warn = !!check?.ok && !!check.uncommitted;
-  const button = check?.tools && !machine ? { label: "Install developer tools", act: installDevTools }
-    : check?.setup ? { label: "Set up this folder", act: () => setFolderSheet(true) }
-    : warn ? { label: "Save them first", act: () => setFolderSheet(true) } : null;
-  const plainError = (check && !check.ok && !check.tools && !check.setup && !check.too_large && check.reason) || projectError;
+  let body: React.ReactNode;
+  if (offline) body = <div className="newteam"><div className="panel"><div className="body"><Offline afterMs={0} /></div></div></div>;
+  else if (at === "tools") body = <ToolsStep panel={panel} status={setup.status} onNext={next} />;
+  else if (at === "agent") body = <AgentStep panel={panel} status={setup.status} onNext={next} onBack={back} />;
+  else if (at === "where") body = (
+    <WhereStep panel={panel} machine={machine} there={there} onAgents={setThere} onNext={next} onCancel={() => void cancel()}
+      onMachine={(m) => { setMachine(m); setProject(""); setCheck(null); setProjectError(""); }} />
+  );
+  else if (at === "project") body = (
+    <ProjectStep panel={panel} machine={machine} recent={machine ? [] : recent} project={project} check={check}
+      error={projectError || checkError} onUse={(p) => void use(p)} onRecheck={() => void verify(project, true)}
+      onInstallTools={installDevTools} onContinueAnyway={() => go(nextStep(steps, "project"))} onCancel={() => void cancel()} />
+  );
+  else if (at === "task") body = (
+    <TaskStep panel={panel} task={task} onTask={setTask} onNext={next} onBack={back} onSkip={() => { setTask(""); next(); }} />
+  );
+  else if (at === "team") body = (
+    <TeamStep panel={panel} presets={presets} last={last} installed={installed.map(([k]) => k)} task={task} project={project}
+      machine={machine} onPick={(p) => void pickTeam(p)} onSuggested={suggested} onBringOver={() => setImporting(true)}
+      onInstall={setInstalling} onBack={back} />
+  );
+  else if (rulesOpen && practices) body = (
+    <TeamRules panel={panel} practices={practices} project={project} value={practiceOn} onChange={setPracticeOn}
+      onDone={() => setRulesOpen(false)} />
+  );
+  else if (practices) body = (
+    <StartStep panel={panel} practices={practices} value={practiceOn} roles={roles} machine={machine} fixes={fixes}
+      onRules={() => setRulesOpen(true)} onEditAgents={() => setAgentsOpen(true)}
+      onBigger={(key, on) => setPracticeOn({ ...practiceOn, [key]: on })} onBack={back} onStart={() => void start()}
+      pending={pending || containerWaiting} error={startError || (containerWaiting ? "Get the container ready to continue." : "")}
+      notice={imported?.running && (
+        <div className="still-running" role="status">
+          <strong>{imported.from === "bringover" ? imported.running : `${imported.running} is still running in herdr`}</strong>
+          <span>Stop it there before you start this team, or two teams will work on the same project.</span>
+        </div>
+      )} />
+  );
 
   return (
     <>
-    <div className="newteam">
-      <div className="panel">
-        <header>
-          <h1>New team</h1>
-          <p>Step 1 of 2. Pick a project and who works on it. You can change any of this later.</p>
-        </header>
-        <div className="body">
-          {offline && <Offline afterMs={0} />}
-          {imported?.running && (
-            <div className="still-running" role="status">
-              <strong>{imported.from === "bringover" ? imported.running : `${imported.running} is still running in herdr`}</strong>
-              <span>Stop it there before you start this team, or two teams will work on the same project.</span>
-            </div>
-          )}
-          <div className="field">
-            <div className="label">Project</div>
-            <div className="box folder">
-              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M2 4.5h4l1.5 1.5H14v6.5H2z" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.4" />
-              </svg>
-              {machine !== null ? <RemoteProject machine={machine} value={project} onChange={setProject} onDone={use} /> : <>
-              <span className="grow">{project ? shortPath(project) : "No folder chosen"}</span>
-              <button type="button" className="pick" onClick={newFolder}>New folder…</button>
-              <span className="muted" aria-hidden="true">·</span>
-              <button type="button" className="pick" onClick={chooseFolder}>Choose…</button></>}
-            </div>
-            {plainError && <p className="error">{plainError}</p>}
-            {checkError && <p className="error">{checkError}</p>}
-            {noteError && <p className="error">{noteError}</p>}
-            {check && (button || check.too_large) && (
-              <div className="folder-note">
-                <span className={warn ? "warn" : ""}>{warn ? changes(check.uncommitted!) : check.reason}</span>
-                {button && <button type="button" className="action" onClick={button.act}>{button.label}</button>}
-              </div>
-            )}
-          </div>
-
-          <RemoteMachine machine={machine} onAgents={setThere}
-            onMachine={(m) => { setMachine(m); setProject(""); setCheck(null); setProjectError(""); }} />
-
-          <label className="field">
-            <span className="label">What should the team work on?</span>
-            <input className="box" value={task} placeholder="Add rate limiting to the login endpoint"
-              onChange={(e) => setTask(e.target.value)} />
-          </label>
-
-          <div className="field">
-            <div className="row">
-              <div className="label">Start from</div>
-              <button type="button" className="link" disabled={!project || !installed.length} onClick={() => setHelping(true)}>
-                <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
-                  <path d="M8 1.5l1.6 4.1 4.4.3-3.4 2.8 1.1 4.3L8 10.6 4.3 13l1.1-4.3L2 5.9l4.4-.3z" fill="none"
-                    stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                Help me choose
-              </button>
-            </div>
-            <div className="chips">
-              {presets.map((p) => (
-                <button key={p.id} type="button" className={chosen === p.id ? "chip on" : "chip"}
-                  aria-pressed={chosen === p.id} onClick={() => choose(p)}>{p.label}</button>
-              ))}
-              <button type="button" className={imported ? "chip on" : "chip herdr"} aria-pressed={!!imported}
-                onClick={() => setImporting(true)}>From another tool…</button>
-            </div>
-            {helping && (
-              <HelpMeChoose machine={machine || undefined} project={project} agent={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
-                onCancel={() => setHelping(false)}
-                onDone={(s) => {
-                  setRoles(fit(s.roles));
-                  setWhy(s.why);
-                  setImported(null);
-                  setChosen("");
-                  setEdited(false);
-                  setHelping(false);
-                }} />
-            )}
-          </div>
-
-          <div className="field">
-            <div className="row">
-              <div className="label">Agents</div>
-              {installed.length > 1 && <div className="muted small">Mix any agents on this Mac. The box icon means it runs in a container.</div>}
-            </div>
-            {why && <p className="muted">{why}</p>}
-            {installed.length === 0 ? (
-              offline ? null : have ? (
-                <p className="error">{machine ? `Install or sign in to an agent on ${machine}, above.` : "Install Claude Code or Codex, then reopen New team."}</p>
-              ) : <p className="muted">Checking which agents are installed…</p>
-            ) : (
-              <div className="agents">
-                {roles.map((r, i) => (
-                  <div className="agent" key={i}>
-                    <div className="line">
-                      <Musician instrument={seats[i].musician} palette={seats[i].palette} state="idle" role={r.name} size={1} noDot />
-                      <input className="name" aria-label="Agent name" value={r.name}
-                        onChange={(e) => edit(i, { name: e.target.value })} />
-                      <AgentMenu look="pill" value={r.agent} container={!!r.container} installed={clis ?? {}}
-                        team={project ? project.split("/").filter(Boolean).pop() : undefined}
-                        onChange={(c) => edit(i, c)} onInstall={setInstalling} />
-                      <span className="job">{r.job}</span>
-                      {models && (
-                        <button type="button" className="choice" aria-label={`Model and effort for ${r.name}`}
-                          aria-expanded={modelOf === i} onClick={() => setModelOf(modelOf === i ? null : i)}>
-                          {choiceLabel(r, models)}
-                        </button>
-                      )}
-                      {!!tools[listKey(r)]?.length && (() => {
-                        const sum = toolSummary(tools[listKey(r)]!, { tools_off: r.tools_off ?? [], tools_new: r.tools_new ?? true });
-                        return sum && (
-                          <button type="button" className="link tools-sum" aria-label={`Tools for ${r.name}: ${sum}`}
-                            onClick={() => setToolsOf(i)}>Tools <b>{sum}</b></button>
-                        );
-                      })()}
-                      <button type="button" className="link" onClick={() => setBriefOf(briefOf === i ? null : i)}>Brief</button>
-                      <button type="button" className="remove" aria-label="Remove agent" onClick={() => remove(i)}>×</button>
-                    </div>
-                    {roleErrors[i] && <p className="error">{roleErrors[i]}</p>}
-                    {r.container && roles.findIndex((x) => x.container && x.agent === r.agent) === i && (
-                      <div className="container-row">
-                        <ContainerLine agent={r.agent} onReady={(ok) => setNotReady((n) => ({ ...n, [r.agent]: !ok }))} />
-                      </div>
-                    )}
-                    {modelOf === i && models && (
-                      <ModelMenu role={r} options={models} onChange={(c) => edit(i, c)} />
-                    )}
-                  </div>
-                ))}
-                <button type="button" className="add" onClick={add}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-                    <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-slate)" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  Add an agent
-                </button>
-              </div>
-            )}
-            {!!imported?.notes?.length && (
-              <div className="carried">
-                <div className="carried-title">{imported.from === "bringover"
-                  ? `Brought over from ${imported.tool}. What didn’t carry over` : "Imported from herdr. What didn’t carry over"}</div>
-                {imported.notes.map((n) => (
-                  <div className="carried-note" key={n.text}>
-                    <p>{n.text}</p>
-                    {n.agents.length > 0 && <p className="carried-agents">{n.agents.join(", ")}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <footer role="contentinfo">
-          {missing ? <span className="safe" role="status">{missing}</span> : (
-            <span className="safe">
-              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8 1.5l5.5 2v4c0 3.5-2.4 6-5.5 7-3.1-1-5.5-3.5-5.5-7v-4z" fill="none" stroke="var(--quiet-working)" strokeWidth="1.6" />
-              </svg>
-              {footerNote(pushesBlocked(practiceOn))}
-            </span>
-          )}
-          {startError && <span className="error">{startError}</span>}
-          <button type="button" className="quiet" onClick={onClose}>Cancel</button>
-          <button type="button" className="outline" disabled={!ready || pending} onClick={next}>Customise</button>
-          <button type="button" className="primary" disabled={!ready || pending} onClick={quick}>{imported ? "Start team" : "Start with recommended"}</button>
-        </footer>
-      </div>
-    </div>
+    {body}
+    {agentsOpen && (
+      <EditAgents project={project} roles={roles} installed={have ?? {}} models={models} tools={tools} listKey={listKey}
+        roleErrors={roleErrors} why={why} picked={answers.team ?? ""} imported={imported}
+        onEdit={edit} onAdd={add} onRemove={remove} onBrief={setBriefOf} onTools={setToolsOf} onInstall={setInstalling}
+        onNotReady={(agent, no) => setNotReady((n) => ({ ...n, [agent]: no }))} onDone={() => setAgentsOpen(false)} />
+    )}
     {briefOf !== null && roles[briefOf] && perms && (
       <BriefEditor role={roles[briefOf]} roles={roles} project={project} installed={installed} kinds={kinds} table={perms}
         asker={installed[0]?.[0] === "codex" ? "Codex" : "Claude Code"}
@@ -532,10 +450,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
       <ToolPicker items={tools[listKey(roles[toolsOf])]!} roleName={roles[toolsOf].name}
         roleKind={roles[toolsOf].kind ?? guessKind(roles[toolsOf].name)} kindName={kindName(roles[toolsOf].agent)}
         value={{ tools_off: roles[toolsOf].tools_off ?? [], tools_new: roles[toolsOf].tools_new ?? true }}
-        suggested={suggested[suggestKey(roles[toolsOf])] ?? []}
+        suggested={suggestedTools[suggestKey(roles[toolsOf])] ?? []}
         onClose={() => setToolsOf(null)} onDone={(v) => { edit(toolsOf, v); setToolsOf(null); }} />
     )}
-    {folderSheet && <FolderSheet machine={machine || undefined} project={project} onClose={() => setFolderSheet(false)} onSaved={saved} />}
     {installing && <InstallSheet agent={installing} start="install" status={setup.status} onClose={() => setInstalling(null)} />}
     {importing && (
       <BringOver onClose={() => setImporting(false)} onImported={async (d) => {
