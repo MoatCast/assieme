@@ -9,7 +9,7 @@ import Activity from "./Activity";
 
 const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
 const row = (id: string, over: Partial<ActivityRow> = {}): ActivityRow =>
-  ({ id, at: "14:02", day: today, title: `Row ${id}`, reason: `Because ${id}`, by: "you", ok: true, action: "x", undo: null, ...over });
+  ({ id, at: "14:02", day: today, title: `Row ${id}`, reason: `Because ${id}`, by: "you", ok: true, action: "x", undo: null, agent: null, outcome: null, outcome_at: null, check_until: null, measured: null, problem: null, ...over });
 const open = async (rows: ActivityRow[]) => {
   b.activityList.mockResolvedValue({ rows });
   render(<Activity team="shop" pollMs={100000} />);

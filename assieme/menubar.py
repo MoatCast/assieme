@@ -42,7 +42,7 @@ def _labels(buttons):
 
 def _asks(built):
     """Pauses at a daily limit that can be answered now: at least one of their agents has stopped."""
-    listed = {p['role'] for p in built['panes'] if p['state'] in teammap.NEEDS_YOU}  # those already count, with the same button
+    listed = {p['role'] for p in built['panes'] if teammap.needs_you(p)}  # those already count, with the same button
     return [a for a in (built.get('budget') or {}).get('asks', []) if a.get('fix') and a['role'] not in listed]
 
 
@@ -89,10 +89,11 @@ class Menubar:
         shown = []
         for name, built, _ in teams:
             items = [{'role': p['role'], 'state': p['state'], 'since_s': p['since_s'],
-                      'text': _short((p['fix'] or {}).get('text') or p['detail']) if p['state'] == 'asking' else '',
+                      'text': _short((p['fix'] or {}).get('text') or p['detail'])
+                              if p['state'] == 'asking' or p.get('paused_by_fix') else '',
                       'says': SAYS.get(p['state'], ''), 'fix': (p['fix'] or {}).get('id'),
                       'buttons': [{k: b[k] for k in ('id', 'label', 'kind')} for b in (p['fix'] or {}).get('buttons', [])]}
-                     for p in built['panes'] if p['state'] in teammap.NEEDS_YOU]
+                     for p in built['panes'] if teammap.needs_you(p)]
             items += [{'role': a['role'], 'state': 'asking', 'since_s': a['since_s'], 'text': _short(a['title']), 'says': '',
                        'fix': a['fix'], 'buttons': [{k: b[k] for k in ('id', 'label', 'kind')} for b in a['buttons']]}
                       for a in _asks(built)]
@@ -111,11 +112,16 @@ class Menubar:
     def _needs(self, teams):
         for name, built, _ in teams:
             for p in built['panes']:
-                if p['state'] not in teammap.NEEDS_YOU or (p['since_s'] or 0) > live.NOTIFY_MAX_AGE:
+                if not teammap.needs_you(p) or (p['since_s'] or 0) > live.NOTIFY_MAX_AGE:
                     continue
                 f = p['fix'] or {}
                 buttons = f.get('buttons', [])
                 text = f.get('text') or p['detail'] or 'Waiting for you'
+                if p.get('paused_by_fix'):  # it usually reads idle after Esc
+                    yield f"need|{name}|{p['role']}|paused|", {
+                        'kind': 'needs_you', 'team': name, 'role': p['role'], 'view': 'terminals', 'fix': f.get('id'),
+                        'title': f"{p['role']} is paused: still stuck after a fix", 'body': _short(text), 'buttons': _labels(buttons)}
+                    continue
                 if p['state'] == 'asking':
                     if not any(b['kind'] != 'reply' for b in buttons) and (p['since_s'] or ANSWER_WAIT_S) < ANSWER_WAIT_S:
                         continue  # its answers may be on the way
@@ -142,8 +148,8 @@ class Menubar:
         ended_by_you = {(e.get('team'), e.get('agent')) for e in live.recent_actions(None, 200) if e.get('action') in YOURS}
         for name, built, matched in teams:
             for p in built['panes']:
-                if p['since_s'] is None or p['since_s'] > live.NOTIFY_MAX_AGE:
-                    continue  # no age: an old terminal this app has never seen, not news
+                if p['since_s'] is None or p['since_s'] > live.NOTIFY_MAX_AGE or p.get('paused_by_fix'):
+                    continue  # no age: an old terminal this app has never seen, not news; a paused agent isn't done
                 said = STOPPED.match(self._last_words(matched[p['address']])) if p['state'] == 'idle' and p['address'] in matched else None
                 if said:
                     key, body = f"stop|{name}|{p['role']}|{said[1][:80]}", said[1].splitlines()[0] if said[1] else ''
@@ -157,7 +163,7 @@ class Menubar:
 
     def _ready(self, waiting, teams, now, known, showing):
         """Asking Review starts the project's tests and reads its whole diff, so only for a notification still to come."""
-        states = {(name, p['role']): p['state'] for name, built, _ in teams for p in built['panes']}
+        states = {(name, p['role']): 'stuck' if p.get('paused_by_fix') else p['state'] for name, built, _ in teams for p in built['panes']}
         for w in waiting:
             age = now.timestamp() - w.get('at', 0)
             if states.get((w['team'], w['role'])) in ('working', *teammap.NEEDS_YOU) or age > live.NOTIFY_MAX_AGE:

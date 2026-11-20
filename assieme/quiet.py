@@ -64,7 +64,19 @@ def _real(path):
 def set_pair(from_cwd, to_cwd, label, on=True):
     from_cwd, to_cwd = _real(from_cwd), _real(to_cwd)
     keep = [p for p in pairs() if (p['from_cwd'], p['to_cwd']) != (from_cwd, to_cwd)]
+    out = [p for p in _opted_out() if p != [from_cwd, to_cwd]]  # the person's last word on a pair is remembered
+    _write_json(_path('no_auto_hold.json'), out + ([] if on else [[from_cwd, to_cwd]]))
     _write_json(_path('quiet.json'), keep + ([{'from_cwd': from_cwd, 'to_cwd': to_cwd, 'label': label}] if on else []))
+
+
+def _opted_out():
+    got = _read_json(_path('no_auto_hold.json'), [])
+    return [p for p in got if isinstance(p, list) and len(p) == 2] if isinstance(got, list) else []
+
+
+def opted_out(from_cwd, to_cwd):
+    """True once a person un-held this pair: Assieme never holds it again by itself."""
+    return [_real(from_cwd), _real(to_cwd)] in _opted_out()
 
 
 def is_quiet(from_cwd, to_cwd):

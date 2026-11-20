@@ -7,7 +7,7 @@ agent's screen, and suggested answers to a plain-word question (`answers.Answers
 import hashlib
 import os
 
-from . import adapters, brief, budget, launch, live, prompts, reports, status, team
+from . import adapters, brief, budget, fixes, launch, live, prompts, reports, status, team
 
 KIND_OF = {program: kind for kind, program in launch.CLIS.items()}
 
@@ -137,6 +137,10 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         p = {'role': role, 'agent': kind, 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
              'command': None, 'memory_full': _memory_full(a),
+             # for fixes.check_outcomes only: Brain.map strips it, as a label can hold command arguments
+             'refused': [(ts.strftime('%Y-%m-%dT%H:%M:%SZ'), label) for ts, label, _, _ in a.refused
+                         if (now - ts).total_seconds() <= live.REFUSAL_WINDOW + fixes.CHECK_S] if a else [],
+             'turn_at': a.turn_start.strftime('%Y-%m-%dT%H:%M:%SZ') if a and a.turn_start else None,  # brain-only too
              'busy': (r.get('status') or {}).get('state') == 'working'}  # mid-turn by its own hook, whatever the logs suggest
         if report:
             p['since_s'] = max(0, int(now.timestamp() - report['ms'] / 1000))

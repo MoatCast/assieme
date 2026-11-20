@@ -245,8 +245,9 @@ export type Pane = {
   since_s: number | null;
   detail: string;
   live: boolean;
+  paused_by_fix?: boolean;
   /** `budget` is set on a pause at a daily limit: its scope ("*" is the whole team), who is paused, and the line under the question. */
-  fix: { id: string; text: string; buttons: PaneButton[]; budget?: string; who?: string; detail?: string } | null;
+  fix: { id: string; text: string; buttons: PaneButton[]; budget?: string; who?: string; detail?: string; pause?: { at: string; of: string } } | null;
 };
 export type TeamView = { team: string; panes: Pane[]; strip: { role: string; text: string }[] };
 
@@ -300,10 +301,18 @@ export type ActivityRow = {
   ok: boolean;
   action: string;
   undo: { label: string; confirm?: string } | null;
+  agent: string | null;
+  outcome: "checking" | "fixed" | "still_stuck" | null;
+  outcome_at: string | null;
+  check_until: string | null;
+  measured: { minutes: number | null; what: string; tokens: number | null } | null;
+  problem: string | null;
 };
 export type TeamMap = {
   team: string;
   found: boolean;
+  /** Found teams only: the person let Assieme apply automatic fixes there. */
+  run_by_assieme?: boolean;
   stopped: boolean;
   /** Its machine can't be reached: this is the last view from there (step 15). */
   unreachable?: import("./remote").Machine;
@@ -348,7 +357,8 @@ export type AgentDetail = {
   empty_wakes: number;
 };
 export type Settings = {
-  fixes: Record<"nudge" | "compact" | "tell", "ask" | "auto">;
+  fixes: Record<"nudge" | "compact" | "tell" | "quiet", "ask" | "auto">;
+  fixes_notice: boolean;
   practices: Record<string, boolean>;
   notify: { needs_you: boolean; stalls: boolean; finished: boolean };
   show_commands: boolean;
@@ -385,6 +395,7 @@ export type TeamBriefData = { goal: string; rules: string; decisions: { id: stri
 export const briefGet = (team: string) => brain<TeamBriefData>("brief.get", { team });
 export const briefSave = (team: string, goal: string, rules: string) => brain<TeamBriefData>("brief.save", { team, goal, rules });
 export const briefRemove = (team: string, id: string) => brain<TeamBriefData>("brief.remove", { team, id });
+export const runFound = (team: string, on: boolean) => brain<{ ok: boolean }>("team.run_found", { team, on });
 export const stopTeam = (team: string) => brain<{ stopped: number }>("team.stop", { team });
 export const listTeams = () => brain<{ teams: TeamListing[]; found_agents: FoundAgent[] }>("teams.list");
 export const activityList = (team: string | null, filter: "all" | "you" | "auto") =>

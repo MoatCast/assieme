@@ -18,10 +18,11 @@ TITLES = {'quiet': 'Started holding notes from {agent}',
           'tell': 'Told {agent} why a command is blocked', 'add_agent': 'Added {agent}',
           'menu': 'Answered {agent}', 'answer': 'Answered {agent}', 'deliver': 'Delivered held notes to {agent}',
           'dropped': "Couldn't deliver held notes to {agent}",
-          'send': 'Sent a message to {agent}', 'stop_agent': 'Stopped {agent}'}
+          'run_found': 'Let Assieme run {agent}', 'send': 'Sent a message to {agent}', 'stop_agent': 'Stopped {agent}'}
 
 
-FIX_NAMES = {'nudge': 'Ask stuck agents to try another way', 'compact': 'Free up memory between tasks', 'tell': 'Explain blocked commands'}
+FIX_NAMES = {'nudge': 'Ask stuck agents to try another way', 'compact': 'Free up memory between tasks', 'tell': 'Explain blocked commands',
+             'quiet': 'Hold routine notes until the receiver is free'}
 EVERY_TEAM = ('fix_mode', 'practice', 'undo')  # settings apply to all teams; any other row without a team isn't this team's
 
 
@@ -53,6 +54,10 @@ def _undo_quiet(e, rt):
 
 def _undo_fix(e, rt):
     settings.set_value(f'fixes.{e["fix"]}', e['old'])
+
+
+def _undo_run_found(e, rt):
+    settings.set_value(f'run_found.{e["team"]}', bool(e.get('old')))
 
 
 def _undo_practice(e, rt):
@@ -106,6 +111,7 @@ UNDO = {'quiet': (_undo_quiet, 'Stop', None),
         'tools': (_undo_tools, 'Undo', UNDO_S),
         'bringover': (_undo_bringover, 'Undo', UNDO_S),
         'fix_mode': (_undo_fix, 'Undo', UNDO_S),
+        'run_found': (_undo_run_found, 'Undo', UNDO_S),
         'practice': (_undo_practice, 'Undo', UNDO_S),
         'improve': (_undo_improve, 'Undo', UNDO_S),
         'add_agent': (_undo_add, 'Stop', UNDO_S)}
@@ -155,8 +161,11 @@ def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the 
     now = now or status.now_utc()
     entries = _entries(path)
     undone = _undone(entries)
+    outcomes = {e.get('of'): e for e in entries if e.get('action') == 'outcome'}
     rows = []
     for e in reversed(entries):
+        if e.get('action') == 'outcome':
+            continue
         by = e.get('by', 'you')
         theirs = e.get('team') == team or (e.get('team') is None and e.get('action') in EVERY_TEAM)
         if (filter != 'all' and by != filter) or (team and not theirs):
@@ -168,8 +177,13 @@ def list_rows(team=None, filter='all', path=None, now=None):  # `filter` is the 
             reason = f"It didn't work: {e.get('detail') or 'no reason given'}"
         action = e.get('action')
         can = _available(e, undone, now) is None
+        out, until = outcomes.get(e.get('id')), status.parse_ts(e.get('check_until'))
+        outcome = out['result'] if out else 'checking' if until and now < until else None
+        hhmm = lambda t: t.astimezone().strftime('%H:%M') if t else None
         rows.append({'id': e.get('id'), 'at': local.strftime('%H:%M') if local else '', 'day': local.strftime('%Y-%m-%d') if local else '',
                      'title': _title(e), 'reason': reason, 'by': by, 'ok': e.get('ok', True), 'agent': e.get('agent'), 'action': e.get('action'),
+                     'outcome': outcome, 'outcome_at': hhmm(status.parse_ts(out.get('at'))) if out else None,
+                     'check_until': hhmm(until), 'measured': e.get('measured'), 'problem': e.get('problem'),
                      'undo': ({'label': UNDO[action][1]} | ({'confirm': CONFIRM[action].format(agent=e.get('agent'))} if action in CONFIRM else {})) if can else None})
     return {'rows': rows}
 

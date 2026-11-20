@@ -168,7 +168,7 @@ test("the spend line, with and without tokens", async () => {
 
 test("Done for you: Undo where it applies, none otherwise, and See all", async () => {
   const row = (id: string, title: string, undo: { label: string } | null) =>
-    ({ id, at: "14:02", day: "2026-11-08", title, reason: "", by: "you", ok: true, action: "x", undo });
+    ({ id, at: "14:02", day: "2026-11-08", title, reason: "", by: "you", ok: true, action: "x", undo, agent: null, outcome: null, outcome_at: null, check_until: null, measured: null, problem: null });
   const calls = await open(MAP({ done: [row("1", "Freed up memory for tester", null), row("2", "Started holding notes from a to b", { label: "Stop" })] }));
   expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Stop" }));

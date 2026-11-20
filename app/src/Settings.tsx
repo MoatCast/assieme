@@ -21,6 +21,7 @@ const FIXES = [
   ["nudge", "Ask stuck agents to try another way", "When an agent repeats the same thing or goes quiet for 15 minutes."],
   ["compact", "Free up memory between tasks", "When a team agent is idle and its memory is over 75% full."],
   ["tell", "Explain blocked commands", "When an agent keeps retrying something your rules don’t allow."],
+  ["quiet", "Hold routine notes until the receiver is free", "When an agent keeps waking another with notes that need no answer."],
 ] as const;
 const plural = (n: number) => (n === 1 ? "1 agent" : `${n} agents`);
 
@@ -202,7 +203,7 @@ function Fixes({ values, set, team }: { values: Values; set: (k: string, v: unkn
   };
   return (
     <>
-      <Head title="Fixes">Assieme always asks first. Turn a fix on here and it will do it for you, and tell you after in “Done for you”.</Head>
+      <Head title="Fixes">Assieme fixes these problems on its own and lists what it did. If a fix doesn't work, it pauses the agent and asks you.</Head>
       <div className="set-list">
         {FIXES.map(([id, title, sub]) => {
           const auto = values.fixes[id] === "auto";

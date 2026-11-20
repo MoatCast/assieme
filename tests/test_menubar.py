@@ -98,6 +98,22 @@ class NeedsYouTest(Case):
         self.assertEqual([b['label'] for b in got[0]['buttons']], ['Open', 'Ask it to try another way'])
         self.assertEqual(self.events(team(pane(state='stuck', since_s=120, fix=fix, detail='no progress for 2 min'))), [])
 
+    def paused(self, since_s=60):
+        card = {'id': 'fixpause:shop/b', 'text': 'No progress for 10 min after Assieme asked it to try another way.',
+                'buttons': [{'id': 'hint', 'label': 'Give it a hint', 'kind': 'reply'},
+                            {'id': 'resume', 'label': 'Resume as is', 'kind': 'action'}]}
+        return dict(pane('b', 'idle', since_s=since_s, fix=card), paused_by_fix=True)
+
+    def test_an_idle_agent_paused_after_a_fix_notifies_once(self):
+        got = self.events(team(self.paused()))
+        self.assertEqual([(g['title'], g['fix']) for g in got], [('b is paused: still stuck after a fix', 'fixpause:shop/b')])
+        self.assertEqual([b['label'] for b in got[0]['buttons']], ['Open', 'Resume as is'])
+        self.assertEqual(self.events(team(self.paused(120))), [])
+
+    def test_a_paused_agent_is_never_ready_or_stopped(self):
+        got = self.events(team(self.paused()), waiting=[ready('b')])
+        self.assertEqual([g['kind'] for g in got], ['needs_you'])
+
     def test_routine_progress_never_notifies(self):
         self.assertEqual(self.events(team(pane(state='working'), pane('b', 'idle'))), [])
 
@@ -248,6 +264,12 @@ class PanelTest(Case):
         self.assertNotIn('send', asks['buttons'][0])  # what's sent stays in the brain
         self.assertEqual((is_stuck['says'], is_stuck['since_s']), ('seems stuck', 5))
         self.assertEqual((p['spend_tokens'], p['auto_fixes']), (3000, 1))
+
+    def test_an_idle_agent_paused_after_a_fix_needs_you(self):
+        card = {'id': 'fixpause:shop/b', 'text': 'No progress.', 'buttons': [{'id': 'resume', 'label': 'Resume as is', 'kind': 'action'}]}
+        p = self.m._panel([team(dict(pane('b', 'idle', fix=card), paused_by_fix=True))], ST)
+        [item] = p['teams'][0]['items']
+        self.assertEqual((p['count'], item['fix'], item['text']), (1, 'fixpause:shop/b', 'No progress.'))
 
     def setUp(self):
         super().setUp()

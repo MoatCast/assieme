@@ -510,7 +510,7 @@ class Report(unittest.TestCase):
 def agent(name='builder', **kw):
     defaults = dict(name=name, source='claude-code', state='working', detail='', pending={}, heavy=[], failures=[], samples=[],
                     heavy_end={}, context=0, refused=[], peers=set(), cwd='/x', last=ago(1), waits_on=[], cmds=[], ask_kind='', ask_since=None,
-                    context_limit=None, path='/x/y.jsonl')
+                    context_limit=None, path='/x/y.jsonl', turn_start=None)
     return SimpleNamespace(**{**defaults, **kw})
 
 

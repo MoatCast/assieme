@@ -13,7 +13,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, answers, budget, live, newteam, panes, quiet, report, runtime, settings, status, team
+from . import activity, adapters, answers, budget, fixes, live, newteam, panes, quiet, report, runtime, settings, status, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -21,6 +21,11 @@ REFRESH_S = 120
 DONE_FOR_YOU = ('nudge', 'compact', 'tell', 'quiet')  # fixes; what the person did is in Activity
 WORDS = ('No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten')
 NEEDS_YOU = ('asking', 'stuck', 'waiting')
+
+
+def needs_you(p):
+    """A pane waiting for the person: its state, or a pause after a fix (which usually reads idle)."""
+    return p['state'] in NEEDS_YOU or bool(p.get('paused_by_fix'))
 
 
 def _real(path):
@@ -203,9 +208,6 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             if a in roles and b in roles and cwd.get(a) and cwd.get(b) and not quiet.is_quiet(cwd[a], cwd[b]):
                 tips.append({'id': f'{a}>{b}', 'from': a, 'to': b, 'share': x['share'],
                              'from_cwd': cwd[a], 'to_cwd': cwd[b]})
-    need = sum(p['state'] in NEEDS_YOU for p in v['panes'])
-    title = 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you"
-    subtitle = _subtitle(v['panes'], gs, need)
     bud = None
     if not found:  # agents found on this Mac get no limit: their messages can't be held
         bud = budget.view(team_name, {n['role']: (rep['agents'].get(n['role']) or {}).get('tokens', 0) for n in nodes}, total, now)
@@ -218,14 +220,25 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
                     ask.setdefault('fix', p['fix']['id'])
                     ask.setdefault('role', p['role'])
                     ask.setdefault('buttons', p['fix']['buttons'])
-        if bud['asks'] and not need:
-            whole = any(a['scope'] == budget.TEAM for a in bud['asks'])
-            title = 'Paused at today’s limit'
-            subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
-                        f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
-                        + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
+    for p, n in zip(v['panes'], nodes):  # paused after a fix that didn't work; a budget pause wins
+        card = None if n.get('paused') or p['state'] in ('asking', 'exited') else fixes.pane_fix(team_name, p['role'], now)
+        p['paused_by_fix'] = bool(card)
+        if card:  # after Esc it usually reads idle, yet it is waiting for the person
+            p['fix'], p['detail'], n['paused'] = card, 'Paused: still stuck after a fix', True
+            v['strip'] = [s for s in v['strip'] if s['role'] != p['role']] + [
+                {'role': p['role'], 'state': 'stuck', 'text': f"{p['role']} is paused: still stuck after a fix"}]
+    v['strip'].sort(key=lambda x: panes.URGENT.index(x['state']))
+    need = sum(needs_you(p) for p in v['panes'])
+    title = 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you"
+    subtitle = _subtitle(v['panes'], gs, need)
+    if bud and bud['asks'] and not need:
+        whole = any(a['scope'] == budget.TEAM for a in bud['asks'])
+        title = 'Paused at today’s limit'
+        subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
+                    f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
+                    + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
     done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
-    return {'team': team_name, 'found': found,
+    return {'team': team_name, 'found': found, **({'run_by_assieme': bool(st['run_found'].get(team_name))} if found else {}),
             'stopped': not any(r.get('state') == 'live' for r in rows),
             'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
@@ -234,15 +247,36 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             'spend_ready': getattr(today, 'ready', True)}
 
 
+def _hold_pair(team_name, t, now=None, **extra):
+    label = f"{t['from']} to {t['to']}"
+    quiet.set_pair(t['from_cwd'], t['to_cwd'], label)
+    return live.record('quiet', label, f"{round(t['share'] * 100)}% of today's tokens went on these wake-ups.", team=team_name,
+                       now=now, pair=[t['from_cwd'], t['to_cwd'], label], **extra)
+
+
 def apply_tip(team_name, tip_id, built, now=None):
     t = next((x for x in built['tips'] if x['id'] == tip_id), None)
     if not t:
         return {'ok': False, 'detail': 'This tip has changed. Take another look.'}
-    label = f"{t['from']} to {t['to']}"
-    quiet.set_pair(t['from_cwd'], t['to_cwd'], label)
-    live.record('quiet', label, f"{round(t['share'] * 100)}% of today's tokens went on these wake-ups.", team=team_name, now=now,
-                pair=[t['from_cwd'], t['to_cwd'], label])
+    _hold_pair(team_name, t, now)
     return {'ok': True, 'detail': ''}
+
+
+def hold_automatically(views, now=None):
+    """The first tip of each team, held at once: it works from the next note, so it is judged fixed straight away."""
+    out = []
+    for name, built in views.items():  # a pair the person un-held is never held again by itself (quiet.opted_out)
+        t = next((x for x in built.get('tips', []) if not quiet.is_quiet(x['from_cwd'], x['to_cwd'])
+                  and not quiet.opted_out(x['from_cwd'], x['to_cwd'])), None)
+        if not t:
+            continue
+        edge = next((e for e in built.get('edges', []) if (e['from'], e['to']) == (t['from'], t['to'])), None) or {}
+        n = (edge.get('noisy') or {}).get('per_hour')
+        what = f'{n} wake-ups an hour with no work' if n is not None else 'Repeated wake-ups with no work'
+        e = _hold_pair(name, t, now, by='auto', title=f"Held {t['from']}'s routine notes until {t['to']} was free",
+                       measured={'what': what, 'minutes': None, 'tokens': None})
+        out += [e, live.record('outcome', e['agent'], '', team=name, by='auto', now=now, of=e['id'], result='fixed')]
+    return out
 
 
 def _wakers(a, alias, now):
@@ -284,32 +318,47 @@ def detail(team_name, role, built, agents, roster, now, rows=None, show_commands
             'wakers': _wakers(a, alias, now) if a else [], 'empty_wakes': sum(e['empty'] for e in edge_in)}
 
 
-def run_automatic(views, st, rt, log=None, now=None):
-    """Carry out the fixes switched to automatic, on teams started in Assieme only. Only buttons that are fixes: a
-    question is the person's to answer. One of each per agent per live.ACTED_HIDE."""
+def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
+    """Carry out the fixes switched to automatic, on teams started in Assieme and on found teams the person let Assieme
+    run (st['run_found']), the latter through `herdr` and only for agents in a herdr terminal. Only buttons that are fixes: a
+    question is the person's to answer. One attempt per problem (fixes.problem_key), measured as it starts.
+    `tokens` is role -> (tokens now, tokens when the problem began)."""
     now = now or status.now_utc()
-    # A failed try waits too: otherwise it would retry and log a row every tick.
-    recent = [e for e in live.recent_actions(log, 200) if status.parse_ts(e.get('at'))
-              and (now - status.parse_ts(e['at'])).total_seconds() <= live.ACTED_HIDE]
-    done = {(e.get('team'), e.get('agent'), e.get('action')) for e in recent}
     out = []
-    for name, built in views.items():
-        if built.get('found'):
-            continue
-        for p in built['panes']:
-            for b in (p['fix'] or {}).get('buttons', []):
-                action = b.get('action')
-                if b['kind'] != 'action' or st['fixes'].get(action) != 'auto' or (name, p['role'], action) in done:
-                    continue
-                if action == 'compact' and not p.get('memory_full'):
-                    continue  # asking can come sooner; doing it without asking waits until memory really is full
-                try:
-                    rt.send(p['address'], b['send'])
-                    ok, detail_ = True, 'sent'
-                except Exception as e:  # a failed fix is a row in Activity, and the others still run
-                    ok, detail_ = False, str(e)[:120]
-                out.append(live.record(action, p['role'], p['fix']['text'], ok, detail_, team=name, by='auto',
-                                       address=p['address'], log=log, now=now))
+    with fixes.LOCK:  # a failed try counts as the attempt too: otherwise it would retry and log a row every tick
+        entries = live.recent_actions(log, 500)
+        for name, built in views.items():
+            found = built.get('found')
+            if found and not st['run_found'].get(name):
+                continue
+            for p in built['panes']:
+                if found and not p['reachable']:
+                    continue  # a plain terminal agent can only be watched
+                for b in (p['fix'] or {}).get('buttons', []):
+                    action = b.get('action')
+                    if b['kind'] != 'action' or st['fixes'].get(action) != 'auto':
+                        continue
+                    if action == 'compact' and not p.get('memory_full'):
+                        continue  # asking can come sooner; doing it without asking waits until memory really is full
+                    started = now - dt.timedelta(seconds=p['since_s'])
+                    key = fixes.problem_key(name, p['role'], action, started)
+                    # since_s jitters by seconds between ticks, so a start near a minute edge may key a minute off
+                    if any(fixes.attempted(fixes.problem_key(name, p['role'], action, started + dt.timedelta(minutes=k)), entries)
+                           for k in (-1, 0, 1)):
+                        continue
+                    try:
+                        if found:
+                            herdr = herdr or HerdrRt()
+                        (herdr if found else rt).send(p['address'], b['send'])
+                        ok, detail_ = True, 'sent'
+                    except Exception as e:  # a failed fix is a row in Activity, and the others still run
+                        ok, detail_ = False, str(e)[:120]
+                    now_t, start_t = (tokens or {}).get((name, p['role']), (None, None))
+                    entry = live.record(action, p['role'], p['fix']['text'] + (' (team found in herdr)' if found else ''), ok, detail_, team=name, by='auto',
+                                        address=p['address'], log=log, now=now, problem=key, refused=fixes.refused_command(b['send']),
+                                        measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now))
+                    entries.append(entry)
+                    out.append(entry)
     return out
 
 
@@ -330,6 +379,9 @@ class HerdrRt:
 
     def read(self, t, lines=0):
         return self._hc('read', t)
+
+    def interrupt(self, t, timeout_s=3):
+        self.keys(t, ['esc'])
 
 
 class Brain:
@@ -407,8 +459,16 @@ class Brain:
                       newteam.roster(team))
         return built, rows, agents
 
-    def map(self, team):
+    def _map(self, team):
         return self._built(team, status.now_utc())[0]
+
+    def map(self, team):
+        """What leaves the brain: refused-command labels can hold arguments, so only the tick reads them."""
+        built = self._map(team)
+        for p in built['panes']:
+            p.pop('refused', None)
+            p.pop('turn_at', None)
+        return built
 
     def view(self, team):
         built = self.map(team)
@@ -417,6 +477,8 @@ class Brain:
 
     def act(self, team, role, fix, button, by='you'):
         _, _, _, rt = self._resolve(team, status.now_utc())
+        if fix == f'fixpause:{team}/{role}' and button == 'resume':  # it logs its own row; a second press does nothing
+            return fixes.resume(team, role, rt, by=by)
         return panes.act(team, role, fix, button, lambda: self.map(team), rt, by=by)
 
     def detail(self, team, role):
@@ -460,6 +522,13 @@ class Brain:
             settings.set_value(key, value)
         return settings.load()
 
+    def run_found(self, team_name, on):
+        old = bool(settings.load()['run_found'].get(team_name))
+        settings.set_value(f'run_found.{team_name}', bool(on))
+        live.record('run_found', team_name, 'You let Assieme run this team.' if on else 'You took this team back.', team=team_name,
+                    old=old, new=bool(on), **({} if on else {'title': f'Stopped running {team_name}'}))
+        return {'ok': True}
+
     def pairs(self, team_name=None):
         now = status.now_utc()
         rows = self._assieme_rows()
@@ -500,13 +569,37 @@ class Brain:
         self.today.refresh(now)
         st = settings.load()
         limited, auto = budget.teams(), 'auto' in st['fixes'].values()
-        if not limited and not auto:
+        paused = fixes.paused_teams()  # a pause ends by itself even once every fix asks first
+        if not limited and not auto and not paused:
             return []
         names = {r['labels'][team.TEAM] for r in self._assieme_rows() if r.get('state') == 'live'}
-        views = {n: self.map(n) for n in names if auto or n in limited}
+        views = {n: self._map(n) for n in names if auto or n in limited or n in paused}
+        if auto or paused:  # found teams the person let Assieme run
+            views |= {n: self._map(n) for n in self._found(now)[1] if st['run_found'].get(n) and (auto or n in paused)}
         for n in names & limited:
             budget.check(n, views[n], self.rt, now, announce)
-        return run_automatic(views, st, self.rt, now=now) if auto else []
+        if not auto and not paused:
+            return []
+        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now), herdr=self.herdr) if auto else []
+        if st['fixes'].get('quiet') == 'auto':
+            done += hold_automatically({n: v for n, v in views.items() if not v.get('found')}, now)
+        mine = {n: v for n, v in views.items() if not v.get('found')}  # each team's outcomes through the runtime that reaches it
+        return done + fixes.check_outcomes(mine, self.rt, now=now) + fixes.check_outcomes(
+            {n: v for n, v in views.items() if v.get('found')}, self.herdr, now=now)
+
+    def _problem_tokens(self, views, now):
+        """(team, role) -> (tokens now, tokens when its problem began), for the panes that have a problem."""
+        out = {}
+        for n, built in views.items():
+            if built.get('found'):
+                continue
+            agents = _team_report(self._assieme_rows(n), self.today, now)['agents']
+            for p in built['panes']:
+                if p['fix']:
+                    t = (agents.get(p['role']) or {}).get('tokens')
+                    began = now - dt.timedelta(seconds=p['since_s'])
+                    out[(n, p['role'])] = (t, fixes.start_tokens(n, p['role'], began, t, now) if t is not None else None)
+        return out
 
     def handlers(self):
         from . import agenttools, improve  # they read teams through this module
@@ -536,6 +629,7 @@ class Brain:
                 'settings.set': lambda key, value: self.change_setting(key, value),
                 'quiet.pairs': lambda team=None: self.pairs(team),
                 'quiet.set': lambda from_cwd, to_cwd, label='', on=True: self.set_pair(from_cwd, to_cwd, label, on),
+                'team.run_found': lambda team, on: self.run_found(team, on),
                 'groups.set': lambda groups: settings.set_value('groups', groups)}
 
 

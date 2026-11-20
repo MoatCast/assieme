@@ -94,6 +94,10 @@ def serve(sock, handlers, tick=None, every_s=15):
     finally:
         os.umask(old)
     os.chmod(sock, 0o600)
+    try:
+        settings.migrate()
+    except Exception:
+        traceback.print_exc()  # a settings problem must not stop the brain
     server.handlers = handlers
     server.daemon_threads = True
     from . import bridge
