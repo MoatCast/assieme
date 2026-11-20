@@ -41,7 +41,7 @@ test("cards sit in their columns, with the head counting them", async () => {
   expect(column("To do").getByText("Not assigned yet")).toBeTruthy();
   expect(column("Doing").getByText("task 2")).toBeTruthy();
   expect(column("Done").getByText("212 tests pass · 9m ago")).toBeTruthy();
-  expect(column("Review").getByText(/Nothing to review/)).toBeTruthy();
+  expect(column("Review").getByText(/No work to review yet/)).toBeTruthy();
 });
 
 test("a doing card shows its agent, and its fix when the agent needs you", async () => {
@@ -76,7 +76,7 @@ test("a review card shows its branch, and Review changes opens that agent's revi
   expect(review).toHaveBeenCalledWith("shop", "builder-1");
   expect(within(screen.getByTestId("task-2")).queryByRole("button", { name: "Review changes" })).toBeNull();
   expect(screen.getByTestId("task-3").textContent).toContain("ready when you are");
-  expect(screen.queryByText(/Nothing to review/)).toBeNull();
+  expect(screen.queryByText(/No work to review yet/)).toBeNull();
 });
 
 test("a card waiting for the person says so, and a fresh merge stands out", async () => {
@@ -201,4 +201,11 @@ test("a review card previews its branch: start, then open and stop, or see why i
 test("faces: a card's agent chip shows its musician", async () => { // step 31
   await open(BOARD([card("2", { status: "doing", role: "builder-3", agent: { role: "builder-3", state: "stuck", since_s: 1080, detail: "", fix: null, reachable: true } })]));
   expect(within(screen.getByTestId("task-2")).getByRole("img", { name: "builder-3, bass, needs you" })).toBeTruthy();
+});
+
+test("New task sits in the Board's own header", async () => {
+  const { task } = await open(BOARD([card("1")]));
+  const head = screen.getByRole("heading", { name: "Retry with backoff" }).parentElement!;
+  fireEvent.click(within(head).getByRole("button", { name: "New task" }));
+  expect(task).toHaveBeenCalled();
 });

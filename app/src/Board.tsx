@@ -280,6 +280,12 @@ export default function Board({ team, pollMs = 5000, refreshKey = 0, onNewTeam, 
           )}
           <span className="grow" />
           {data.spend && <span>Today: <b>{tokens(data.spend.tokens)} tokens</b></span>}
+          <button type="button" className="btn-secondary board-new" onClick={onNewTask}>
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M6 1.5v9M1.5 6h9" fill="none" stroke="var(--quiet-ink)" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            New task
+          </button>
         </div>
         <div className="board-columns">
           {COLUMNS.map(([id, label]) => (
@@ -295,7 +301,7 @@ export default function Board({ team, pollMs = 5000, refreshKey = 0, onNewTeam, 
                 </div>
               )}
               {id === "review" && cards.length > 0 && count(id) === 0 && (
-                <div className="board-none">Nothing to review. Finished work lands here with its diff and checks.</div>
+                <div className="board-none">No work to review yet. Finished work lands here with its diff and checks.</div>
               )}
             </section>
           ))}

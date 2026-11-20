@@ -60,3 +60,4 @@
 .board-none .btn-secondary { padding: 5px 10px; font-size: 12px; line-height: 16px; background: var(--quiet-surface); }
 .field small { font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
 .task-who .chip.with-face { display: inline-flex; align-items: center; gap: 5px; padding-left: 4px; } /* step 31 */
+.board-new { display: inline-flex; align-items: center; gap: 6px; align-self: center; flex-shrink: 0; padding: 6px 12px; font-size: 13px; line-height: 16px; }

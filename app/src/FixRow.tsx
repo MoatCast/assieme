@@ -2,7 +2,7 @@
 // the problem as measured → what Assieme did, and the outcome with an icon so colour is never the only signal.
 import { useState } from "react";
 import type { ActivityRow } from "./bridge";
-import { UndoButton } from "./Activity";
+import { UndoButton } from "./UndoButton";
 import { tokens } from "./listModel";
 import "./FixRow.css";
 
