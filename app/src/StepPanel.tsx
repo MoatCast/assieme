@@ -41,7 +41,7 @@ export default function StepPanel({ steps, at, answers, title, hint, announce, o
           <nav aria-label="Setup steps">
             <ol className="steps">
               {items.map((s, i) => (
-                <li key={s.id} className={s.state}>
+                <li key={s.id} className={`step-${s.state}`}>
                   {i > 0 && <span className="sep" aria-hidden="true">·</span>}
                   {s.state === "done" ? <button type="button" onClick={() => onGo(s.id)}>✓ {s.text}</button>
                     : <span aria-current={s.state === "current" ? "step" : undefined}>{s.text}</span>}

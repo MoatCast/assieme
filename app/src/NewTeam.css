@@ -112,9 +112,9 @@
 .newteam header p { line-height: 21px; }
 .newteam .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
 .newteam .steps .sep { margin: 0 10px; }
-.newteam .steps .done button { color: var(--quiet-slate); font-size: 12px; line-height: 16px; }
-.newteam .steps .done button:hover { color: var(--quiet-ink); }
-.newteam .steps .current { color: var(--quiet-ink); font-weight: 600; }
+.newteam .steps .step-done button { color: var(--quiet-slate); font-size: 12px; line-height: 16px; }
+.newteam .steps .step-done button:hover { color: var(--quiet-ink); }
+.newteam .steps .step-current { color: var(--quiet-ink); font-weight: 600; }
 .newteam h1:focus { outline: none; }
 .newteam button.link, .newteam .quiet, .newteam .pick { min-height: 28px; }
 .newteam .step { animation: step-in 150ms ease-out; }
@@ -142,8 +142,8 @@
 .newteam .option .text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .newteam .pickers { display: flex; gap: 10px; }
 .newteam .pickers .option { flex: 1; }
-.newteam .recent { display: flex; flex-direction: column; gap: 8px; }
-.newteam .recent .option { flex-direction: row; justify-content: space-between; }
+.newteam .recent-projects { display: flex; flex-direction: column; gap: 8px; }
+.newteam .recent-projects .option { flex-direction: row; justify-content: space-between; }
 .newteam .box.folder { border-color: var(--quiet-line-strong); padding: 12px 16px; gap: 12px; }
 .newteam .box.folder .pick { color: var(--quiet-ink); font-weight: 500; }
 /* A warning holds the step: amber, never the Assieme tint. */

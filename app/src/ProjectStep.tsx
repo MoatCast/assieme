@@ -94,7 +94,7 @@ export default function ProjectStep({ panel, machine, recent, project, check, er
             <button type="button" className="option" onClick={newFolder}><b>New folder…</b></button>
           </div>
           {recent.length > 0 && (
-            <div className="recent">
+            <div className="recent-projects">
               <div className="label">Recent projects</div>
               {recent.slice(0, 3).map((p) => (
                 <button type="button" className="option" key={p} onClick={() => onUse(p)}>
