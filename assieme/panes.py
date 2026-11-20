@@ -140,6 +140,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
              # for fixes.check_outcomes only: Brain.map strips it, as a label can hold command arguments
              'refused': [(ts.strftime('%Y-%m-%dT%H:%M:%SZ'), label) for ts, label, _, _ in a.refused
                          if (now - ts).total_seconds() <= live.REFUSAL_WINDOW + fixes.CHECK_S] if a else [],
+             'turn_at': a.turn_start.strftime('%Y-%m-%dT%H:%M:%SZ') if a and a.turn_start else None,  # brain-only too
              'busy': (r.get('status') or {}).get('state') == 'working'}  # mid-turn by its own hook, whatever the logs suggest
         if report:
             p['since_s'] = max(0, int(now.timestamp() - report['ms'] / 1000))

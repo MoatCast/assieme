@@ -249,6 +249,12 @@ class PanelTest(Case):
         self.assertEqual((is_stuck['says'], is_stuck['since_s']), ('seems stuck', 5))
         self.assertEqual((p['spend_tokens'], p['auto_fixes']), (3000, 1))
 
+    def test_an_idle_agent_paused_after_a_fix_needs_you(self):
+        card = {'id': 'fixpause:shop/b', 'text': 'No progress.', 'buttons': [{'id': 'resume', 'label': 'Resume as is', 'kind': 'action'}]}
+        p = self.m._panel([team(dict(pane('b', 'idle', fix=card), paused_by_fix=True))], ST)
+        [item] = p['teams'][0]['items']
+        self.assertEqual((p['count'], item['fix'], item['text']), (1, 'fixpause:shop/b', 'No progress.'))
+
     def setUp(self):
         super().setUp()
         self.m.brain = mock.Mock()

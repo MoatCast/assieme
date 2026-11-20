@@ -42,7 +42,7 @@ def _labels(buttons):
 
 def _asks(built):
     """Pauses at a daily limit that can be answered now: at least one of their agents has stopped."""
-    listed = {p['role'] for p in built['panes'] if p['state'] in teammap.NEEDS_YOU}  # those already count, with the same button
+    listed = {p['role'] for p in built['panes'] if teammap.needs_you(p)}  # those already count, with the same button
     return [a for a in (built.get('budget') or {}).get('asks', []) if a.get('fix') and a['role'] not in listed]
 
 
@@ -89,10 +89,11 @@ class Menubar:
         shown = []
         for name, built, _ in teams:
             items = [{'role': p['role'], 'state': p['state'], 'since_s': p['since_s'],
-                      'text': _short((p['fix'] or {}).get('text') or p['detail']) if p['state'] == 'asking' else '',
+                      'text': _short((p['fix'] or {}).get('text') or p['detail'])
+                              if p['state'] == 'asking' or p.get('paused_by_fix') else '',
                       'says': SAYS.get(p['state'], ''), 'fix': (p['fix'] or {}).get('id'),
                       'buttons': [{k: b[k] for k in ('id', 'label', 'kind')} for b in (p['fix'] or {}).get('buttons', [])]}
-                     for p in built['panes'] if p['state'] in teammap.NEEDS_YOU]
+                     for p in built['panes'] if teammap.needs_you(p)]
             items += [{'role': a['role'], 'state': 'asking', 'since_s': a['since_s'], 'text': _short(a['title']), 'says': '',
                        'fix': a['fix'], 'buttons': [{k: b[k] for k in ('id', 'label', 'kind')} for b in a['buttons']]}
                       for a in _asks(built)]

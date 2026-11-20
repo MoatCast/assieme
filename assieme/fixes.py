@@ -151,6 +151,14 @@ def check_until(now):
     return (now + dt.timedelta(seconds=CHECK_S)).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
+def _carried_on(pane, x):
+    """The person made a paused agent go on: a turn began after the pause. The hook alone can't say so, as Claude
+    Code's Stop hook doesn't run on Esc and may still read working. An agent never pressed (it was asking) has no stale
+    hook: working is enough, as answering a permission prompt continues its turn rather than starting one."""
+    turn, at = status.parse_ts(pane.get('turn_at')), status.parse_ts(x.get('at'))
+    return bool(turn and at and turn > at) or (not x.get('stopped') and pane['state'] == 'working')
+
+
 def check_outcomes(views, rt, log=None, now=None):
     """Judge each automatic fix not yet judged, once, and log an `outcome` entry. Everything is read from the log, so a
     restart forgets nothing. A fix whose agent has exited gets none, and so does one whose send failed.
@@ -197,7 +205,7 @@ def check_outcomes(views, rt, log=None, now=None):
             pane, x = _pane(views, team, role), paused[k]
             if not isinstance(x, dict) or not pane or pane.get('state') == 'exited' or pane['address'] != x.get('address'):
                 del paused[k]  # it exited, or a new agent has its name
-            elif pane['state'] == 'working' and x.get('stopped'):
+            elif _carried_on(pane, x):
                 del paused[k]
                 live.record('fix_resume', role, 'You wrote to it in its terminal.', team=team, by='you', address=pane['address'],
                             log=log, now=now, title=f'Let {role} carry on')

@@ -136,7 +136,7 @@ class Tools:
         out = []
         for t in self.brain.teams()['teams']:
             out += [{'team': t['name']} | _pane(p) for p in self.brain.map(t['name'])['panes']
-                    if p['state'] in teammap.NEEDS_YOU or (p['fix'] or {}).get('budget')]
+                    if teammap.needs_you(p) or (p['fix'] or {}).get('budget')]
         return {'needs_you': out}
 
     def _pane_of(self, team, role):

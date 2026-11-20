@@ -23,6 +23,11 @@ WORDS = ('No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', '
 NEEDS_YOU = ('asking', 'stuck', 'waiting')
 
 
+def needs_you(p):
+    """A pane waiting for the person: its state, or a pause after a fix (which usually reads idle)."""
+    return p['state'] in NEEDS_YOU or bool(p.get('paused_by_fix'))
+
+
 def _real(path):
     return os.path.realpath(path) if path else None
 
@@ -203,9 +208,6 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             if a in roles and b in roles and cwd.get(a) and cwd.get(b) and not quiet.is_quiet(cwd[a], cwd[b]):
                 tips.append({'id': f'{a}>{b}', 'from': a, 'to': b, 'share': x['share'],
                              'from_cwd': cwd[a], 'to_cwd': cwd[b]})
-    need = sum(p['state'] in NEEDS_YOU for p in v['panes'])
-    title = 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you"
-    subtitle = _subtitle(v['panes'], gs, need)
     bud = None
     if not found:  # agents found on this Mac get no limit: their messages can't be held
         bud = budget.view(team_name, {n['role']: (rep['agents'].get(n['role']) or {}).get('tokens', 0) for n in nodes}, total, now)
@@ -218,17 +220,23 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
                     ask.setdefault('fix', p['fix']['id'])
                     ask.setdefault('role', p['role'])
                     ask.setdefault('buttons', p['fix']['buttons'])
-        if bud['asks'] and not need:
-            whole = any(a['scope'] == budget.TEAM for a in bud['asks'])
-            title = 'Paused at today’s limit'
-            subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
-                        f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
-                        + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
     for p, n in zip(v['panes'], nodes):  # paused after a fix that didn't work; a budget pause wins
         card = None if n.get('paused') or p['state'] in ('asking', 'exited') else fixes.pane_fix(team_name, p['role'], now)
         p['paused_by_fix'] = bool(card)
-        if card:
+        if card:  # after Esc it usually reads idle, yet it is waiting for the person
             p['fix'], p['detail'], n['paused'] = card, 'Paused: still stuck after a fix', True
+            v['strip'] = [s for s in v['strip'] if s['role'] != p['role']] + [
+                {'role': p['role'], 'state': 'stuck', 'text': f"{p['role']} is paused: still stuck after a fix"}]
+    v['strip'].sort(key=lambda x: panes.URGENT.index(x['state']))
+    need = sum(needs_you(p) for p in v['panes'])
+    title = 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you"
+    subtitle = _subtitle(v['panes'], gs, need)
+    if bud and bud['asks'] and not need:
+        whole = any(a['scope'] == budget.TEAM for a in bud['asks'])
+        title = 'Paused at today’s limit'
+        subtitle = ('The agents stopped where they were. Nothing is lost, and nothing was closed.' if whole else
+                    f"{' and '.join(a['who'] for a in bud['asks'])} stopped where {'it was' if len(bud['asks']) == 1 else 'they were'}."
+                    + (' The others carry on.' if len(nodes) > len({r for a in bud['asks'] for r in a['roles']}) else ''))
     done = [r for r in activity.list_rows(team=team_name, now=now)['rows'] if r['action'] in DONE_FOR_YOU][:2]
     return {'team': team_name, 'found': found,
             'stopped': not any(r.get('state') == 'live' for r in rows),
@@ -429,6 +437,7 @@ class Brain:
         built = self._map(team)
         for p in built['panes']:
             p.pop('refused', None)
+            p.pop('turn_at', None)
         return built
 
     def view(self, team):

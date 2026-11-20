@@ -519,6 +519,13 @@ class FixPauseMapTest(MapCase):
         self.assertEqual([x['id'] for x in a['fix']['buttons']], ['hint', 'resume'])
         self.assertEqual([n.get('paused', False) for n in m['nodes']], [True, False])
 
+    def test_an_idle_paused_agent_needs_you(self):  # after Esc the log reads idle, not stuck
+        pause_after_fix('a', FakeRt())
+        m = self.build([row('a'), row('b')], [log_agent('a', 'idle'), log_agent('b', 'idle')])
+        self.assertEqual(m['panes'][0]['state'], 'idle')
+        self.assertEqual(m['title'], 'One agent needs you')
+        self.assertEqual([s['role'] for s in m['strip']], ['a'])
+
     def test_a_budget_pause_wins(self):
         rt = FakeRt()
         pause_after_fix('a', rt)
@@ -545,9 +552,9 @@ class BrainTest(MapCase):
     def test_the_app_never_gets_refused_commands(self):
         with mock.patch.object(status, 'running_cwds', return_value=set()):
             b = self.brain([row('a', 'working')])
-            self.assertNotIn('refused', b.map('shop')['panes'][0])
-            self.assertNotIn('refused', b.view('shop')['panes'][0])
-            self.assertIn('refused', b._map('shop')['panes'][0])  # the brain's own tick still reads them
+            for p in (b.map('shop')['panes'][0], b.view('shop')['panes'][0]):
+                self.assertFalse({'refused', 'turn_at'} & set(p))
+            self.assertTrue({'refused', 'turn_at'} <= set(b._map('shop')['panes'][0]))  # the brain's own tick still reads them
 
     def test_one_view_reads_the_logs_once_for_the_same_terminals(self):
         b = self.brain()

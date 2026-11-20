@@ -261,9 +261,38 @@ class PauseCase(unittest.TestCase):
     def test_not_paused_means_not_held(self):
         self.assertFalse(fixes.hold('shop', 'builder-3', 'planner', 'x'))
 
+    def turned(self, role, minutes, state='working'):
+        return dict(working(role), state=state, turn_at=(NOW + dt.timedelta(minutes=minutes)).strftime('%Y-%m-%dT%H:%M:%SZ'))
+
+    def test_a_stale_working_hook_with_no_new_turn_keeps_the_pause(self):
+        self.still_stuck('builder-3')  # the Stop hook doesn't run on Esc: the hook may still say working
+        fixes.check_outcomes(views(self.turned('builder-3', -20)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=12))
+        self.assertTrue(fixes.is_paused('shop', 'builder-3'))
+
+    def test_a_new_turn_ends_the_pause_whatever_its_state(self):
+        self.still_stuck('builder-3')
+        fixes.check_outcomes(views(self.turned('builder-3', 13, 'idle')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=14))
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+
+    def test_an_asking_agent_answered_later_is_no_longer_paused(self):
+        self.fix = teammap.run_automatic(views(stuck('builder-3')), AUTO, self.rt, log=self.log, now=NOW)[0]
+        asking = dict(stuck('builder-3', since_s=1200), state='asking')
+        fixes.check_outcomes(views(asking), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual(self.rt.interrupts, [])  # Esc would refuse its question
+        self.assertTrue(fixes.is_paused('shop', 'builder-3'))
+        fixes.check_outcomes(views(self.turned('builder-3', 12)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=13))
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+
+    def test_an_agent_never_pressed_ends_its_pause_once_it_works(self):  # a permission answered: same turn, no new one
+        self.fix = teammap.run_automatic(views(stuck('builder-3')), AUTO, self.rt, log=self.log, now=NOW)[0]
+        fixes.check_outcomes(views(dict(stuck('builder-3', since_s=1200), state='asking')), self.rt, log=self.log,
+                             now=NOW + dt.timedelta(minutes=10))
+        fixes.check_outcomes(views(self.turned('builder-3', -20)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=13))
+        self.assertFalse(fixes.is_paused('shop', 'builder-3'))
+
     def test_typing_in_its_terminal_ends_the_pause(self):
         self.still_stuck('builder-3')
-        fixes.check_outcomes(views(working('builder-3')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=15))
+        fixes.check_outcomes(views(self.turned('builder-3', 14)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=15))
         self.assertFalse(fixes.is_paused('shop', 'builder-3'))
         rows = activity.list_rows('shop', path=self.log, now=NOW + dt.timedelta(minutes=16))['rows']
         self.assertEqual((rows[0]['action'], rows[0]['by'], rows[0]['reason']), ('fix_resume', 'you', 'You wrote to it in its terminal.'))
