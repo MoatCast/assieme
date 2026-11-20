@@ -157,6 +157,24 @@ class OutcomeCase(unittest.TestCase):
         fixes.check_outcomes(w, self.rt, log=self.log, now=NOW + dt.timedelta(minutes=1))
         self.assertEqual(fixes.check_outcomes(w, self.rt, log=self.log, now=NOW + dt.timedelta(minutes=2)), [])
 
+    def tell_pane(self, n):
+        return dict(stuck('builder-3'), fix={'text': 'x', 'buttons': [
+            {'kind': 'action', 'action': 'tell', 'send': f'assieme: `make deploy` has been refused {n} times by rule. Do not retry it.'}]})
+
+    def tell_at(self, n):
+        a = dict(AUTO, fixes=dict(AUTO['fixes'], tell='auto'))
+        return teammap.run_automatic(views(self.tell_pane(n)), a, self.rt, log=self.log, now=NOW)[0]
+
+    def test_an_obeyed_tell_is_fixed_though_old_refusals_stay_in_the_window(self):
+        fix = self.tell_at(2)
+        fixes.check_outcomes(views(self.tell_pane(2)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual(self.row_of(fix['id'])['outcome'], 'fixed')
+
+    def test_a_tell_refused_again_is_still_stuck(self):
+        fix = self.tell_at(2)
+        fixes.check_outcomes(views(self.tell_pane(3)), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=10))
+        self.assertEqual(self.row_of(fix['id'])['outcome'], 'still_stuck')
+
     def test_outcome_entries_are_not_rows(self):
         self.nudge_at(NOW)
         fixes.check_outcomes(views(working('builder-3')), self.rt, log=self.log, now=NOW + dt.timedelta(minutes=1))

@@ -315,7 +315,7 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None):
                         ok, detail_ = False, str(e)[:120]
                     now_t, start_t = (tokens or {}).get(p['role'], (None, None))
                     entry = live.record(action, p['role'], p['fix']['text'], ok, detail_, team=name, by='auto',
-                                        address=p['address'], log=log, now=now, problem=key,
+                                        address=p['address'], log=log, now=now, problem=key, sent=b['send'],
                                         measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now))
                     entries.append(entry)
                     out.append(entry)

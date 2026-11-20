@@ -1,6 +1,7 @@
 """Automatic fixes: one attempt per problem, and the problem measured when it is attempted."""
 import datetime as dt
 import os
+import re
 import threading
 
 from . import live, quiet, status
@@ -70,10 +71,17 @@ def check_outcomes(views, rt, log=None, now=None):
                 fixed = pane['state'] == 'working'
             elif action == 'compact':
                 fixed = not pane.get('memory_full')
-            else:  # tell: fixed unless the same command is refused again by the time is up
-                fixed = now >= until and not any(b.get('action') == action for b in (pane.get('fix') or {}).get('buttons', []))
+            else:  # tell: fixed unless a refusal newer than the fix is told again by the time is up
+                fixed = now >= until and not any(_refused_again(e.get('sent'), b) for b in (pane.get('fix') or {}).get('buttons', [])
+                                                 if b.get('action') == action)
             if not fixed and now < until:
                 continue
             out.append(live.record('outcome', e['agent'], '', team=e.get('team'), by='auto', log=log, now=now,
                                    of=e['id'], result='fixed' if fixed else 'still_stuck'))
     return out
+
+
+def _refused_again(sent, button):
+    """The same tell offered with a higher refusal count (old refusals stay in the 30-minute window), or other text."""
+    old, new = (re.search(r'refused (\d+) times', t or '') for t in (sent, button.get('send')))
+    return int(new[1]) > int(old[1]) if old and new else button.get('send') != sent
