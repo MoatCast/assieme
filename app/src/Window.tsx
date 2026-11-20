@@ -5,8 +5,10 @@ import Activity from "./Activity";
 import AgentList, { type Selection, type View } from "./AgentList";
 import AgentPanel from "./AgentPanel";
 import Board from "./Board";
+import Offline from "./Offline";
+import Unreachable, { awayTitle } from "./Unreachable";
 import Review from "./Review";
-import { failedStart, isGroup, listModel, type ListModel, type Row } from "./listModel";
+import { failedStart, isGroup, listModel, ran, type ListModel, type Row } from "./listModel";
 import TeamOverview from "./TeamOverview";
 import Terminals from "./Terminals";
 import { useTeamMap } from "./useTeamMap";
@@ -63,7 +65,7 @@ function changes(before: TeamMap, after: TeamMap, beforeModel: ListModel, afterM
 const bare = (role: string): Pane => ({ role, agent: "claude", address: "", state: "working", since_s: null, detail: "", live: false, fix: null });
 
 export default function Window({ team, starting, open, pollMs = 5000, boardKey = 0, onNewTeam, onNewTask, onMerged, onDiscarded,
-  onOpenFixes = () => {} }: {
+  onOpenFixes = () => {}, onBringOver = () => {} }: {
   team: string | null;
   starting: Starting[];
   /** A link from outside (menu bar, notification): select that agent, or open its review. */
@@ -75,10 +77,12 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   /** A merge from the panel's review: the app-wide notice with Undo. */
   onMerged: (m: MergeResult) => void;
   onDiscarded: (text: string) => void;
+  /** The empty panel's "Bring your team over". */
+  onBringOver?: () => void;
   /** Settings › Fixes, from Team overview's one-time notice. */
   onOpenFixes?: () => void;
 }) {
-  const { map, waiting, refresh } = useTeamMap(team, pollMs);
+  const { map, waiting, offline, refresh } = useTeamMap(team, pollMs);
   const [chosen, setChosen] = useState<{ team: string; sel: Selection } | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [said, setSaid] = useState("");
@@ -93,7 +97,11 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
 
   const now = new Date();
   const recent = map ? fixedRecently(map, dismissed, now) : {};
-  const model = useMemo(() => (map ? listModel(map, waiting, starting, recent) : null),
+  const model = useMemo(() => {
+    if (!map) return null;
+    const m = listModel(map, waiting, starting, recent);
+    return map.unreachable ? { ...m, verdict: awayTitle(map.unreachable).title } : m;
+  },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [map, waiting, starting, JSON.stringify(recent)]);
   const sel = chosen && chosen.team === team ? chosen.sel : null;
@@ -186,7 +194,51 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   const onReview = (t: string, role: string) =>
     setReviewing({ team: t, role, ahead: waiting.find((x) => x.team === t && x.role === role)?.ahead ?? 0 });
 
-  if (!team || !map || !model) return <div className="window" />;
+  const reviewPanel = reviewing && (
+    <Review key={`${reviewing.team}/${reviewing.role}`} team={reviewing.team} role={reviewing.role}
+      from={sel?.kind === "agent" ? sel.role : reviewing.role} onBack={() => setReviewing(null)}
+      onMerged={(m) => {
+        setMerged({ role: m.role, text: `Merged into ${m.base} · ${reviewing.ahead === 1 ? "1 commit" : `${reviewing.ahead} commits`}` });
+        setReviewing(null);
+        onMerged(m);
+        refresh();
+      }}
+      onDiscarded={(text) => { setReviewing(null); onDiscarded(text); refresh(); }} />
+  );
+
+  if (!team) {
+    const empty: ListModel = { verdict: "No team is running", counts: "Your agents show here once a team starts.", assieme: null,
+      needs: [], working: [], done: [], stale: false };
+    return (
+      <div className="window">
+        <div className="window-list"><AgentList model={empty} selected={{ kind: "view", view: "overview" }} onSelect={() => {}} /></div>
+        <div className="window-panel">
+          {reviewPanel || (
+            <div className="panel-empty">
+              <h2>Start a team of agents</h2>
+              <p>Pick a folder and describe the work. Assieme starts the agents, each in its own terminal and branch, and fixes problems on its own while they work.</p>
+              <div className="panel-empty-buttons">
+                <button type="button" className="btn-primary" onClick={onNewTeam}>New team</button>
+                <button type="button" className="btn-secondary" onClick={onBringOver}>Bring your team over</button>
+              </div>
+              {waiting.length > 0 && (
+                <div className="panel-empty-review">
+                  <h3>Ready to review from earlier teams</h3>
+                  {waiting.map((w) => (
+                    <div className="panel-empty-row" key={`${w.team}/${w.role}`}>
+                      <span className="grow"><code>{w.role}</code><small>{`${w.team} · ${w.ahead === 1 ? "1 commit" : `${w.ahead} commits`}`}</small></span>
+                      <button type="button" className="btn-secondary" onClick={() => onReview(w.team, w.role)}>Review changes</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  if (!map || !model) return <div className="window"><div className="window-panel">{offline && <Offline team />}</div></div>;
   const live = map.panes.filter((p) => p.state !== "exited").length;
   const fixed = map.fixes_today?.fixed ?? 0;
   const views: Record<View, string> = {
@@ -203,17 +255,9 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
         {sel && <AgentList model={model} selected={sel} views={views} onSelect={select} />}
       </div>
       <div ref={panel} className="window-panel">
-        {reviewing && (
-          <Review key={`${reviewing.team}/${reviewing.role}`} team={reviewing.team} role={reviewing.role}
-            from={sel?.kind === "agent" ? sel.role : reviewing.role} onBack={() => setReviewing(null)}
-            onMerged={(m) => {
-              setMerged({ role: m.role, text: `Merged into ${m.base} · ${reviewing.ahead === 1 ? "1 commit" : `${reviewing.ahead} commits`}` });
-              setReviewing(null);
-              onMerged(m);
-              refresh();
-            }}
-            onDiscarded={(text) => { setReviewing(null); onDiscarded(text); refresh(); }} />
-        )}
+        {offline && <div className="panel-offline"><Offline team /></div>}
+        {map.unreachable && <div className="panel-away"><Unreachable line={map.unreachable} onRetried={refresh} /></div>}
+        {reviewPanel}
         {!reviewing && merged && selectedPane?.role === merged.role && <p className="panel-merged" role="status">{merged.text}</p>}
         {!reviewing && selectedPane && (
           <AgentPanel key={`${team}/${selectedPane.role}`} team={team} pane={selectedPane} full={full} onFullSize={setFull}
@@ -223,7 +267,17 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
             review={waiting.find((x) => x.team === team && x.role === selectedPane.role) ?? null}
             onChanged={refresh} onReview={onReview} />
         )}
-        {!reviewing && sel?.kind === "view" && sel.view === "overview" && (
+        {!reviewing && sel?.kind === "view" && sel.view === "overview" && map.stopped && (
+          <div className="panel-empty">
+            <h2>{`All ${map.panes.length === 1 ? "1 agent" : `${map.panes.length} agents`} stopped at ${map.run?.stopped_at ?? ""}.`.replace(" at .", ".")}</h2>
+            {map.run && <p>{[ran(map.run.minutes), `Assieme fixed ${map.run.fixed === 1 ? "1 problem" : `${map.run.fixed} problems`}`,
+              `${map.run.tasks_done === 1 ? "1 task" : `${map.run.tasks_done} tasks`} done`].join(" · ")}</p>}
+            <div className="panel-empty-buttons">
+              <button type="button" className="btn-secondary" onClick={() => select({ kind: "view", view: "activity" })}>Open Activity</button>
+            </div>
+          </div>
+        )}
+        {!reviewing && sel?.kind === "view" && sel.view === "overview" && !map.stopped && (
           <TeamOverview team={team} map={map} waiting={waiting} onRefresh={refresh} onReview={onReview} onOpenFixes={onOpenFixes}
             onSelectAgent={(role) => select({ kind: "agent", role })} onSeeAll={() => select({ kind: "view", view: "activity" })} />
         )}

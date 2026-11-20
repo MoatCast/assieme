@@ -26,9 +26,10 @@ const ASKING = MAP({ panes: [pane("planner", { state: "asking", since_s: 720, fi
   pane("builder-4", { state: "asking", since_s: 10, fix: Q("Go?") }), pane("builder-1")] });
 const QUIET = MAP({ panes: [pane("builder-1"), pane("tester", { state: "idle" })] });
 
-const show = async (map: TeamMap, team = "shop") => {
+const show = async (map: TeamMap, team: string | null = "shop") => {
   b.teamMap.mockResolvedValue(map);
-  const props = { team, starting: [], open: null, onNewTeam: vi.fn(), onNewTask: vi.fn(), onMerged: vi.fn(), onDiscarded: vi.fn(), boardKey: 0, pollMs: 100000 };
+  const props = { team: team as string | null, starting: [], open: null, onNewTeam: vi.fn(), onNewTask: vi.fn(), onMerged: vi.fn(), onDiscarded: vi.fn(),
+    onBringOver: vi.fn(), boardKey: 0, pollMs: 100000 };
   const r = render(<Window {...props} />);
   await flush();
   return { ...r, props };
@@ -168,4 +169,49 @@ test("Review opens in the panel; Back returns to the agent; a merge says so unti
   expect(screen.queryByTestId("panel-review")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /builder-1, working/ }));
   expect(screen.queryByText("Merged into main · 3 commits")).toBeNull();
+});
+
+test("no team running: the heading alone, and the panel offers to start one", async () => {
+  b.reviewWaiting.mockResolvedValue([{ team: "website", project: "/w", role: "docs-writer", branch: "b", ahead: 2 }]);
+  const { props } = await show(MAP(), null);
+  expect(screen.getByText("No team is running")).toBeTruthy();
+  expect(screen.getByText("Your agents show here once a team starts.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Team overview/ })).toBeNull();
+  expect(screen.getByRole("heading", { name: "Start a team of agents" })).toBeTruthy();
+  expect(screen.getByText(/fixes problems on its own while they work\.$/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "New team" }));
+  expect(props.onNewTeam).toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Bring your team over" }));
+  expect(props.onBringOver).toHaveBeenCalled();
+  expect(screen.getByText("Ready to review from earlier teams")).toBeTruthy();
+  expect(screen.getByText("website · 2 commits")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+  expect(screen.getByTestId("panel-review").textContent).toContain("review of docs-writer");
+});
+
+test("a stopped team: the run in the heading, and the panel says when it stopped", async () => {
+  await show(MAP({ stopped: true, panes: [pane("a", { state: "exited" }), pane("b", { state: "exited" })],
+    run: { minutes: 192, fixed: 4, tasks_done: 3, stopped_at: "12:40" } }));
+  expect(screen.getByText("The team has stopped")).toBeTruthy();
+  expect(screen.getAllByText("Ran 3 h 12 min · Assieme fixed 4 problems · 3 tasks done")).toHaveLength(2); // the heading and the panel
+  expect(screen.getByText("All 2 agents stopped at 12:40.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Open Activity" }));
+  expect(screen.getByTestId("panel-activity")).toBeTruthy();
+});
+
+test("an unreachable machine keeps the rows, hollow, and says when it went", async () => {
+  const away = { name: "Mac mini", target: "mini", state: "unreachable" as const, since_ms: new Date(2026, 10, 20, 14, 2).getTime() };
+  await show(MAP({ unreachable: away, panes: [pane("a"), pane("b", { state: "idle" })] }));
+  expect(screen.getByText("Can’t reach Mac mini")).toBeTruthy();
+  expect(document.querySelectorAll(".agent-list .list-dot.stale")).toHaveLength(2);
+  expect(screen.getByText("Since 14:02. Assieme keeps trying and reconnects as soon as Mac mini is back. Answers and other changes wait until then.")).toBeTruthy();
+});
+
+test("offline: the last map stays at full strength, and the panel says so", async () => {
+  const { rerender, props } = await show(QUIET);
+  b.teamMap.mockRejectedValue(new Error("down"));
+  rerender(<Window {...props} pollMs={100001} />);
+  await flush();
+  expect(screen.getByRole("button", { name: /builder-1, working/ })).toBeTruthy();
+  expect(screen.getByText("Reconnecting…")).toBeTruthy();
 });

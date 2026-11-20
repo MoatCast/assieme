@@ -7,3 +7,15 @@
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .panel-merged { margin: 18px 24px 0; padding: 12px 18px; border-radius: 14px; background: var(--quiet-fixed-tint); color: var(--quiet-working-text);
   font-size: 14px; font-weight: 600; line-height: 20px; }
+.panel-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 440px; max-width: calc(100% - 48px); margin: auto; text-align: center; }
+.panel-empty h2 { margin: 0; color: var(--quiet-ink); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; line-height: 28px; }
+.panel-empty p { margin: 0; color: var(--quiet-slate); font-size: 14px; line-height: 21px; }
+.panel-empty-buttons { display: flex; gap: 10px; margin-top: 6px; }
+.panel-empty-review { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 28px; text-align: left; }
+.panel-empty-review h3 { margin: 0; color: var(--quiet-slate); font-size: 12px; font-weight: 600; line-height: 16px; }
+.panel-empty-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--quiet-line); border-radius: 12px; }
+.panel-empty-row .grow { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.panel-empty-row code { color: var(--quiet-ink); font: 550 13px/16px var(--quiet-font-mono); }
+.panel-empty-row small { color: var(--quiet-mute); font-size: 12px; line-height: 16px; }
+.panel-empty-row .btn-secondary { padding: 5px 12px; font-size: 13px; line-height: 16px; }
+.panel-offline, .panel-away { margin: 14px 24px 0; }

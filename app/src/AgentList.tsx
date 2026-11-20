@@ -100,7 +100,8 @@ function Section({ label, cls, items, selected, onSelect }: {
 export default function AgentList({ model, selected, views, onSelect, children }: {
   model: ListModel;
   selected: Selection;
-  views: Record<View, string>;
+  /** The views' counts; none when no team runs (the list is its heading alone). */
+  views?: Record<View, string>;
   onSelect: (s: Selection) => void;
   /** Under the heading, before the sections: New team when no team runs. */
   children?: ReactNode;
@@ -123,7 +124,7 @@ export default function AgentList({ model, selected, views, onSelect, children }
         <Section label="Working" cls="" items={model.working} selected={selected} onSelect={onSelect} />
         <Section label="Done" cls="" items={model.done} selected={selected} onSelect={onSelect} />
       </div>
-      <div className="list-views">
+      {views && <div className="list-views">
         {VIEWS.map((v) => {
           const on = selected.kind === "view" && selected.view === v.view;
           return (
@@ -135,7 +136,7 @@ export default function AgentList({ model, selected, views, onSelect, children }
             </button>
           );
         })}
-      </div>
+      </div>}
     </nav>
   );
 }

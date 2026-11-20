@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { onNewTeam, onOpen, onOpenSettings,reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import { installedOf } from "./kinds";
 import AddAgent from "./AddAgent";
+import BringOver from "./BringOver";
 import Appearance from "./Appearance";
 import { NewTask } from "./Board";
 import FirstRun from "./FirstRun";
@@ -35,6 +36,7 @@ export default function Shell() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [bringing, setBringing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [briefing, setBriefing] = useState(false);
   const [tasking, setTasking] = useState(false);
@@ -165,7 +167,7 @@ export default function Shell() {
         <div className="shell-page" hidden={!!review}>
           <Window team={team} starting={snap?.starting ?? []} open={open} boardKey={boardKey}
             onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
-            onMerged={(m) => { setNotice(""); setMerged(m); }} onDiscarded={setNotice}
+            onMerged={(m) => { setNotice(""); setMerged(m); }} onDiscarded={setNotice} onBringOver={() => setBringing(true)}
             onOpenFixes={() => { setSettingsAt("fixes"); setSettings(true); }} />
         </div>
       )}
@@ -193,6 +195,9 @@ export default function Shell() {
       {creating && (
         <NewTeam key={draft?.id ?? "new"} clis={installedOf(snap?.clis)} draft={draft}
           onClose={() => { setCreating(false); setDraft(null); }} />
+      )}
+      {bringing && (
+        <BringOver onClose={() => setBringing(false)} onImported={(d) => { setBringing(false); setDraft(d); setCreating(true); }} />
       )}
       {adding && team && (
         <AddAgent team={team} roles={(snap?.teams ?? []).filter((t) => t.team === team && t.state === "live").map((t) => t.role ?? t.address)}

@@ -9,7 +9,11 @@ export function useTeamMap(team: string | null, pollMs: number) {
   const refresh = useRef<() => void>(() => {});
 
   useEffect(() => {
-    if (!team) return;
+    if (!team) { // no team: only other teams' work to review (the empty panel lists it)
+      let stopped = false;
+      reviewWaiting().then((w) => !stopped && setWaiting(w), () => {});
+      return () => { stopped = true; };
+    }
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let busy = false;

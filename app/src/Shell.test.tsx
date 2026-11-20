@@ -17,20 +17,23 @@ vi.mock("./FirstRun", async () => {
 });
 const undo = vi.hoisted(() => vi.fn());
 vi.mock("./Window", () => ({
-  default: ({ team, open, boardKey, onNewTeam, onNewTask, onMerged, onDiscarded }: {
+  default: ({ team, open, boardKey, onNewTeam, onNewTask, onMerged, onDiscarded, onBringOver }: {
     team: string | null; open: { role: string | null; view: string | null } | null; boardKey: number;
-    onNewTeam: () => void; onNewTask: () => void; onMerged: (m: object) => void; onDiscarded: (t: string) => void;
+    onNewTeam: () => void; onNewTask: () => void; onMerged: (m: object) => void; onDiscarded: (t: string) => void; onBringOver: () => void;
   }) => (
     <div>
       <span>window for {team ?? "none"}</span><span>read {boardKey}</span>{open?.role && <span>selected {open.role}</span>}
       <button type="button" onClick={onNewTeam}>empty new team</button>
       <button type="button" onClick={onNewTask}>board new task</button>
+      <button type="button" onClick={onBringOver}>bring over</button>
       <button type="button" onClick={() => onMerged({ role: "builder-1", base: "main", problem: null, undo: "u1" })}>merge</button>
       <button type="button" onClick={() => onMerged({ role: "builder-1", base: "main", problem: "Couldn't archive its worktree: locked", undo: "u2" })}>merge, archive fails</button>
       <button type="button" onClick={() => onDiscarded("Discarded builder-1's work.")}>discard</button>
     </div>
   ),
 }));
+vi.mock("./BringOver", () => ({ default: ({ onImported }: { onImported: (d: { id: string; why: string }) => void }) => (
+  <button type="button" onClick={() => onImported({ id: "d2", why: "from conductor" })}>import it</button>) }));
 vi.mock("./Review", () => ({
   default: ({ team, role, onBack, onMerged, onDiscarded }: {
     team: string; role: string; onBack: () => void;
@@ -302,4 +305,13 @@ test("the menu bar can open an agent's terminal or its review", async () => {
   expect(screen.queryByText("new team screen")).toBeNull();
   await act(async () => opened({ team: "shop", role: "builder-1", view: "review" }));
   expect(document.body.textContent).toContain("builder-1");
+});
+
+test("Bring your team over from the empty window opens its sheet, and an import opens New team", async () => {
+  snap.current = SNAP([]);
+  render(<Shell />);
+  await flush();
+  fireEvent.click(screen.getByRole("button", { name: "bring over" }));
+  fireEvent.click(screen.getByRole("button", { name: "import it" }));
+  expect(screen.getByText("new team screen, drafted: from conductor")).toBeTruthy();
 });
