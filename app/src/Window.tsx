@@ -203,7 +203,10 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
           <TeamOverview team={team} map={map} waiting={waiting} onRefresh={refresh} onReview={onReview} onOpenFixes={onOpenFixes}
             onSelectAgent={(role) => select({ kind: "agent", role })} onSeeAll={() => select({ kind: "view", view: "activity" })} />
         )}
-        {sel?.kind === "view" && sel.view === "terminals" && <Terminals team={team} pollMs={3000} onNewTeam={onNewTeam} onReview={onReview} />}
+        {sel?.kind === "view" && sel.view === "terminals" && (
+          <Terminals team={team} pollMs={3000} onNewTeam={onNewTeam} onReview={onReview} onSelect={(role) => select({ kind: "agent", role })}
+            checking={Object.fromEntries(map.done.filter((r) => r.agent && r.outcome === "checking").reverse().map((r) => [r.agent!, r]))} />
+        )}
         {sel?.kind === "view" && sel.view === "board" && (
           <Board team={team} pollMs={5000} refreshKey={boardKey} onNewTeam={onNewTeam} onNewTask={onNewTask}
             onOpenTerminal={(role) => select({ kind: "agent", role })} onReview={onReview} />

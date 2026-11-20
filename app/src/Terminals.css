@@ -1,4 +1,4 @@
-/* Terminals, from Paper "v2 — Terminals". */
+/* All terminals, from Paper "Main window: all terminals" (a tile selects its agent). */
 .terminals { display: flex; flex-direction: column; gap: 12px; padding: 12px; box-sizing: border-box; min-height: 0; flex: 1; }
 .terminals.empty { align-items: center; justify-content: center; color: var(--quiet-slate); font-size: 14px; }
 .terminals button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; padding: 0; }
@@ -10,12 +10,6 @@
 .terminals .quiet { color: var(--quiet-slate); font-size: 13px; padding: 5px 6px; }
 .terminals .link { color: var(--quiet-ink); font-size: 13px; font-weight: 500; }
 .terminals .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--quiet-line-strong); flex-shrink: 0; display: inline-block; }
-.terminals .strip { display: flex; align-items: center; gap: 14px; background: var(--quiet-surface); border: 1px solid var(--quiet-line);
-  border-radius: var(--quiet-radius-sheet); box-shadow: var(--quiet-sheet-shadow); padding: 9px 14px; font-size: 13px; line-height: 16px; }
-.terminals .strip-count { display: flex; align-items: center; gap: 8px; font-weight: 600; padding-right: 14px;
-  border-right: 1px solid var(--quiet-line); white-space: nowrap; }
-.terminals .strip-count .dot { background: var(--quiet-needs-you); box-shadow: 0 0 0 3px color-mix(in srgb, var(--quiet-needs-you) 15%, transparent); }
-.terminals .strip-lines { flex: 1; min-width: 0; display: flex; gap: 18px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .terminals .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(300px, 1fr); gap: 12px; flex: 1; min-height: 0; }
 @media (min-width: 1200px) { .terminals .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .terminals .pane { display: flex; flex-direction: column; min-height: 0; background: var(--quiet-surface);
@@ -23,7 +17,6 @@
 .terminals .pane.needs { border: 1.5px solid var(--quiet-needs-you); }
 .terminals .pane-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--quiet-line);
   cursor: pointer; font-size: 12px; line-height: 16px; }
-.terminals .pane.full .pane-head { cursor: default; }
 .terminals .pane-name { font: 600 13px/16px var(--quiet-font-mono); color: var(--quiet-ink); }
 .terminals .pane-cli { color: var(--quiet-mute); }
 .terminals .pane-state { margin-left: auto; color: var(--quiet-slate); }
@@ -43,9 +36,6 @@
 .terminals .pane.needs .fix { background: var(--quiet-needs-you-tint); border-top-color: var(--quiet-needs-you-line); }
 .terminals .fix-reason { flex: 1; min-width: 0; color: var(--quiet-slate); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .terminals .pane.needs .fix-reason { color: var(--quiet-needs-you-text); }
-.terminals .focus { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
-.terminals .focus .pane { flex: 1; }
-.terminals .back { align-self: flex-start; color: var(--quiet-slate); font-size: 13px; }
 .terminals .offline { align-self: flex-start; color: var(--quiet-waste-text); font-size: 13px; }
 .terminals .waiting { display: flex; flex-direction: column; gap: 12px; width: 420px; max-width: 100%; box-sizing: border-box; margin-top: 16px; padding: 18px;
   background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-sheet); box-shadow: var(--quiet-sheet-shadow); }
@@ -54,3 +44,12 @@
 .terminals .waiting-role { font-family: var(--quiet-font-mono); color: var(--quiet-ink); }
 .terminals .waiting-where { flex: 1; min-width: 0; color: var(--quiet-mute); }
 .terminals .waiting .secondary { font-size: 12px; font-weight: 500; color: var(--quiet-ink); flex-shrink: 0; }
+
+.terminals .pane .btn-outline { padding: 3px 10px; border: 1px solid var(--quiet-outline); border-radius: 999px; background: var(--quiet-surface);
+  color: var(--quiet-ink); font-size: 12px; font-weight: 500; line-height: 16px; }
+.terminals .pane .btn-ghost { padding: 4px 6px; color: var(--quiet-ink); font-size: 12px; font-weight: 500; line-height: 16px; }
+.terminals .pane.assieme { border: 1.5px solid var(--quiet-assieme-line); }
+.terminals .pane.assieme .pane-head { background: var(--quiet-assieme-tint); }
+.terminals .pane.assieme .pane-state { color: var(--quiet-accent); }
+.terminals .pane .assieme-foot { background: var(--quiet-assieme-tint); border-top-color: var(--quiet-assieme-track); }
+.terminals .pane .assieme-foot .fix-reason { color: var(--quiet-accent); font-size: 12px; }
