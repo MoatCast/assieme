@@ -6,8 +6,13 @@ import { MAP, Q, fixRow, pane } from "./windowFixtures";
 const b = vi.hoisted(() => ({ teamMap: vi.fn(), reviewWaiting: vi.fn() }));
 vi.mock("./bridge", () => b);
 // The panels have their own tests; here each one only says which it is.
-vi.mock("./AgentPanel", () => ({ default: ({ pane }: { pane: { role: string } }) => (
-  <div data-testid="panel-agent">{pane.role}<div data-terminal tabIndex={-1} data-testid="term" /></div>) }));
+vi.mock("./AgentPanel", () => ({ default: ({ team, pane, onReview }: { team: string; pane: { role: string }; onReview: (t: string, r: string) => void }) => (
+  <><div data-testid="panel-agent">{pane.role}<div data-terminal tabIndex={-1} data-testid="term" /></div>
+    <button type="button" onClick={() => onReview(team, pane.role)}>Review changes</button></>) }));
+vi.mock("./Review", () => ({ default: ({ role, from, onBack, onMerged }: { role: string; from: string; onBack: () => void; onMerged: (m: object) => void }) => (
+  <div data-testid="panel-review">review of {role} from {from}
+    <button type="button" onClick={onBack}>back</button>
+    <button type="button" onClick={() => onMerged({ role, base: "main", problem: null, undo: "u1" })}>merge</button></div>) }));
 vi.mock("./TeamOverview", () => ({ default: () => <div data-testid="panel-overview" /> }));
 vi.mock("./Terminals", () => ({ default: () => <div data-testid="panel-terminals" /> }));
 vi.mock("./Board", () => ({ default: () => <div data-testid="panel-board" /> }));
@@ -23,7 +28,7 @@ const QUIET = MAP({ panes: [pane("builder-1"), pane("tester", { state: "idle" })
 
 const show = async (map: TeamMap, team = "shop") => {
   b.teamMap.mockResolvedValue(map);
-  const props = { team, starting: [], open: null, onNewTeam: vi.fn(), onReview: vi.fn(), onNewTask: vi.fn(), boardKey: 0, pollMs: 100000 };
+  const props = { team, starting: [], open: null, onNewTeam: vi.fn(), onNewTask: vi.fn(), onMerged: vi.fn(), onDiscarded: vi.fn(), boardKey: 0, pollMs: 100000 };
   const r = render(<Window {...props} />);
   await flush();
   return { ...r, props };
@@ -146,4 +151,21 @@ test("selecting a fixed row puts its line back to normal", async () => {
   expect(screen.getByText(`✓ Fixed by Assieme · ${hhmm}`)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /builder-3/ }));
   expect(screen.queryByText(`✓ Fixed by Assieme · ${hhmm}`)).toBeNull();
+});
+
+test("Review opens in the panel; Back returns to the agent; a merge says so until the selection changes", async () => {
+  b.reviewWaiting.mockResolvedValue([{ team: "shop", project: "/p", role: "tester", branch: "b", ahead: 3 }]);
+  const { props } = await show(QUIET);
+  fireEvent.click(screen.getByRole("button", { name: /tester, done/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+  expect(screen.getByTestId("panel-review").textContent).toContain("review of tester from tester");
+  fireEvent.click(screen.getByRole("button", { name: "back" }));
+  expect(screen.getByTestId("panel-agent").textContent).toContain("tester");
+  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+  fireEvent.click(screen.getByRole("button", { name: "merge" }));
+  expect(props.onMerged).toHaveBeenCalled();
+  expect(screen.getByText("Merged into main · 3 commits")).toBeTruthy();
+  expect(screen.queryByTestId("panel-review")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /builder-1, working/ }));
+  expect(screen.queryByText("Merged into main · 3 commits")).toBeNull();
 });

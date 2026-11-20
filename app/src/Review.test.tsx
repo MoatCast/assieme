@@ -176,11 +176,11 @@ test("a refused merge shows the brain's words and keeps the screen", async () =>
 
 test("Discard asks first and says what goes", async () => {
   await open();
-  await click("Discard");
+  await click("Discard changes");
   expect(screen.getByText(/removes its 3 commits and its worktree/)).toBeInTheDocument();
   await click("Keep it");
   expect(b.reviewDiscard).not.toHaveBeenCalled();
-  await click("Discard");
+  await click("Discard changes");
   fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Discard" }));
   await flush();
   expect(b.reviewDiscard).toHaveBeenCalledWith("shop", "builder-1", "abc");
@@ -244,7 +244,7 @@ test("a branch that has gone says so, with the way back", async () => {
   b.reviewGet.mockRejectedValue("builder-1 has no branch to review.");
   await open();
   expect(screen.getByText("builder-1 has no branch to review.")).toBeInTheDocument();
-  await click("Terminals");
+  await click("‹ builder-1");
   expect(onBack).toHaveBeenCalled();
 });
 
@@ -317,11 +317,30 @@ test("a notice goes by itself", async () => {
 test("the back link names where you came from", async () => {
   render(<Review team="shop" role="builder-1" from="Team" onBack={onBack} onMerged={onMerged} onDiscarded={onDiscarded} />);
   await act(async () => {});
-  await click("Team");
+  await click("‹ Team");
   expect(onBack).toHaveBeenCalled();
 });
 
 test("faces: a note shows its author's musician", async () => { // step 31
   await open();
   expect(screen.getAllByRole("img", { name: "reviewer, score, idle" }).length).toBeGreaterThan(0);
+});
+
+test("an open reviewer comment is a fourth check, and makes Ask for changes the filled button", async () => {
+  await open();
+  expect(screen.getByText("2 reviewer comments open")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Ask for changes" }).className).toBe("btn-primary");
+  expect(screen.getByRole("button", { name: "Merge into main" }).className).toBe("btn-outline");
+  fireEvent.click(screen.getByRole("button", { name: /^config\.py/ }));
+  await click("Show");
+  expect(screen.getByRole("button", { name: /retry\.py/ }).getAttribute("aria-current")).toBe("true");
+});
+
+test("with no comment open, Merge is the filled button and Discard changes stands apart", async () => {
+  b.reviewGet.mockResolvedValue(withChecks({ notes: [] }));
+  await open();
+  expect(screen.queryByText(/reviewer comment/)).toBeNull();
+  expect(screen.getByRole("button", { name: "Merge into main" }).className).toBe("btn-primary");
+  expect(screen.getByRole("button", { name: "Ask for changes" }).className).toBe("btn-outline");
+  expect(screen.getByRole("button", { name: "Discard changes" }).className).toBe("discard");
 });

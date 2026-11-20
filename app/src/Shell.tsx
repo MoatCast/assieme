@@ -165,7 +165,7 @@ export default function Shell() {
         <div className="shell-page" hidden={!!review}>
           <Window team={team} starting={snap?.starting ?? []} open={open} boardKey={boardKey}
             onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
-            onReview={(t, role) => setReview({ team: t, role })}
+            onMerged={(m) => { setNotice(""); setMerged(m); }} onDiscarded={setNotice}
             onOpenFixes={() => { setSettingsAt("fixes"); setSettings(true); }} />
         </div>
       )}
