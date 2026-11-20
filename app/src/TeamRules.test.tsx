@@ -53,3 +53,9 @@ test("Done returns", () => {
   fireEvent.click(screen.getByRole("button", { name: "Done" }));
   expect(h.onDone).toHaveBeenCalled();
 });
+
+test("a group's sheet is labelled Team rules", () => {
+  rules();
+  fireEvent.click(screen.getByRole("button", { name: "Careful reviews: each rule" }));
+  screen.getByText("Team rules");
+});

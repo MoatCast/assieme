@@ -124,24 +124,24 @@ detail = "While iterating, only the tests for what changed; the full set once, o
 text = "While iterating, run only the relevant tests; run the full set once, on the final version, as the evidence."
 
 [[basic]]
-title = "Only the coordinator pushes, merges and talks to GitHub"
-detail = "Builders commit locally; reviewers only read."
+title = "No agent pushes; you merge"
+detail = "Builders save versions on their own copy, and reviewers only read. You decide what gets merged."
 
 [[basic]]
-title = "Each role gets its own checkout"
-detail = "Builders on their own branch, the coordinator and reviewers read-only, so no two agents edit the same files."
+title = "Each agent works on its own copy"
+detail = "Builders work on their own branch; the planner and reviewers only read, so no two agents edit the same files."
 
 [[basic]]
-title = "Workers report to their coordinator automatically"
-detail = "Workers are the coordinator’s children, so their exits, blocks and errors reach it."
+title = "Agents tell the planner when they stop or get stuck"
+detail = "When an agent stops, is blocked or hits an error, the planner hears about it."
 
 [[basic]]
 title = "No message until an agent has finished starting"
 detail = "An agent gets its brief only after it reports its first status, so nothing is lost while it starts."
 
 [[basic]]
-title = "No polling or long sleeps; checks every 5 minutes"
-detail = "A waiter stops on change and says whether something changed, timed out or failed."
+title = "Waiting agents wake on a change, not on a timer"
+detail = "Assieme checks every 5 minutes and tells the agent whether the change came, the wait ran out, or it failed."
 
 [[basic]]
 title = "Read an agent’s latest output before acting"

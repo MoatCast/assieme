@@ -184,7 +184,7 @@ export default function BriefEditor({ role, roles, project, installed, kinds, ta
             </div>
             <div className="editor-tip">
               <b>Added automatically</b>
-              <span>Recommended setup adds the report line, stop rules and handoff format. You don’t need to write them.</span>
+              <span>Team rules add the report line, stop rules and handoff format. You don’t need to write them.</span>
             </div>
           </aside>
         </div>

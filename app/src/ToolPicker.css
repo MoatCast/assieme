@@ -3,10 +3,10 @@
 .modal.tools { width: 560px; max-height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 18px; }
 .modal.tools p { margin: 0; }
 .modal.tools .tools-note { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 13px; line-height: 18px;
-  color: var(--quiet-tip-text); background: var(--quiet-tip-tint); border: 1px solid var(--quiet-tip-line);
+  color: var(--quiet-slate); background: var(--quiet-assieme-tint);
   border-radius: var(--quiet-radius-inner); }
 .modal.tools .tools-note span { flex: 1; }
-.modal.tools .tools-note .link-btn { color: var(--quiet-tip-text); }
+.modal.tools .tools-note .link-btn { color: var(--quiet-ink); }
 .modal.tools .tools-search { display: flex; align-items: center; gap: 12px; font-size: 13px; }
 .modal.tools .tools-field { flex: 1; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
   color: var(--quiet-control); border: 1px solid var(--quiet-line-strong); border-radius: 999px; }

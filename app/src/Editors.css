@@ -54,9 +54,9 @@
   font-size: 12px; line-height: 16px; color: var(--quiet-mute); cursor: pointer; }
 .owned-input { width: 100%; box-sizing: border-box; padding: 3px 8px; border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-control);
   background: var(--quiet-surface); color: var(--quiet-ink); font-family: var(--quiet-font-mono); font-size: 12px; line-height: 16px; }
-.editor-tip { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--quiet-tip-tint); border: 1px solid var(--quiet-tip-line);
-  border-radius: 14px; font-size: 12px; line-height: 17px; color: var(--quiet-tip-text); }
-.editor-tip b { font-weight: 600; line-height: 16px; }
+.editor-tip { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--quiet-assieme-tint);
+  border-radius: 14px; font-size: 12px; line-height: 17px; color: var(--quiet-slate); }
+.editor-tip b { font-weight: 600; line-height: 16px; color: var(--quiet-ink); }
 
 .editor-foot { display: flex; align-items: center; gap: 12px; padding: 14px 28px; border-top: 1px solid var(--quiet-line); flex-shrink: 0; }
 .editor-improve { display: flex; align-items: center; gap: 14px; }
