@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Details, { splitDetail } from "./Details";
+import Explain from "./Explain";
 import type { Practices, RoleDraft, Settings } from "./bridge";
 import { kindName } from "./kinds";
 import { rulesLine, teamSummary, whileTheyWork } from "./newTeamSteps";
@@ -42,7 +43,7 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
         <div className="does-row">
           <b>Before they start</b>
           <div className="does-text">
-            <p>{rulesLine(practices, value)}</p>
+            <p>{rulesLine(practices, value)} <Explain term="team-rules" /></p>
             <button type="button" className="link" onClick={onRules}>Review team rules ›</button>
           </div>
         </div>
@@ -53,7 +54,7 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
         <div className="does-row">
           <b>Always</b>
           <div className="does-text">
-            <p>Each agent works on its own copy. No agent pushes; you merge. Permission prompts always come to you.</p>
+            <p>Each agent works on its own copy<Explain term="copy" />. No agent pushes; you merge. Permission prompts always come to you.<Explain term="permissions" /></p>
             <button type="button" className="link" onClick={() => setAlways(true)}>{`See all ${practices.basics.length} ›`}</button>
           </div>
         </div>

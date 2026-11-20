@@ -114,3 +114,10 @@ test("no Details without a detail", () => {
   screen.getByText(/^not installed: codex\./);
   expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
 });
+
+test("team rules, copy and permissions each have a ?", () => {
+  step();
+  screen.getByRole("button", { name: "What are team rules?" });
+  screen.getByRole("button", { name: "What is a copy?" });
+  screen.getByRole("button", { name: "What are permissions?" });
+});

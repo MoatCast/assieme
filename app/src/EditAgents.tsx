@@ -7,6 +7,7 @@ import Musician from "./Musician";
 import type { Clis } from "./StepPanel";
 import { toolSummary } from "./ToolPicker";
 import useModal from "./useModal";
+import Explain from "./Explain";
 
 /** An import from herdr or another tool: what didn't carry over, and the team still running there (if it is). */
 export type Imported = Pick<TeamDraft, "notes" | "running" | "from" | "tool" | "label" | "scripts" | "allow_scripts" | "cards">;
@@ -39,7 +40,7 @@ export default function EditAgents({ project, roles, installed, models, tools, l
           <div className="field">
             <div className="row">
               <div className="label">Agents</div>
-              {roles.some((r) => r.container) && <div className="small">The box icon means it runs sealed off.</div>}
+              {roles.some((r) => r.container) && <div className="small">The box icon means it runs sealed off.<Explain term="sealed-off" /></div>}
             </div>
             <div className="agents">
               {roles.map((r, i) => (
