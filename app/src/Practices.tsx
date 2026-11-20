@@ -10,7 +10,7 @@ export const ruleCount = (n: number) => (n === 1 ? "1 rule" : `${n} rules`);
 /** Agents are told not to push only while the group and its rule are both on. */
 export const pushesBlocked = (v: Choice) => v.safety !== false && v["no-push"] !== false;
 // A researcher or investigator by its name, never by its job's wording: the brain's preset.RESEARCHER.
-const RESEARCHER = /^(research|investigat)/i;
+export const RESEARCHER = /^(research|investigat)/i;
 
 /** How many agents a team starts with, counting those the presets for bigger teams add. */
 export function agentCount(roles: RoleDraft[], v: Choice) {

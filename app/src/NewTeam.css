@@ -80,8 +80,8 @@
   background: var(--quiet-surface); transition: transform 0.15s; }
 .newteam .toggle:checked { background: var(--quiet-ink); }
 .newteam .toggle:checked::after { transform: translateX(14px); }
-.newteam .basics { display: flex; align-items: center; gap: 10px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner);
-  padding: 9px 14px; font-size: 13px; line-height: 16px; }
+.newteam .basics { display: flex; align-items: center; gap: 10px; background: var(--quiet-fog); border-radius: 14px;
+  padding: 10px 14px; font-size: 13px; line-height: 16px; }
 .newteam .basics b { font-weight: 600; }
 .newteam .basic-list { margin: 0; padding: 0 14px 0 30px; display: flex; flex-direction: column; gap: 6px;
   color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
@@ -150,3 +150,14 @@
 .newteam .warn-block { padding: 14px 18px; background: var(--quiet-tip-tint); border: 1px solid var(--quiet-tip-line);
   border-radius: var(--quiet-radius-card); color: var(--quiet-tip-text); font-size: 14px; line-height: 20px; }
 .newteam .bring { margin: 0; padding: 4px 4px 0; display: flex; align-items: center; gap: 6px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+/* Start: what Assieme does, from Paper "v3 — New team: Start, what Assieme does". */
+.newteam .does { background: var(--quiet-assieme-tint); border-radius: var(--quiet-radius-card); padding: 4px 20px; display: flex; flex-direction: column; }
+.newteam .does-row { display: flex; gap: 20px; padding: 16px 0; }
+.newteam .does-row + .does-row { border-top: 1px solid var(--light, #d9dff5) var(--dark, #323c5e); }
+.newteam .does-row > b { width: 132px; flex-shrink: 0; color: var(--quiet-ink); font-size: 14px; font-weight: 600; line-height: 19px; }
+.newteam .does-text { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.newteam .does-text p { margin: 0; color: var(--quiet-slate); font-size: 14px; line-height: 20px; }
+.newteam .team-line { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border: 1px solid var(--quiet-line); border-radius: 14px; }
+.newteam .team-line b { display: block; color: var(--quiet-ink); font-size: 14px; font-weight: 500; line-height: 18px; }
+.newteam .team-line small { display: block; margin-top: 2px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+.newteam .bigger-line { display: flex; align-items: center; gap: 16px; padding: 0 16px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
