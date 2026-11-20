@@ -434,6 +434,7 @@ class RunAutomaticTest(MapCase):
         return teammap.run_automatic(views, settings.load(), self.rt, now=NOW, **kw)
 
     def test_ask_first_does_nothing(self):
+        settings.set_value('fixes.nudge', 'ask')
         self.assertEqual(self.auto({'shop': self.stuck()}), [])
         self.assertEqual(self.sent, [])
 
@@ -462,6 +463,7 @@ class RunAutomaticTest(MapCase):
         self.assertEqual(self.auto({'x': m}), [])
 
     def test_only_the_switched_on_fix_runs(self):
+        settings.set_value('fixes.nudge', 'ask')
         settings.set_value('fixes.compact', 'auto')
         self.assertEqual(self.auto({'shop': self.stuck()}), [])
 
@@ -578,6 +580,8 @@ class BrainTest(MapCase):
         self.assertEqual(len(b.rt.sent), 1)
 
     def test_tick_reads_no_teams_while_everything_asks_first(self):
+        for k in settings.defaults()['fixes']:
+            settings.set_value(f'fixes.{k}', 'ask')
         b = self.brain([row('a')])
         with mock.patch.object(b, 'map') as m, mock.patch.object(b.today, 'refresh'):
             self.assertEqual(b.tick(NOW), [])

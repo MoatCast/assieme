@@ -21,7 +21,8 @@ TITLES = {'quiet': 'Started holding notes from {agent}',
           'send': 'Sent a message to {agent}', 'stop_agent': 'Stopped {agent}'}
 
 
-FIX_NAMES = {'nudge': 'Ask stuck agents to try another way', 'compact': 'Free up memory between tasks', 'tell': 'Explain blocked commands'}
+FIX_NAMES = {'nudge': 'Ask stuck agents to try another way', 'compact': 'Free up memory between tasks', 'tell': 'Explain blocked commands',
+             'quiet': 'Hold routine notes until the receiver is free'}
 EVERY_TEAM = ('fix_mode', 'practice', 'undo')  # settings apply to all teams; any other row without a team isn't this team's
 
 

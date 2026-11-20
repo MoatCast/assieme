@@ -13,11 +13,17 @@ NOW = dt.datetime(2026, 11, 8, 12, 0, tzinfo=dt.timezone.utc)
 
 class SettingsTest(unittest.TestCase):
     def setUp(self):
-        self.path = os.path.join(tempfile.mkdtemp(), 'settings.json')
+        d = tempfile.mkdtemp()
+        self.path = self.file = os.path.join(d, 'settings.json')
+        self.missing = os.path.join(d, 'none.json')
+
+    def write(self, text):
+        with open(self.file, 'w') as f:
+            f.write(text)
 
     def test_missing_file_gives_defaults(self):
         s = settings.load(self.path)
-        self.assertEqual(s['fixes'], {'nudge': 'ask', 'compact': 'ask', 'tell': 'ask'})
+        self.assertEqual(s['fixes'], {'nudge': 'auto', 'compact': 'auto', 'tell': 'auto', 'quiet': 'auto'})
         self.assertEqual(s['notify'], {'needs_you': True, 'stalls': True, 'finished': True})
         self.assertIs(s['show_commands'], False)
 
@@ -35,11 +41,11 @@ class SettingsTest(unittest.TestCase):
             f.write('{not json')
         self.assertEqual(settings.load(self.path), settings.defaults())
 
-    def test_a_bad_fix_value_is_ask(self):
+    def test_a_bad_fix_value_is_auto_and_only_ask_stays_ask(self):
         with open(self.path, 'w') as f:
-            json.dump({'fixes': {'nudge': 'yes', 'compact': 'auto'}, 'show_commands': 'sure'}, f)
+            json.dump({'fixes': {'nudge': 'yes', 'compact': 'ask'}, 'show_commands': 'sure'}, f)
         s = settings.load(self.path)
-        self.assertEqual(s['fixes'], {'nudge': 'ask', 'compact': 'auto', 'tell': 'ask'})
+        self.assertEqual(s['fixes'], {'nudge': 'auto', 'compact': 'ask', 'tell': 'auto', 'quiet': 'auto'})
         self.assertIs(s['show_commands'], False)
 
     def test_set_value_merges_and_leaves_no_temp_file(self):
@@ -48,6 +54,38 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(s['fixes']['compact'], 'auto')
         self.assertIs(s['first_run_done'], True)
         self.assertEqual(os.listdir(os.path.dirname(self.path)), ['settings.json'])
+
+    def test_new_install_defaults_to_automatic(self):
+        s = settings.load(self.missing)
+        self.assertEqual(s['fixes'], {'nudge': 'auto', 'compact': 'auto', 'tell': 'auto', 'quiet': 'auto'})
+        self.assertFalse(s['fixes_notice'])
+
+    def test_damaged_file_is_automatic(self):
+        self.write('{not json')
+        self.assertEqual(settings.load(self.file)['fixes']['nudge'], 'auto')
+
+    def test_existing_install_switches_once_and_owes_the_notice(self):
+        self.write(json.dumps({'fixes': {'nudge': 'ask', 'compact': 'ask', 'tell': 'ask'}, 'first_run_done': True}))
+        self.assertTrue(settings.migrate(self.file))
+        s = settings.load(self.file)
+        self.assertEqual(set(s['fixes'].values()), {'auto'})
+        self.assertTrue(s['fixes_notice'])
+        self.assertEqual(s['fixes_version'], 2)
+
+    def test_ask_chosen_after_the_switch_sticks(self):
+        self.write(json.dumps({'fixes': {'nudge': 'ask'}, 'fixes_version': 2}))
+        self.assertFalse(settings.migrate(self.file))
+        self.assertEqual(settings.load(self.file)['fixes']['nudge'], 'ask')
+
+    def test_new_install_gets_no_notice(self):
+        self.assertFalse(settings.migrate(self.missing))  # no file: nothing to switch, no notice
+        self.assertFalse(settings.load(self.missing)['fixes_notice'])
+
+    def test_new_keys_are_accepted(self):
+        settings.set_value('fixes.quiet', 'ask', self.file)
+        settings.set_value('fixes_notice', False, self.file)
+        s = settings.set_value('run_found.t1', True, self.file)
+        self.assertEqual((s['fixes']['quiet'], s['run_found']), ('ask', {'t1': True}))
 
     def test_unknown_key_refused(self):
         for key, value in (('nope', 1), ('fixes.delete_everything', 'auto'), ('fixes.nudge', 'yes')):

@@ -236,6 +236,7 @@ class ToolsTest(State):
         nudge = button('n', 'action', 'Nudge', 'try', 'nudge')
         built = {'found': False, 'panes': [pane(state='stuck', buttons=[nudge])]}
         t = self.tools([row('b', 't1')], built)
+        settings.set_value('fixes.nudge', 'ask')
         self.assertFalse(t.fix_check('shop', 'b', 'nudge')['auto'])
         settings.set_value('fixes.nudge', 'auto')
         self.assertTrue(t.fix_check('shop', 'b', 'nudge')['auto'])
