@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { bringOverFind, snapshot, type Agent, type AgentKind, type BringOverProject, type Snapshot, type TeamDraft } from "./bridge";
+import { bringOverFind, snapshot, type Agent, type BringOverProject, type Snapshot, type TeamDraft } from "./bridge";
 import { installedOf } from "./kinds";
 import ChangeGroups from "./ChangeGroups";
 import BringOver, { TOOL_NAMES } from "./BringOver";
 import NewTeam from "./NewTeam";
-import InstallSheet from "./InstallSheet";
-import NewUserChecklist, { useSetupStatus } from "./NewUserChecklist";
 import Offline from "./Offline";
 import Terminal from "./Terminal";
 import "./FirstRun.css";
@@ -45,8 +43,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [open, setOpen] = useState<Open | null>(null);
-  // "first": New team opened from the checklist, whose Start also moves on to Team.
-  const [creating, setCreating] = useState<false | "new" | "first">(false);
+  const [creating, setCreating] = useState(false);
   const [grouping, setGrouping] = useState(false);
   // Moving from herdr: the import sheet, then New team filled in from what was picked.
   const [importing, setImporting] = useState(false);
@@ -56,8 +53,8 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
   useEffect(() => {
     if (shown) bringOverFind().then((f) => setOthers(f.projects), () => setOthers([]));
   }, [shown]);
-  // The install sheet lives here, not in the checklist: it must survive the checklist going away mid-install.
-  const [sheet, setSheet] = useState<{ agent: AgentKind; start: "install" | "signin" } | null>(null);
+  // A new user who closed the steps sees this screen, with its New team button.
+  const [dismissed, setDismissed] = useState(false);
   const report = useRef(onSnapshot);
   report.current = onSnapshot;
 
@@ -114,9 +111,14 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
     (t) => !t.done || t.error || t.roles.some((r) => !settled.includes(r.state)),
   );
 
-  // A person with no agents, no running team and nothing starting gets the checklist; everyone else keeps this screen.
-  const newUser = shown && !!snap && !agents.length && !(snap.teams ?? []).some((t) => t.state === "live") && !starting.length;
-  const setup = useSetupStatus((newUser && !offline) || !!sheet);
+  // A person with no agents, no running team and nothing starting goes straight into New team's steps, which start
+  // at what is missing (developer tools, an agent); everyone else keeps this screen.
+  const newUser = shown && !!snap && !agents.length && !(snap.teams ?? []).some((t) => t.state === "live") && !starting.length
+    && !dismissed && !creating;
+  // Once open, the steps stay until the person closes them or Start finishes: signing in to an agent mid-setup starts a
+  // session, which the next snapshot lists as an agent, and that must not unmount the steps and lose their answers.
+  const [inSteps, setInSteps] = useState(false);
+  if (newUser && !inSteps) setInSteps(true);
   const privacy = onOpenSettings ? (
     <button type="button" className="link-btn" onClick={() => onOpenSettings("privacy")}>Settings, Privacy</button>
   ) : "Settings, Privacy";
@@ -126,27 +128,26 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
       {creating && (
         <NewTeam key={imported?.id ?? "new"} clis={installedOf(snap?.clis)}
           draft={imported} onClose={() => { setCreating(false); setImported(null); }}
-          onStarted={creating === "first" ? onOpenTeam : undefined} />
+          />
       )}
       {importing && (
         <BringOver onClose={() => setImporting(false)} onImported={(d) => {
           setImporting(false);
           setImported(d);
-          setCreating("new");
+          setCreating(true);
         }} />
       )}
-      {newUser ? (
-        <NewUserChecklist status={setup.status} statusError={setup.error} offline={offline} herdr={!!snap?.clis.herdr}
-          onSheet={(agent, start) => setSheet({ agent, start })} onStart={() => setCreating("first")} onOpenSettings={onOpenSettings} />
+      {newUser || inSteps ? (
+        <NewTeam clis={installedOf(snap?.clis)} onClose={() => { setInSteps(false); setDismissed(true); }} onStarted={onOpenTeam} />
       ) : (<>
       <section className="intro">
         <div className="eyebrow">Welcome to Assieme</div>
-        <h1>{!snap ? (offline ? "Can’t reach Assieme’s service." : "Looking for your agents…") : agents.length ? "We found your agents. There’s nothing to set up." : "No agents found yet."}</h1>
+        <h1>{!snap ? (offline ? "Can’t reach Assieme’s service." : "Looking for your agents…") : agents.length ? "We found your agents. They’re ready." : "No agents found yet."}</h1>
         <p className="lede">
           Assieme reads what Claude Code and Codex already save on this Mac. It tells you when an agent needs you, and
           helps your team waste less.
         </p>
-        <div className="clis">
+        {(snap || !offline) && <div className="clis">
           {clis.map((c) => (
             <div className="cli" key={c.key} data-testid={`cli-${c.key}`}>
               <Check ok={c.found} />
@@ -165,7 +166,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
               <button type="button" className="link-btn cli-import" onClick={() => setImporting(true)}>Bring your team over</button>
             </div>
           ))}
-        </div>
+        </div>}
         {offline && <Offline />}
         {onOpenTeam && (snap || !offline) && (
           <div className="open-team">
@@ -191,7 +192,7 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
           <>
             <div className="panel-top">
               <div className="panel-label">Grouped into teams by project folder</div>
-              <button type="button" className="new-team" onClick={() => setCreating("new")}>New team</button>
+              <button type="button" className="new-team" onClick={() => setCreating(true)}>New team</button>
             </div>
             {starting.map((t) => (
               <div className="project" key={`starting-${t.team}`} data-testid={`starting-${t.team}`}>
@@ -255,11 +256,10 @@ export default function FirstRun({ pollMs = 5000, onSnapshot, onOpenTeam, onOpen
           </>
         )}
         {!open && agents.length > 0 && (
-          <p className="change-groups">Not right? <button type="button" onClick={() => setGrouping(true)}>Change the groups</button></p>
+          <p className="change-groups">Not right? <button type="button" onClick={() => setGrouping(true)}>Change the groups ›</button></p>
         )}
       </section>}
       </>)}
-      {sheet && <InstallSheet key={`${sheet.agent}:${sheet.start}`} {...sheet} status={setup.status} onClose={() => setSheet(null)} />}
       {grouping && <ChangeGroups onClose={() => setGrouping(false)} />}
     </div>
   );

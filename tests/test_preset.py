@@ -129,6 +129,14 @@ class PracticesTest(_Folder):
         self.assertEqual(len(p['basics']), 10)
         self.assertEqual([b['id'] for b in p['bigger']], ['steward', 'research-pairs'])
 
+    def test_always_on_wording_from_paper(self):
+        basics = preset.practices()['basics']
+        self.assertEqual([b['title'] for b in basics[:3]] + [basics[4]['title']], [
+            'No agent pushes; you merge', 'Each agent works on its own copy',
+            'Agents tell the planner when they stop or get stuck', 'Waiting agents wake on a change, not on a timer'])
+        self.assertEqual(basics[4]['detail'], 'Assieme checks every 5 minutes and tells the agent whether the change came, '
+                         'the wait ran out, or it failed.')
+
     def test_one_rule_off_keeps_the_rest_of_its_group(self):
         self.write(TEAM.format(project=self.d) + '\n[practices]\nreport-line = false\n')
         brief = preset.load(self.d).roles[0].brief

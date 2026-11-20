@@ -44,7 +44,7 @@ export const remoteRepos = (machine: string) => call<string[]>("remote.repos", {
 // The same calls as bridge.ts, on a machine.
 export const checkProjectOn = (path: string, machine: string) => call<ProjectCheck>("project.check", { path, machine }, 40);
 export const startTeamOn = (form: TeamForm, machine: string) => call<{ team: string }>("team.start", { ...form, machine }, 120);
-export const suggestTeamOn = (a: { project: string; size: string; review: string; budget: string }, machine: string) =>
+export const suggestTeamOn = (a: { project: string; size: string; review: string; budget: string; task?: string }, machine: string) =>
   call<Suggestion>("team.suggest", { ...a, machine }, 180);
 export const setupStatusOn = (machine: string) => call<SetupStatus>("setup.status", { machine });
 export const installAgentOn = (agent: AgentKind, machine: string) => call<{ address: string }>("setup.install_agent", { agent, machine });

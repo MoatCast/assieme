@@ -258,7 +258,7 @@ class ReviewFixesTest(SchedulerCase):
             [row] = self.s.rows(tz=UTC)
             self.assertNotIn('teams', self.s.handlers()['schedule.list']())
         self.assertEqual((row['review_role'], row['preset_label'], row['who']),
-                         ('nightly-tests-builder', 'Builder + reviewer', 'Claude Code, its default model'))
+                         ('nightly-tests-builder', 'Builder and reviewer', 'Claude Code, its default model'))
         self.assertIn('teams', self.s.handlers()['schedule.list'](teams=True))
 
     def test_a_team_that_ran_stays_listed(self):

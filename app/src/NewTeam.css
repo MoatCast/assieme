@@ -80,8 +80,8 @@
   background: var(--quiet-surface); transition: transform 0.15s; }
 .newteam .toggle:checked { background: var(--quiet-ink); }
 .newteam .toggle:checked::after { transform: translateX(14px); }
-.newteam .basics { display: flex; align-items: center; gap: 10px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner);
-  padding: 9px 14px; font-size: 13px; line-height: 16px; }
+.newteam .basics { display: flex; align-items: center; gap: 10px; background: var(--quiet-fog); border-radius: 14px;
+  padding: 10px 14px; font-size: 13px; line-height: 16px; }
 .newteam .basics b { font-weight: 600; }
 .newteam .basic-list { margin: 0; padding: 0 14px 0 30px; display: flex; flex-direction: column; gap: 6px;
   color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
@@ -95,7 +95,7 @@
 .newteam .model-menu select { font: inherit; font-size: 13px; color: var(--quiet-ink); padding: 5px 8px; min-width: 150px;
   border: 1px solid var(--quiet-control); border-radius: var(--quiet-radius-inner); background: var(--quiet-surface); }
 
-/* Set up this folder / Save them first, from Paper "New team: set up folder, confirm". Outside .newteam: it is a modal. */
+/* Set up this folder / Save them first, now only for Schedules. Outside .newteam: it is a modal. */
 .modal.folder { width: 480px; }
 .modal.folder .folder-small { color: var(--quiet-mute); font-size: 13px; line-height: 18px; }
 .modal.folder .folder-files { display: flex; flex-direction: column; gap: 6px; }
@@ -104,3 +104,82 @@
 .modal.folder .folder-box { padding: 10px 12px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); color: var(--quiet-ink);
   font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; max-height: 180px; overflow: auto; }
 .newteam .container-row { padding: 0 14px 12px 124px; }
+
+/* New team, one step at a time: Paper "v3 — New team" frames. */
+.newteam .panel { min-height: calc(100vh - 52px); }
+.newteam .panel > .body { flex: 1; padding: 4px 32px 20px; gap: 14px; }
+.newteam header { padding-bottom: 16px; }
+.newteam header p { line-height: 21px; }
+.newteam .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; font-size: 12px; line-height: 16px; color: var(--quiet-mute); }
+.newteam .steps .sep { margin: 0 10px; }
+.newteam .steps .step-done button { color: var(--quiet-slate); font-size: 12px; line-height: 16px; }
+.newteam .steps .step-done button:hover { color: var(--quiet-ink); }
+.newteam .steps .step-current { color: var(--quiet-ink); font-weight: 600; }
+.newteam h1:focus { outline: none; }
+.newteam button.link, .newteam .quiet, .newteam .pick { min-height: 28px; }
+.newteam .step { animation: step-in 150ms ease-out; }
+@keyframes step-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .newteam .step { animation: none; } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+/* Assieme's own work: the tinted block (blue means Assieme only). */
+.newteam .assieme-block { background: var(--quiet-assieme-tint); border-radius: var(--quiet-radius-card); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 20px; color: var(--quiet-slate); }
+.newteam .assieme-block strong { color: var(--quiet-ink); font-weight: 600; line-height: 19px; }
+.newteam .assieme-block p { margin: 0; }
+.newteam .assieme-block .files-line { display: flex; align-items: center; gap: 16px; padding-top: 4px; font-size: 13px; line-height: 18px; }
+.newteam .assieme-block .small-line, .newteam .assieme-block .detail { font-size: 13px; line-height: 18px; }
+.newteam .assieme-block .detail { color: var(--quiet-mute); margin-top: 4px; }
+.newteam .assieme-block .folder-box { padding: 10px 12px; background: var(--quiet-surface); border-radius: var(--quiet-radius-inner);
+  color: var(--quiet-ink); font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; max-height: 160px; overflow: auto; }
+/* Push-button options, from Paper "v3 — New team: Team". */
+.newteam .option { display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; text-align: left;
+  border: 1px solid var(--quiet-line-strong); border-radius: 16px; padding: 15px 19px; gap: 16px; min-height: 28px; }
+.newteam .option:hover { border-color: var(--quiet-control); }
+.newteam .option:focus-visible, .newteam .option.on { outline: none; border: 2px solid var(--quiet-ink); padding: 13px 17px; }
+.newteam .option b { font-size: 15px; line-height: 20px; font-weight: 600; color: var(--quiet-ink); }
+.newteam .option small { font-size: 13px; line-height: 18px; color: var(--quiet-slate); }
+.newteam .option .count { margin-left: auto; flex-shrink: 0; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.newteam .option .text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.newteam .pickers { display: flex; gap: 10px; }
+.newteam .pickers .option { flex: 1; }
+.newteam .recent-projects { display: flex; flex-direction: column; gap: 8px; }
+.newteam .recent-projects .option { flex-direction: row; justify-content: space-between; }
+.newteam .box.folder { border-color: var(--quiet-line-strong); padding: 12px 16px; gap: 12px; }
+.newteam .box.folder .pick { color: var(--quiet-ink); font-weight: 500; }
+/* A warning holds the step: amber, never the Assieme tint. */
+.newteam .warn-block { padding: 14px 18px; background: var(--quiet-tip-tint); border: 1px solid var(--quiet-tip-line);
+  border-radius: var(--quiet-radius-card); color: var(--quiet-tip-text); font-size: 14px; line-height: 20px; }
+.newteam .bring { margin: 0; padding: 4px 4px 0; display: flex; align-items: center; gap: 6px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+/* Start: what Assieme does, from Paper "v3 — New team: Start, what Assieme does". */
+.newteam .does { background: var(--quiet-assieme-tint); border-radius: var(--quiet-radius-card); padding: 4px 20px; display: flex; flex-direction: column; }
+.newteam .does-row { display: flex; gap: 20px; padding: 16px 0; }
+.newteam .does-row + .does-row { border-top: 1px solid var(--light, #d9dff5) var(--dark, #323c5e); }
+.newteam .does-row > b { width: 132px; flex-shrink: 0; color: var(--quiet-ink); font-size: 14px; font-weight: 600; line-height: 19px; }
+.newteam .does-text { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.newteam .does-text p { margin: 0; color: var(--quiet-slate); font-size: 14px; line-height: 20px; }
+.newteam .team-line { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border: 1px solid var(--quiet-line); border-radius: 14px; }
+.newteam .team-line b { display: block; color: var(--quiet-ink); font-size: 14px; font-weight: 500; line-height: 18px; }
+.newteam .team-line small { display: block; margin-top: 2px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+.newteam .bigger-line { display: flex; align-items: center; gap: 16px; padding: 0 16px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+.newteam.sheet-layer { z-index: 20; }
+/* First run steps: Developer tools and Agent, from Paper "v3 — First run". */
+.newteam .wait-block { border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.newteam .wait-block b { color: var(--quiet-ink); font-size: 14px; font-weight: 600; line-height: 19px; }
+.newteam .wait-title { display: flex; align-items: center; gap: 10px; }
+.newteam .wait-block p, .newteam .wait-block .link { margin: 0 0 0 26px; color: var(--quiet-slate); font-size: 14px; line-height: 20px; }
+.newteam .wait-block .link { color: var(--quiet-ink); font-size: 13px; }
+.newteam .kinds { display: flex; flex-direction: column; gap: 10px; }
+.newteam .kinds .option { padding: 12px 19px; }
+.newteam .kinds .option small, .newteam .kind-head small { font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.newteam .kind-card { border: 2px solid var(--quiet-ink); border-radius: 16px; padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
+.newteam .kind-head { display: flex; align-items: center; gap: 16px; }
+.newteam .kind-head b { flex: 1; font-size: 15px; font-weight: 600; line-height: 20px; color: var(--quiet-ink); }
+.newteam .kind-card .modal-head, .newteam .kind-card .sheet-command { display: flex; flex-direction: column; gap: 6px; }
+.newteam .kind-card .big { margin: 0; color: var(--quiet-slate); font-size: 13px; line-height: 19px; }
+.newteam .kind-card .sheet-command p { margin: 0; color: var(--quiet-slate); font-size: 12px; line-height: 16px; }
+.newteam .kind-card code { display: block; background: var(--quiet-fog); border-radius: 10px; padding: 9px 12px; color: var(--quiet-ink);
+  font: 12px/16px var(--quiet-font-mono); }
+.newteam .flow-actions { display: flex; align-items: center; gap: 14px; }
+.newteam .flow-actions .sheet-note { flex: 1; color: var(--quiet-slate); font-size: 13px; }
+.newteam .sheet-terminal { display: flex; flex-direction: column; height: 340px; min-height: 0; }

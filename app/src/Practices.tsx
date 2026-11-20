@@ -10,7 +10,7 @@ export const ruleCount = (n: number) => (n === 1 ? "1 rule" : `${n} rules`);
 /** Agents are told not to push only while the group and its rule are both on. */
 export const pushesBlocked = (v: Choice) => v.safety !== false && v["no-push"] !== false;
 // A researcher or investigator by its name, never by its job's wording: the brain's preset.RESEARCHER.
-const RESEARCHER = /^(research|investigat)/i;
+export const RESEARCHER = /^(research|investigat)/i;
 
 /** How many agents a team starts with, counting those the presets for bigger teams add. */
 export function agentCount(roles: RoleDraft[], v: Choice) {
@@ -39,9 +39,9 @@ export function GroupSheet({ group, value, onChange, onClose }: { group: Practic
   const groupOn = value[group.id] !== false;
   return (
     <div className="modal-dim" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="pcard group-sheet" role="dialog" aria-label={group.title} ref={ref} tabIndex={-1} onKeyDown={onKeyDown}>
+      <div className="pcard group-sheet" role="dialog" aria-modal="true" aria-label={group.title} ref={ref} tabIndex={-1} onKeyDown={onKeyDown}>
         <div className="pcard-head">
-          <span className="pkicker">Recommended setup</span>
+          <span className="pkicker">Team rules</span>
           <div className="pcard-title">
             <h2>{group.title}</h2>
             <Toggle label={group.title} on={groupOn} onChange={(on) => onChange(group.id, on)} />
@@ -70,7 +70,7 @@ export function AlwaysOnSheet({ basics, onClose }: { basics: Practices["basics"]
   const { ref, onKeyDown } = useModal(onClose, []);
   return (
     <div className="modal-dim" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="pcard always-on" role="dialog" aria-label="Always on" ref={ref} tabIndex={-1} onKeyDown={onKeyDown}>
+      <div className="pcard always-on" role="dialog" aria-modal="true" aria-label="Always on" ref={ref} tabIndex={-1} onKeyDown={onKeyDown}>
         <div className="pcard-head">
           <div className="pcard-title start">
             <Shield />

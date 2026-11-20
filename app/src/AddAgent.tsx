@@ -3,7 +3,7 @@ import AgentMenu, { ContainerLine } from "./AgentMenu";
 import { addAgent, fieldOf, teamPresets, type AgentKind, type ModelOptions } from "./bridge";
 import { AGENT_KINDS, kindName } from "./kinds";
 import InstallSheet from "./InstallSheet";
-import { useSetupStatus } from "./NewUserChecklist";
+import { useSetupStatus } from "./useSetupStatus";
 import { forgetBand } from "./band";
 
 const KINDS = [["builder", "Builder"], ["reviewer", "Reviewer"], ["tester", "Tester"], ["planner", "Planner"]] as const;
@@ -149,7 +149,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
             </button>
             <button type="button" role="radio" aria-checked={inContainer} onClick={() => setInContainer(true)}>
               <span className="radio" />
-              <span><b>A container</b><small>Sees its copy of {team} and nothing else</small></span>
+              <span><b>A container</b><small>Sees only its copy of {team}. Uses Docker.</small></span>
             </button>
           </div>
           {inContainer && (
@@ -159,7 +159,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
                 <label className="share">
                   <input type="checkbox" checked={shareSignin} onChange={(e) => setShareSignin(e.target.checked)} />
                   <span>Let it use my {kindName(agent).replace(" CLI", "")} sign-in
-                    <small>{shareSignin ? `On: it can read your ${kindName(agent).replace(" CLI", "")} sign-in file, read-only, and nothing else of yours.`
+                    <small>{shareSignin ? `On: it can read your ${kindName(agent).replace(" CLI", "")} sign-in file, read-only, and no other file of yours.`
                       : "Off: it asks you to sign in once, in its terminal."}</small>
                   </span>
                 </label>
@@ -170,7 +170,7 @@ export default function AddAgent({ team, roles, clis, onClose }: {
         <div className="sheet-foot">
           {error && <p className="error">{error}</p>}
           <p>It starts with the standard {kind} brief and your team practices. {inContainer
-            ? `It can read, edit and run files in its copy of ${team}, and nothing outside it.`
+            ? `It can read, edit and run files in its copy of ${team}, and no file outside it.`
             : `It can read, edit and run files in ${team}.`}</p>
           <div className="sheet-actions">
             <button type="button" className="btn-quiet" onClick={onClose}>Cancel</button>

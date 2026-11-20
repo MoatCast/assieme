@@ -156,12 +156,12 @@ export type ProjectCheck = { ok: boolean; reason?: string; setup?: boolean; tool
 export const checkProject = (path: string) => brain<ProjectCheck>("project.check", { path });
 export const teamPresets = () =>
   brain<{ presets: Preset[]; practices: Practices; last: Preset | null; models: ModelOptions; practice_defaults?: Record<string, boolean>;
-    kinds?: Record<string, KindInfo>; permissions?: PermissionTable }>("team.presets");
+    kinds?: Record<string, KindInfo>; permissions?: PermissionTable; recent?: string[] }>("team.presets");
 /** Start creates a git worktree per agent before it answers, which can take a while on a large repository. */
 export const startTeam = (form: TeamForm) =>
   invoke<{ team: string }>("brain_call", { method: "team.start", params: form, timeoutS: 120 });
 /** Help me choose runs the person's own agent, so it may take minutes. */
-export const suggestTeam = (a: { project: string; size: string; review: string; budget: string }) =>
+export const suggestTeam = (a: { project: string; size: string; review: string; budget: string; task?: string }) =>
   invoke<Suggestion>("brain_call", { method: "team.suggest", params: a, timeoutS: 180 });
 
 /** Improve this brief: the person's own agent rewrites it, read-only in the project. Nothing is saved. */
@@ -182,6 +182,8 @@ export const bringOverWorkspaces = (id: string) => brain<BringOverWorkspaces>("b
 export const bringOverImport = (id: string, ticked: string[]) => brain<TeamDraft>("bringover.import", { id, ticked });
 
 /** The app's own dialog: `window.confirm` shows nothing in its web view, so it would replace without asking. */
+export const confirmDiscard = () =>
+  ask("Discard this new team?", { title: "New team", kind: "warning", okLabel: "Discard", cancelLabel: "Keep setting up" });
 export const confirmReplace = () =>
   ask("Replace the agents you've edited?", { title: "New team", kind: "warning", okLabel: "Replace", cancelLabel: "Keep them" });
 

@@ -26,7 +26,7 @@ export const Box = () => (
 );
 
 /** Which agent runs it, Paper "v2 — Add agent: choosing which agent" and New team's agent pills: installed kinds
- *  first, the others under "Not on this Mac yet" with Install…. New team's pill also holds "Run in a container". */
+ *  first, the others under "Not on this Mac yet" with Install…. New team's pill also holds "Run sealed off". */
 export default function AgentMenu({ value, installed, look, container, team, onChange, onInstall }: {
   value: AgentKind;
   installed: Partial<Record<AgentKind, boolean>>;
@@ -101,8 +101,8 @@ export default function AgentMenu({ value, installed, look, container, team, onC
                 onClick={() => pick({ container: !container })}>
                 <span className="slot">{container && <Tick />}</span>
                 <span className="what">
-                  Run in a container
-                  <small>Sees its copy of {team || "the project"} and nothing else.</small>
+                  Run sealed off
+                  <small>Sees only its copy of {team || "the project"}. Uses Docker.</small>
                 </span>
               </button>
             </>

@@ -153,3 +153,9 @@ test("a refused rule says why", async () => {
   await flush();
   expect(screen.getByText(/Pushing stays blocked at every level/)).toBeTruthy();
 });
+
+test("the brief's note says team rules add the report line, in Assieme's own words", () => {
+  brief();
+  screen.getByText("Added automatically");
+  screen.getByText("Team rules add the report line, stop rules and handoff format. You don’t need to write them.");
+});

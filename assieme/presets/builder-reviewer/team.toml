@@ -1,5 +1,5 @@
 name = "builder-reviewer"
-label = "Builder + reviewer"
+label = "Builder and reviewer"
 
 [[role]]
 name = "builder"
