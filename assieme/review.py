@@ -443,7 +443,7 @@ class Review:
         anything. The branch must go: `worktree.ensure` refuses a role whose branch has no worktree."""
         ref = f'refs/assieme/archive/{name}/{role}/{int(time.time())}'
         if self._git(project, 'update-ref', ref, tip).returncode != 0:
-            return "Couldn't save a copy of its work, so its worktree was left in place."
+            return "Couldn't set its work aside, so its copy was left in place."
         address = self._agent(name, role)['address']
         if address:
             try:
@@ -462,7 +462,7 @@ class Review:
         elif os.path.isdir(path):
             r = self._git(project, 'worktree', 'remove', *(['--force'] if force else []), path)
             if r.returncode != 0:
-                return f"Couldn't archive its worktree: {r.stderr.strip()}"
+                return f"Couldn't clean up its copy: {r.stderr.strip()}"
         if not branch.startswith(f'assieme/{name}/'):  # brought over, its folder gone meanwhile: never theirs
             return f"Its branch {branch} isn't Assieme's, so it was left as it is."
         r = self._git(project, 'branch', '-D', branch)
@@ -546,7 +546,7 @@ class Review:
                                'path': path, 'tip': tip, 'old': old, 'new': new, 'notes': sorted(notes),
                                'archived': problem is None, 'clone': clone, 'kept': kept}
             self._write_log({'id': uid, 'team': team, 'agent': role, 'action': 'merge', 'undo': True,
-                             'title': f"Merged {role} into {base}", 'reason': problem or 'Its worktree is archived.',
+                             'title': f"Merged {role} into {base}", 'reason': problem or 'Its copy was cleaned up.',
                              'restore': self.undos[uid]})
             tasks.merged(team, role, base, uid)
             return {'role': role, 'base': base, 'problem': problem, 'undo': uid, 'preview_stopped': previewed}
@@ -576,7 +576,7 @@ class Review:
             if not os.path.isdir(path) and not rec.get('clone'):  # a container's copy is cloned again when it starts
                 r = self._git(project, 'worktree', 'add', path, branch)
                 if r.returncode != 0:
-                    raise ReviewError(f"The merge is undone, but its worktree didn't come back: {r.stderr.strip()}")
+                    raise ReviewError(f"The merge is undone, but its copy didn't come back: {r.stderr.strip()}")
             if rec.get('kept'):  # brought over: it works in that folder on that branch again
                 newteam._rewrite_role(os.path.join(self.teams, rec['team']), rec['role'], worktree=path, branch=branch)
             self._set_ignored(project, self._ignored(project) - set(rec['notes']))
@@ -596,7 +596,7 @@ class Review:
             self.on_archive(team, role)
             problem = self._archive(project, team, role, branch, path, tip, force=True)
             self._write_log({'id': uuid.uuid4().hex, 'team': team, 'agent': role, 'action': 'discard', 'undo': False,
-                             'title': f"Discarded {role}'s work", 'reason': problem or 'Its worktree is removed.'})
+                             'title': f"Discarded {role}'s work", 'reason': problem or 'Its copy was removed.'})
             tasks.discarded(team, role)
             return {'role': role, 'problem': problem}
 

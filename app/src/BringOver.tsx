@@ -187,7 +187,7 @@ export default function BringOver({ onClose, onImported }: { onClose: () => void
         ) : (
           <div className="bring-empty">
             <strong>Know where your team’s work is?</strong>
-            <p>Choose the project folder. Assieme reads its branches and worktrees, and the agent history saved for it, and shows what it finds before anything changes.</p>
+            <p>Choose the project folder. Assieme reads its branches and the copies agents worked in, and the agent history saved for it, and shows what it finds before anything changes.</p>
             <button type="button" className="btn-secondary" disabled={!!busy} onClick={folder}>Choose a project folder…</button>
           </div>
         )}

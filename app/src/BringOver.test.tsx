@@ -133,7 +133,7 @@ test("a launch script still imports through herdr's reader, and a failure says w
 });
 
 test("a tool that couldn't be read says so, and Escape closes", async () => {
-  b.bringOverFind.mockResolvedValue({ ...FOUND, problems: ["Couldn't read Claude Squad's sessions. Its worktrees are still listed under Other agent work."] });
+  b.bringOverFind.mockResolvedValue({ ...FOUND, problems: ["Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."] });
   const { onClose } = await open();
   expect(screen.getByText(/Couldn't read Claude Squad's sessions/)).toBeTruthy();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });

@@ -67,7 +67,7 @@ class Commands(unittest.TestCase):
     def test_says_why_with_a_fix(self):
         write(f'{self.d}/package.json', '{}')
         said, fix = why('npm run dev', 'builder-1', 127, '> vite\nsh: vite: command not found', self.d, False)
-        self.assertIn("vite isn't installed in builder-1's worktree", said)
+        self.assertIn("vite isn't installed in builder-1's copy", said)
         self.assertEqual(fix, 'install')
         self.assertEqual(why('npm run dev', 'b', 127, 'sh: vite: command not found', self.d, True)[1], 'command')
         self.assertEqual(why('npm run dev', 'b', 1, 'Error: listen EADDRINUSE: address already in use', self.d, False)[1], 'retry')
