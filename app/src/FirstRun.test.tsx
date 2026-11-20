@@ -124,8 +124,9 @@ test("offline with no snapshot shows only Offline: no herdr row, no side panel, 
   await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
   screen.getByText("Assieme’s service isn’t running. Start it to continue. Any agents you have running keep going.");
   expect(screen.queryByTestId("cli-herdr")).toBeNull();
+  expect(screen.queryByTestId("cli-claude")).toBeNull(); // no list of empty circles while nothing is known
   expect(screen.queryByText("Grouped into teams by project folder")).toBeNull();
-  expect(screen.queryByText("What happens to your project")).toBeNull();
+  expect(screen.queryByText("New team screen")).toBeNull();
   expect(screen.queryByText(/Developer tools/)).toBeNull();
   expect(setupStatus).not.toHaveBeenCalled();
 });
@@ -219,7 +220,7 @@ test("Open my team and Change the groups", async () => {
   await act(async () => {});
   fireEvent.click(screen.getByRole("button", { name: "Open my team" }));
   expect(openTeam).toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Change the groups" }));
+  fireEvent.click(screen.getByRole("button", { name: "Change the groups ›" }));
   expect(screen.getByText("change the groups sheet")).toBeTruthy();
 });
 
@@ -273,30 +274,28 @@ test("people with agents or a team keep the existing screen", async () => {
   expect(setupStatus).not.toHaveBeenCalled();
 });
 
-test("a new user sees the checklist instead of the agent list", async () => {
+test("a new user goes straight into the steps, starting at what is missing", async () => {
   snapshot.mockResolvedValue(NEW_USER);
-  render(<FirstRun pollMs={100000} onOpenTeam={() => {}} />);
-  await flush();
-  screen.getByRole("heading", { name: "Let’s start your first team." });
-  screen.getByText("What happens to your project");
-  expect(screen.queryByText("Grouped into teams by project folder")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Open my team" })).toBeNull();
-  expect(screen.queryByTestId("cli-herdr")).toBeNull();
-});
-
-test("Start opens New team, and after Start moves to Team; closing starts nothing", async () => {
-  snapshot.mockResolvedValue(NEW_USER);
-  setupStatus.mockResolvedValue({ git: true, agents: { claude: { installed: true, signed_in: true }, codex: NOT } });
   const openTeam = vi.fn();
   render(<FirstRun pollMs={100000} onOpenTeam={openTeam} />);
   await flush();
-  fireEvent.click(screen.getByRole("button", { name: "Start your first team" }));
   screen.getByText("New team screen");
-  fireEvent.click(screen.getByText("close new team"));
-  expect(openTeam).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Start your first team" }));
+  expect(screen.queryByText("Let’s start your first team.")).toBeNull();
+  expect(screen.queryByText("Grouped into teams by project folder")).toBeNull();
   fireEvent.click(screen.getByText("start the team"));
   expect(openTeam).toHaveBeenCalledTimes(1);
+});
+
+test("a new user who closes the steps sees the welcome screen, with New team", async () => {
+  snapshot.mockResolvedValue(NEW_USER);
+  const openTeam = vi.fn();
+  render(<FirstRun pollMs={100000} onOpenTeam={openTeam} />);
+  await flush();
+  fireEvent.click(screen.getByText("close new team"));
+  expect(openTeam).not.toHaveBeenCalled();
+  screen.getByText("No agents found yet.");
+  fireEvent.click(screen.getByRole("button", { name: "New team" }));
+  screen.getByText("New team screen");
 });
 
 test("New team started from the older screen doesn't move away", async () => {
@@ -321,69 +320,25 @@ test("the herdr row shows only if herdr is installed", async () => {
   screen.getByTestId("cli-herdr");
 });
 
-test("status is polled only while the checklist shows", async () => {
+test("First run no longer polls the setup status: the steps do", async () => {
   snapshot.mockResolvedValue(NEW_USER);
   render(<FirstRun pollMs={5000} />);
-  await flush();
-  expect(setupStatus).toHaveBeenCalledTimes(1);
-  snapshot.mockResolvedValue(SNAP); // an agent turns up: the checklist goes away
-  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
-  screen.getByText("Grouped into teams by project folder");
-  const calls = setupStatus.mock.calls.length;
-  await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
-  expect(setupStatus).toHaveBeenCalledTimes(calls);
-});
-
-test("a First run kept behind another screen doesn't poll the setup status", async () => {
-  snapshot.mockResolvedValue(NEW_USER);
-  render(<FirstRun pollMs={5000} shown={false} />);
   await flush();
   await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
   expect(setupStatus).not.toHaveBeenCalled();
 });
 
-test("Privacy opens Settings at Privacy on both screens", async () => {
+
+test("Privacy opens Settings at Privacy", async () => {
   const onOpenSettings = vi.fn();
   snapshot.mockResolvedValue(SNAP);
-  const { unmount } = render(<FirstRun pollMs={100000} onOpenSettings={onOpenSettings} />);
-  await flush();
-  fireEvent.click(screen.getByRole("button", { name: "Settings, Privacy" }));
-  expect(onOpenSettings).toHaveBeenCalledWith("privacy");
-  unmount();
-  snapshot.mockResolvedValue(NEW_USER);
   render(<FirstRun pollMs={100000} onOpenSettings={onOpenSettings} />);
   await flush();
   fireEvent.click(screen.getByRole("button", { name: "Settings, Privacy" }));
-  expect(onOpenSettings).toHaveBeenCalledTimes(2);
+  expect(onOpenSettings).toHaveBeenCalledWith("privacy");
 });
 
-test("when the service drops after a snapshot, the checklist claims nothing and offers Start it", async () => {
-  snapshot.mockResolvedValueOnce(NEW_USER).mockRejectedValue(new Error("gone"));
-  render(<FirstRun pollMs={5000} />);
-  await flush();
-  screen.getByText("Developer tools");
-  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
-  screen.getByText("Reconnecting…");
-  expect(screen.queryByText("Developer tools")).toBeNull();
-  expect(screen.queryByText(/Couldn’t check/)).toBeNull();
-  await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
-  screen.getByRole("button", { name: "Start it" });
-});
 
-test("an open install sheet survives the checklist going away, and keeps the status polled", async () => {
-  snapshot.mockResolvedValue(NEW_USER);
-  render(<FirstRun pollMs={5000} />);
-  await flush();
-  fireEvent.click(screen.getByRole("button", { name: "Install Codex" }));
-  screen.getByText("sheet codex at install");
-  snapshot.mockResolvedValue(SNAP); // an agent turns up: the checklist is replaced
-  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
-  expect(screen.queryByText("Let’s start your first team.")).toBeNull();
-  screen.getByText("sheet codex at install");
-  const calls = setupStatus.mock.calls.length;
-  await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
-  expect(setupStatus.mock.calls.length).toBeGreaterThan(calls);
-});
 
 test("moving from another tool: a row per tool found, and Bring your team over opens New team from the pick", async () => {
   bringOverFind.mockResolvedValueOnce({ projects: [
@@ -409,4 +364,13 @@ test("moving from herdr: its row opens the same sheet", async () => {
   fireEvent.click(screen.getByText("pick a herdr team"));
   expect(screen.getByText("New team screen")).toBeTruthy();
   expect(screen.getByText("draft: Add a cart")).toBeTruthy();
+});
+
+test("found agents: the headline says they're ready", async () => {
+  snapshot.mockResolvedValue(SNAP);
+  render(<FirstRun pollMs={100000} />);
+  await flush();
+  screen.getByRole("heading", { name: "We found your agents. They’re ready." });
+  expect(screen.queryByText(/nothing/)).toBeNull();
+  screen.getByRole("button", { name: "Change the groups ›" });
 });

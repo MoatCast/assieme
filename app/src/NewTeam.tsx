@@ -22,7 +22,7 @@ import TeamRules from "./TeamRules";
 import TeamStep from "./TeamStep";
 import ToolPicker from "./ToolPicker";
 import { ToolsStep } from "./ToolsStep";
-import { useSetupStatus } from "./NewUserChecklist";
+import { useSetupStatus } from "./useSetupStatus";
 import "./NewTeam.css";
 
 const NAME = /^[a-z0-9-]+$/;

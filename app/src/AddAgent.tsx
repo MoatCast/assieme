@@ -3,7 +3,7 @@ import AgentMenu, { ContainerLine } from "./AgentMenu";
 import { addAgent, fieldOf, teamPresets, type AgentKind, type ModelOptions } from "./bridge";
 import { AGENT_KINDS, kindName } from "./kinds";
 import InstallSheet from "./InstallSheet";
-import { useSetupStatus } from "./NewUserChecklist";
+import { useSetupStatus } from "./useSetupStatus";
 import { forgetBand } from "./band";
 
 const KINDS = [["builder", "Builder"], ["reviewer", "Reviewer"], ["tester", "Tester"], ["planner", "Planner"]] as const;
