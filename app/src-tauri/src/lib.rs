@@ -127,7 +127,9 @@ async fn notification_settings_open() -> Result<(), String> {
         .status().map(|_| ()).map_err(|e| e.to_string())
 }
 
-/// The Mac's standard menu, plus Settings… (⌘,) under About and New Team (⌘N) at the top of File, where Mac apps keep them.
+/// The Mac's standard menu, plus Settings… (⌘,) under About, New Team (⌘N) at the top of File, where Mac apps keep them,
+/// and Command Palette… (⌘K) at the top of View. The window's other keys (⌘1–⌘9, ⌘J) stay in the page: as menu keys
+/// they would fire while a text field or a terminal has focus.
 fn app_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
     let menu = Menu::default(app)?;
@@ -138,6 +140,9 @@ fn app_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
             sub.insert(&PredefinedMenuItem::separator(app)?, 3)?;
         } else if sub.text()? == "File" {
             sub.insert(&MenuItem::with_id(app, "new-team", "New Team", true, Some("CmdOrCtrl+N"))?, 0)?;
+            sub.insert(&PredefinedMenuItem::separator(app)?, 1)?;
+        } else if sub.text()? == "View" {
+            sub.insert(&MenuItem::with_id(app, "palette", "Command Palette…", true, Some("CmdOrCtrl+K"))?, 0)?;
             sub.insert(&PredefinedMenuItem::separator(app)?, 1)?;
         }
     }
@@ -162,6 +167,7 @@ pub fn run() {
             let to = match event.id().as_ref() {
                 "settings" => "assieme-settings",
                 "new-team" => "assieme-new-team",
+                "palette" => "assieme-palette",
                 _ => return,
             };
             menubar::open_window(app, None, None, None);

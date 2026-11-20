@@ -286,6 +286,8 @@ export const windowTheme = async (t: "light" | "dark" | "system") => getCurrentW
 export const onOpenSettings = (run: () => void) => listen("assieme-settings", () => run());
 /** New Team (⌘N) in the File menu. */
 export const onNewTeam = (run: () => void) => listen("assieme-new-team", () => run());
+/** Command Palette (⌘K) in the View menu. */
+export const onPalette = (run: () => void) => listen("assieme-palette", () => run());
 export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
 
 export type MapNode = { role: string; state: Pane["state"]; since_s: number | null; agent: AgentKind; parent: string | null; group: string | null; paused?: boolean };

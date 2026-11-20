@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MergeResult, Pane, Starting, TeamMap } from "./bridge";
 import Activity from "./Activity";
-import AgentList, { type Selection, type View } from "./AgentList";
+import AgentList, { VIEWS, type Selection, type View } from "./AgentList";
 import AgentPanel from "./AgentPanel";
 import Board from "./Board";
+import CommandPalette, { type PaletteAction } from "./CommandPalette";
 import Offline from "./Offline";
 import PlanBars from "./PlanBars";
 import Unreachable, { awayTitle } from "./Unreachable";
@@ -12,6 +13,7 @@ import Review from "./Review";
 import { failedStart, isGroup, listModel, ran, today, type ListModel, type Row } from "./listModel";
 import TeamOverview from "./TeamOverview";
 import Terminals from "./Terminals";
+import { useShortcuts } from "./useShortcuts";
 import { useTeamMap } from "./useTeamMap";
 import "./Window.css";
 
@@ -64,14 +66,16 @@ function changes(before: TeamMap, after: TeamMap, beforeModel: ListModel, afterM
 /** A row with no pane yet (an agent still starting) still opens a panel. */
 const bare = (role: string): Pane => ({ role, agent: "claude", address: "", state: "working", since_s: null, detail: "", live: false, fix: null });
 
-export default function Window({ team, starting, open, pollMs = 5000, boardKey = 0, onNewTeam, onNewTask, onMerged, onDiscarded,
-  onOpenFixes = () => {}, onBringOver = () => {} }: {
+export default function Window({ team, starting, open, pollMs = 5000, boardKey = 0, paletteKey = 0, onNewTeam, onNewTask, onMerged, onDiscarded,
+  onOpenFixes = () => {}, onBringOver = () => {}, onSettings = () => {}, onAddAgent }: {
   team: string | null;
   starting: Starting[];
   /** A link from outside (menu bar, notification): select that agent, or open its review. */
   open: OpenLink | null;
   pollMs?: number;
   boardKey?: number;
+  /** Command Palette in the View menu: each change opens the palette. */
+  paletteKey?: number;
   onNewTeam: () => void;
   onNewTask: () => void;
   /** A merge from the panel's review: the app-wide notice with Undo. */
@@ -81,6 +85,10 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   onBringOver?: () => void;
   /** Settings › Fixes, from Team overview's one-time notice. */
   onOpenFixes?: () => void;
+  /** ⌘, and the palette's Settings. */
+  onSettings?: () => void;
+  /** The palette's "Add a builder to this team"; left out while no team runs. */
+  onAddAgent?: () => void;
 }) {
   const { map, waiting, offline, refresh } = useTeamMap(team, pollMs);
   const [chosen, setChosen] = useState<{ team: string; sel: Selection } | null>(null);
@@ -91,6 +99,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
   const [toList, setToList] = useState(0);
   const [reviewing, setReviewing] = useState<{ team: string; role: string; ahead: number } | null>(null);
   const [merged, setMerged] = useState<{ role: string; text: string } | null>(null);
+  const [palette, setPalette] = useState(false);
   const list = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const last = useRef<{ map: TeamMap; model: ListModel } | null>(null);
@@ -178,6 +187,38 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     return () => window.removeEventListener("keydown", onKey, true);
   }, [team]);
 
+  // ⌘1–⌘9 in list order, ⌘J the next agent that needs you (wrapping), ⌘N, ⌘, and ⌘K for the palette.
+  const listed = model ? rows(model) : [];
+  const goAgent = (role: string) => {
+    select({ kind: "agent", role });
+    setToList((n) => n + 1);
+  };
+  const nextNeeds = () => {
+    const needs = model?.needs ?? [];
+    if (!needs.length) return;
+    const i = needs.findIndex((r) => sel?.kind === "agent" && r.role === sel.role);
+    goAgent(needs[(i + 1) % needs.length].role);
+  };
+  useShortcuts({
+    palette: () => setPalette(true),
+    agent: (i) => { if (listed[i]) goAgent(listed[i].role); },
+    needsYou: nextNeeds,
+    newTeam: onNewTeam,
+    settings: onSettings,
+  }, !palette);
+  const actions: PaletteAction[] = [
+    ...(team ? [{ label: "Go to what needs you", key: "⌘J", run: nextNeeds }] : []),
+    ...(team && onAddAgent && !map?.stopped ? [{ label: "Add a builder to this team", run: onAddAgent }] : []),
+    { label: "New team", key: "⌘N", run: onNewTeam },
+    ...(team ? VIEWS.map((v) => ({ label: v.label, run: () => select({ kind: "view", view: v.view }) })) : []),
+    { label: "Settings", key: "⌘,", run: onSettings },
+  ];
+  useEffect(() => { if (paletteKey) setPalette(true); }, [paletteKey]);
+  const paletteShown = palette && (
+    <CommandPalette agents={listed.map((row, i) => ({ row, key: i < 9 ? `⌘${i + 1}` : null }))} actions={actions}
+      onAgent={goAgent} onClose={() => setPalette(false)} />
+  );
+
   useEffect(() => {
     if (toList) list.current?.querySelector<HTMLElement>("[aria-current='true']")?.focus();
   }, [toList]);
@@ -259,6 +300,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
             </div>
           )}
         </div>
+        {paletteShown}
       </div>
     );
   }
@@ -317,6 +359,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
         {!reviewing && sel?.kind === "view" && sel.view === "activity" && <Activity team={team} />}
       </div>
       <div role="status" aria-live="polite" className="sr-only">{said}</div>
+      {paletteShown}
     </div>
   );
 }
