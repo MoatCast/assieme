@@ -21,6 +21,13 @@ export type ListModel = {
   stale: boolean;
 };
 
+/** Tokens as Paper writes them: 10M, 38K. */
+export function tokens(n: number) {
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`; // 10M, as Paper writes it
+  if (n >= 1e3) return `${Math.round(n / 1e3)}K`;
+  return String(n);
+}
+
 export const isGroup = (x: Row | Group): x is Group => "rows" in x;
 
 /** A starting agent has settled when its state is none of these (as the Team tab read it). */

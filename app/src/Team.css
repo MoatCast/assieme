@@ -78,9 +78,6 @@
 .card-code { margin: 0; padding: 10px 12px; background: var(--quiet-fog); border-radius: var(--quiet-radius-inner); font-family: var(--quiet-font-mono); font-size: 12px; line-height: 18px;
   color: var(--quiet-slate); white-space: pre-wrap; overflow-wrap: anywhere; }
 .card-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.btn-primary { padding: 8px 14px; background: var(--quiet-ink); color: var(--quiet-on-ink); border: 0; border-radius: var(--quiet-radius-control); font-size: 14px; font-weight: 500; line-height: 18px; cursor: pointer; font-family: inherit; }
-.btn-secondary { padding: 7px 14px; background: var(--quiet-surface); color: var(--quiet-ink); border: 1px solid var(--quiet-line-strong); border-radius: var(--quiet-radius-control); font-size: 14px; font-weight: 500; line-height: 18px; cursor: pointer; font-family: inherit; }
-.btn-quiet { padding: 8px 6px; background: none; border: 0; color: var(--quiet-slate); font-size: 14px; line-height: 18px; cursor: pointer; font-family: inherit; }
 .nothing { display: flex; flex-direction: column; gap: 8px; padding: 22px 20px; background: var(--quiet-surface); border: 1px dashed var(--quiet-line-strong); border-radius: var(--quiet-radius-card); }
 .nothing b { font-size: 15px; font-weight: 600; line-height: 20px; color: var(--quiet-ink); }
 .nothing p { margin: 0; font-size: 13px; line-height: 19px; color: var(--quiet-slate); }

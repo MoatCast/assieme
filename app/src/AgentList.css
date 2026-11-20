@@ -1,0 +1,48 @@
+/* Paper "Main window", node "List v4": 320 px, a white sheet on the pale ground. */
+.agent-list { display: flex; flex-direction: column; gap: 2px; width: 320px; flex-shrink: 0; min-height: 0; box-sizing: border-box; padding: 14px 10px;
+  background: var(--quiet-surface); border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-card); box-shadow: var(--quiet-sheet-shadow);
+  font-family: var(--quiet-font-ui); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+.list-heading { display: flex; flex-direction: column; gap: 3px; padding: 4px 10px 10px; flex-shrink: 0; }
+.list-verdict { color: var(--quiet-ink); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 28px; }
+.list-counts { color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
+.list-assieme { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 0; background: none; border: 0; cursor: pointer; text-align: left;
+  color: var(--quiet-accent); font: 500 13px/18px var(--quiet-font-ui); }
+.agent-sections { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.list-label { padding: 14px 10px 6px; color: var(--quiet-mute); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; line-height: 14px; text-transform: uppercase; }
+.list-label.needs { padding-top: 10px; color: var(--quiet-needs-you-text); }
+.list-row, .list-group { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: none;
+  cursor: pointer; text-align: left; font-family: var(--quiet-font-ui); color: var(--quiet-ink); }
+.list-row:hover, .list-group:hover { background: var(--quiet-select); }
+.list-row.needs { padding-block: 9px; background: var(--quiet-needs-you-row); }
+.list-row.selected { background: var(--quiet-select); box-shadow: inset 3px 0 0 var(--quiet-ink); }
+.list-row.needs.selected { background: var(--quiet-needs-you-row); }
+.dot-slot { display: flex; justify-content: center; width: 16px; flex-shrink: 0; }
+.list-dot { width: 8px; height: 8px; border-radius: 4px; box-sizing: border-box; }
+.list-dot.needs { background: var(--quiet-needs-you); }
+.list-dot.working { background: var(--quiet-working); }
+.list-dot.assieme { background: var(--quiet-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--quiet-accent) 15%, transparent); }
+.list-dot.done { background: var(--quiet-slate); }
+.list-dot.stale { border: 1.5px solid var(--quiet-slate); }
+.row-lines { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.row-name { color: var(--quiet-ink); font-family: var(--quiet-font-mono); font-size: 13px; font-weight: 550; line-height: 16px; }
+.row-name.grow, .view-name.grow { flex: 1; min-width: 0; }
+.list-row:not(.needs) .row-name.grow { font-weight: 500; }
+.view-name { font-size: 13px; font-weight: 500; line-height: 16px; }
+.row-line { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; line-height: 16px; }
+.row-line.mute, .row-line.ink { flex-shrink: 0; font-size: 12px; }
+.row-line.mute { color: var(--quiet-mute); }
+.row-line.ink { color: var(--quiet-ink); font-weight: 500; }
+.row-line.needs { color: var(--quiet-needs-you-text); }
+.row-line.assieme { color: var(--quiet-accent); }
+.row-line.fixed { color: var(--quiet-working-text); }
+.row-right { display: flex; align-items: center; justify-content: flex-end; gap: 4px; width: 56px; flex-shrink: 0; font-size: 12px; line-height: 16px; text-align: right; }
+.row-right.needs { color: var(--quiet-needs-you-text); }
+.row-right.assieme { color: var(--quiet-accent); font-weight: 500; }
+.list-spinner { animation: list-spin 1.2s linear infinite; }
+@keyframes list-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .list-spinner { animation: none; } }
+.chevron { color: var(--quiet-slate); font-size: 14px; transition: transform 0.12s; }
+.chevron.open { transform: rotate(90deg); }
+.assieme-text { color: var(--quiet-accent); font-weight: 500; }
+.group-rows { padding-left: 14px; display: flex; flex-direction: column; gap: 2px; }
+.list-views { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--quiet-line); }

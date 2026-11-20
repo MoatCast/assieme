@@ -1,0 +1,13 @@
+/* Paper "Main window", "What Assieme did" (Team overview). */
+.assieme-mark { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 5px; background: #2747d9; color: #ffffff; font-size: 10px; font-weight: 800; line-height: 10px; font-family: var(--quiet-font-ui); }
+.fix-row { display: flex; align-items: center; gap: 10px; }
+.fix-row .fix-at { width: 38px; flex-shrink: 0; color: var(--quiet-mute); font-size: 13px; line-height: 18px; }
+.fix-row .fix-text { flex: 1; min-width: 0; color: var(--quiet-ink); font-size: 14px; line-height: 20px; }
+.fix-row .fix-text code { font-family: var(--quiet-font-mono); font-weight: 550; font-size: inherit; }
+.fix-row.compact { align-items: flex-start; gap: 8px; }
+.fix-row.compact .fix-at { width: 34px; font-size: 12px; line-height: 16px; }
+.fix-row.compact .fix-text { font-size: 12px; line-height: 16px; }
+.outcome-tag { flex-shrink: 0; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+.outcome-tag.checking { background: var(--quiet-assieme-tint); color: var(--quiet-accent); }
+.outcome-tag.fixed { background: var(--quiet-fixed-tint); color: var(--quiet-working-text); }
+.outcome-tag.still_stuck { background: var(--quiet-needs-you-tint); color: var(--quiet-needs-you-text); }

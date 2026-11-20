@@ -10,6 +10,7 @@ import Unreachable, { awayTitle } from "./Unreachable";
 import "./Team.css";
 import { AgentFace } from "./band";
 import Stage, { StageToggle, useStageShown } from "./Stage";
+import { tokens } from "./listModel";
 
 export const SAYS: Partial<Record<Pane["state"], string>> = {
   asking: "is asking you", stuck: "seems stuck", waiting: "has work waiting",
@@ -17,11 +18,7 @@ export const SAYS: Partial<Record<Pane["state"], string>> = {
 
 const UNSETTLED = ["needs-you", "not-reporting", "exited"];
 
-export function tokens(n: number) {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace(/\.0$/, "")}M`; // 10M, as Paper writes it
-  if (n >= 1e3) return `${Math.round(n / 1e3)}K`;
-  return String(n);
-}
+export { tokens } from "./listModel";
 
 /** One fix's buttons, used on the card and in agent detail. A button works once. */
 export function FixButtons({ team, pane, onChanged, onOpenTerminal, more }: {
