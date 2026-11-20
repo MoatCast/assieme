@@ -151,3 +151,15 @@ test("a start that failed part-way leaves the agents that came up alone", () => 
   expect(failedStart([s], "shop", "a", panes)).toBeNull();
   expect(failedStart([s], "shop", "b", panes)).toEqual({ reason: "boom" });
 });
+
+test("work waiting with nothing to review needs you, as the brain counts it", () => {
+  const m = model(MAP({ panes: [pane("tester", { state: "waiting", since_s: 300 })] }), [], [], {});
+  expect(m.needs[0]).toMatchObject({ role: "tester", line: "Has work waiting", tone: "needs", right: "5 min" });
+  expect(m.verdict).toBe("1 agent needs you");
+});
+
+test("a stopped team shows no failed start", () => {
+  const s = starting([{ role: "b", state: "exited", detail: "it stopped" }], { done: true });
+  const m = model(MAP({ stopped: true, panes: [pane("b", { state: "exited" })] }), [], [s], {});
+  expect(m.needs).toEqual([]);
+});

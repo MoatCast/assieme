@@ -9,10 +9,17 @@ export function useTeamMap(team: string | null, pollMs: number) {
   const refresh = useRef<() => void>(() => {});
 
   useEffect(() => {
-    if (!team) { // no team: only other teams' work to review (the empty panel lists it)
+    if (!team) { // no team: only other teams' work to review (the empty panel lists it), on the same interval
       let stopped = false;
-      reviewWaiting().then((w) => !stopped && setWaiting(w), () => {});
-      return () => { stopped = true; };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const poll = async () => {
+        const w = await reviewWaiting().catch(() => null);
+        if (stopped) return;
+        if (w) setWaiting(w);
+        timer = setTimeout(poll, pollMs);
+      };
+      void poll();
+      return () => { stopped = true; clearTimeout(timer); };
     }
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;

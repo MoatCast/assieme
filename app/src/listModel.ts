@@ -62,11 +62,13 @@ function short(q: string) {
   return first.length > 40 ? `${first.slice(0, 39).trimEnd()}…` : first;
 }
 
-function needsLine(p: Pane): string | null {
+/** `review`: commits waiting for the person's review; that work stays under Done (decision D2). */
+function needsLine(p: Pane, review: boolean): string | null {
   if (p.fix?.budget) return "Paused at the daily limit";
   if (p.paused_by_fix || p.fix?.pause) return "Paused: still stuck after a fix";
   if (p.state === "asking") return p.fix ? `Asking: ${lowerFirst(short(p.fix.text))}` : "Asking you";
   if (p.state === "stuck") return p.fix?.text || p.detail || "Seems stuck";
+  if (p.state === "waiting" && !review) return "Has work waiting"; // the brain counts it as needs you
   return null;
 }
 
@@ -100,7 +102,7 @@ export function listModel(map: TeamMap, waiting: ReviewWaiting[], starting: Star
   const needs: Row[] = [], working: Row[] = [], done: Row[] = [];
   const here = starting.filter((s) => s.team === map.team);
   const startingRoles = new Set<string>();
-  for (const s of here) {
+  for (const s of map.stopped ? [] : here) { // a stopped team's agents have all stopped: no failed start to show
     for (const r of s.roles) {
       if (!s.done && !s.error) {
         startingRoles.add(r.role);
@@ -121,7 +123,7 @@ export function listModel(map: TeamMap, waiting: ReviewWaiting[], starting: Star
         { spinner: true, right: m === null ? "" : `${m} min` }));
       continue;
     }
-    const need = needsLine(p);
+    const need = needsLine(p, review.has(p.role));
     if (need) {
       needs.push(row(p.role, "needs", need, "needs", "needs you", { right: minutes(p.since_s), waited: p.since_s ?? 0 }));
       continue;

@@ -116,12 +116,41 @@ test("Return on a row goes into the panel", async () => {
   expect(document.activeElement).toBe(screen.getByTestId("term"));
 });
 
-test("⌘2 selects All terminals, ⌘4 Activity", async () => {
+test("⌘1–⌘4 no longer pick views (they go to agents with the ⌘K palette, later)", async () => {
   await show(ASKING);
   fireEvent.keyDown(window, { key: "2", metaKey: true });
-  expect(screen.getByTestId("panel-terminals")).toBeTruthy();
   fireEvent.keyDown(window, { key: "4", metaKey: true });
-  expect(screen.getByTestId("panel-activity")).toBeTruthy();
+  expect(screen.queryByTestId("panel-terminals")).toBeNull();
+  expect(screen.queryByTestId("panel-activity")).toBeNull();
+  expect(screen.getByTestId("panel-agent").textContent).toBe("planner");
+});
+
+test("⌘L does nothing while a sheet is open on top", async () => {
+  await show(ASKING);
+  const sheet = document.createElement("div");
+  sheet.setAttribute("role", "dialog");
+  sheet.setAttribute("aria-modal", "true");
+  const field = document.createElement("input");
+  sheet.appendChild(field);
+  document.body.appendChild(sheet);
+  field.focus();
+  fireEvent.keyDown(field, { key: "l", metaKey: true });
+  expect(document.activeElement).toBe(field);
+  sheet.remove();
+});
+
+test("with no team, other teams' work to review is polled, not read once", async () => {
+  vi.useFakeTimers();
+  try {
+    b.reviewWaiting.mockResolvedValue([]);
+    render(<Window team={null} starting={[]} open={null} onNewTeam={vi.fn()} onNewTask={vi.fn()} onMerged={vi.fn()} onDiscarded={vi.fn()} pollMs={5000} />);
+    await act(async () => {});
+    expect(b.reviewWaiting).toHaveBeenCalledTimes(1);
+    await act(async () => { vi.advanceTimersByTime(5000); });
+    expect(b.reviewWaiting).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("announces a fix outcome politely", async () => {
@@ -258,14 +287,9 @@ test("a link names its team: another team's review opens for that team, and a sa
   expect(screen.queryByTestId("panel-agent")).toBeNull(); // shop's builder-1 is another agent
 });
 
-test("a team switch closes a review and leaves full size; ⌘3 during a review shows the Board", async () => {
+test("a team switch closes a review and leaves full size", async () => {
   b.reviewWaiting.mockResolvedValue([{ team: "shop", project: "/p", role: "tester", branch: "b", ahead: 3 }]);
   const { rerender, props } = await show(QUIET);
-  fireEvent.click(screen.getByRole("button", { name: /tester, done/ }));
-  fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
-  fireEvent.keyDown(window, { key: "3", metaKey: true });
-  expect(screen.queryByTestId("panel-review")).toBeNull();
-  expect(screen.getByTestId("panel-board")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: /tester, done/ }));
   fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
   b.teamMap.mockResolvedValue(MAP({ team: "other", panes: [pane("tester", { state: "idle" })] }));

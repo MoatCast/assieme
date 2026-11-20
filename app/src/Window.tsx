@@ -17,7 +17,6 @@ import "./Window.css";
 export type OpenLink = { team: string; role: string | null; view: "review" | null; nonce: number };
 
 const FIXED_SHOWS_MIN = 10;
-const KEY_VIEWS: Record<string, View> = { "1": "overview", "2": "terminals", "3": "board", "4": "activity" };
 
 const rows = (m: ListModel): Row[] => [...m.needs, ...[...m.working, ...m.done].flatMap((x) => (isGroup(x) ? x.rows : [x]))];
 
@@ -144,9 +143,6 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     }
   }, [model, team, open, waiting]);
 
-  const selectNow = useRef(select);
-  selectNow.current = select;
-
   // A team opens on its own rule; a selected agent that stops hands the panel to Team overview.
   useEffect(() => {
     if (!model || !team) return;
@@ -165,18 +161,16 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     last.current = { map, model };
   }, [map, model]);
 
-  // ⌘L leaves the terminal for the list; ⌘1–⌘4 pick a view. Escape is left alone: agents use it to interrupt.
+  // ⌘L leaves the terminal for the list. Escape is left alone: agents use it to interrupt. (⌘1–⌘9 go to agents and the
+  // views to the ⌘K palette in the power-tools build.) A sheet open on top keeps its keys.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!e.metaKey || e.altKey || e.ctrlKey) return;
+      if (!e.metaKey || e.altKey || e.ctrlKey || document.querySelector("[aria-modal='true']")) return;
       if (e.key.toLowerCase() === "l") {
         e.preventDefault();
         e.stopPropagation();
         setFull(false);
         setToList((n) => n + 1);
-      } else if (KEY_VIEWS[e.key] && team) {
-        e.preventDefault();
-        selectNow.current({ kind: "view", view: KEY_VIEWS[e.key] }); // as a click: a review in the panel closes too
       }
     };
     window.addEventListener("keydown", onKey, true);
