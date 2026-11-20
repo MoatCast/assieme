@@ -44,7 +44,7 @@ export default function StepPanel({ steps, at, answers, title, hint, announce, o
               ))}
             </ol>
           </nav>
-          <h1 tabIndex={-1} ref={heading}>{title}</h1>
+          <h1 tabIndex={-1} ref={heading} id="step-title">{title}</h1>
           {hint && <p>{hint}</p>}
         </header>
         <div className="body step" key={at} ref={body}>{children}</div>
