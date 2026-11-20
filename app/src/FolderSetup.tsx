@@ -13,13 +13,14 @@ export type FolderSetupState = { preview: FolderPreview | null; error: string; b
   save: () => Promise<boolean>; retry: () => void };
 
 /** A first saved version (or a new one) for the Project step's folder. `folderSave` picks the right commit itself. */
-export function useFolderSetup(project: string, machine?: string): FolderSetupState {
+/** `load`: look through the folder now (the setup block shows it); a plain save, for uncommitted files, needs no preview. */
+export function useFolderSetup(project: string, machine?: string, load = true): FolderSetupState {
   const [preview, setPreview] = useState<FolderPreview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const shown = useRef(project); // a slow answer for an earlier folder never lands
   shown.current = project;
-  const load = () => {
+  const look = () => {
     const p = project;
     setPreview(null);
     setError("");
@@ -27,7 +28,7 @@ export function useFolderSetup(project: string, machine?: string): FolderSetupSt
       (got) => { if (shown.current === p) setPreview(got); },
       (e) => { if (shown.current === p) setError(message(e)); });
   };
-  useEffect(load, [project, machine]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (load && project) look(); }, [project, machine, load]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = async () => {
     setBusy(true);
     setError("");
@@ -41,7 +42,7 @@ export function useFolderSetup(project: string, machine?: string): FolderSetupSt
       setBusy(false);
     }
   };
-  return { preview, error, busy, save, retry: () => (preview ? void save() : load()) };
+  return { preview, error, busy, save, retry: () => (preview ? void save() : look()) };
 }
 
 /** The footer's primary for the block, or none while the folder is being looked through. */

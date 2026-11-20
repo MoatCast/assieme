@@ -131,3 +131,21 @@
 .newteam .assieme-block .detail { color: var(--quiet-mute); margin-top: 4px; }
 .newteam .assieme-block .folder-box { padding: 10px 12px; background: var(--quiet-surface); border-radius: var(--quiet-radius-inner);
   color: var(--quiet-ink); font: 12px/18px var(--quiet-font-mono); white-space: pre-wrap; max-height: 160px; overflow: auto; }
+/* Push-button options, from Paper "v3 — New team: Team". */
+.newteam .option { display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; text-align: left;
+  border: 1px solid var(--quiet-line-strong); border-radius: 16px; padding: 14px 18px; min-height: 28px; }
+.newteam .option:hover { border-color: var(--quiet-control); }
+.newteam .option:focus-visible, .newteam .option.on { outline: none; border: 2px solid var(--quiet-ink); padding: 13px 17px; }
+.newteam .option b { font-size: 15px; line-height: 20px; font-weight: 600; color: var(--quiet-ink); }
+.newteam .option small { font-size: 13px; line-height: 18px; color: var(--quiet-slate); }
+.newteam .option .count { margin-left: auto; flex-shrink: 0; font-size: 12px; line-height: 16px; color: var(--quiet-slate); }
+.newteam .option .text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.newteam .pickers { display: flex; gap: 10px; }
+.newteam .pickers .option { flex: 1; }
+.newteam .recent { display: flex; flex-direction: column; gap: 8px; }
+.newteam .recent .option { flex-direction: row; justify-content: space-between; }
+.newteam .box.folder { border-color: var(--quiet-line-strong); padding: 12px 16px; gap: 12px; }
+.newteam .box.folder .pick { color: var(--quiet-ink); font-weight: 500; }
+/* A warning holds the step: amber, never the Assieme tint. */
+.newteam .warn-block { padding: 14px 18px; background: var(--quiet-tip-tint); border: 1px solid var(--quiet-tip-line);
+  border-radius: var(--quiet-radius-card); color: var(--quiet-tip-text); font-size: 14px; line-height: 20px; }
