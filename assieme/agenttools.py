@@ -56,14 +56,20 @@ def restart(teams, rt, team_name, role_name, thread=threading.Thread):
     (Claude Code and Codex). The app asks the person first: anything it is doing right now stops."""
     folder, tm, r = _role(teams, team_name, role_name, practices=True)  # its brief keeps the team practices
     try:
-        rows = rt.list({team.TEAM: team_name}, all=False)
+        rows = rt.list({team.TEAM: team_name}, all=True)
     except runtime.RuntimeError_:
         rows = []  # no core running: nothing of this team is
-    for row in rows:
-        labels = row.get('labels') or {}
-        if row.get('state') == 'live' and labels.get(team.TEAM) == team_name and labels.get(team.ROLE) == role_name:
+    mine = [r for r in rows if (r.get('labels') or {}).get(team.TEAM) == team_name
+            and (r.get('labels') or {}).get(team.ROLE) == role_name]
+    for row in mine:
+        if row.get('state') == 'live':
             rt.kill(row['address'])
-    tm = dataclasses.replace(tm, roles=[dataclasses.replace(x, cont=True) if x.name == role_name else x for x in tm.roles])
+    # Only a role that ran has a conversation to pick up: Try again after a start that failed before it ran starts it
+    # fresh, as `--continue` with nothing to continue ends the agent at once.
+    # shortcut: "ran" means the core has a terminal for it, so one that ended before its first prompt (killed at
+    # Claude Code's folder-trust question) still resumes; ask the agent's own session folder if that shows up.
+    tm = dataclasses.replace(tm, roles=[dataclasses.replace(x, cont=bool(mine)) if x.name == role_name else x
+                                        for x in tm.roles])
 
     def run():
         try:

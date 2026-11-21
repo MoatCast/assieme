@@ -92,6 +92,23 @@ class RestartTest(Base):
         self.assertEqual(rt.killed, ['x:1'])
         self.assertEqual(started, {'only': 'reviewer', 'cont': True})
 
+    def start_and_see_cont(self, rows):
+        rt = SimpleNamespace(killed=[], kill=lambda a: rt.killed.append(a),
+                             list=lambda labels, all=False: [r for r in rows if all or r['state'] == 'live'])
+        seen = {}
+        with mock.patch('assieme.team.start', lambda tm, *a, only=None, **k: seen.update(
+                cont=next(r for r in tm.roles if r.name == only).cont) or []):
+            agenttools.restart(self.teams, rt, 'shop', 'reviewer', thread=lambda target, daemon: SimpleNamespace(start=target))
+        return seen['cont'], rt.killed
+
+    def test_try_again_on_a_role_that_never_started_starts_it_fresh(self):
+        # A team start that failed before the role ran: no conversation to continue, and --continue would end it.
+        self.assertEqual(self.start_and_see_cont([]), (False, []))
+
+    def test_a_role_that_ran_and_finished_picks_up_its_conversation(self):
+        ran = [{'address': 'x:2', 'state': 'finished', 'labels': {'assieme.team': 'shop', 'assieme.role': 'reviewer'}}]
+        self.assertEqual(self.start_and_see_cont(ran), (True, []))
+
     def test_restart_of_a_stopped_role_just_starts(self):
         rt = SimpleNamespace(killed=[], kill=lambda a: rt.killed.append(a), list=lambda *a, **k: [])
         with mock.patch('assieme.team.start', lambda *a, **k: []):
