@@ -41,7 +41,7 @@ const agent = (name: string, cwd: string, source = "claude-code", herdr_address:
 
 const SNAP: Snapshot = {
   at: "2026-11-07T12:00:00Z",
-  clis: { claude: true, codex: false, hc: true, herdr: true },
+  clis: { claude: true, codex: false, asm: true, hc: true, herdr: true },
   agents: [
     agent("planner", "/Users/me/code/checkout-service", "claude-code", "t4"),
     agent("builder", "/Users/me/code/checkout-service", "codex"),
@@ -253,14 +253,14 @@ test("before the service answers it doesn't claim anything is missing", async ()
 });
 
 test("once the service answers, what's missing is said", async () => {
-  snapshot.mockResolvedValue({ ...SNAP, agents: [], clis: { claude: false, codex: false, hc: false, herdr: false } });
+  snapshot.mockResolvedValue({ ...SNAP, agents: [], clis: { claude: false, codex: false, asm: true, hc: false, herdr: false } });
   render(<FirstRun pollMs={1000} />);
   await flush();
   screen.getByText("No agents found yet.");
   expect(screen.getAllByText("not found")).toHaveLength(2);
 });
 
-const NEW_USER: Snapshot = { ...SNAP, agents: [], teams: [], starting: [], clis: { claude: false, codex: false, hc: false, herdr: false } };
+const NEW_USER: Snapshot = { ...SNAP, agents: [], teams: [], starting: [], clis: { claude: false, codex: false, asm: true, hc: false, herdr: false } };
 
 test("people with agents or a team keep the existing screen", async () => {
   for (const snap of [SNAP, { ...NEW_USER, agents: SNAP.agents }, { ...NEW_USER, teams: SNAP.teams }, { ...NEW_USER, starting: STARTING({}).starting }]) {

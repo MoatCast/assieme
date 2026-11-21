@@ -34,7 +34,7 @@ export type TeamRow = {
 export type Snapshot = {
   at: string;
   /** An older service names only Claude Code and Codex. */
-  clis: Partial<Record<AgentKind, boolean>> & { hc: boolean; herdr: boolean };
+  clis: Partial<Record<AgentKind, boolean>> & { asm: boolean; hc: boolean; herdr: boolean };
   agents: Agent[];
   alerts: unknown[];
   queue: unknown[];

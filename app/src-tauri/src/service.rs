@@ -31,13 +31,14 @@ pub fn login_path(shell: &str, current: &str) -> String {
     })
 }
 
-/// Run `<python> -P -m assieme service install`, with `hc_bin` first on PATH so the service records it.
-pub fn install(python: &Path, hc_bin: &Path) -> Result<(), String> {
+/// Run `<python> -P -m assieme service install`, with `bin_dirs` first on PATH, in order, so the service records them.
+pub fn install(python: &Path, bin_dirs: &[&Path]) -> Result<(), String> {
     if !python.exists() {
         return Err(format!("Assieme's Python is missing at {}; rebuild the app with app/scripts/bundle.sh", python.display()));
     }
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
-    let path = format!("{}:{}", hc_bin.display(), login_path(&shell, &std::env::var("PATH").unwrap_or_default()));
+    let first: Vec<String> = bin_dirs.iter().map(|d| d.display().to_string()).collect();
+    let path = format!("{}:{}", first.join(":"), login_path(&shell, &std::env::var("PATH").unwrap_or_default()));
     let out = Command::new(python)
         .args(["-P", "-m", "assieme", "service", "install"])
         .env("PATH", path)
@@ -91,19 +92,19 @@ mod tests {
         let log = std::env::temp_dir().join(format!("assieme-svc-{}-log", std::process::id()));
         let _ = std::fs::remove_file(&log);
         let python = script("python3", &format!(r#"echo "$@ PATH=$PATH" > {}"#, log.display()));
-        install(&python, Path::new("/bundle/hc-bin")).unwrap();
+        install(&python, &[Path::new("/bundle/asm-bin"), Path::new("/bundle/hc-bin")]).unwrap();
         let got = std::fs::read_to_string(&log).unwrap();
-        assert!(got.starts_with("-P -m assieme service install PATH=/bundle/hc-bin:"), "{got}");
+        assert!(got.starts_with("-P -m assieme service install PATH=/bundle/asm-bin:/bundle/hc-bin:"), "{got}");
     }
 
     #[test]
     fn service_install_failure_has_the_output() {
         let python = script("bad", "echo boom >&2; exit 1");
-        assert!(install(&python, Path::new("/x")).unwrap_err().contains("boom"));
+        assert!(install(&python, &[Path::new("/x")]).unwrap_err().contains("boom"));
     }
 
     #[test]
     fn missing_python_is_explained() {
-        assert!(install(Path::new("/nope/python3"), Path::new("/x")).unwrap_err().contains("bundle.sh"));
+        assert!(install(Path::new("/nope/python3"), &[Path::new("/x")]).unwrap_err().contains("bundle.sh"));
     }
 }

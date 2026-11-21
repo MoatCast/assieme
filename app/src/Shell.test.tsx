@@ -85,7 +85,7 @@ import Shell, { liveTeams } from "./Shell";
 const row = (team: string, role: string, status = "idle", state = "live") =>
   ({ team, role, address: `${team}-${role}`, state, status, briefed: true });
 const SNAP = (teams: ReturnType<typeof row>[], over: Partial<Snapshot> = {}): Snapshot => ({
-  at: "", clis: { claude: true, codex: true, hc: true, herdr: false }, agents: [], alerts: [], queue: [], stalls: [],
+  at: "", clis: { claude: true, codex: true, asm: true, hc: true, herdr: false }, agents: [], alerts: [], queue: [], stalls: [],
   teams, starting: [], first_run_done: true, ...over,
 });
 

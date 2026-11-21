@@ -1,12 +1,12 @@
 // Remote machines (step 15): the brain's machine methods, and the New team and setup calls aimed at another machine.
-// The brain sends a call with `machine` to the brain there, over hc's machine line; this Mac's calls stay in bridge.ts.
+// The brain sends a call with `machine` to the brain there, over the core's machine line; this Mac's calls stay in bridge.ts.
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentKind, FolderPreview, ProjectCheck, Suggestion, SetupStatus, TeamForm } from "./bridge";
 
 const call = <T>(method: string, params: object = {}, timeoutS?: number) =>
   invoke<T>("brain_call", { method, params, ...(timeoutS ? { timeoutS } : {}) });
 
-/** A machine's line, as hc reports it. since_ms: when it went down. */
+/** A machine's line, as the core reports it. since_ms: when it went down. */
 export type Machine = {
   name: string; target: string; state: "connecting" | "connected" | "needs_login" | "needs_update" | "unreachable";
   since_ms?: number | null; why?: string | null; job?: SetupJob | null;
@@ -36,7 +36,7 @@ export const remoteSetup = (target: string) => call<{ job: SetupJob }>("remote.s
 export const remoteJob = (target: string) => call<{ job: SetupJob | null }>("remote.job", { target });
 export const remoteConnect = (machine: string) => call<Machine>("remote.connect", { machine }, 30);
 export const remoteForget = (machine: string) => call<{ ok: boolean }>("remote.forget", { machine });
-/** Terminal on `ssh <target>`, or on hc's login for a machine already added: the person answers ssh there. */
+/** Terminal on `ssh <target>`, or on the core's login for a machine already added: the person answers ssh there. */
 export const remoteTerminal = (a: { target?: string; machine?: string }) => call<{ ok: boolean }>("remote.terminal", a);
 /** Git repositories in that machine's home folder, as New team's suggestions. */
 export const remoteRepos = (machine: string) => call<string[]>("remote.repos", { machine }, 30);

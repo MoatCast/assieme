@@ -10,7 +10,7 @@ import useModal from "./useModal";
 import "./Remote.css";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
-/** `gpu-box` for `dev@gpu-box.tail1.ts.net:2222`: what hc names a machine. IP addresses stay whole, as in hc. */
+/** `gpu-box` for `dev@gpu-box.tail1.ts.net:2222`: what the core names a machine. IP addresses stay whole, as in the core. */
 export function shortName(target: string) {
   const host = target.replace(/^.*@/, "").replace(/:\d+$/, "");
   return /^[\d.]+$/.test(host) || host.includes(":") ? host : host.split(".")[0] || target;
