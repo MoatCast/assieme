@@ -18,6 +18,7 @@ fn brain_commands(args: Vec<std::ffi::OsString>) -> Option<i32> {
         "askhook" => assieme_brain::askhook::main(),
         "mcp" => assieme_brain::mcpserver::main(),
         "cli" => assieme_brain::cli::main(words(1)),
+        "shim" => assieme_brain::quiet::shim_main(&words(1), None, None),
         _ => return None,
     })
 }

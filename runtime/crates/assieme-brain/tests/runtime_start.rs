@@ -4,7 +4,6 @@
 use assieme_brain::runtime::Runtime;
 
 #[test]
-#[ignore = "needs quiet::install, ported by session C; un-ignore then"]
 fn a_missing_core_is_started_with_the_allow_listed_environment() {
     let dir = std::path::PathBuf::from(format!("/var/tmp/brain-rt-start-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
