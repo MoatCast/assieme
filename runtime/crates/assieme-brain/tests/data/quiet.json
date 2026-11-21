@@ -1,0 +1,88 @@
+{
+ "read_json": [
+  {
+   "in": "tests/data/quiet_files/good.json",
+   "out": {
+    "a": 1
+   }
+  },
+  {
+   "in": "tests/data/quiet_files/list.json",
+   "out": [
+    1,
+    2
+   ]
+  },
+  {
+   "in": "tests/data/quiet_files/damaged.json",
+   "out": "DEFAULT"
+  },
+  {
+   "in": "tests/data/quiet_files/empty.json",
+   "out": "DEFAULT"
+  },
+  {
+   "in": "tests/data/quiet_files/bom.json",
+   "out": "DEFAULT"
+  },
+  {
+   "in": "tests/data/quiet_files/nan.json",
+   "out": {
+    "n": {
+     "$py": "nan"
+    }
+   }
+  },
+  {
+   "in": "tests/data/quiet_files/not_utf8.json",
+   "out": "DEFAULT"
+  },
+  {
+   "in": "tests/data/quiet_files/a_folder.json",
+   "out": "DEFAULT"
+  },
+  {
+   "in": "tests/data/quiet_files/with space.json",
+   "out": {
+    "k": "x"
+   }
+  },
+  {
+   "in": "tests/data/quiet_files/missing.json",
+   "out": "DEFAULT"
+  },
+  {
+   "in": "tests/data/quiet_files/missing_folder/x.json",
+   "out": "DEFAULT"
+  }
+ ],
+ "state_dir": [
+  {
+   "in": {
+    "HOME": "/home/x"
+   },
+   "out": "/home/x/.local/state/assieme"
+  },
+  {
+   "in": {
+    "HOME": "/home/x",
+    "XDG_STATE_HOME": "/state"
+   },
+   "out": "/state/assieme"
+  },
+  {
+   "in": {
+    "HOME": "/home/x",
+    "XDG_STATE_HOME": ""
+   },
+   "out": "/home/x/.local/state/assieme"
+  },
+  {
+   "in": {
+    "HOME": "/home/with space/",
+    "XDG_STATE_HOME": "relative/state"
+   },
+   "out": "relative/state/assieme"
+  }
+ ]
+}
