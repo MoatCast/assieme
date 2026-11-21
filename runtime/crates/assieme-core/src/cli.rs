@@ -700,8 +700,8 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("machine rename", "machine.rename"),
     ("machine rm", "machine.rm"),
 ];
-/// Client-only methods: handshake and opaque document storage.
-pub const API_ONLY: &[&str] = &["terminal.status.set", "hello", "doc.get", "doc.set"];
+/// Client-only methods: handshake, opaque document storage and the app's brain restart.
+pub const API_ONLY: &[&str] = &["terminal.status.set", "hello", "doc.get", "doc.set", "brain.restart"];
 
 #[cfg(test)]
 mod tests;

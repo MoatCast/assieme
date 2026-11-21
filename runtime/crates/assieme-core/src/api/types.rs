@@ -170,6 +170,8 @@ pub struct StatusResult {
     pub keeps_running_after_logout: Option<bool>,
     /// Account for the administrator's loginctl enable-linger command.
     pub logout_linger_user: Option<String>,
+    /// The brain this core runs; null when it runs none (not the assieme session, or no brain.json).
+    pub brain: Option<crate::brain::BrainStatus>,
 }
 
 #[derive(Deserialize, JsonSchema)]
