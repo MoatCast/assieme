@@ -537,7 +537,7 @@ mod tests {
             assert!(deny.contains(&"Bash(git push:*)".to_string()), "{level}");
             assert!(deny.contains(&"Bash(/usr/bin/git merge:*)".to_string()), "{level}");
             assert!(deny.contains(&"Bash(rm:*)".to_string()), "{level}");
-            assert!(deny.contains(&"Read(~/.ssh/**)".to_string()), "{level}");
+            assert_eq!(deny.iter().filter(|d| *d == "Read(~/.ssh/**)").count(), 1, "{level}");
             assert!(allow.contains(&"Bash(cargo test:*)".to_string()), "{level}");
             assert_eq!(allow.contains(&"Bash(git commit:*)".to_string()), commits, "{level}");
             assert_eq!(allow.contains(&"Bash(npm install:*)".to_string()), installs, "{level}");
@@ -564,6 +564,19 @@ mod tests {
         assert!(text.contains(r#"pattern=["git", "commit"], decision="allow""#)); // both have it
         assert!(!text.contains(r#"pattern=["npm", "install"], decision="allow""#)); // only the trusted one has it
         assert!(codex_rules(&[&Role::new("r", "codex")], "/w").is_none());
+        let mut c = role("safe");
+        c.rules = vec![
+            json!({"decision": "block", "program": ["rm"], "words": "no rm"}),
+            json!({"decision": "allow", "program": ["make", "lint"], "words": ""}),
+        ];
+        let text = codex_rules(&[&c], "/w").unwrap_or_default();
+        for line in [
+            r#"pattern=["git", "push"], decision="forbidden", justification="Push, tags, merge""#,
+            r#"pattern=["rm"], decision="forbidden", justification="no rm""#,
+            r#"pattern=["make", "lint"], decision="allow", justification="your rule""#,
+        ] {
+            assert!(text.contains(line), "{line}");
+        }
         assert_eq!(
             codex_args(&a),
             prog(&["--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=true"])
