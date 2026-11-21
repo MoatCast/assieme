@@ -38,7 +38,7 @@ export function badName(roles: RoleDraft[]): number {
 /** New team, one question per step: (Developer tools) → (Agent) → (Where) → Project → Task → Team → Start. This owns
  *  the form's state and the start; each step is a component of its own. A new user's first run is this same flow.
  *  clis: null until the service has said which are installed. */
-export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000, onClose, onStarted }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; recheckMs?: number; onClose: () => void; onStarted?: () => void }) {
+export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000, onClose, onStarted }: { clis: Clis | null; draft?: TeamDraft | null; retryMs?: number; recheckMs?: number; onClose: () => void; onStarted?: (team: string) => void }) {
   const [machine, setMachine] = useState<string | null>(null); // null: this Mac
   const [there, setThere] = useState<Clis | null>(null); // the agents on that machine, once it is ready
   const have = machine === null ? clis : there;
@@ -383,9 +383,9 @@ export default function NewTeam({ clis, draft, retryMs = 3000, recheckMs = 3000,
         origin: { tool: imported.tool ?? "", label: imported.label ?? "" },
       } : {};
       const form = { project, task: task.trim(), roles, practices: practiceOn, ...brought };
-      await (machine ? startTeamOn(form, machine) : startTeam(form));
+      const started = await (machine ? startTeamOn(form, machine) : startTeam(form));
       clearDraft();
-      onStarted?.();
+      onStarted?.(started.team);
       onClose();
     } catch (e) {
       const { field, message } = fieldOf(e);

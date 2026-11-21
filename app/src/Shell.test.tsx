@@ -55,8 +55,9 @@ vi.mock("./Review", () => ({
     </div>
   ),
 }));
-vi.mock("./NewTeam", () => ({ default: ({ draft, onClose }: { draft?: { why: string } | null; onClose: () => void }) => (
-  <div><span>new team screen{draft ? `, drafted: ${draft.why}` : ""}</span><button type="button" onClick={onClose}>close new team</button></div>
+vi.mock("./NewTeam", () => ({ default: ({ draft, onClose, onStarted }: { draft?: { why: string } | null; onClose: () => void; onStarted?: (t: string) => void }) => (
+  <div><span>new team screen{draft ? `, drafted: ${draft.why}` : ""}</span><button type="button" onClick={onClose}>close new team</button>
+    <button type="button" onClick={() => { onStarted?.("delta"); onClose(); }}>start delta</button></div>
 ) }));
 vi.mock("./Settings", () => ({ default: ({ onClose, onShowFirstRun, section, onOpenTeam }: { onClose: () => void; onShowFirstRun: () => void; section?: string; onOpenTeam: (t: string, r: string | null) => void }) => (
   <div><span>settings screen{section ? ` at ${section}` : ""}</span><button type="button" onClick={onClose}>close settings</button><button type="button" onClick={onShowFirstRun}>first run again</button>
@@ -165,6 +166,17 @@ test("New Team (⌘N) in the File menu opens New team", async () => {
   await flush();
   act(() => newTeamAsked());
   expect(screen.getByText("new team screen")).toBeTruthy();
+});
+
+test("a team started in New team is shown once it is live, not before", async () => {
+  snap.current = SNAP([row("alpha", "a")]);
+  render(<Shell />);
+  await flush();
+  act(() => newTeamAsked());
+  fireEvent.click(screen.getByText("start delta"));
+  expect(screen.getByText("window for alpha")).toBeTruthy(); // not live yet: the window stays put
+  act(() => snap.report!(SNAP([row("alpha", "a", "blocked"), row("delta", "builder")])));
+  expect(screen.getByText("window for delta")).toBeTruthy();
 });
 
 test("found teams alone still open, and started teams come first", () => {

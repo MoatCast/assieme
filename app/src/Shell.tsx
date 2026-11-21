@@ -45,6 +45,8 @@ export default function Shell() {
   const [settings, setSettings] = useState(false);
   const [settingsAt, setSettingsAt] = useState<string | undefined>();
   const [open, setOpen] = useState<OpenLink | null>(null);
+  // A team just started in New team: shown as soon as it is live (until then the picked team would snap back).
+  const [justStarted, setJustStarted] = useState<string | null>(null);
   const [merged, setMerged] = useState<MergeResult | null>(null);
   const [notice, setNotice] = useState("");
   const [draft, setDraft] = useState<TeamDraft | null>(null);
@@ -75,6 +77,14 @@ export default function Shell() {
   useEffect(() => {
     if (shown === "window" && team && !(picked && names.includes(picked))) setPicked(team);
   }, [shown, team, picked, names]);
+
+  useEffect(() => {
+    if (!justStarted || !names.includes(justStarted)) return;
+    setPicked(justStarted);
+    setOpen({ team: justStarted, role: null, view: null, nonce: Date.now() });
+    setTab("window");
+    setJustStarted(null);
+  }, [justStarted, names]);
 
   const openTeam = () => {
     setTab("window");
@@ -182,7 +192,7 @@ export default function Shell() {
       {notice && <Notice key={notice} ms={8000} onDone={() => setNotice("")}>{notice}</Notice>}
       {creating && (
         <NewTeam key={draft?.id ?? "new"} clis={installedOf(snap?.clis)} draft={draft}
-          onClose={() => { setCreating(false); setDraft(null); }} />
+          onClose={() => { setCreating(false); setDraft(null); }} onStarted={setJustStarted} />
       )}
       {bringing && (
         <BringOver onClose={() => setBringing(false)} onImported={(d) => { setBringing(false); setDraft(d); setCreating(true); }} />
