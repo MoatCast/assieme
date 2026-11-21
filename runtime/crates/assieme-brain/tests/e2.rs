@@ -124,5 +124,8 @@ fn remote_setup_installs_the_asm_launcher() {
     Remotes::new(Runtime::new("assieme", Some(sock))).install_launcher("gpu-box").unwrap();
     let line = core.calls("machine.exec").pop().unwrap()["line"].as_str().unwrap().to_string();
     assert!(line.contains(r#"exec "$HOME/.local/bin/assieme-core" cli "$@""#), "{line}");
-    assert!(line.contains(r#"> "$HOME/.local/bin/assieme""#) && line.contains(r#"chmod +x "$HOME/.local/bin/assieme""#), "{line}");
+    assert!(
+        line.contains(r#"> "$HOME/.local/bin/assieme""#) && line.contains(r#"chmod +x "$HOME/.local/bin/assieme""#),
+        "{line}"
+    );
 }
