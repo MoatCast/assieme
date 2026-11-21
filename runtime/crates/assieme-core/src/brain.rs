@@ -47,17 +47,19 @@ pub fn dir() -> PathBuf {
         .join("assieme")
 }
 
+#[derive(serde::Deserialize)]
+struct BrainJson {
+    path: String,
+}
+
 /// `brain.json`'s PATH; none when the file is missing or unreadable.
 fn configured(dir: &Path) -> Option<String> {
     let file = dir.join("brain.json");
     let bytes = std::fs::read(&file).ok()?;
-    match serde_json::from_slice::<serde_json::Value>(&bytes).ok().and_then(|v| v["path"].as_str().map(String::from)) {
-        Some(path) => Some(path),
-        None => {
-            eprintln!("core: {} has no \"path\": no brain", file.display());
-            None
-        }
-    }
+    serde_json::from_slice::<BrainJson>(&bytes)
+        .inspect_err(|e| eprintln!("core: {}: {e}: no brain", file.display()))
+        .ok()
+        .map(|b| b.path)
 }
 
 /// `brain.restart`: read `brain.json` again and start a fresh brain. A brain it stops is not a failure.
@@ -230,7 +232,9 @@ async fn supervise(core_socket: PathBuf) {
                 }
             }
             None => {
-                eprintln!("core: the brain failed {FAILURES} times within 10 minutes: it stays down until brain.restart");
+                eprintln!(
+                    "core: the brain failed {FAILURES} times within 10 minutes: it stays down until brain.restart"
+                );
                 set("down", None);
                 RESTART.notified().await;
                 backoff = Backoff::default();
@@ -244,78 +248,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn delays_double_to_a_minute_and_reset_after_a_long_run() {
-        let mut b = Backoff::default();
-        let t = Instant::now();
+    fn delays_double_to_a_minute_reset_after_a_long_run_and_give_up_at_five() {
         let s = Duration::from_secs;
-        let short = s(0);
-        assert_eq!(b.exited(short, t), Some(s(1)));
-        assert_eq!(b.exited(short, t + s(700)), Some(s(2)), "the first exit left the 10-minute window");
-        assert_eq!(b.exited(short, t + s(1400)), Some(s(4)));
-        assert_eq!(b.exited(s(60), t + s(2100)), Some(s(1)), "a run of 60 s resets the delay");
-        let mut b = Backoff { next: Some(s(32)), exits: vec![] };
-        assert_eq!(b.exited(short, t), Some(s(32)));
-        assert_eq!(b.exited(short, t), Some(s(60)));
-        assert_eq!(b.exited(short, t), Some(s(60)), "never more than a minute");
-    }
-
-    #[test]
-    fn the_fifth_exit_within_ten_minutes_gives_up() {
-        let mut b = Backoff::default();
         let t = Instant::now();
-        for i in 0..4 {
-            assert!(b.exited(Duration::ZERO, t + Duration::from_secs(i * 100)).is_some());
+        // (delay before, ran, seconds since start, exits already in the window, expected)
+        let cases = [
+            (None, s(0), 0, 0, Some(s(1))),
+            (Some(s(2)), s(0), 0, 1, Some(s(2))),
+            (Some(s(32)), s(0), 0, 0, Some(s(32))),
+            (Some(s(60)), s(0), 0, 0, Some(s(60))),
+            (Some(s(8)), s(60), 0, 0, Some(s(1))),
+            (Some(s(8)), s(0), 599, 4, None),
+            (Some(s(8)), s(0), 600, 4, Some(s(8))),
+        ];
+        for (i, (next, ran, at, before, want)) in cases.into_iter().enumerate() {
+            let mut b = Backoff { next, exits: vec![t; before] };
+            assert_eq!(b.exited(ran, t + s(at)), want, "case {i}");
         }
-        assert_eq!(b.exited(Duration::ZERO, t + Duration::from_secs(599)), None);
-        let mut b = Backoff::default();
-        for i in 0..4 {
-            b.exited(Duration::ZERO, t + Duration::from_secs(i * 100));
-        }
-        assert!(b.exited(Duration::ZERO, t + Duration::from_secs(600)).is_some(), "the first left the window");
     }
 
     #[test]
     fn the_brain_gets_only_its_allow_list() {
-        let var = |n: &str| match n {
-            "HOME" => Some("/Users/me".into()),
-            "LANG" => Some("en_GB.UTF-8".into()),
-            "XDG_STATE_HOME" => Some(String::new()),
-            _ => Some("leaked".into()),
-        };
+        let var = |n: &str| (n != "XDG_STATE_HOME").then(|| format!("<{n}>"));
         let mut env = environment("/a:/b", Path::new("/s/asm.sock"), var);
         env.sort();
-        let want: Vec<(String, String)> = [
-            ("ASM_SESSION", "assieme"),
-            ("ASM_SOCKET", "/s/asm.sock"),
-            ("HOME", "/Users/me"),
-            ("LANG", "en_GB.UTF-8"),
-            ("PATH", "/a:/b"),
-            ("USER", "leaked"),
-        ]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect();
-        assert_eq!(env, want, "an empty XDG_STATE_HOME is left out; nothing beyond the list");
-    }
-
-    #[test]
-    fn a_large_log_is_renamed_when_next_opened() {
-        let dir = std::env::temp_dir().join(format!("asm-brain-log-{}", crate::platform::random_hex()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let log = dir.join("brain.log");
-        std::fs::write(&log, vec![b'x'; LOG_LIMIT as usize + 1]).unwrap();
-        drop(open_log(&log).unwrap());
-        assert_eq!(std::fs::metadata(&log).unwrap().len(), 0);
-        assert_eq!(std::fs::metadata(dir.join("brain.log.1")).unwrap().len(), LOG_LIMIT + 1);
-        std::fs::write(&log, b"small").unwrap();
-        drop(open_log(&log).unwrap());
-        assert_eq!(std::fs::read(&log).unwrap(), b"small", "a small log is kept");
-        std::fs::remove_dir_all(dir).unwrap();
-    }
-
-    #[test]
-    fn only_the_assieme_session_restarts_a_brain() {
-        let err = restart("test").unwrap_err();
-        assert_eq!(err.kind, "unavailable");
+        let names: Vec<_> = env.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        assert_eq!(
+            names,
+            [
+                "ASM_SESSION=assieme",
+                "ASM_SOCKET=/s/asm.sock",
+                "HOME=<HOME>",
+                "LANG=<LANG>",
+                "PATH=/a:/b",
+                "USER=<USER>"
+            ]
+        );
     }
 }

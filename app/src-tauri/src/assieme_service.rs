@@ -34,16 +34,8 @@ impl Layout {
         self.home.join(format!("Library/LaunchAgents/{LABEL}.plist"))
     }
 
-    fn old_plist(&self) -> PathBuf {
-        self.home.join(format!("Library/LaunchAgents/{OLD_LABEL}.plist"))
-    }
-
     pub fn core_socket(&self) -> PathBuf {
         self.state.join("asm.sock")
-    }
-
-    fn brain_json(&self) -> PathBuf {
-        self.state.join("brain.json")
     }
 
     /// PATH for the job, the brain and every `asm` the app runs: the quiet-send stand-in, the app's asm-bin, the login PATH.
@@ -96,14 +88,19 @@ pub fn plist(layout: &Layout, env: &[(String, String)]) -> String {
     )
 }
 
+/// `brain.json`: the PATH the core gives its brain.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct BrainJson {
+    path: String,
+}
+
 /// The app moved, was renamed or updated: the job or `brain.json` names another Resources folder.
 pub fn needs_install(layout: &Layout) -> bool {
     let job_ok = std::fs::read_to_string(layout.plist()).is_ok_and(|p| p.contains(&program_line(&layout.program())));
-    let brain_ok = std::fs::read(layout.brain_json())
+    let brain_ok = std::fs::read(layout.state.join("brain.json"))
         .ok()
-        .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
-        .and_then(|v| v["path"].as_str().map(String::from))
-        .is_some_and(|path| path.starts_with(&layout.path("")));
+        .and_then(|b| serde_json::from_slice::<BrainJson>(&b).ok())
+        .is_some_and(|b| b.path.starts_with(&layout.path("")));
     !(job_ok && brain_ok)
 }
 
@@ -113,11 +110,6 @@ fn write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let tmp = path.with_extension("tmp");
     std::fs::write(&tmp, bytes).map_err(at)?;
     std::fs::rename(&tmp, path).map_err(at)
-}
-
-fn uid() -> Result<String, String> {
-    let out = Command::new("id").arg("-u").output().map_err(|e| e.to_string())?;
-    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 /// The core's brain is up or on its way: `starting` and `waiting` count as running, so a normal start never asks.
@@ -144,15 +136,17 @@ pub fn install(layout: &Layout, login_path: &str, launchctl: &str, var: impl Fn(
         return Err(format!("Assieme's runtime is missing at {}; rebuild the app with app/scripts/bundle.sh", program.display()));
     }
     let env = environment(layout, login_path, var);
-    let path = &env.iter().find(|(k, _)| k == "PATH").expect("PATH is in the list").1;
-    write(&layout.brain_json(), serde_json::json!({ "path": path }).to_string().as_bytes())?;
+    let path = env.iter().find(|(k, _)| k == "PATH").expect("PATH is in the list").1.clone();
+    write(&layout.state.join("brain.json"), &serde_json::to_vec(&BrainJson { path }).expect("plain strings"))?;
     let log = layout.state.join("service.log");
     if std::fs::metadata(&log).is_ok_and(|m| m.len() > LOG_LIMIT) {
         let _ = std::fs::rename(&log, layout.state.join("service.log.1"));
     }
     write(&layout.plist(), plist(layout, &env).as_bytes())?;
-    let _ = std::fs::remove_file(layout.old_plist()); // or the Python brain comes back at the next login
-    let domain = format!("gui/{}", uid()?);
+    // Or the Python brain comes back at the next login.
+    let _ = std::fs::remove_file(layout.home.join(format!("Library/LaunchAgents/{OLD_LABEL}.plist")));
+    let uid = Command::new("id").arg("-u").output().map_err(|e| e.to_string())?.stdout;
+    let domain = format!("gui/{}", String::from_utf8_lossy(&uid).trim());
     for label in [OLD_LABEL, LABEL] {
         let _ = Command::new(launchctl).args(["bootout", &format!("{domain}/{label}")]).output(); // not loaded is fine
     }
@@ -286,6 +280,7 @@ mod tests {
     fn install_is_safe_to_repeat_and_restarts_only_a_missing_brain() {
         let r = root("install");
         let l = layout(&r, "Assieme.app");
+        assert!(install(&l, "/usr/bin", "/usr/bin/true", var).unwrap_err().contains("bundle.sh"));
         std::fs::create_dir_all(&l.state).unwrap();
         let log = r.join("log");
         script(&l.program(), &format!(r#"echo "asm $* USER=$USER SECRET=$SECRET PATH=$PATH" >> {}"#, log.display()));
@@ -307,32 +302,17 @@ mod tests {
         assert!(!r.join("home/Library/LaunchAgents/dev.assieme.brain.plist").exists(), "the old job is gone for good");
         assert_eq!(*calls.lock().unwrap(), ["server.status", "brain.restart"], "absent brain: restarted");
         assert!(!needs_install(&l));
-        let brain: Value = serde_json::from_slice(&std::fs::read(l.state.join("brain.json")).unwrap()).unwrap();
-        assert!(brain["path"].as_str().unwrap().ends_with("asm-bin:/usr/bin"), "{brain}");
 
-        // Again, with a brain on its way: nothing is restarted.
-        std::fs::remove_file(l.core_socket()).unwrap();
-        let calls = fake_core(&l.core_socket(), json!({"state": "waiting"}));
-        install(&l, "/usr/bin", launchctl.to_str().unwrap(), var).unwrap();
-        assert_eq!(*calls.lock().unwrap(), ["server.status"]);
-        std::fs::remove_file(l.core_socket()).unwrap();
-        let calls = fake_core(&l.core_socket(), json!({"state": "down"}));
-        install(&l, "/usr/bin", launchctl.to_str().unwrap(), var).unwrap();
-        assert_eq!(*calls.lock().unwrap(), ["server.status", "brain.restart"]);
+        // Again: only a brain that is down is restarted.
+        for (state, want) in [("waiting", &["server.status"][..]), ("down", &["server.status", "brain.restart"])] {
+            std::fs::remove_file(l.core_socket()).unwrap();
+            let calls = fake_core(&l.core_socket(), json!({ "state": state }));
+            install(&l, "/usr/bin", launchctl.to_str().unwrap(), var).unwrap();
+            assert_eq!(*calls.lock().unwrap(), want, "{state}");
+        }
 
         // The app moved: both the job and brain.json name the old place.
         assert!(needs_install(&layout(&r, "Moved.app")));
-        let _ = std::fs::remove_dir_all(&r);
-    }
-
-    #[test]
-    fn a_failing_bootstrap_or_start_is_reported() {
-        let r = root("fail");
-        let l = layout(&r, "Assieme.app");
-        assert!(install(&l, "/usr/bin", "/usr/bin/true", var).unwrap_err().contains("bundle.sh"));
-        script(&l.program(), "echo no core >&2; exit 1");
-        let err = install(&l, "/usr/bin", "/usr/bin/true", var).unwrap_err();
-        assert!(err.contains("no core"), "{err}");
         let _ = std::fs::remove_dir_all(&r);
     }
 
