@@ -25,15 +25,7 @@ notarise() {  # Apple's answer must be Accepted; notarytool exits 0 for Invalid 
 
 echo "== Assieme $version, signed as $identity"
 sh "$here/bundle.sh" --refresh
-# Python never writes a cache into the signed app: every file is compiled now and never checked against its source.
-# A few standard-library test files are invalid on purpose, so compileall's exit code is not the check here.
-"$res/python/bin/python3" -m compileall -q --invalidation-mode unchecked-hash "$res/python/lib" > /dev/null || :
-echo "== Signing what the app carries"
-find "$res" -type f -not -path "$res/asm/*" | while IFS= read -r f; do
-  if file -b "$f" | grep -q Mach-O; then
-    codesign --force --timestamp --options runtime --sign "$identity" "$f"
-  fi
-done
+echo "== Signing the runtime"
 # Assieme's runtime is signed as a bundle, inside out, with its entitlements: `update --from` and Mac remote
 # installs check this signature (team P2B76CVJ4Y, dev.assieme.core).
 core="$res/asm/Assieme Core.app"
@@ -42,7 +34,6 @@ for target in "$core/Contents/MacOS/assieme-core" "$core"; do
     --entitlements "$app/../runtime/distribution/macos-entitlements.plist" --sign "$identity" "$target"
 done
 echo "== Building the app"
-# bundle.sh ran above; running it again inside tauri build would undo the compiled files.
 (cd "$app" && APPLE_SIGNING_IDENTITY="$identity" npm run tauri build -- --bundles app \
   --config '{"build":{"beforeBuildCommand":"npm run build"},"bundle":{"macOS":{"signingIdentity":null}}}')
 built="$app/src-tauri/target/release/bundle/macos/Assieme.app"

@@ -59,6 +59,10 @@ enum Cmd {
     Mcp,
     /// The brain as a background service (the app talks to it).
     Serve,
+    /// Agent settings that still run the Python brain; exits 1 when there are any.
+    CheckConfigs,
+    /// One request to this machine's brain: parameters as JSON on stdin, the reply on stdout.
+    Call { method: String },
 }
 
 #[derive(Clone, ValueEnum)]
@@ -120,7 +124,9 @@ pub fn main(args: Vec<String>) -> i32 {
             }
         },
         Cmd::Mcp => crate::mcpserver::main(),
-        Cmd::Serve => crate::run(vec!["--socket".into(), quiet::state_dir().join("brain.sock").into()]),
+        Cmd::Serve => crate::run(vec![]),
+        Cmd::CheckConfigs => crate::configcheck::main(),
+        Cmd::Call { method } => remote::call_main(&method, None),
     }
 }
 
@@ -385,7 +391,8 @@ pub fn brain() -> (Arc<Methods>, Loop) {
     table.extend(setup::handlers(rt.clone()));
     table.extend(preview::Previews::handlers(previews.clone()));
     table.extend(remote::Remotes::handlers(remotes.clone()));
-    let table = remote::Remotes::wrap(remotes.clone(), table);
+    let mut table = remote::Remotes::wrap(remotes.clone(), table);
+    table.extend(remote::remote_handlers()); // what a Mac's brain asks of this one
 
     // step 18a: assistants reach the same actions, routed the same way. The actions see the table without themselves.
     let shared: Vec<(&'static str, Arc<Handler>)> = table.into_iter().map(|(n, h)| (n, Arc::new(tracked(h)))).collect();

@@ -28,8 +28,6 @@ class ArtTest(unittest.TestCase):
                 self.assertEqual(a.read(), b.read(), 'run: python3 art/build.py')
 
     def test_every_instrument_has_four_poses(self):
-        from assieme import musicians
-        self.assertEqual(list(art.SPRITES), musicians.INSTRUMENTS)
         for name, s in art.SPRITES.items():
             for g in [*s['play'], s['rest'], s['hand']]:
                 self.assertEqual((len(g), {len(r) for r in g}), (art.HEIGHT, {art.WIDTH}), name)

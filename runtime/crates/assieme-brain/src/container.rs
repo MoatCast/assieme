@@ -24,9 +24,7 @@ impl From<ContainerError> for BrainError {
 // doesn't listen on.
 const HOST: &str = "host.docker.internal"; // how a container reaches this Mac
 const HOME: &str = "/home/node";
-const DOCKERFILE: &str = include_str!("../../../../assieme/container/Dockerfile");
-// The image still installs Python's `mcp`; until it holds `asm` itself (the cutover's), this is the version it pins.
-const MCP_VERSION: &str = "2.3.0";
+const DOCKERFILE: &str = include_str!("../assets/container/Dockerfile");
 // The sign-in files that can be shared, each read-only. Claude Code and Cursor keep theirs in the Mac's Keychain:
 // they sign in inside. Read-only: a sign-in that needs renewing asks again inside the container.
 const SIGNIN: [(&str, &[&str]); 3] = [
@@ -79,10 +77,19 @@ pub fn problem(kind: &str) -> Option<String> {
 pub fn build_command(kind: &str) -> Result<String, ContainerError> {
     let docker = docker().ok_or_else(|| ContainerError(NONE.into()))?;
     let recipe = crate::quiet::state_dir().join("container");
+    // The Linux asm that the app carries beside the core, for the image's CPU (Docker here runs this Mac's own).
+    let linux = std::env::current_exe()
+        .ok()
+        .and_then(|exe| {
+            Some(exe.parent()?.parent()?.join("Resources/linux").join(std::env::consts::ARCH).join("assieme-core"))
+        })
+        .filter(|p| p.is_file())
+        .ok_or_else(|| ContainerError("Assieme's program for containers is missing; update Assieme.".into()))?;
     std::fs::create_dir_all(&recipe)
         .and_then(|()| std::fs::write(recipe.join("Dockerfile"), DOCKERFILE))
+        .and_then(|()| std::fs::copy(&linux, recipe.join("asm")).map(drop))
         .map_err(|e| ContainerError(format!("Couldn't write the container recipe: {e}.")))?;
-    let (kind_arg, mcp_arg) = (format!("KIND={kind}"), format!("MCP_VERSION={MCP_VERSION}"));
+    let kind_arg = format!("KIND={kind}");
     let words = [
         docker.to_string_lossy().as_ref(),
         "build",
@@ -90,8 +97,6 @@ pub fn build_command(kind: &str) -> Result<String, ContainerError> {
         &image(kind),
         "--build-arg",
         &kind_arg,
-        "--build-arg",
-        &mcp_arg,
         &recipe.to_string_lossy(),
     ]
     .map(|w| shlex::try_quote(w).map_or_else(|_| w.to_string(), |q| q.into_owned()));
@@ -135,4 +140,14 @@ pub fn run_argv(
     a.push(image(&role.agent));
     a.extend(inner.iter().cloned());
     a
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn dockerfile_has_asm_and_no_python() {
+        let recipe = super::DOCKERFILE.to_lowercase();
+        assert!(recipe.contains("copy asm /usr/local/bin/asm"));
+        assert!(!recipe.contains("pip") && !recipe.contains("python"));
+    }
 }

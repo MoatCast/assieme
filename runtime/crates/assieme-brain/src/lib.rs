@@ -19,6 +19,7 @@ pub mod brief;
 pub mod bringover;
 pub mod budget;
 pub mod cli;
+pub mod configcheck;
 pub mod connect;
 pub mod container;
 pub mod detect;
@@ -64,7 +65,6 @@ pub mod worktree;
 use std::ffi::OsString;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Every socket method; each session replaces its `not_ported` entries.
@@ -95,10 +95,7 @@ pub fn run(args: Vec<OsString>) -> i32 {
             }
         }
     }
-    let Some(socket) = socket else {
-        eprintln!("asm brain needs --socket until the cutover.");
-        return 2;
-    };
+    let socket = socket.unwrap_or_else(|| quiet::state_dir().join("brain.sock"));
     let dir = socket.parent().map(PathBuf::from).unwrap_or_default();
     if let Err(e) = assieme_core::platform::private_dir(&dir) {
         eprintln!("asm brain: can't create {}: {e}", dir.display());
@@ -136,11 +133,12 @@ pub fn run(args: Vec<OsString>) -> i32 {
         let _ = std::io::copy(&mut std::io::stdin(), &mut std::io::sink());
         std::process::exit(0);
     });
-    steps().start(Duration::from_secs(15));
+    let (methods, steps) = cli::brain();
+    steps.start(Duration::from_secs(15));
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("tokio runtime");
     runtime.block_on(async move {
         let listener = tokio::net::UnixListener::from_std(listener).expect("socket");
-        server::serve(listener, Arc::new(methods())).await;
+        server::serve(listener, methods).await;
     });
     drop(lock);
     0

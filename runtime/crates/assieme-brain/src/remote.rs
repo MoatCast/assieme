@@ -8,8 +8,7 @@
 //! remote teams to the calls that list every team. Assieme never runs ssh itself: its core does, with the person's own
 //! ssh, SSH config and agent, and nothing here reads a key or a password.
 //!
-//! Until the cutover the machines there run the Python brain. The Mac no longer packages it: installing becomes
-//! copying one binary at the cutover, so the setup's `assieme` step only checks that Assieme is there.
+//! Machines there run `asm`: `machine add` copies it, and the setup's `assieme` step writes the launcher for it.
 use crate::prelude::*;
 use crate::pyrules::truthy;
 use crate::server::Handler;
@@ -24,7 +23,7 @@ const SESSION: &str = "assieme"; // the core Assieme uses there, as here
 const SERVICE: &str = "assieme.service";
 const BRAIN: &str = "brain";
 const BRAIN_NAME: &str = "assieme-brain";
-const ASSIEME: &str = "\"$HOME/.local/bin/assieme\""; // where `uv tool install` puts it
+const ASSIEME: &str = "\"$HOME/.local/bin/assieme\""; // the launcher `install_launcher` writes
 const CALL_S: f64 = 18.0; // under the app's own 20 s, so its error is ours, not a timeout
 const KEPT: [&str; 5] = ["team.map", "team.view", "agent.detail", "board.get", "brief.get"]; // shown from their last answer while away
 const LIST_S: f64 = 8.0; // a remote that lists slower than this is shown from its last answer
@@ -789,12 +788,7 @@ impl Remotes {
                 let machine = self.job(target)["machine"].as_str().unwrap_or_default().to_string();
                 match i {
                     0 => self.add_installing(target)?,
-                    1 => {
-                        let line = r#"test -x "$HOME/.local/bin/assieme""#;
-                        if self.exec(&machine, line, CALL_S, b"")?.0 != 0 {
-                            return Err(err(format!("Assieme isn't installed on {machine}.")));
-                        }
-                    }
+                    1 => self.install_launcher(&machine)?,
                     _ => self.start_brain(&machine, true)?,
                 }
                 self.job_edit(target, |j| j["steps"][i]["state"] = json!("done"));
@@ -815,6 +809,18 @@ impl Remotes {
             }
             j["done"] = json!(true);
         });
+    }
+
+    /// `assieme` there: a launcher for the `asm` that `machine add` copied, so `call` and `serve` reach `asm cli`.
+    pub fn install_launcher(&self, machine: &str) -> Result<(), RemoteError> {
+        let line = concat!(
+            r#"printf '%s\n' '#!/bin/sh' 'exec "$HOME/.local/bin/assieme-core" cli "$@"' > "$HOME/.local/bin/assieme" "#,
+            r#"&& chmod +x "$HOME/.local/bin/assieme""#
+        );
+        if self.exec(machine, line, CALL_S, b"")?.0 != 0 {
+            return Err(err(format!("Assieme isn't installed on {machine}.")));
+        }
+        Ok(())
     }
 
     fn asm_cli(&self, args: &[&str]) -> Result<Value, RemoteError> {
@@ -1041,7 +1047,7 @@ impl Remotes {
     }
 
     /// With the app closed, ask a machine for its news only when its teams changed, or every POLL: each ask starts a
-    /// Python there.
+    /// process there.
     fn notify_news(&self, now: Instant) {
         for (m, rows, ok) in self.remote_rows() {
             let sig =

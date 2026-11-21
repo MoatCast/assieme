@@ -1,7 +1,7 @@
 # Replay harness and ladder groundwork
 
 Recordings stay on this Mac in `~/.local/share/assieme-dev/replay/`, never in the repository. BatchWise logs are never recorded.
-Use the repo's `.venv` Python for every command.
+Use `python3` for every command. The comparison against the Python brain no longer works: that brain is deleted.
 
 | Step | Command |
 |---|---|

@@ -102,9 +102,10 @@ fn a_stale_socket_file_is_replaced() {
 }
 
 #[test]
-fn no_socket_exits_two() {
+fn the_socket_defaults_to_the_state_folder() {
     let env = isolated();
-    let out = env.cmd().args(["brain"]).stdin(Stdio::null()).output().unwrap();
-    assert_eq!(out.status.code(), Some(2));
-    assert_eq!(String::from_utf8_lossy(&out.stderr).trim(), "asm brain needs --socket until the cutover.");
+    let mut child = env.cmd().args(["brain"]).stdin(Stdio::piped()).stdout(Stdio::null()).spawn().unwrap();
+    wait_answers(&env.root.join("state/assieme/brain.sock"));
+    drop(child.stdin.take());
+    assert_eq!(exit_within(&mut child, Duration::from_secs(5)), Some(0));
 }

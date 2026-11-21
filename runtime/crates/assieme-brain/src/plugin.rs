@@ -16,7 +16,7 @@ use std::io::Write;
 const NAME: &str = "assieme";
 const DESCRIPTION: &str =
     "See and run your Assieme teams: design new ones and act on what needs you. Every change asks you first.";
-const GUIDE: &str = include_str!("../../../../assieme/guide/team-design.md");
+const GUIDE: &str = include_str!("../assets/guide/team-design.md");
 
 fn write(path: &Path, data: &str) -> Result<(), BrainError> {
     let at = |e: std::io::Error| BrainError::new(format!("Couldn't write {}: {e}.", path.display()));

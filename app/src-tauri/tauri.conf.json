@@ -58,7 +58,6 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "resources/python/": "python/",
       "resources/asm/": "asm/",
       "resources/asm-bin/": "asm-bin/",
       "../NOTICE": "NOTICE"

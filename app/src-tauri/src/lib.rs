@@ -1,11 +1,8 @@
-// shortcut: not wired in until the cutover switches the app from the Python brain to Assieme's service.
-#[allow(dead_code)]
 mod assieme_service;
 mod bridge;
 mod cli_install;
 mod frame;
 mod menubar;
-mod service;
 
 use bridge::Stream;
 use serde_json::Value;
@@ -97,47 +94,57 @@ async fn terminal_read(session: String, address: String) -> Result<String, Strin
         .map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
-async fn service_running() -> bool {
-    tauri::async_runtime::spawn_blocking(|| {
-        service::running("launchctl") && service::answers(&bridge::brain_socket(), std::time::Duration::from_secs(1))
-    })
-    .await
-    .unwrap_or(false)
+/// Where everything lives: this app's Resources folder, the person's home and the state folder.
+fn layout(app: &tauri::AppHandle) -> Result<assieme_service::Layout, String> {
+    let res = app.path().resource_dir().map_err(|e| e.to_string())?;
+    let home = app.path().home_dir().map_err(|e| e.to_string())?;
+    Ok(assieme_service::Layout::new(res, home, std::env::var("XDG_STATE_HOME").ok()))
 }
 
-/// Install the background brain with the Python and Assieme's runtime bundled inside the app.
+fn install_service(layout: &assieme_service::Layout) -> Result<(), String> {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
+    let path = assieme_service::login_path(&shell, &std::env::var("PATH").unwrap_or_default());
+    assieme_service::install(layout, &path, "launchctl", |n| std::env::var(n).ok())
+}
+
+#[tauri::command]
+async fn service_running(app: tauri::AppHandle) -> bool {
+    let Ok(layout) = layout(&app) else { return false };
+    tauri::async_runtime::spawn_blocking(move || assieme_service::running(&layout)).await.unwrap_or(false)
+}
+
+/// Install Assieme's service: the login job and its brain, with the runtime bundled inside the app.
 #[tauri::command]
 async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
-    let res = app.path().resource_dir().map_err(|e| e.to_string())?;
-    service::install(&res.join("python/bin/python3"), &[&res.join("asm-bin")])
+    let layout = layout(&app)?;
+    tauri::async_runtime::spawn_blocking(move || install_service(&layout)).await.map_err(|e| e.to_string())?
 }
 
-/// Command line tools (Settings › General): the launcher, from the Python inside this app.
+/// Command line tools (Settings › General): the launcher, which runs `asm cli` from this app.
 fn cli_paths(app: &tauri::AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let res = app.path().resource_dir().map_err(|e| e.to_string())?;
     let home = app.path().home_dir().map_err(|e| e.to_string())?;
-    Ok((res.join("python/bin/python3"), home))
+    Ok((res.join("asm-bin/assieme-core"), home))
 }
 
 #[tauri::command]
 async fn cli_status(app: tauri::AppHandle) -> Result<cli_install::CliStatus, String> {
-    let (python, home) = cli_paths(&app)?;
-    Ok(cli_install::status(&home, &python))
+    let (asm, home) = cli_paths(&app)?;
+    Ok(cli_install::status(&home, &asm))
 }
 
 #[tauri::command]
 async fn cli_install(app: tauri::AppHandle) -> Result<cli_install::CliStatus, String> {
-    let (python, home) = cli_paths(&app)?;
+    let (asm, home) = cli_paths(&app)?;
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
-    let path = service::login_path(&shell, &std::env::var("PATH").unwrap_or_default());
-    cli_install::install(&python, &path, &home, "osascript")
+    let path = assieme_service::login_path(&shell, &std::env::var("PATH").unwrap_or_default());
+    cli_install::install(&asm, &path, &home, "osascript")
 }
 
 #[tauri::command]
 async fn cli_remove(app: tauri::AppHandle) -> Result<cli_install::CliStatus, String> {
-    let (python, home) = cli_paths(&app)?;
-    cli_install::remove(&python, &home, "osascript")
+    let (asm, home) = cli_paths(&app)?;
+    cli_install::remove(&asm, &home, "osascript")
 }
 
 #[tauri::command]
@@ -197,6 +204,12 @@ pub fn run() {
         .manage(menubar::LastHidden::default())
         .setup(|app| {
             app_menu(app.handle())?;
+            // The app moved or updated: the job or brain.json names another Resources folder.
+            if let Ok(layout) = layout(app.handle()) {
+                if assieme_service::needs_install(&layout) {
+                    std::thread::spawn(move || drop(install_service(&layout)));
+                }
+            }
             Ok(menubar::setup(app.handle())?)
         })
         .on_menu_event(|app, event| {

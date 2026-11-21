@@ -94,7 +94,7 @@ rest.
 <details>
 <summary>Build from source</summary>
 
-You need [uv](https://docs.astral.sh/uv/), Node and Rust.
+You need Node and Rust.
 
 ```bash
 git clone https://github.com/MoatCast/assieme.git
@@ -110,7 +110,7 @@ open src-tauri/target/release/bundle/macos/Assieme.app
 <details>
 <summary>Command line</summary>
 
-For scripts and power users: `uv tool install .` from this folder (Python 3.11+).
+For scripts and power users: install it from Settings › General › Command line tools in the app.
 
 ```bash
 assieme                         # live view: what needs you, alerts, one-key fixes

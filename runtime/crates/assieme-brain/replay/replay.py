@@ -122,7 +122,7 @@ def main():
     a = argparse.ArgumentParser()
     a.add_argument('recording')
     a.add_argument('--asm', default=f'{ROOT}/runtime/target/debug/asm')
-    a.add_argument('--python', default=f'{ROOT}/../../../.venv/bin/python')
+    a.add_argument('--python', default='python3')
     a.add_argument('--wait', type=float, default=20)
     a = a.parse_args()
     py, rs = (run(n, c, a.recording, a.wait) for n, c in (
