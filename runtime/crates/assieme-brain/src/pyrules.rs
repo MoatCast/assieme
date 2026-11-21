@@ -221,7 +221,8 @@ pub fn json_loads_bytes(line: &[u8]) -> Result<Value, String> {
 }
 
 fn mark_python_numbers(s: &str) -> String {
-    let number = regex::Regex::new(r"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?").unwrap();
+    static NUMBER: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?").unwrap());
     let mut out = String::with_capacity(s.len());
     let (mut i, mut in_string, mut escaped) = (0, false, false);
     let marked = |what: &str| format!("\"{MARK}{what}\"");
@@ -240,7 +241,7 @@ fn mark_python_numbers(s: &str) -> String {
             }));
             i += word.len();
             continue;
-        } else if let Some(m) = number.find(rest).filter(|m| !m.is_empty() && (ch == '-' || ch.is_ascii_digit())) {
+        } else if let Some(m) = (ch == '-' || ch.is_ascii_digit()).then(|| NUMBER.find(rest)).flatten() {
             let token = m.as_str();
             let integer = !token.contains(['.', 'e', 'E']);
             let big = integer && token.parse::<i64>().is_err() && token.parse::<u64>().is_err();
