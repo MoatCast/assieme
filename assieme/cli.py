@@ -277,6 +277,8 @@ def _team(args):
     except (preset.PresetError, worktree.WorktreeError, team.TeamError, runtime.RuntimeError_) as e:
         hint = getattr(e, 'hint', '')
         print(f'assieme: {e}' + (f' ({hint})' if hint else ''), file=sys.stderr)
+        if getattr(e, 'detail', ''):
+            print(e.detail, file=sys.stderr)
         return 1
     return 0
 

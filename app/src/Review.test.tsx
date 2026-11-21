@@ -174,6 +174,24 @@ test("a refused merge shows the brain's words and keeps the screen", async () =>
   expect(onMerged).not.toHaveBeenCalled();
 });
 
+test("shows git's text under Details", async () => {
+  b.reviewAsk.mockRejectedValue("builder-1 has stopped and couldn't start again: Assieme couldn't make builder-1's copy.\n\nDetails:\ngit worktree add\nfatal: no");
+  await open();
+  await click("Ask for changes");
+  fireEvent.change(screen.getByLabelText("What should builder-1 change?"), { target: { value: "cap at 6s" } });
+  await click("Send to builder-1");
+  screen.getByText(/couldn't make builder-1's copy\.$/);
+  await click("Details");
+  screen.getByText(/fatal: no/);
+});
+
+test("no Details without a detail", async () => {
+  b.reviewMerge.mockRejectedValue("builder-1 added commits since you looked. Look again first.");
+  await open();
+  await click("Merge into main");
+  expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
+});
+
 test("Discard asks first and says what goes", async () => {
   await open();
   await click("Discard changes");

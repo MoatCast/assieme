@@ -2,10 +2,10 @@
 // what words, and the three-line heading. Pure, so every rule is a unit test; AgentList only draws what this returns.
 import type { ActivityRow, Pane, ReviewWaiting, Starting, TeamMap } from "./bridge";
 
-export type Tone = "needs" | "assieme" | "fixed" | "mute" | "ink";
+export type Tone = "needs" | "assieme" | "fixed" | "mute" | "ink" | "limit";
 export type Row = {
   role: string;
-  dot: "needs" | "working" | "assieme" | "done" | "stale";
+  dot: "needs" | "working" | "assieme" | "done" | "limit" | "stale";
   line: string; tone: Tone;
   right: string;            // "12 min" (needs you), "4 min" (fixing), "" otherwise
   spinner: boolean;          // Assieme checking
@@ -128,6 +128,10 @@ export function listModel(map: TeamMap, waiting: ReviewWaiting[], starting: Star
       needs.push(row(p.role, "needs", need, "needs", "needs you", { right: minutes(p.since_s), waited: p.since_s ?? 0 }));
       continue;
     }
+    if (p.state === "at-limit") { // the plan's limit: it waits for the reset, and the person can do nothing about it
+      working.push(row(p.role, "limit", p.detail || "Waiting for a limit", "limit", "working"));
+      continue;
+    }
     const fixedAt = fixedRecently[p.role];
     const fixed = fixedAt ? { line: `✓ Fixed by Assieme · ${fixedAt}`, tone: "fixed" as Tone } : null;
     if (p.state === "working") {
@@ -146,12 +150,13 @@ export function listModel(map: TeamMap, waiting: ReviewWaiting[], starting: Star
   const spinners = working.filter((r) => r.spinner).length;
   const fixing = map.fixes_today?.checking ?? spinners;
   const fixedToday = map.fixes_today?.fixed ?? 0;
+  const limited = working.filter((r) => r.tone === "limit").length;
   const n = needs.length;
   const verdict = map.stopped ? "The team has stopped" : n === 0 ? "No agent needs you" : n === 1 ? "1 agent needs you" : `${n} agents need you`;
   const counts = map.stopped
     ? [map.run && ran(map.run.minutes), map.run && `Assieme fixed ${plural(map.run.fixed, "problem")}`,
        map.run && plural(map.run.tasks_done, "task") + " done"].filter(Boolean).join(" · ")
-    : [working.length && `${working.length} working`, toReview && `${toReview} to review`,
+    : [working.length - limited && `${working.length - limited} working`, limited && `${limited} waiting for a limit`, toReview && `${toReview} to review`,
        fixing && `${fixing} ${fixing === 1 ? "fix" : "fixes"} being checked`].filter(Boolean).join(" · ");
   const assieme = map.stopped ? null
     : fixedToday ? `Assieme fixed ${plural(fixedToday, "problem")} today ›`

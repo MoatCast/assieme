@@ -454,7 +454,7 @@ class Merging(Base):
         entry = json.loads(open(self.log).read().splitlines()[-1])
         self.assertEqual((entry['id'], entry['by'], entry['team'], entry['undo']), (got['undo'], 'you', 'demo', True))
         self.assertEqual(entry['title'], 'Merged builder-1 into main')
-        self.assertEqual(entry['reason'], 'Its worktree is archived.')
+        self.assertEqual(entry['reason'], 'Its copy was cleaned up.')
 
     def test_a_role_can_start_again_after_a_merge(self):
         from assieme import worktree

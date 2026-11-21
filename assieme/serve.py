@@ -10,7 +10,7 @@ import threading
 import time
 import traceback
 
-from . import launch, runtime, settings, setup, status, team, teammap
+from . import launch, limits, runtime, settings, setup, status, team, teammap
 
 CLIS = {**launch.CLIS, 'asm': 'asm', 'hc': 'hc', 'herdr': 'herdr'}  # hc: the person's own herdr
 
@@ -37,7 +37,7 @@ def snapshot(claude_dir, codex_dir, now, rt, which=setup.agent_path, hours=12, s
                                          'group': teammap.group_of(a, st['groups'])} for a in agents],
             'found_teams': sorted(found), 'first_run_done': st['first_run_done'],
             'alerts': alerts, 'queue': status.owner_queue(agents, now), 'stalls': status.stalls(agents, now),
-            'teams': teams, 'starting': list(starting)}
+            'teams': teams, 'starting': list(starting), 'limits': limits.read(claude_dir, codex_dir, now.timestamp())}
 
 
 _request = threading.local()
@@ -57,7 +57,8 @@ def handle(request, handlers):
     try:
         return {'jsonrpc': '2.0', 'id': rid, 'result': fn(**(request.get('params') or {}))}
     except Exception as e:  # a failing handler is a reply, never a dead service
-        return {'jsonrpc': '2.0', 'id': rid, 'error': {'code': -32000, 'message': str(e)}}
+        detail = getattr(e, 'detail', '')  # the app shows it under Details (bridge.ts splitDetail)
+        return {'jsonrpc': '2.0', 'id': rid, 'error': {'code': -32000, 'message': str(e) + (f'\n\nDetails:\n{detail}' if detail else '')}}
     finally:
         _request.by = 'you'
 

@@ -5,7 +5,7 @@ import { AgentFace } from "./band";
 import "./TeamMap.css";
 
 const WORDS: Record<Pane["state"], string> = {
-  asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", idle: "idle", exited: "done",
+  asking: "asking you", stuck: "seems stuck", waiting: "work waiting", working: "working", "at-limit": "waiting for a limit", idle: "idle", exited: "done",
 };
 const NODE = { width: 150, height: 54 };
 const NODE_COMPACT = { width: 150, height: 48 };

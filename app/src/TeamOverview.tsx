@@ -92,6 +92,11 @@ export default function TeamOverview({ team, map, waiting, onSelectAgent, onSeeA
             {checking ? <span><b>{checking}</b> being checked</span> : <span>No problem open</span>}
             {map.spend && <span><b>{tokens(map.spend.tokens)}</b> tokens today</span>}
           </div>
+          {Object.keys(map.shares ?? {}).length > 0 && (
+            <div className="overview-shares" data-testid="shares">
+              {Object.entries(map.shares!).map(([role, pct]) => <span key={role}>{`${role} · ${pct}% of today's work`}</span>)}
+            </div>
+          )}
           {budget && (
             <div className="overview-limit">
               {cap ? (

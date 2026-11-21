@@ -1,4 +1,5 @@
 mod bridge;
+mod cli_install;
 mod frame;
 mod menubar;
 mod service;
@@ -6,6 +7,7 @@ mod service;
 use bridge::Stream;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
 use tauri::{Emitter, Manager, State};
@@ -94,7 +96,11 @@ async fn terminal_read(session: String, address: String) -> Result<String, Strin
 
 #[tauri::command]
 async fn service_running() -> bool {
-    service::running("launchctl")
+    tauri::async_runtime::spawn_blocking(|| {
+        service::running("launchctl") && service::answers(&bridge::brain_socket(), std::time::Duration::from_secs(1))
+    })
+    .await
+    .unwrap_or(false)
 }
 
 /// Install the background brain with the Python and Assieme's runtime bundled inside the app.
@@ -102,6 +108,33 @@ async fn service_running() -> bool {
 async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
     let res = app.path().resource_dir().map_err(|e| e.to_string())?;
     service::install(&res.join("python/bin/python3"), &[&res.join("asm-bin")])
+}
+
+/// Command line tools (Settings › General): the launcher, from the Python inside this app.
+fn cli_paths(app: &tauri::AppHandle) -> Result<(PathBuf, PathBuf), String> {
+    let res = app.path().resource_dir().map_err(|e| e.to_string())?;
+    let home = app.path().home_dir().map_err(|e| e.to_string())?;
+    Ok((res.join("python/bin/python3"), home))
+}
+
+#[tauri::command]
+async fn cli_status(app: tauri::AppHandle) -> Result<cli_install::CliStatus, String> {
+    let (python, home) = cli_paths(&app)?;
+    Ok(cli_install::status(&home, &python))
+}
+
+#[tauri::command]
+async fn cli_install(app: tauri::AppHandle) -> Result<cli_install::CliStatus, String> {
+    let (python, home) = cli_paths(&app)?;
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
+    let path = service::login_path(&shell, &std::env::var("PATH").unwrap_or_default());
+    cli_install::install(&python, &path, &home, "osascript")
+}
+
+#[tauri::command]
+async fn cli_remove(app: tauri::AppHandle) -> Result<cli_install::CliStatus, String> {
+    let (python, home) = cli_paths(&app)?;
+    cli_install::remove(&python, &home, "osascript")
 }
 
 #[tauri::command]
@@ -127,7 +160,9 @@ async fn notification_settings_open() -> Result<(), String> {
         .status().map(|_| ()).map_err(|e| e.to_string())
 }
 
-/// The Mac's standard menu, plus Settings… (⌘,) under About and New Team (⌘N) at the top of File, where Mac apps keep them.
+/// The Mac's standard menu, plus Settings… (⌘,) under About, New Team (⌘N) at the top of File, where Mac apps keep them,
+/// and Command Palette… (⌘K) at the top of View. The window's other keys (⌘1–⌘9, ⌘J) stay in the page: as menu keys
+/// they would fire while a text field or a terminal has focus.
 fn app_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
     let menu = Menu::default(app)?;
@@ -138,6 +173,9 @@ fn app_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
             sub.insert(&PredefinedMenuItem::separator(app)?, 3)?;
         } else if sub.text()? == "File" {
             sub.insert(&MenuItem::with_id(app, "new-team", "New Team", true, Some("CmdOrCtrl+N"))?, 0)?;
+            sub.insert(&PredefinedMenuItem::separator(app)?, 1)?;
+        } else if sub.text()? == "View" {
+            sub.insert(&MenuItem::with_id(app, "palette", "Command Palette…", true, Some("CmdOrCtrl+K"))?, 0)?;
             sub.insert(&PredefinedMenuItem::separator(app)?, 1)?;
         }
     }
@@ -162,6 +200,7 @@ pub fn run() {
             let to = match event.id().as_ref() {
                 "settings" => "assieme-settings",
                 "new-team" => "assieme-new-team",
+                "palette" => "assieme-palette",
                 _ => return,
             };
             menubar::open_window(app, None, None, None);
@@ -187,7 +226,10 @@ pub fn run() {
             window_open,
             menu_fit,
             notifications_off,
-            notification_settings_open
+            notification_settings_open,
+            cli_status,
+            cli_install,
+            cli_remove
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

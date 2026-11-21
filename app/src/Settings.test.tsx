@@ -5,6 +5,7 @@ const b = vi.hoisted(() => ({
   getSettings: vi.fn(), setSetting: vi.fn(), quietPairs: vi.fn(), quietSet: vi.fn(), listTeams: vi.fn(), stopTeam: vi.fn(),
   serviceInstall: vi.fn(), serviceRunning: vi.fn(), teamPresets: vi.fn(), setGroups: vi.fn(),
   assistantsStatus: vi.fn(), assistantsInstall: vi.fn(), assistantsRemove: vi.fn(), scheduleList: vi.fn(),
+  cliStatus: vi.fn(), cliInstall: vi.fn(), cliRemove: vi.fn(),
 }));
 vi.mock("./bridge", () => b);
 
@@ -43,6 +44,7 @@ beforeEach(() => {
   b.listTeams.mockResolvedValue({ teams: [], found_agents: [] });
   b.serviceRunning.mockResolvedValue(true);
   b.assistantsStatus.mockResolvedValue({ apps: [] });
+  b.cliStatus.mockResolvedValue({ state: "missing", path: null });
   b.teamPresets.mockResolvedValue({ practices: {
     groups: [{ id: "messages", title: "Fewer, cheaper messages", summary: "Short notes.", detail: "Every message wakes it.",
       rules: ["1", "2", "3"].map((x) => ({ id: `r${x}`, title: `Rule ${x}`, detail: "d", note: x === "1" ? "Learned from a real team." : undefined, text: "t" })) }],
@@ -80,6 +82,29 @@ test("General: running, then stopped with Start it", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Start it" }));
   await flush();
   expect(b.serviceInstall).toHaveBeenCalled();
+});
+
+test("General: Command line tools Install, then Installed with Remove", async () => {
+  b.cliInstall.mockResolvedValue({ state: "installed", path: "/Users/me/.local/bin/assieme" });
+  b.cliRemove.mockResolvedValue({ state: "missing", path: null });
+  await open();
+  expect(screen.getByText("Run assieme in Terminal, for scripts and quick checks. Installing adds it to your PATH.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Install" }));
+  await flush();
+  expect(screen.getByText("Installed")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Remove the command line tools" }));
+  await flush();
+  expect(b.cliRemove).toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Install" })).toBeTruthy();
+});
+
+test("General: a launcher for a moved app offers Reinstall; a refusal is shown", async () => {
+  b.cliStatus.mockResolvedValue({ state: "moved", path: "/usr/local/bin/assieme" });
+  b.cliInstall.mockRejectedValue("/Users/me/.local/bin/assieme already exists and was not written by Assieme.");
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Reinstall" }));
+  await flush();
+  expect(screen.getByText(/not written by Assieme/)).toBeTruthy();
 });
 
 test("General: the Musicians choice, Animated by default, saves what is picked", async () => {
@@ -366,4 +391,41 @@ test("Scheduled runs opens a run's team from Settings", async () => {
   expect(screen.getByRole("heading", { name: "Scheduled runs" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Open" }));
   expect(onOpenTeam).toHaveBeenCalledWith("nightly", null);
+});
+
+test("Fixes: the threshold fields save on blur and Return", async () => {
+  b.getSettings.mockResolvedValue({ ...VALUES, thresholds: { quiet_minutes: 15, memory_full: 0.75 } });
+  b.setSetting.mockImplementation(async (k: string, v: number) =>
+    ({ ...VALUES, thresholds: { quiet_minutes: 15, memory_full: 0.75, [k.split(".")[1]]: v } }));
+  await open("Fixes");
+  const quiet = screen.getByRole("textbox", { name: "Minutes of quiet" }) as HTMLInputElement;
+  expect(quiet.closest(".threshold-line")!.textContent).toBe("When an agent repeats the same thing or goes quiet for  minutes.");
+  expect(quiet.value).toBe("15");
+  fireEvent.change(quiet, { target: { value: "20" } });
+  fireEvent.blur(quiet);
+  await flush();
+  expect(b.setSetting).toHaveBeenLastCalledWith("thresholds.quiet_minutes", 20);
+  expect(quiet.value).toBe("20");
+  const memory = screen.getByRole("textbox", { name: "Memory full, in percent" }) as HTMLInputElement;
+  expect(memory.value).toBe("75%");
+  fireEvent.change(memory, { target: { value: "80" } });
+  fireEvent.keyDown(memory, { key: "Enter" });
+  await flush();
+  expect(b.setSetting).toHaveBeenLastCalledWith("thresholds.memory_full", 0.8);
+  expect(memory.value).toBe("80%");
+});
+
+test("Fixes: a threshold out of range or as text is refused with the bounds, and the saved value stays", async () => {
+  b.getSettings.mockResolvedValue({ ...VALUES, thresholds: { quiet_minutes: 15, memory_full: 0.75 } });
+  b.setSetting.mockRejectedValue("Enter a number of minutes from 5 to 120.");
+  await open("Fixes");
+  const quiet = screen.getByRole("textbox", { name: "Minutes of quiet" }) as HTMLInputElement;
+  for (const typed of ["200", "soon"]) {
+    fireEvent.change(quiet, { target: { value: typed } });
+    fireEvent.blur(quiet);
+    await flush();
+    expect(screen.getByText("Enter a number of minutes from 5 to 120.")).toBeTruthy();
+    expect(quiet.value).toBe("15");
+  }
+  expect(b.setSetting.mock.calls).toEqual([["thresholds.quiet_minutes", 200], ["thresholds.quiet_minutes", "soon"]]);
 });

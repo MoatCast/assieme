@@ -12,7 +12,7 @@ import { AgentFace } from "./band";
 
 export const COLUMNS = [["todo", "To do"], ["doing", "Doing"], ["review", "Review"], ["done", "Done"]] as const;
 const DOING: Record<Pane["state"], string> = {
-  asking: "is asking you", stuck: "seems stuck", waiting: "has work waiting", working: "working", idle: "not working right now", exited: "has stopped",
+  asking: "is asking you", stuck: "seems stuck", waiting: "has work waiting", working: "working", "at-limit": "waiting for a limit", idle: "not working right now", exited: "has stopped",
 };
 const MERGED_GLOW_S = 120;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;

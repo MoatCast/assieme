@@ -28,7 +28,7 @@ vi.mock("./Window", () => ({
       <button type="button" onClick={onNewTask}>board new task</button>
       <button type="button" onClick={onBringOver}>bring over</button>
       <button type="button" onClick={() => onMerged({ role: "builder-1", base: "main", problem: null, undo: "u1" })}>merge</button>
-      <button type="button" onClick={() => onMerged({ role: "builder-1", base: "main", problem: "Couldn't archive its worktree: locked", undo: "u2" })}>merge, archive fails</button>
+      <button type="button" onClick={() => onMerged({ role: "builder-1", base: "main", problem: "Couldn't clean up its copy: locked", undo: "u2" })}>merge, archive fails</button>
       <button type="button" onClick={() => onDiscarded("Discarded builder-1's work.")}>discard</button>
     </div>
   ),
@@ -44,7 +44,7 @@ vi.mock("./Review", () => ({
       <span>review of {team}/{role}</span>
       <button type="button" onClick={onBack}>back</button>
       <button type="button" onClick={() => onMerged({ role, base: "main", problem: null, undo: "u1" })}>merge</button>
-      <button type="button" onClick={() => onMerged({ role, base: "main", problem: "Couldn't archive its worktree: locked", undo: "u2" })}>merge, archive fails</button>
+      <button type="button" onClick={() => onMerged({ role, base: "main", problem: "Couldn't clean up its copy: locked", undo: "u2" })}>merge, archive fails</button>
       <button type="button" onClick={() => onDiscarded("Discarded builder-1's work.")}>discard</button>
     </div>
   ),
@@ -78,6 +78,7 @@ vi.mock("./bridge", () => ({
   onOpen: (run: typeof opened) => { opened = run; return Promise.resolve(() => {}); },
   onOpenSettings: (run: () => void) => { settingsAsked = run; return Promise.resolve(() => {}); },
   onNewTeam: (run: () => void) => { newTeamAsked = run; return Promise.resolve(() => {}); },
+  onPalette: () => Promise.resolve(() => {}),
 }));
 
 import Shell, { liveTeams } from "./Shell";
@@ -272,7 +273,7 @@ test("a refused Undo says why, and an archive problem is shown", async () => {
   undo.mockRejectedValue("main has moved on since the merge, so it can't be undone here.");
   await openReview();
   fireEvent.click(screen.getByRole("button", { name: "merge, archive fails" }));
-  expect(screen.getByTestId("notice").textContent).toContain("Couldn't archive its worktree: locked");
+  expect(screen.getByTestId("notice").textContent).toContain("Couldn't clean up its copy: locked");
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
   await act(async () => {});
   expect(screen.getByTestId("notice").textContent).toContain("moved on");

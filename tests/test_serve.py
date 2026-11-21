@@ -11,7 +11,7 @@ import time
 import unittest
 from unittest import mock
 
-from assieme import live, runtime, serve
+from assieme import live, runtime, serve, worktree
 from assieme.status import Agent
 
 NOW = dt.datetime(2026, 11, 7, 12, 0, tzinfo=dt.timezone.utc)
@@ -62,7 +62,7 @@ class SnapshotTest(unittest.TestCase):
         s = serve.snapshot('/c', '/x', NOW, FakeRt(rows), which=lambda c: None if c == 'codex' else '/bin/' + c)
         self.assertEqual(s['clis'], {'claude': True, 'codex': False, 'gemini': True, 'opencode': True, 'cursor': True,
                                      'antigravity': True, 'asm': True, 'hc': True, 'herdr': True})
-        self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams', 'starting', 'found_teams', 'first_run_done'})
+        self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams', 'starting', 'found_teams', 'first_run_done', 'limits'})
         self.assertEqual(s['starting'], [])
         self.assertEqual([a['agent'] for a in s['agents']], ['builder', 'coord'])
         self.assertEqual(s['agents'][0]['cwd'], '/p')
@@ -111,6 +111,12 @@ class HandleTest(unittest.TestCase):
             raise ValueError('bad')
         r = serve.handle({'id': 5, 'method': 'boom'}, {'boom': boom})
         self.assertEqual(r['error']['message'], 'bad')
+
+    def test_an_error_detail_follows_the_message(self):
+        def boom():
+            raise worktree.WorktreeError("Assieme couldn't make builder-1's copy.", 'git worktree add\nfatal: no')
+        r = serve.handle({'id': 6, 'method': 'boom'}, {'boom': boom})
+        self.assertEqual(r['error']['message'], "Assieme couldn't make builder-1's copy.\n\nDetails:\ngit worktree add\nfatal: no")
 
 
 class SocketTest(unittest.TestCase):

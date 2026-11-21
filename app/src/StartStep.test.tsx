@@ -100,3 +100,24 @@ test("Back goes back", () => {
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   expect(h.onBack).toHaveBeenCalled();
 });
+
+test("shows git's text under Details", () => {
+  step({ error: "Assieme couldn't make builder's copy.\n\nDetails:\ngit worktree add -b x\nfatal: no" });
+  screen.getByText(/^Assieme couldn't make builder's copy\./);
+  expect(screen.queryByText(/fatal: no/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Details" }));
+  screen.getByText(/fatal: no/);
+});
+
+test("no Details without a detail", () => {
+  step({ error: "not installed: codex. Install it, then start again." });
+  screen.getByText(/^not installed: codex\./);
+  expect(screen.queryByRole("button", { name: "Details" })).toBeNull();
+});
+
+test("team rules, copy and permissions each have a ?", () => {
+  step();
+  screen.getByRole("button", { name: "What are team rules?" });
+  screen.getByRole("button", { name: "What is a copy?" });
+  screen.getByRole("button", { name: "What are permissions?" });
+});

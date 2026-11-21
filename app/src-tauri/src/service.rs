@@ -1,6 +1,9 @@
 //! The brain's background service, seen from the app: is it running, and install it with the bundled Python.
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::process::Command;
+use std::time::Duration;
 
 pub const LABEL: &str = "dev.assieme.brain";
 
@@ -13,6 +16,21 @@ pub fn running(launchctl: &str) -> bool {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+/// The service at `sock` answers within `timeout`: any reply line counts, an error reply included. A service that
+/// launchd has loaded but that is stuck passes `running` and fails this.
+pub fn answers(sock: &Path, timeout: Duration) -> bool {
+    let Ok(mut s) = UnixStream::connect(sock) else { return false };
+    if s.set_read_timeout(Some(timeout)).is_err() || s.set_write_timeout(Some(timeout)).is_err() {
+        return false;
+    }
+    // An unknown method: the brain replies with an error at once and does no work.
+    if s.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"service.ping\"}\n").is_err() {
+        return false;
+    }
+    let mut line = String::new();
+    matches!(BufReader::new(&s).read_line(&mut line), Ok(n) if n > 0)
 }
 
 /// The PATH a login shell has. An app opened from Finder only has /usr/bin:/bin:..., which would hide
@@ -72,6 +90,43 @@ mod tests {
         let down = script("down", "exit 113");
         assert!(running(up.to_str().unwrap()));
         assert!(!running(down.to_str().unwrap()));
+    }
+
+    fn listener(name: &str) -> (std::os::unix::net::UnixListener, PathBuf) {
+        let p = std::env::temp_dir().join(format!("assieme-svc-{}-{name}.sock", std::process::id()));
+        let _ = std::fs::remove_file(&p);
+        (std::os::unix::net::UnixListener::bind(&p).unwrap(), p)
+    }
+
+    #[test]
+    fn answers_false_when_socket_silent() {
+        let (l, p) = listener("silent");
+        let t = std::thread::spawn(move || {
+            let (s, _) = l.accept().unwrap();
+            std::thread::sleep(Duration::from_secs(3)); // accepts, never replies
+            drop(s);
+        });
+        let start = std::time::Instant::now();
+        assert!(!answers(&p, Duration::from_secs(1)));
+        assert!(start.elapsed() < Duration::from_millis(1500));
+        drop(t);
+    }
+
+    #[test]
+    fn answers_true_on_any_reply() {
+        let (l, p) = listener("error");
+        std::thread::spawn(move || {
+            let (mut s, _) = l.accept().unwrap();
+            let mut line = String::new();
+            BufReader::new(&s).read_line(&mut line).unwrap();
+            s.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"no method\"}}\n").unwrap();
+        });
+        assert!(answers(&p, Duration::from_secs(1)));
+    }
+
+    #[test]
+    fn answers_false_when_no_socket() {
+        assert!(!answers(Path::new("/nonexistent/assieme-brain.sock"), Duration::from_secs(1)));
     }
 
     #[test]

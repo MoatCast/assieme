@@ -102,7 +102,7 @@ function perms(role = builder) {
 test("the level's lists, with Safe recommended for a builder", () => {
   perms();
   expect(screen.getByRole("radio", { name: /^Safe, recommended/ }).getAttribute("aria-checked")).toBe("true");
-  expect(screen.getByText("Edit any file in its own worktree")).toBeTruthy();
+  expect(screen.getByText("Edit any file in its own copy")).toBeTruthy();
   expect(screen.getByText("Message").textContent).toBe("Message planner");
   expect(screen.getByText("you merge in Review")).toBeTruthy();
 });

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Details from "./Details";
 import { folderPreview, folderSave, type FolderPreview } from "./bridge";
 import { folderPreviewOn, folderSaveOn } from "./remote";
 
@@ -51,14 +52,6 @@ export function setupAction(s: FolderSetupState, onSaved: () => void = () => {})
   if (s.error) return { label: "Try again", act: s.preview ? saveThen : s.retry };
   if (!s.preview) return null;
   return { label: s.preview.empty ? "Start project" : "Save and continue", act: saveThen };
-}
-
-function Details({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
-  return <>
-    <button type="button" className="link" aria-expanded={open} onClick={() => setOpen(!open)}>Details</button>
-    {open && <p className="detail">{text}</p>}
-  </>;
 }
 
 /** The Assieme-tinted block on the Project step: what Assieme does to the folder before agents start. No buttons of

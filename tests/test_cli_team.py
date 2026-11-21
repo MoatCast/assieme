@@ -46,6 +46,13 @@ class CliTeamTest(unittest.TestCase):
         self.assertIn('no team.toml in /x', err)
         self.assertNotIn('Traceback', err)
 
+    def test_team_start_prints_the_detail_on_its_own_line(self):
+        err_ = cli.worktree.WorktreeError("Assieme couldn't make builder-1's copy.", 'git worktree add x\nfatal: no')
+        with mock.patch('assieme.cli.team.start', side_effect=err_):
+            code, _, err = run(['team', 'start', '/presets/demo'])
+        self.assertEqual(code, 1)
+        self.assertEqual(err, "assieme: Assieme couldn't make builder-1's copy.\ngit worktree add x\nfatal: no\n")
+
     def test_exited_role_gets_retry_hint(self):
         with mock.patch('assieme.cli.team.start', return_value=[Started('builder-1', 't2', 'exited', 'Error: x')]):
             _, out, _ = run(['team', 'start', '/presets/demo'])

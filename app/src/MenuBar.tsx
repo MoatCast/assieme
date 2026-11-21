@@ -8,6 +8,7 @@ import { tokens } from "./listModel";
 import "./tokens.css";
 import "./MenuBar.css";
 import { AgentFace } from "./band";
+import PlanBars from "./PlanBars";
 
 const OPEN: MenuButton = { id: "open", label: "Open", kind: "reply" };
 
@@ -126,6 +127,7 @@ export default function MenuBar({ pollMs = 5000 }: { pollMs?: number }) {
       {m?.paused_until
         ? <button type="button" className="mb-item" onClick={() => void pause(notificationsResume)}>Paused until {m.paused_until} · Resume</button>
         : <button type="button" className="mb-item" disabled={!m} onClick={() => void pause(notificationsPause)}>Pause notifications for 1 hour</button>}
+      {m?.limits && <div className="mb-limits"><PlanBars limits={m.limits} /></div>}
       {line && <div className="mb-foot">{line}</div>}
     </div>
   );

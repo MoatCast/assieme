@@ -66,6 +66,7 @@ test("an agent can run sealed off: the box shows with the legend, and its contai
   await flush();
   screen.getByRole("button", { name: "Agent: Claude Code, in a container" });
   screen.getByText("The box icon means it runs sealed off.");
+  screen.getByRole("button", { name: "What does sealed off mean?" });
   screen.getByText("Uses Docker. The first time, it downloads and builds the container, about 1.5 GB.");
   expect(h.onNotReady).toHaveBeenCalledWith("claude", true);
 });

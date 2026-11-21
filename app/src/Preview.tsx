@@ -158,7 +158,7 @@ function ConfirmSheet({ p, busy, problem, onCancel, onSee, onRun }: {
     <div className="preview-scrim" onKeyDown={(e) => e.key === "Escape" && onCancel()}>
       <div className="preview-sheet" role="dialog" aria-modal="true" aria-labelledby="preview-confirm-title" ref={dialog} tabIndex={-1}>
         <div id="preview-confirm-title" className="preview-sheet-title">Run {p.role}'s preview?</div>
-        <p>This runs in {p.role}'s worktree with your permissions, not the agent's:</p>
+        <p>This runs in {p.role}'s copy with your permissions, not the agent's:</p>
         <div className="preview-steps">
           {(p.steps ?? []).map((step) => (
             <Fragment key={step.line}>
@@ -173,7 +173,7 @@ function ConfirmSheet({ p, busy, problem, onCancel, onSee, onRun }: {
           ))}
         </div>
         {p.install && (
-          <p className="preview-small"><code>{p.install}</code> comes first: this worktree has no packages yet, and it downloads them.</p>
+          <p className="preview-small"><code>{p.install}</code> comes first: this copy has no packages yet, and it downloads them.</p>
         )}
         {what.length > 0 && (
           <div className="preview-warn">
@@ -257,7 +257,7 @@ export function PreviewGroup({ team, role, pv }: { team: string; role: string; p
       {p?.state === "running" && (
         <>
           <div className="preview-state"><span className="preview-dot on" />Running at <span className="mono ink">{host(p)}</span></div>
-          <div className="preview-sub">{p.command}, in {role}'s worktree</div>
+          <div className="preview-sub">{p.command}, in {role}'s copy</div>
           <div className="preview-buttons indent">
             <button type="button" className="primary" onClick={() => p.url && openLink(p.url)}>Open preview</button>
             {stop}
@@ -276,7 +276,7 @@ export function PreviewGroup({ team, role, pv }: { team: string; role: string; p
             <button type="button" className="quiet" disabled={pv.busy} onClick={() => pv.change(p)}>Change the start command</button>
           </div>
           {p.fix === "install" && p.install && (
-            <div className="preview-sub small">Runs <span className="mono">{p.install}</span> in {role}'s worktree, which downloads its packages.</div>
+            <div className="preview-sub small">Runs <span className="mono">{p.install}</span> in {role}'s copy, which downloads its packages.</div>
           )}
         </>
       )}

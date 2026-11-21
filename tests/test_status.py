@@ -311,3 +311,14 @@ class HerdrCheckTest(unittest.TestCase):
                 mock.patch.object(status.subprocess, 'run', return_value=got) as run:
             self.assertEqual(status.herdr_terminals(), [])
         self.assertEqual(run.call_args.args[0][0], '/herdr/bin/hc')
+
+
+class QuietThresholdTest(unittest.TestCase):
+    def test_quiet_threshold_changes_when_an_agent_counts_as_stuck(self):
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as root:
+            c = os.path.join(root, 'claude')
+            write(os.path.join(c, '-Users-x-b', 's.jsonl'), [prompt(30), tool(18, 'b1', command='cargo build')])
+            for minutes, state in ((15, 'stuck'), (20, 'working')):
+                with mock.patch.object(status.settings, 'threshold', lambda name, m=minutes: m):
+                    self.assertEqual(status.collect(c, os.path.join(root, 'codex'), NOW)[0].state, state)

@@ -223,7 +223,7 @@ class UndoTest(ActivityCase):
         self.addCleanup(lambda: (activity.UNDO.pop('merge', None), activity.APPLIES.pop('merge', None)))
         activity.register_merge(Review())
         live._log(self.log, {'id': 'm1', 'at': '2026-11-08T12:00:00Z', 'action': 'merge', 'agent': 'b', 'team': 'shop', 'by': 'you', 'ok': True,
-                             'undo': True, 'title': 'Merged b into main', 'reason': 'Its worktree is archived.'})
+                             'undo': True, 'title': 'Merged b into main', 'reason': 'Its copy was cleaned up.'})
         self.assertEqual(self.rows()[0]['undo'], {'label': 'Undo'})
         self.assertTrue(activity.undo('m1', Rt(), now=NOW)['ok'])
         rows = self.rows()

@@ -133,8 +133,8 @@ def why(command, role, rc, output, path, installed):
         what = next((g for g in found.groups() if g), None) if found else None
         thing = f"{what} isn't installed" if what else "something it needs isn't installed"
         if installed or not install_command(path):
-            return f"{command} stopped: {thing} in {role}'s worktree. Check the start command.", 'command'
-        return f"{command} stopped: {thing} in {role}'s worktree. Install the project's packages there, then try again.", 'install'
+            return f"{command} stopped: {thing} in {role}'s copy. Check the start command.", 'command'
+        return f"{command} stopped: {thing} in {role}'s copy. Install the project's packages there, then try again.", 'install'
     return f'{command} stopped before it opened a port.', 'command'
 
 
@@ -267,7 +267,7 @@ class Previews:
     def start(self, team, role, command=None, install=False, confirm=None):
         project, base, _, path = self.reviews.worktree(team, role)
         if not os.path.isdir(path):
-            raise PreviewError(f"{role}'s worktree isn't there any more, so there's nothing to preview.")
+            raise PreviewError(f"{role}'s copy isn't there any more, so it can't be previewed.")
         typed = (command or '').strip()
         with self.lock:
             if typed:

@@ -12,11 +12,10 @@ import shlex
 import socket
 import subprocess
 
-from . import detect, rules, setup
+from . import detect, rules, settings, setup
 from .adapters import CODEX_REFUSED, _output_text, _strip_common_prefix, box_metrics, box_path, command_label, program, wake_sender
 from .model import HUMAN, parse_ts
 
-STUCK_AFTER = 15 * 60       # working with no new log row for this long
 REPEATS = 4                 # the same command this many times in a row within one turn
 GRACE = 120                 # a message this old that started no turn is "work waiting"
 SUBAGENT_WINDOW = 3600      # unfinished subagents older than this are abandoned, not running
@@ -256,7 +255,7 @@ def _codex(agent, rows, show_text):
                 agent.samples.append((ts, agent.context))
 
 
-def _finish(agent, now):
+def _finish(agent, now, stuck_after):
     """Turn raw turn state into the health state the owner reads."""
     if agent.state != 'working':
         return
@@ -268,7 +267,7 @@ def _finish(agent, now):
         agent.ask_since = agent.last
     elif tool and re.search(r'\b(?:asm|hc)\s+wait\b', tool[2] or ''):  # waiting is its job: never "stuck" by silence
         agent.detail = 'waiting'
-    elif age > STUCK_AFTER:
+    elif age > stuck_after:  # working with no new log row for this long (Settings › Fixes)
         agent.state = 'stuck'
         agent.detail = f'silent {_ago(age)}, last {tool[1]}' if tool else f'no reply for {_ago(age)} (stuck, or the session closed)'
     elif len(agent.cmds) >= REPEATS and len(set(agent.cmds[-REPEATS:])) == 1:
@@ -409,8 +408,9 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
             by_thread[a.parent_thread].children.append(a)
     agents += [a for a in codex_agents.values() if not (a.name.endswith('/guardian') and a.state != 'working')]
 
+    stuck_after = settings.threshold('quiet_minutes') * 60
     for a in agents + [c for a in agents for c in a.children]:
-        _finish(a, now)
+        _finish(a, now, stuck_after)
     for a in agents:
         busy = [c for c in a.children if c.state in ('working', 'waiting on you')]
         lost = [c for c in a.children if c.state == 'stuck']
