@@ -101,9 +101,7 @@ fn day(now: Timestamp) -> String {
     now.to_zoned_datetime(jiff::tz::TimeZone::system()).strftime("%Y-%m-%d").to_string()
 }
 
-fn stamp(t: Timestamp) -> String {
-    t.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
-}
+use crate::quiet::stamp;
 
 impl Rec {
     /// The limit plus what the person added for today, or None when there is no limit.

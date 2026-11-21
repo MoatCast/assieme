@@ -25,9 +25,7 @@ pub fn needs_you(p: &Value) -> bool {
     NEEDS_YOU.iter().any(|s| p["state"] == *s) || p["paused_by_fix"] == true
 }
 
-fn real(path: Option<&str>) -> Option<String> {
-    path.filter(|p| !p.is_empty()).map(crate::herdr::realpath)
-}
+use crate::quiet::real_opt as real;
 
 fn word(n: usize) -> String {
     WORDS.get(n).map_or(n.to_string(), |w| w.to_string())

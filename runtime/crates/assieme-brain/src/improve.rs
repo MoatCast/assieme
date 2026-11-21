@@ -20,9 +20,7 @@ use serde_json::json;
 /// The team's roles, as the rows label them.
 const ROLE: &str = crate::team::ROLE;
 
-fn real(path: Option<&str>) -> Option<String> {
-    path.filter(|p| !p.is_empty()).map(crate::herdr::realpath)
-}
+use crate::quiet::real_opt as real;
 
 fn names(roles: &[String]) -> String {
     match roles {
@@ -495,7 +493,7 @@ pub fn apply(
             let groups: Vec<&Group> = mine.iter().filter_map(|g| on.iter().find(|x| x.0 == *g)).collect();
             let text = note_text(&groups);
             crate::quiet::hold_note(&m.address, cwd, &text, None, None, None, "assieme", "");
-            let at = crate::herdr::realpath(cwd);
+            let at = crate::quiet::real(cwd);
             notes.push(json!([m.address, at, text]));
             for g in &mine {
                 sent.push(json!([role, m.address, at, g]));

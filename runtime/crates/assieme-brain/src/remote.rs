@@ -214,19 +214,6 @@ fn failure(target: &str, e: &RuntimeError) -> Value {
     json!({"result": result, "target": target})
 }
 
-/// The team rows of one machine's terminals, as `team.status` makes them for this Mac's.
-fn team_rows(terminals: &[&Value]) -> Vec<Value> {
-    use crate::team::{BRIEFED, ROLE, TEAM};
-    terminals
-        .iter()
-        .filter_map(|x| {
-            let (labels, team) = (&x["labels"], x["labels"][TEAM].as_str()?);
-            Some(json!({"team": team, "role": labels[ROLE], "address": x["address"], "state": x["state"],
-                        "status": x["status"]["state"], "briefed": labels[BRIEFED] == "1", "cwd": x["cwd"]}))
-        })
-        .collect()
-}
-
 fn merged(a: &Value, b: Value) -> Value {
     let mut out = a.clone();
     if let (Some(o), Value::Object(b)) = (out.as_object_mut(), b) {
@@ -356,7 +343,8 @@ impl Remotes {
                 .copied()
                 .filter(|t| t["address"].as_str().is_some_and(|a| a.split('/').next() == Some(&name)))
                 .collect();
-            let rows: Vec<Value> = team_rows(&mine).into_iter().map(|r| merged(&r, json!({"machine": name}))).collect();
+            let rows: Vec<Value> =
+                mine.iter().filter_map(|t| crate::team::row(t)).map(|r| merged(&r, json!({"machine": name}))).collect();
             if st.rows.get(&name) != Some(&rows) {
                 st.rows.insert(name.clone(), rows.clone());
                 changed = true;

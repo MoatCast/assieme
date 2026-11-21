@@ -47,20 +47,18 @@ fn tail(rt: &Runtime, t: &str) -> String {
     lines[lines.len().saturating_sub(TAIL_LINES)..].join("\n")
 }
 
+/// The team row of a terminal, or None when it is in no team.
+pub fn row(x: &Value) -> Option<Value> {
+    let (labels, team) = (&x["labels"], x["labels"][TEAM].as_str()?);
+    Some(json!({"team": team, "role": labels[ROLE], "address": x["address"], "state": x["state"],
+                "status": x["status"]["state"], "briefed": labels[BRIEFED] == "1", "cwd": x["cwd"]}))
+}
+
 /// The terminals of a team (all teams when None).
 pub fn status(rt: &Runtime, name: Option<&str>) -> Result<Vec<Value>, RuntimeError> {
     let labels = name.map(|n| BTreeMap::from([(TEAM.to_string(), n.to_string())])).unwrap_or_default();
-    Ok(rt
-        .list(&labels, true)?
-        .into_iter()
-        .filter_map(|x| {
-            let (labels, team) = (&x["labels"], x["labels"][TEAM].as_str()?);
-            (name.is_none_or(|n| n == team)).then(|| {
-                json!({"team": team, "role": labels[ROLE], "address": x["address"], "state": x["state"],
-                       "status": x["status"]["state"], "briefed": labels[BRIEFED] == "1", "cwd": x["cwd"]})
-            })
-        })
-        .collect())
+    let terminals = rt.list(&labels, true)?;
+    Ok(terminals.iter().filter_map(row).filter(|r| name.is_none_or(|n| r["team"] == n)).collect())
 }
 
 /// Stop a team's live terminals. Returns how many.

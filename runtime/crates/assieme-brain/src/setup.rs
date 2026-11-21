@@ -129,16 +129,7 @@ fn program(kind: &str) -> &str {
 const GEMINI_SIGNIN: [&str; 2] = ["~/.gemini/oauth_creds.json", "~/.gemini/google_accounts.json"];
 pub(crate) const TIMEOUT: Duration = Duration::from_secs(5);
 
-fn home() -> String {
-    std::env::var("HOME").unwrap_or_default()
-}
-
-fn expanduser(p: &str) -> String {
-    match p.strip_prefix('~') {
-        Some(rest) if rest.is_empty() || rest.starts_with('/') => format!("{}{rest}", home()),
-        _ => p.to_string(),
-    }
-}
+use crate::quiet::expanduser;
 
 /// Runs a command in a process group of its own; None when it ran past `timeout`, when the whole group is killed (a git
 /// hook's children would otherwise keep its pipes open).
@@ -309,7 +300,7 @@ const FIRST_MESSAGE: &str = "First version, saved by Assieme";
 const BEFORE_TEAM_MESSAGE: &str = "Saved by Assieme before starting a team";
 
 fn real(path: &str) -> String {
-    crate::herdr::realpath(&expanduser(path))
+    crate::quiet::real(&expanduser(path))
 }
 
 /// The home folder or `/`, by resolved path, so `~/`, a trailing slash and a symlink all count.

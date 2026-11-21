@@ -84,9 +84,7 @@ fn update(id: &str, fields: Value) -> Option<Value> {
     Some(s)
 }
 
-fn iso(t: Timestamp) -> String {
-    t.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
-}
+use crate::quiet::stamp as iso;
 
 /// Our own `iso` strings only: a hand-edited file with another form reads as no time.
 fn parse(v: &Value) -> Option<Timestamp> {

@@ -146,7 +146,7 @@ fn checkout(cwd: &str) -> (String, Option<String>) {
     let branch = git(&["branch", "--show-current"])
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .filter(|b| !b.is_empty());
-    (realpath(&main), branch)
+    (crate::quiet::real(&main), branch)
 }
 
 // --- Python's `os.path` and `str` ------------------------------------------------------------------------------------
@@ -185,30 +185,6 @@ fn py_normpath(p: &str) -> String {
     if joined.is_empty() { ".".into() } else { joined }
 }
 
-/// `os.path.realpath`: symlinks resolved as far as the path exists, the rest tidied as it is written.
-pub(crate) fn realpath(p: &str) -> String {
-    let abs = if p.starts_with('/') {
-        p.to_string()
-    } else {
-        format!("{}/{p}", std::env::current_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default())
-    };
-    let norm = py_normpath(&abs);
-    let (mut cur, mut tail) = (PathBuf::from(&norm), vec![]);
-    loop {
-        if let Ok(mut done) = std::fs::canonicalize(&cur) {
-            done.extend(tail.iter().rev());
-            return done.to_string_lossy().into_owned();
-        }
-        match cur.file_name().map(|n| n.to_os_string()) {
-            Some(name) => {
-                tail.push(name);
-                cur.pop();
-            }
-            None => return norm,
-        }
-    }
-}
-
 fn py_join(a: &str, b: &str) -> String {
     if b.starts_with('/') || a.is_empty() {
         b.to_string()
@@ -219,13 +195,7 @@ fn py_join(a: &str, b: &str) -> String {
     }
 }
 
-/// `os.path.expanduser`: `~` and `~/…` only; `~name` is left as it is.
-fn expanduser(p: &str) -> String {
-    match p.strip_prefix('~') {
-        Some(rest) if rest.is_empty() || rest.starts_with('/') => format!("{}{rest}", home()),
-        _ => p.to_string(),
-    }
-}
+use crate::quiet::expanduser;
 
 /// `str.splitlines`: Python ends a line at more than `\n`.
 fn splitlines(text: &str) -> Vec<String> {
@@ -262,118 +232,14 @@ fn py_str(v: &Value) -> String {
 }
 
 /// Python's `shlex` (POSIX, whitespace-split): `comments` makes `#` start a comment, `punct` makes `;&|<>()` words of
-/// their own. Returns the words read and whether it stopped on an error (an open quote or a lone backslash).
+/// their own. Returns the words read and whether it stopped on an error.
 fn lex(text: &str, comments: bool, punct: bool) -> (Vec<String>, bool) {
-    const PUNCT: &str = ";&|<>()";
-    let chars: Vec<char> = text.chars().collect();
-    let mut i = 0;
-    let mut out = vec![];
-    // Which part of a word it is in: ' ' between words, 'a' in a word, 'c' in a run of punctuation, a quote, or '\\'.
-    loop {
-        let (mut token, mut quoted, mut state, mut escaped) = (String::new(), false, ' ', ' ');
-        loop {
-            let next = chars.get(i).copied();
-            if next.is_some() {
-                i += 1;
-            }
-            let st = state;
-            let skip_line = |i: &mut usize| {
-                while *i < chars.len() {
-                    *i += 1;
-                    if chars[*i - 1] == '\n' {
-                        break;
-                    }
-                }
-            };
-            match st {
-                ' ' => {
-                    let Some(c) = next else {
-                        break;
-                    };
-                    if " \t\r\n".contains(c) {
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    } else if comments && c == '#' {
-                        skip_line(&mut i);
-                    } else if c == '\\' {
-                        escaped = 'a';
-                        state = c;
-                    } else if punct && PUNCT.contains(c) {
-                        token = c.to_string();
-                        state = 'c';
-                    } else if c == '\'' || c == '"' {
-                        state = c;
-                    } else {
-                        token = c.to_string();
-                        state = 'a';
-                    }
-                }
-                '\'' | '"' => {
-                    quoted = true;
-                    let Some(c) = next else { return (out, true) };
-                    if c == st {
-                        state = 'a';
-                    } else if c == '\\' && st == '"' {
-                        escaped = st;
-                        state = c;
-                    } else {
-                        token.push(c);
-                    }
-                }
-                '\\' => {
-                    let Some(c) = next else { return (out, true) };
-                    if (escaped == '\'' || escaped == '"') && c != st && c != escaped {
-                        token.push(st);
-                    }
-                    token.push(c);
-                    state = escaped;
-                }
-                _ => {
-                    // 'a' or 'c'
-                    let Some(c) = next else {
-                        break;
-                    };
-                    if " \t\r\n".contains(c) {
-                        state = ' ';
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    } else if comments && c == '#' {
-                        skip_line(&mut i);
-                        state = ' ';
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    } else if st == 'c' {
-                        if PUNCT.contains(c) {
-                            token.push(c);
-                        } else {
-                            i -= 1;
-                            break;
-                        }
-                    } else if c == '\'' || c == '"' {
-                        state = c;
-                    } else if c == '\\' {
-                        escaped = 'a';
-                        state = c;
-                    } else if !(punct && PUNCT.contains(c)) {
-                        token.push(c);
-                    } else {
-                        i -= 1;
-                        state = ' ';
-                        if !token.is_empty() || quoted {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        if token.is_empty() && !quoted {
-            return (out, false);
-        }
-        out.push(token);
+    crate::detect::Shlex {
+        whitespace: " \t\r\n",
+        commenters: if comments { "#" } else { "" },
+        punctuation: if punct { ";&|<>()" } else { "" },
     }
+    .read(text)
 }
 
 // --- one agent's command line ----------------------------------------------------------------------------------------
@@ -917,7 +783,7 @@ fn team(env: &Env, members: Vec<Member>, project: Option<String>, mut notes: Vec
         let own = r["name"].as_str().unwrap_or("");
         let Some((main, Some(branch))) = places.get(own) else { continue };
         let cwd = &cwds.iter().find(|(s, _)| s == own).map(|c| c.1.clone()).unwrap_or_default();
-        if r["checkout"] == "branch" && realpath(cwd) != *main {
+        if r["checkout"] == "branch" && crate::quiet::real(cwd) != *main {
             notes.push(("branch".into(), Some(own.into()), branch.clone()));
         }
     }
@@ -1087,7 +953,7 @@ fn from_script(env: &Env, text: &str, path: &str) -> Value {
         buf.clear();
     }
     lines.extend(buf);
-    let path = realpath(path);
+    let path = crate::quiet::real(path);
     let mut vars: Vars =
         [("HOME", home()), ("0", path.clone()), ("BASH_SOURCE[0]", path.clone()), ("BASH_SOURCE", path.clone())]
             .into_iter()

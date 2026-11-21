@@ -117,6 +117,12 @@ pub(crate) struct Shlex<'a> {
 impl Shlex<'_> {
     /// The tokens, or None where Python raises ("No closing quotation", "No escaped character").
     pub fn tokens(&self, text: &str) -> Option<Vec<String>> {
+        let (out, bad) = self.read(text);
+        (!bad).then_some(out)
+    }
+
+    /// The words read so far, and whether it stopped on an error (an open quote or a lone backslash).
+    pub fn read(&self, text: &str) -> (Vec<String>, bool) {
         let chars: Vec<char> = text.chars().collect();
         let (mut pos, mut pushback, mut out) = (0usize, Vec::<char>::new(), vec![]);
         let mut state = Some(' ');
@@ -173,7 +179,7 @@ impl Shlex<'_> {
                     Some(q @ ('\'' | '"')) => {
                         quoted = true;
                         match next {
-                            None => return None,
+                            None => return (out, true),
                             Some(c) if c == q => state = Some('a'),
                             Some('\\') if q == '"' => {
                                 escaped_state = q;
@@ -183,7 +189,7 @@ impl Shlex<'_> {
                         }
                     }
                     Some('\\') => {
-                        let c = next?;
+                        let Some(c) = next else { return (out, true) };
                         if (escaped_state == '\'' || escaped_state == '"') && c != '\\' && c != escaped_state {
                             token.push('\\');
                         }
@@ -239,7 +245,7 @@ impl Shlex<'_> {
                 }
             }
             if token.is_empty() && !quoted {
-                return Some(out); // end of input
+                return (out, false); // end of input
             }
             out.push(token);
         }
