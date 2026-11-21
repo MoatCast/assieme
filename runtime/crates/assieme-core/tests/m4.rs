@@ -448,3 +448,33 @@ fn interrupt_reports_what_it_observed() {
     let (code, err) = s.err(&["send", &quits, "x"]);
     assert_eq!((code, err["error"]["kind"].as_str()), (11, Some("finished")));
 }
+
+/// Assieme's `deliver: next_turn` with upstream's draft protection: a batch
+/// that falls due while a person types goes in only after the draft is sent,
+/// and as one batch.
+#[test]
+fn next_turn_batch_waits_for_draft() {
+    let mut s = session();
+    s.env.push(("ASM_DRAFT_MS".into(), "5000".into()));
+    let t = run(&s, &format!("r state=idle; {BYTES}"));
+    wait_until("idle", || status(&s, &t) == "idle");
+    let mut person = Viewer::attach(&s, &t, 80, 24, json!({}));
+    person.typed(b"hey");
+    let mut events = s.connect();
+    events.call(1, "events.subscribe", json!({"terminal": t}));
+    let mut c = s.connect();
+    for (id, note) in [(2, "zz"), (3, "zy")] {
+        let r = c.call(id, "terminal.send", json!({"terminal": t, "text": note, "deliver": "next_turn"}));
+        assert!(r["result"]["queued"].is_u64(), "{r}");
+    }
+    // Due now: the batch tries to go in, and the draft holds it.
+    c.call(4, "terminal.status.set", json!({"terminal": t, "state": "working", "source": "test"}));
+    std::thread::sleep(Duration::from_millis(1500));
+    // BYTES prints one byte per line: `z` is 7a.
+    assert!(!text(&s, &t).contains("7a"), "typed into the unfinished draft");
+    assert_eq!(get(&s, &t)["held"].as_array().map(Vec::len), Some(2));
+    person.typed(b"\r");
+    let event = next_event(&mut events, |m| m["params"]["type"] == "delivery");
+    assert_eq!(event["params"]["data"]["notes"], json!([1, 2]), "{event}");
+    wait_until("both notes typed", || text(&s, &t).matches("7a").count() == 3);
+}
