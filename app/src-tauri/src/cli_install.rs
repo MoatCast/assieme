@@ -1,4 +1,4 @@
-//! Command line tools (Settings › General): a launcher named `assieme` that runs the Python inside the app. It goes in
+//! Command line tools (Settings › General): a launcher named `assieme` that runs `asm cli` from the app. It goes in
 //! ~/.local/bin when that folder is on the login PATH, else in /usr/local/bin through the Mac's password dialog.
 //! Remove deletes only a launcher Assieme wrote, known by its marker line.
 use std::path::{Path, PathBuf};
@@ -14,8 +14,8 @@ pub struct CliStatus {
     pub path: Option<String>,
 }
 
-pub fn launcher(python: &Path) -> String {
-    format!("#!/bin/sh\n{MARK}\nexec {} -P -m assieme \"$@\"\n", sh_quote(python)) // quoted: an app folder may hold " or $
+pub fn launcher(asm: &Path) -> String {
+    format!("#!/bin/sh\n{MARK}\nexec {} cli \"$@\"\n", sh_quote(asm)) // quoted: an app folder may hold " or $
 }
 
 /// ~/.local/bin when the login PATH has it, else /usr/local/bin.
@@ -29,10 +29,10 @@ fn ours(path: &Path) -> Option<String> {
     std::fs::read_to_string(path).ok().filter(|s| s.lines().any(|l| l == MARK))
 }
 
-pub fn status(home: &Path, python: &Path) -> CliStatus {
+pub fn status(home: &Path, asm: &Path) -> CliStatus {
     for p in [home.join(".local/bin/assieme"), PathBuf::from(SYSTEM_DIR).join("assieme")] {
         if let Some(text) = ours(&p) {
-            let state = if text == launcher(python) { "installed" } else { "moved" };
+            let state = if text == launcher(asm) { "installed" } else { "moved" };
             return CliStatus { state, path: Some(p.display().to_string()) };
         }
     }
@@ -59,7 +59,7 @@ fn sh_quote(p: &Path) -> String {
     format!("'{}'", p.display().to_string().replace('\'', "'\\''"))
 }
 
-pub fn install(python: &Path, login_path: &str, home: &Path, osascript: &str) -> Result<CliStatus, String> {
+pub fn install(asm: &Path, login_path: &str, home: &Path, osascript: &str) -> Result<CliStatus, String> {
     let to = target(login_path, home);
     if to.symlink_metadata().is_ok() && ours(&to).is_none() { // a link counts, even a broken one
         return Err(format!("{} already exists and was not written by Assieme. Remove it first to install the command line tools.", to.display()));
@@ -67,27 +67,27 @@ pub fn install(python: &Path, login_path: &str, home: &Path, osascript: &str) ->
     if to.starts_with(home) {
         use std::os::unix::fs::PermissionsExt;
         std::fs::create_dir_all(to.parent().unwrap()).map_err(|e| e.to_string())?;
-        std::fs::write(&to, launcher(python)).map_err(|e| e.to_string())?;
+        std::fs::write(&to, launcher(asm)).map_err(|e| e.to_string())?;
         std::fs::set_permissions(&to, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
     } else {
         let tmp = std::env::temp_dir().join(format!("assieme-launcher-{}", std::process::id()));
-        std::fs::write(&tmp, launcher(python)).map_err(|e| e.to_string())?;
+        std::fs::write(&tmp, launcher(asm)).map_err(|e| e.to_string())?;
         let done = as_admin(osascript, &format!("mkdir -p {} && install -m 755 {} {}", SYSTEM_DIR, sh_quote(&tmp), sh_quote(&to)));
         let _ = std::fs::remove_file(&tmp);
         done?;
     }
-    Ok(status(home, python))
+    Ok(status(home, asm))
 }
 
-pub fn remove(python: &Path, home: &Path, osascript: &str) -> Result<CliStatus, String> {
-    let found = status(home, python);
+pub fn remove(asm: &Path, home: &Path, osascript: &str) -> Result<CliStatus, String> {
+    let found = status(home, asm);
     let Some(path) = found.path.clone().map(PathBuf::from) else { return Ok(found) };
     if path.starts_with(home) {
         std::fs::remove_file(&path).map_err(|e| e.to_string())?;
     } else {
         as_admin(osascript, &format!("rm -f {}", sh_quote(&path)))?;
     }
-    Ok(status(home, python))
+    Ok(status(home, asm))
 }
 
 #[cfg(test)]
@@ -102,20 +102,25 @@ mod tests {
     }
 
     #[test]
+    fn launcher_runs_asm_cli() {
+        assert_eq!(launcher(Path::new("/A/assieme-core")), format!("#!/bin/sh\n{MARK}\nexec '/A/assieme-core' cli \"$@\"\n"));
+    }
+
+    #[test]
     fn launcher_quotes_a_path_with_shell_characters() {
-        let text = launcher(Path::new("/Apps/it's \"$HOME\"/python3"));
-        assert!(text.contains("exec '/Apps/it'\\''s \"$HOME\"/python3' -P"), "{text}");
+        let text = launcher(Path::new("/Apps/it's \"$HOME\"/asm"));
+        assert!(text.contains("exec '/Apps/it'\\''s \"$HOME\"/asm' cli"), "{text}");
     }
 
     #[test]
     fn writes_launcher_in_local_bin_when_on_path() {
         let h = home("local");
-        let py = Path::new("/Applications/Assieme.app/Contents/Resources/python/bin/python3");
+        let py = Path::new("/Applications/Assieme.app/Contents/Resources/asm-bin/assieme-core");
         let path = format!("/usr/bin:{}/.local/bin", h.display());
         let got = install(py, &path, &h, "/nope/osascript").unwrap();
         assert_eq!(got, CliStatus { state: "installed", path: Some(h.join(".local/bin/assieme").display().to_string()) });
         let text = std::fs::read_to_string(h.join(".local/bin/assieme")).unwrap();
-        assert_eq!(text, format!("#!/bin/sh\n{MARK}\nexec '{}' -P -m assieme \"$@\"\n", py.display()));
+        assert_eq!(text, format!("#!/bin/sh\n{MARK}\nexec '{}' cli \"$@\"\n", py.display()));
     }
 
     #[test]
@@ -126,14 +131,14 @@ mod tests {
     #[test]
     fn status_installed_missing_moved() {
         let h = home("status");
-        let py = Path::new("/A/python3");
+        let py = Path::new("/A/asm");
         if !PathBuf::from("/usr/local/bin/assieme").exists() {
             assert_eq!(status(&h, py).state, "missing");
         }
         std::fs::create_dir_all(h.join(".local/bin")).unwrap();
         std::fs::write(h.join(".local/bin/assieme"), launcher(py)).unwrap();
         assert_eq!(status(&h, py).state, "installed");
-        assert_eq!(status(&h, Path::new("/Moved/python3")).state, "moved");
+        assert_eq!(status(&h, Path::new("/Moved/asm")).state, "moved");
     }
 
     #[test]
@@ -142,7 +147,7 @@ mod tests {
         let p = h.join(".local/bin/assieme");
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(&p, "#!/bin/sh\necho mine\n").unwrap();
-        let py = Path::new("/A/python3");
+        let py = Path::new("/A/asm");
         remove(py, &h, "/nope/osascript").unwrap();
         assert!(p.exists());
         let on_path = format!("{}/.local/bin", h.display());
@@ -153,7 +158,7 @@ mod tests {
     #[test]
     fn remove_deletes_ours() {
         let h = home("remove");
-        let py = Path::new("/A/python3");
+        let py = Path::new("/A/asm");
         install(py, &format!("{}/.local/bin", h.display()), &h, "/nope").unwrap();
         remove(py, &h, "/nope").unwrap();
         assert!(!h.join(".local/bin/assieme").exists());
@@ -170,7 +175,7 @@ mod tests {
         std::fs::write(&osa, format!("#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\n", log.display())).unwrap();
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&osa, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let _ = install(Path::new("/A/python3"), "/usr/bin", &h, osa.to_str().unwrap());
+        let _ = install(Path::new("/A/asm"), "/usr/bin", &h, osa.to_str().unwrap());
         let got = std::fs::read_to_string(&log).unwrap();
         assert!(got.contains("with administrator privileges") && got.contains("install -m 755"), "{got}");
         assert!(got.contains("/usr/local/bin/assieme"), "{got}");
