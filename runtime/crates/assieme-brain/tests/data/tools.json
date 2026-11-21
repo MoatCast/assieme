@@ -1,0 +1,486 @@
+{
+ "files": {
+  "home/.claude.json": {
+   "mcpServers": {
+    "alpha": {},
+    "assieme": {},
+    "off": {
+     "disabled": true
+    }
+   },
+   "projects": {
+    "@ROOT@/proj": {
+     "mcpServers": {
+      "local": {}
+     }
+    }
+   }
+  },
+  "proj/.mcp.json": "{ not json",
+  "home/.claude/settings.json": {
+   "enabledPlugins": {
+    "p@m": true,
+    "q@m": false
+   }
+  },
+  "home/.claude/plugins/installed_plugins.json": {
+   "plugins": {
+    "p@m": [
+     {
+      "installPath": "@ROOT@/home/plug"
+     }
+    ]
+   }
+  },
+  "home/plug/.claude-plugin/plugin.json": {
+   "description": "A plugin"
+  },
+  "home/.claude/skills/s1/SKILL.md": "---\nname: x\ndescription: \"Deploy things\"\n---\nbody\n",
+  "proj/.claude/skills/s1/SKILL.md": "---\nname: x\ndescription: \"shadowed\"\n---\nbody\n",
+  "proj/.claude/skills/s2/SKILL.md": "---\nname: x\ndescription: \"Plain skill\"\n---\nbody\n",
+  "home/.codex/config.toml": "[mcp_servers.cx]\ncommand = \"x\"\n[mcp_servers.cy]\nenabled = false\n[plugins.\"pl@mk\"]\nenabled = true\n",
+  "home/.codex/skills/c1/SKILL.md": "---\nname: x\ndescription: \"Codex skill\"\n---\nbody\n",
+  "home/.codex/plugins/cache/mk/pl/1.0/skills/z/SKILL.md": "---\nname: x\ndescription: \"From a plugin\"\n---\nbody\n",
+  "home/.gemini/settings.json": {
+   "mcpServers": {
+    "g1": {}
+   }
+  },
+  "proj/.gemini/settings.json": {
+   "mcpServers": {
+    "g2": {
+     "enabled": false
+    },
+    "g3": {}
+   }
+  },
+  "home/.gemini/extensions/e1/gemini-extension.json": {
+   "name": "ext-one",
+   "description": "Ext",
+   "mcpServers": {
+    "es": {}
+   }
+  },
+  "home/.gemini/skills/gs/SKILL.md": "---\nname: x\ndescription: \"Gemini skill\"\n---\nbody\n",
+  "home/.config/opencode/opencode.jsonc": "// a comment\n{\"mcp\": {\"o1\": {}, \"-bad\": {}}}",
+  "proj/opencode.json": {
+   "mcp": {
+    "o2": {}
+   }
+  },
+  "home/.cursor/mcp.json": {
+   "mcpServers": {
+    "cu1": {}
+   }
+  },
+  "proj/.cursor/mcp.json": {
+   "mcpServers": {
+    "cu2": {}
+   }
+  }
+ },
+ "cases": [
+  {
+   "kind": "claude",
+   "own_copy": true,
+   "expect": {
+    "items": [
+     {
+      "id": "server:alpha",
+      "type": "server",
+      "name": "alpha",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "server:local",
+      "type": "server",
+      "name": "local",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "plugin:p@m",
+      "type": "plugin",
+      "name": "p@m",
+      "description": "A plugin",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:*",
+      "type": "skill",
+      "name": "*",
+      "description": "Every skill this agent can use. Claude Code turns them on or off together.",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:s1",
+      "type": "skill",
+      "name": "s1",
+      "description": "Deploy things",
+      "locked": true,
+      "why": "Claude Code can turn skills off only all together, with \"All skills\"."
+     },
+     {
+      "id": "skill:s2",
+      "type": "skill",
+      "name": "s2",
+      "description": "Plain skill",
+      "locked": true,
+      "why": "Claude Code can turn skills off only all together, with \"All skills\"."
+     }
+    ],
+    "notices": [
+     "Couldn't read @ROOT@/proj/.mcp.json."
+    ]
+   }
+  },
+  {
+   "kind": "claude",
+   "own_copy": false,
+   "expect": {
+    "items": [
+     {
+      "id": "server:alpha",
+      "type": "server",
+      "name": "alpha",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "server:local",
+      "type": "server",
+      "name": "local",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "plugin:p@m",
+      "type": "plugin",
+      "name": "p@m",
+      "description": "A plugin",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:*",
+      "type": "skill",
+      "name": "*",
+      "description": "Every skill this agent can use. Claude Code turns them on or off together.",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:s1",
+      "type": "skill",
+      "name": "s1",
+      "description": "Deploy things",
+      "locked": true,
+      "why": "Claude Code can turn skills off only all together, with \"All skills\"."
+     },
+     {
+      "id": "skill:s2",
+      "type": "skill",
+      "name": "s2",
+      "description": "Plain skill",
+      "locked": true,
+      "why": "Claude Code can turn skills off only all together, with \"All skills\"."
+     }
+    ],
+    "notices": [
+     "Couldn't read @ROOT@/proj/.mcp.json."
+    ]
+   }
+  },
+  {
+   "kind": "codex",
+   "own_copy": true,
+   "expect": {
+    "items": [
+     {
+      "id": "server:cx",
+      "type": "server",
+      "name": "cx",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:c1",
+      "type": "skill",
+      "name": "c1",
+      "description": "Codex skill",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:pl:z",
+      "type": "skill",
+      "name": "pl:z",
+      "description": "From a plugin",
+      "locked": false,
+      "why": ""
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "codex",
+   "own_copy": false,
+   "expect": {
+    "items": [
+     {
+      "id": "server:cx",
+      "type": "server",
+      "name": "cx",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:c1",
+      "type": "skill",
+      "name": "c1",
+      "description": "Codex skill",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:pl:z",
+      "type": "skill",
+      "name": "pl:z",
+      "description": "From a plugin",
+      "locked": false,
+      "why": ""
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "gemini",
+   "own_copy": true,
+   "expect": {
+    "items": [
+     {
+      "id": "server:g1",
+      "type": "server",
+      "name": "g1",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "server:g3",
+      "type": "server",
+      "name": "g3",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "extension:ext-one",
+      "type": "extension",
+      "name": "ext-one",
+      "description": "Ext",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:gs",
+      "type": "skill",
+      "name": "gs",
+      "description": "Gemini skill",
+      "locked": false,
+      "why": ""
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "gemini",
+   "own_copy": false,
+   "expect": {
+    "items": [
+     {
+      "id": "server:g1",
+      "type": "server",
+      "name": "g1",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "server:g3",
+      "type": "server",
+      "name": "g3",
+      "description": "",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "extension:ext-one",
+      "type": "extension",
+      "name": "ext-one",
+      "description": "Ext",
+      "locked": false,
+      "why": ""
+     },
+     {
+      "id": "skill:gs",
+      "type": "skill",
+      "name": "gs",
+      "description": "Gemini skill",
+      "locked": true,
+      "why": "Gemini CLI reads skill settings from the project folder, so every Gemini agent working there gets the same ones."
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "opencode",
+   "own_copy": true,
+   "expect": {
+    "items": [
+     {
+      "id": "server:o1",
+      "type": "server",
+      "name": "o1",
+      "description": "",
+      "locked": true,
+      "why": "OpenCode can't turn one server off for a single agent without being given that server's whole settings, so every OpenCode agent gets the same ones."
+     },
+     {
+      "id": "server:o2",
+      "type": "server",
+      "name": "o2",
+      "description": "",
+      "locked": true,
+      "why": "OpenCode can't turn one server off for a single agent without being given that server's whole settings, so every OpenCode agent gets the same ones."
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "opencode",
+   "own_copy": false,
+   "expect": {
+    "items": [
+     {
+      "id": "server:o1",
+      "type": "server",
+      "name": "o1",
+      "description": "",
+      "locked": true,
+      "why": "OpenCode can't turn one server off for a single agent without being given that server's whole settings, so every OpenCode agent gets the same ones."
+     },
+     {
+      "id": "server:o2",
+      "type": "server",
+      "name": "o2",
+      "description": "",
+      "locked": true,
+      "why": "OpenCode can't turn one server off for a single agent without being given that server's whole settings, so every OpenCode agent gets the same ones."
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "cursor",
+   "own_copy": true,
+   "expect": {
+    "items": [
+     {
+      "id": "server:cu1",
+      "type": "server",
+      "name": "cu1",
+      "description": "",
+      "locked": true,
+      "why": "Cursor reads this server from your home folder, so every Cursor agent gets it."
+     },
+     {
+      "id": "server:cu2",
+      "type": "server",
+      "name": "cu2",
+      "description": "",
+      "locked": false,
+      "why": ""
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "cursor",
+   "own_copy": false,
+   "expect": {
+    "items": [
+     {
+      "id": "server:cu1",
+      "type": "server",
+      "name": "cu1",
+      "description": "",
+      "locked": true,
+      "why": "Cursor reads this server from your home folder, so every Cursor agent gets it."
+     },
+     {
+      "id": "server:cu2",
+      "type": "server",
+      "name": "cu2",
+      "description": "",
+      "locked": true,
+      "why": "Cursor reads its servers from the project folder, so every Cursor agent working there gets the same ones."
+     }
+    ],
+    "notices": []
+   }
+  },
+  {
+   "kind": "antigravity",
+   "own_copy": true,
+   "expect": {
+    "items": [],
+    "notices": [
+     "Antigravity can't be given its own set of skills and servers yet: it gets all installed skills and servers."
+    ]
+   }
+  },
+  {
+   "kind": "antigravity",
+   "own_copy": false,
+   "expect": {
+    "items": [],
+    "notices": [
+     "Antigravity can't be given its own set of skills and servers yet: it gets all installed skills and servers."
+    ]
+   }
+  },
+  {
+   "kind": "other",
+   "own_copy": true,
+   "expect": {
+    "items": [],
+    "notices": []
+   }
+  },
+  {
+   "kind": "other",
+   "own_copy": false,
+   "expect": {
+    "items": [],
+    "notices": []
+   }
+  }
+ ]
+}

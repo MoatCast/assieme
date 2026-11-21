@@ -68,72 +68,14 @@ pub fn check_model_effort(agent: &str, model: Option<&str>, effort: Option<&str>
     }
 }
 
-/// What session D2's modules give a command line. They had no declared functions when this was written: each body
-/// becomes a call to the function named in it.
-#[allow(clippy::todo, unused_variables)]
+/// What session D2's modules give a command line, by the names `launch` and its callers use.
 pub mod d2 {
-    use crate::prelude::*;
-    use std::collections::{BTreeMap, BTreeSet};
-
-    pub fn levels() -> Vec<String> {
-        todo!("permissions.LEVELS")
-    }
-    pub fn check_owns(owns: &[String]) -> Option<String> {
-        todo!("permissions.check_owns")
-    }
-    pub fn check_rules(rules: &[Value]) -> Option<String> {
-        todo!("permissions.check_rules")
-    }
-    pub fn check_rule(decision: Option<&Value>, program: Option<&Value>) -> Result<Vec<String>, String> {
-        todo!("permissions.check_rule")
-    }
-    pub fn table() -> Value {
-        todo!("permissions.table")
-    }
-    /// (allow, deny)
-    pub fn claude(role: &Role, cwd: &str, test: Option<Vec<String>>) -> (Vec<String>, Vec<String>) {
-        todo!("permissions.claude")
-    }
-    pub fn codex_args(role: &Role) -> Vec<String> {
-        todo!("permissions.codex_args")
-    }
-    pub fn write_codex_rules(cwd: &str, roles: &[&Role]) {
-        todo!("permissions.write_codex_rules")
-    }
-    pub fn write_gemini_policy(cwd: &str, role: &Role, test: Option<Vec<String>>) -> Option<String> {
-        todo!("permissions.write_gemini_policy")
-    }
-    pub fn opencode(role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
-        todo!("permissions.opencode")
-    }
-    pub fn cursor(role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
-        todo!("permissions.cursor")
-    }
-    pub fn antigravity(role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
-        todo!("permissions.antigravity")
-    }
-    pub fn tools_off(role: &Role, items: &[Value]) -> BTreeSet<String> {
-        todo!("tools.off")
-    }
-    pub fn skill_paths(kind: &str, cwd: &str) -> BTreeMap<String, String> {
-        todo!("tools.skill_paths")
-    }
-    pub fn extension_servers() -> BTreeMap<String, Vec<String>> {
-        todo!("tools.extension_servers")
-    }
-    pub fn container_run_argv(
-        role: &Role,
-        argv: &[String],
-        env: &BTreeMap<String, String>,
-        cwd: &str,
-        name: &str,
-        bridge: Option<&str>,
-    ) -> Vec<String> {
-        todo!("container.run_argv")
-    }
-    pub fn container_problem(agent: &str) -> Option<String> {
-        todo!("container.problem")
-    }
+    pub use crate::container::{problem as container_problem, run_argv as container_run_argv};
+    pub use crate::permissions::{
+        antigravity, check_owns, check_rule, check_rules, claude, codex_args, cursor, levels, opencode, table,
+        write_codex_rules, write_gemini_policy,
+    };
+    pub use crate::tools::{extension_servers, off as tools_off, skill_paths};
 }
 
 /// Programs that must be on this Mac: a container brings its own agent.
