@@ -24,7 +24,8 @@ fn limits_pause_once_and_extras_raise_the_allowance() {
     assert_eq!(budget::teams().into_iter().collect::<Vec<_>>(), ["t"]);
 
     let built = json!({"budget": {"used": 1200, "agents": [{"role": "dev", "used": 500}, {"role": "qa", "used": 700}]},
-                       "panes": [{"role": "dev", "state": "idle", "address": "a1"}, {"role": "qa", "state": "asking", "address": "a2"}]});
+                       "panes": [{"role": "dev", "state": "idle", "address": "a1"}, {"role": "qa", "state": "asking", "address": "a2"},
+                                 {"role": "ops", "state": "working", "address": "a3"}]});
     let mut not_ready = built.clone();
     not_ready["spend_ready"] = json!(false);
     assert!(budget::check("t", &not_ready, &rt, now, None, Some(&log)).is_empty(), "spend not read yet");
@@ -44,6 +45,9 @@ fn limits_pause_once_and_extras_raise_the_allowance() {
     let view = budget::view("t", &used, 1200, now);
     let team = view["asks"].as_array().unwrap().iter().find(|a| a["scope"] == "*").unwrap().clone();
     assert_eq!((team["add"].as_i64(), team["label"].as_str()), (Some(1200 - 1000 + 250), Some("Add 250 and carry on")));
+    // only dev is stopped: qa's question is the person's first, and ops couldn't be interrupted (no core)
+    assert_eq!(team["roles"], json!(["dev"]));
+    assert_eq!(team["detail"], "t used 1K of the team’s 1K tokens. Messages to it wait until you decide.");
 
     budget::resume("t", "*", 450, &rt, Some(now), "you", Some(&log));
     let rows = || -> Vec<serde_json::Value> {
@@ -52,7 +56,7 @@ fn limits_pause_once_and_extras_raise_the_allowance() {
     let resumed = rows().into_iter().rfind(|r| r["action"] == "budget_resume").unwrap();
     assert_eq!((&resumed["agent"], &resumed["team"], &resumed["ok"]), (&json!("t"), &json!("t"), &json!(false)));
     assert_eq!(resumed["reason"], "You let it carry on. Added 450 tokens for today.");
-    assert!(resumed["detail"].as_str().unwrap().starts_with("qa: "), "the send that failed: {resumed}");
+    assert_eq!(resumed["detail"].as_str().unwrap().matches(": Assieme").count(), 2, "ops and qa: {resumed}");
     let set_rows = rows().into_iter().filter(|r| r["action"] == "budget_set").collect::<Vec<_>>();
     assert_eq!(set_rows.len(), 1);
     assert_eq!(set_rows[0]["reason"], "Team: 1K tokens a day. dev: 400 tokens a day. At a limit: pause and ask.");
@@ -69,6 +73,10 @@ fn limits_pause_once_and_extras_raise_the_allowance() {
     assert!(budget::view("t", &used, 1200, now)["asks"].as_array().unwrap().is_empty());
     assert_eq!(budget::check("t", &built, &rt, now, None, Some(&log)).len(), 1, "dev only: the team has today's extra");
     assert!(budget::check("t", &built, &rt, now, None, Some(&log)).is_empty());
+    let told = &budget::view("t", &used, 1200, now)["told"];
+    assert_eq!((told.as_array().unwrap().len(), &told[0]["title"]), (1, &json!("dev reached today’s limit")));
+    let lifted = rows().into_iter().rfind(|r| r["action"] == "budget_resume").unwrap();
+    assert_eq!(lifted["reason"], "You changed the limit.", "no tokens added: {lifted}");
     set(json!({"*": 1000, "dev": 400}), "tell").unwrap();
     assert_eq!(rows().iter().filter(|r| r["action"] == "budget_set").count(), 2, "an unchanged save logs nothing");
 
@@ -78,8 +86,8 @@ fn limits_pause_once_and_extras_raise_the_allowance() {
     let dev = json!({"budget": {"used": 1200, "agents": [{"role": "dev", "used": 500}]},
                      "panes": [{"role": "dev", "state": "idle", "address": "a1"}]});
     assert_eq!(budget::check("u", &dev, &rt, now, None, Some(&log)).len(), 1, "at the limit");
-    set_u(json!({"dev": 400}));
-    assert_eq!(budget::view("u", &used, 1200, now)["asks"].as_array().unwrap().len(), 1, "still over");
+    set_u(json!({"dev": 500}));
+    assert_eq!(budget::view("u", &used, 1200, now)["asks"].as_array().unwrap().len(), 1, "still at it");
     set_u(json!({"dev": 501}));
     assert!(budget::view("u", &used, 1200, now)["asks"].as_array().unwrap().is_empty(), "the new limit lets it go");
     let _ = std::fs::remove_dir_all(&dir);
