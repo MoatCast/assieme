@@ -107,8 +107,8 @@ pub fn running_cwds() -> Option<BTreeSet<String>> {
     todo!("status.running_cwds")
 }
 
-/// F2: one description per stalled team.
-pub fn stalls(agents: &[Agent], now: Timestamp) -> Vec<String> {
+/// F2: one description per stalled team: `{team, quiet_seconds, roots, text}`.
+pub fn stalls(agents: &[Agent], now: Timestamp) -> Vec<Value> {
     todo!("status.stalls")
 }
 

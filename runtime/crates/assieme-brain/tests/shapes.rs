@@ -370,7 +370,7 @@ fn live_log_71() {
 
 /// From menubar.
 fn live_announce_72() {
-    let _ = live::announce(any(), any(), any());
+    let _ = live::announce(any(), any(), any(), any(), any());
 }
 
 /// From review.

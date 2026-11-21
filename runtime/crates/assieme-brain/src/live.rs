@@ -15,7 +15,15 @@ pub fn log(path: &Path, entry: &Value) {
 }
 
 /// Notify once per new item in the owner's queue and per new stall. Returns the (title, body) pairs sent.
-pub fn announce(queue: &[Value], stalls: &[String], now: Timestamp) -> Vec<(String, String)> {
+/// `notifier`: None is [`notify`]; the menu bar passes one that shows nothing, to mark items seen. `switches`: the
+/// `notify` settings (`needs_you`, `stalls`); None has both on.
+pub fn announce(
+    queue: &[Value],
+    stalls: &[Value],
+    now: Timestamp,
+    notifier: Option<&Notify>,
+    switches: Option<&Value>,
+) -> Vec<(String, String)> {
     todo!("live.announce")
 }
 
@@ -63,7 +71,7 @@ pub fn run(claude_dir: &Path, codex_dir: &Path, hours: f64, use_herdr: bool) -> 
 /// Alerts -> suggestions, most urgent first.
 pub fn suggest(
     agents: &[Agent],
-    stalls: &[String],
+    stalls: &[Value],
     addr: &BTreeMap<String, String>,
     queue: &[Value],
     done: &[Value],
