@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { onNewTeam, onOpen, onOpenSettings,reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
+import { onNewTeam, onOpen, onOpenSettings, onPalette, reviewUndo, setSetting, takeDraft, type MergeResult, type Snapshot, type TeamDraft } from "./bridge";
 import { installedOf } from "./kinds";
 import AddAgent from "./AddAgent";
 import BringOver from "./BringOver";
@@ -41,6 +41,7 @@ export default function Shell() {
   const [briefing, setBriefing] = useState(false);
   const [tasking, setTasking] = useState(false);
   const [boardKey, setBoardKey] = useState(0);
+  const [paletteKey, setPaletteKey] = useState(0);
   const [settings, setSettings] = useState(false);
   const [settingsAt, setSettingsAt] = useState<string | undefined>();
   const [open, setOpen] = useState<OpenLink | null>(null);
@@ -58,6 +59,7 @@ export default function Shell() {
   useEffect(() => {
     const asked = onOpenSettings(() => { setSettingsAt(undefined); setSettings(true); });
     const newTeam = onNewTeam(() => { setSettings(false); setCreating(true); });
+    const palette = onPalette(() => setPaletteKey((n) => n + 1));
     const stop = onOpen(({ team: t, role, view }) => {
       setPicked(t);
       setSettings(false);
@@ -65,7 +67,7 @@ export default function Shell() {
       setOpen({ team: t, role, view: view === "review" && role ? "review" : null, nonce: Date.now() });
       setTab("window");
     });
-    return () => { void stop.then((off) => off()); void asked.then((off) => off()); void newTeam.then((off) => off()); };
+    return () => { void stop.then((off) => off()); void asked.then((off) => off()); void newTeam.then((off) => off()); void palette.then((off) => off()); };
   }, []);
 
   // The team shown stays put while another becomes neediest: switching under the person would move focus, and
@@ -163,10 +165,12 @@ export default function Shell() {
       </div>
       {shown === "window" && (
         <div className="shell-page">
-          <Window team={team} starting={snap?.starting ?? []} open={open} boardKey={boardKey}
+          <Window team={team} starting={snap?.starting ?? []} open={open} boardKey={boardKey} paletteKey={paletteKey}
             onNewTeam={() => setCreating(true)} onNewTask={() => setTasking(true)}
             onMerged={(m) => { setNotice(""); setMerged(m); }} onDiscarded={setNotice} onBringOver={() => setBringing(true)}
-            onOpenFixes={() => { setSettingsAt("fixes"); setSettings(true); }} />
+            onOpenFixes={() => { setSettingsAt("fixes"); setSettings(true); }}
+            onSettings={() => { setSettingsAt(undefined); setSettings(true); }}
+            onAddAgent={started && !away ? () => setAdding(true) : undefined} />
         </div>
       )}
       {merged && (

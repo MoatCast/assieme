@@ -163,3 +163,22 @@ test("a stopped team shows no failed start", () => {
   const m = model(MAP({ stopped: true, panes: [pane("b", { state: "exited" })] }), [], [s], {});
   expect(m.needs).toEqual([]);
 });
+
+test("at-limit is not needs-you", () => {
+  const m = model(MAP({ panes: [pane("builder-2", { state: "at-limit", detail: "Codex limit · back at 15:00" })] }), [], [], {});
+  expect(m.needs).toEqual([]);
+  expect(m.verdict).toBe("No agent needs you");
+});
+
+test("at-limit row note and count", () => {
+  const m = model(MAP({ panes: [pane("builder-1", { state: "working", detail: "Editing retry.py" }),
+    pane("builder-2", { state: "at-limit", detail: "Codex limit · back at 15:00" })] }), [], [], {});
+  expect(m.working[1]).toMatchObject({ role: "builder-2", dot: "limit", line: "Codex limit · back at 15:00", tone: "limit" });
+  expect(m.counts).toBe("1 working · 1 waiting for a limit");
+});
+
+test("limit cleared returns the agent to working", () => {
+  const m = model(MAP({ panes: [pane("builder-2", { state: "working", detail: "Editing retry.py" })] }), [], [], {});
+  expect(m.working[0]).toMatchObject({ dot: "working", line: "Editing retry.py" });
+  expect(m.counts).toBe("1 working");
+});

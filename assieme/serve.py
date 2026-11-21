@@ -10,7 +10,7 @@ import threading
 import time
 import traceback
 
-from . import launch, runtime, settings, setup, status, team, teammap
+from . import launch, limits, runtime, settings, setup, status, team, teammap
 
 CLIS = {**launch.CLIS, 'hc': 'hc', 'herdr': 'herdr'}
 
@@ -37,7 +37,7 @@ def snapshot(claude_dir, codex_dir, now, rt, which=setup.agent_path, hours=12, s
                                          'group': teammap.group_of(a, st['groups'])} for a in agents],
             'found_teams': sorted(found), 'first_run_done': st['first_run_done'],
             'alerts': alerts, 'queue': status.owner_queue(agents, now), 'stalls': status.stalls(agents, now),
-            'teams': teams, 'starting': list(starting)}
+            'teams': teams, 'starting': list(starting), 'limits': limits.read(claude_dir, codex_dir, now.timestamp())}
 
 
 _request = threading.local()

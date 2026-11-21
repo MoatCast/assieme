@@ -112,3 +112,8 @@ test("What Assieme did today leaves out earlier days", async () => {
   expect(screen.queryByText("✓ Fixed")).toBeNull();
   expect(screen.getByText(/^No problems so far\./)).toBeTruthy();
 });
+
+test("overview shows share of today's work", async () => {
+  await show(MAP({ panes: [pane("builder-1"), pane("builder-2")], shares: { "builder-1": 40, "builder-2": 60 } }));
+  expect(screen.getByTestId("shares").textContent).toBe("builder-1 · 40% of today's workbuilder-2 · 60% of today's work");
+});

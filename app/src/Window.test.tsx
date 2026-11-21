@@ -116,13 +116,87 @@ test("Return on a row goes into the panel", async () => {
   expect(document.activeElement).toBe(screen.getByTestId("term"));
 });
 
-test("⌘1–⌘4 no longer pick views (they go to agents with the ⌘K palette, later)", async () => {
+test("⌘3 selects the third agent; views are not on ⌘ digits", async () => {
   await show(ASKING);
-  fireEvent.keyDown(window, { key: "2", metaKey: true });
-  fireEvent.keyDown(window, { key: "4", metaKey: true });
+  fireEvent.keyDown(window, { key: "3", metaKey: true });
+  expect(screen.getByTestId("panel-agent").textContent).toBe("builder-1");
+  expect(document.activeElement).toBe(selectedRow());
+  fireEvent.keyDown(window, { key: "4", metaKey: true }); // no fourth agent
   expect(screen.queryByTestId("panel-terminals")).toBeNull();
-  expect(screen.queryByTestId("panel-activity")).toBeNull();
+  expect(screen.getByTestId("panel-agent").textContent).toBe("builder-1");
+});
+
+test("⌘3 in the reply field or the terminal types; it doesn't switch agents", async () => {
+  await show(ASKING);
+  const field = document.createElement("textarea");
+  document.body.appendChild(field);
+  field.focus();
+  expect(fireEvent.keyDown(field, { key: "3", metaKey: true })).toBe(true); // not prevented: the field keeps it
+  screen.getByTestId("term").focus();
+  fireEvent.keyDown(screen.getByTestId("term"), { key: "3", metaKey: true });
   expect(screen.getByTestId("panel-agent").textContent).toBe("planner");
+  field.remove();
+});
+
+test("⌘J goes to the next agent that needs you, wrapping", async () => {
+  await show(ASKING);
+  fireEvent.keyDown(window, { key: "j", metaKey: true });
+  expect(screen.getByTestId("panel-agent").textContent).toBe("builder-4");
+  fireEvent.keyDown(window, { key: "j", metaKey: true });
+  expect(screen.getByTestId("panel-agent").textContent).toBe("planner");
+});
+
+test("⌘N and ⌘, open New team and Settings", async () => {
+  const onSettings = vi.fn();
+  b.teamMap.mockResolvedValue(ASKING);
+  const onNewTeam = vi.fn();
+  render(<Window team="shop" starting={[]} open={null} onNewTeam={onNewTeam} onNewTask={vi.fn()} onMerged={vi.fn()} onDiscarded={vi.fn()}
+    onSettings={onSettings} pollMs={100000} />);
+  await flush();
+  fireEvent.keyDown(window, { key: "n", metaKey: true });
+  fireEvent.keyDown(window, { key: ",", metaKey: true });
+  expect([onNewTeam.mock.calls.length, onSettings.mock.calls.length]).toEqual([1, 1]);
+});
+
+test("⌘K opens from a text field; the palette filters and opens with Return", async () => {
+  await show(ASKING);
+  const field = document.createElement("input");
+  document.body.appendChild(field);
+  field.focus();
+  fireEvent.keyDown(field, { key: "k", metaKey: true });
+  const box = screen.getByRole("combobox");
+  expect(document.activeElement).toBe(box);
+  expect(screen.getByRole("option", { name: /planner/ }).textContent).toContain("⌘1");
+  fireEvent.change(box, { target: { value: "BUILDER-1" } });
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["builder-1Working⌘3"]);
+  fireEvent.keyDown(box, { key: "Enter" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByTestId("panel-agent").textContent).toBe("builder-1");
+  field.remove();
+});
+
+test("the palette moves with the arrows and runs an action", async () => {
+  await show(ASKING);
+  fireEvent.keyDown(window, { key: "k", metaKey: true });
+  const box = screen.getByRole("combobox");
+  fireEvent.change(box, { target: { value: "board" } });
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Board"]);
+  fireEvent.change(box, { target: { value: "" } });
+  fireEvent.keyDown(box, { key: "ArrowDown" });
+  expect(screen.getAllByRole("option")[1].getAttribute("aria-selected")).toBe("true");
+  fireEvent.change(box, { target: { value: "activity" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  expect(screen.getByTestId("panel-activity")).toBeTruthy();
+});
+
+test("escape closes the palette and restores focus", async () => {
+  await show(ASKING);
+  const row = screen.getByRole("button", { name: /builder-1, working/ });
+  row.focus();
+  fireEvent.keyDown(row, { key: "k", metaKey: true });
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(row);
 });
 
 test("⌘L does nothing while a sheet is open on top", async () => {

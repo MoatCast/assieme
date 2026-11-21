@@ -13,7 +13,7 @@ import os
 import subprocess
 import threading
 
-from . import activity, adapters, answers, budget, fixes, live, newteam, panes, preset, quiet, report, runtime, settings, status, tasks, team
+from . import activity, adapters, answers, budget, fixes, limits, live, newteam, panes, preset, quiet, report, runtime, settings, status, tasks, team
 from .model import HUMAN
 
 GROUPS_ABOVE = 8           # agents; above this the map draws groups
@@ -21,6 +21,7 @@ REFRESH_S = 120
 DONE_FOR_YOU = ('nudge', 'compact', 'tell', 'quiet')  # fixes; what the person did is in Activity
 WORDS = ('No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten')
 NEEDS_YOU = ('asking', 'stuck', 'waiting')
+KIND_NAMES = {'claude': 'Claude', 'codex': 'Codex'}  # the kinds whose logs carry plan limits
 DONE_ROWS = 50            # fix rows sent with the map: Team overview shows 3, an agent's panel shows its own
 
 
@@ -178,7 +179,7 @@ def _subtitle(panes_, gs, need):
     return 'The other one is working or done.' if rest == 1 else f'The other {_word(rest).lower()} are working or done.'
 
 
-def build(team_name, rows, agents, now, read, answers, today, st, found=False, roster=None):
+def build(team_name, rows, agents, now, read, answers, today, st, found=False, roster=None, plan_limits=None):
     v = panes.view(team_name, rows, agents, now, read, answers, show_commands=st['show_commands'])
     roster = roster or {}
     alias = _aliases(rows)
@@ -229,6 +230,14 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             v['strip'] = [s for s in v['strip'] if s['role'] != p['role']] + [
                 {'role': p['role'], 'state': 'stuck', 'text': f"{p['role']} is paused: still stuck after a fix"}]
     v['strip'].sort(key=lambda x: panes.URGENT.index(x['state']))
+    for p, n in zip(v['panes'], nodes):  # at its plan's limit an agent waits for the reset: the person can do nothing about it
+        lim = (plan_limits or {}).get(p['agent']) or {}
+        if lim.get('reached') and p['state'] in ('working', 'stuck') and not p.get('paused_by_fix') and not (p['fix'] or {}).get('budget'):
+            back = dt.datetime.fromtimestamp(lim['resets_at']).strftime('%H:%M') if lim.get('resets_at') else None
+            p['state'] = n['state'] = 'at-limit'
+            p['fix'] = None
+            p['detail'] = f"{KIND_NAMES.get(p['agent'], p['agent'])} limit" + (f' · back at {back}' if back else '')
+            v['strip'] = [s for s in v['strip'] if s['role'] != p['role']]
     need = sum(needs_you(p) for p in v['panes'])
     title = 'All quiet' if not need else f"{_word(need)} agent{'s' * (need != 1)} need{'s' * (need == 1)} you"
     subtitle = _subtitle(v['panes'], gs, need)
@@ -252,7 +261,8 @@ def build(team_name, rows, agents, now, read, answers, today, st, found=False, r
             'run': _run(rows, done, team_name) if stopped and rows else None,
             'title': title, 'subtitle': subtitle, 'budget': bud,
             'panes': v['panes'], 'strip': v['strip'], 'nodes': nodes, 'edges': edges, 'waits': waits, 'groups': gs,
-            'tips': tips, 'done': done,
+            'tips': tips, 'done': done, 'limits': plan_limits or {},
+            'shares': {r: round(100 * x['tokens'] / total) for r, x in rep['agents'].items() if r in roles} if total else {},
             'spend': {'tokens': total, 'waste_share': round(rep['empty_tokens'] / total, 4)} if total else None,
             'spend_ready': getattr(today, 'ready', True)}
 
@@ -498,8 +508,11 @@ class Brain:
     def _built(self, team, now):
         rows, agents, found, rt = self._resolve(team, now)
         built = build(team, rows, agents, now, self._read(rt), self.answers, self.today, settings.load(), found,
-                      newteam.roster(team))
+                      newteam.roster(team), self.limits(now))
         return built, rows, agents
+
+    def limits(self, now):
+        return self._once('limits', lambda: limits.read(self.claude_dir, self.codex_dir, now.timestamp()))
 
     def _map(self, team):
         return self._built(team, status.now_utc())[0]

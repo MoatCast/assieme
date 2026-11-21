@@ -104,7 +104,8 @@ class Menubar:
         paused = pause_until()
         return {'count': sum(t['need'] for t in shown), 'teams': shown, 'spend_tokens': tokens if ready else None,
                 'auto_fixes': sum(v == 'auto' for v in st['fixes'].values()),
-                'paused_until': paused.astimezone().strftime('%H:%M') if paused else None}
+                'paused_until': paused.astimezone().strftime('%H:%M') if paused else None,
+                'limits': self.brain.limits(status.now_utc())}
 
     def state(self):
         return self._panel(self._teams(status.now_utc()), settings.load())
@@ -143,6 +144,19 @@ class Menubar:
                 yield f"budget-told|{name}|{t['scope']}|{t['day']}", {
                     'kind': 'needs_you', 'team': name, 'role': None, 'view': None, 'fix': None,
                     'title': t['title'], 'body': _short(t['body']), 'buttons': []}
+
+    def _limits(self, teams, plan_limits):
+        """One notification per kind per reset, once agents wait for it."""
+        for kind, lim in plan_limits.items():
+            n = sum(p['state'] == 'at-limit' and p['agent'] == kind for _, built, _ in teams for p in built['panes'])
+            if not lim.get('reached') or not n:
+                continue
+            back = dt.datetime.fromtimestamp(lim['resets_at']).strftime('%H:%M') if lim.get('resets_at') else None
+            wait = f"{n} agent waits" if n == 1 else f"{n} agents wait"
+            yield f"limit|{kind}|{lim.get('resets_at')}", {
+                'kind': 'stalls', 'team': None, 'role': None, 'view': None, 'fix': None,
+                'title': f"{teammap.KIND_NAMES.get(kind, kind)} reached its limit",
+                'body': f"{wait} until {back}." if back else f"{wait} for it to reset.", 'buttons': []}
 
     def _stops(self, teams, ready_roles):
         ended_by_you = {(e.get('team'), e.get('agent')) for e in live.recent_actions(None, 200) if e.get('action') in YOURS}
@@ -194,13 +208,13 @@ class Menubar:
                     'kind': 'stalls', 'team': None, 'role': None, 'view': None, 'fix': None,
                     'title': 'Team stalled', 'body': _short(st['text']), 'buttons': []}
 
-    def events(self, teams, waiting, stalls, now, st):
+    def events(self, teams, waiting, stalls, now, st, plan_limits=None):
         """What should pop up now, once each. Paused: nothing is marked sent, so what's still true when it ends notifies
         then, and what was resolved meanwhile never does."""
         ready_roles = {(w['team'], w['role']) for w in waiting}
         showing = not pause_until() and st['notify'].get('finished', True)
         found = [*self._needs(teams), *self._budgets(teams), *self._stops(teams, ready_roles), *self._ready(waiting, teams, now, self._load(), showing),
-                 *self._stalls(stalls)]
+                 *self._stalls(stalls), *self._limits(teams, plan_limits or {})]
         with self.lock:
             seen = self._load()
             before = set(seen)
@@ -231,7 +245,8 @@ class Menubar:
         # The brain's plain notifications take over if the app quits: they mustn't repeat what's been shown.
         live.announce(status.owner_queue(agents, now), stalls, now, notifier=lambda *_: None, switches=st['notify'])
         panel = self._panel(teams, st)
-        return {'count': panel['count'], 'panel': panel, 'events': self.events(teams, self.reviews.waiting(), stalls, now, st)}
+        return {'count': panel['count'], 'panel': panel,
+                'events': self.events(teams, self.reviews.waiting(), stalls, now, st, panel['limits'])}
 
     def app_watching(self, now=None):
         return bool(self.polled and ((now or status.now_utc()) - self.polled).total_seconds() < APP_GONE_S)

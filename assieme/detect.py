@@ -11,11 +11,12 @@ import os
 import re
 import shlex
 
+from . import settings
 from .model import HUMAN, Job
 
 GROWTH_FLAG = 150_000       # tokens per active hour, in the report: fills a 200K memory in about 80 minutes
 GROWTH_LIVE = 100_000       # tokens per active hour, live, and only when...
-MEMORY_FULL = 0.75          # ...it reaches this share of a known memory size...
+# ...it reaches the share of a known memory size set in Settings › Fixes (settings.threshold('memory_full'))...
 FULL_SOON_MINUTES = 30      # ...within this long
 GROWTH_MIN_HOURS = 0.5      # a shorter run says little
 ACTIVE_GAP = 1800           # a longer silence is not active time
@@ -446,8 +447,9 @@ def analyse(sessions, now=None, hours=None, boxes=(), machine=()):
     fast = max((a['growth_per_hour'] for a in agents.values()), default=0)
     idle_top = max((a['idle_tokens'] for a in agents.values()), default=0)
     longest = max((o['seconds'] for o in overlaps), default=0)
+    memory_full = settings.threshold('memory_full')
     detectors = [
-        ('F5 growth', 'growth', f'fastest {fast // 1000}K an hour in {len(agents)} agents; flags at {GROWTH_FLAG // 1000}K here; live needs a known memory size, {GROWTH_LIVE // 1000}K an hour and {MEMORY_FULL:.0%} full within {FULL_SOON_MINUTES} min'),
+        ('F5 growth', 'growth', f'fastest {fast // 1000}K an hour in {len(agents)} agents; flags at {GROWTH_FLAG // 1000}K here; live needs a known memory size, {GROWTH_LIVE // 1000}K an hour and {memory_full:.0%} full within {FULL_SOON_MINUTES} min'),
         ('F5 idle', 'idle', f'most by one agent {idle_top / 1e6:.1f}M; flags at {IDLE_MIN_TOKENS / 1e6:.0f}M and {IDLE_SHARE:.0%} of its input'),
         ('F5 share', 'share', f'{everyone / 1e6:.1f}M tokens in the last hour; flags one agent at {HOG_SHARE:.0%} of at least {HOG_MIN_TOKENS / 1e6:.0f}M'),
         ('F6 overlap', 'overlap', f'{len(jobs)} heavy jobs, {len(overlaps)} overlaps of {OVERLAP_MIN} s or more; background jobs look instant'),
@@ -490,6 +492,7 @@ def live_findings(agents, now):
     """What `status` and the fix cards show: only what is happening now, from each agent's log tail."""
     out = []
     active = [a for a in agents if a.state != 'exited']
+    memory_full = settings.threshold('memory_full')  # read once, not per agent
     for a in active:
         for x in loops(a.failures):
             if (now - x['times'][-1]).total_seconds() <= LOOP_LIVE:
@@ -510,11 +513,11 @@ def live_findings(agents, now):
                     message=f'assieme: you have run the full suite {len(times)} times this hour. From now on run a narrow '
                             'run for the files you changed, and the full suite once before you finish.'))
         rate, known = growth_now(a.samples), _known_memory(a)
-        minutes = (MEMORY_FULL * known - a.context) / rate * 60 if rate >= GROWTH_LIVE and known else None
+        minutes = (memory_full * known - a.context) / rate * 60 if rate >= GROWTH_LIVE and known else None
         if minutes is not None and minutes <= FULL_SOON_MINUTES:
             when = f'in about {minutes:.0f} min' if minutes > 0 else None
-            why = (f'It reaches {MEMORY_FULL:.0%} of its {known // 1000}K memory {when}' if when
-                   else f'It is already past {MEMORY_FULL:.0%} of its {known // 1000}K memory')
+            why = (f'It reaches {memory_full:.0%} of its {known // 1000}K memory {when}' if when
+                   else f'It is already past {memory_full:.0%} of its {known // 1000}K memory')
             out.append(_finding('growth', a.name, f'{a.name}: context growing {rate // 1000}K tokens an hour',
                                 f'{why}, and every call re-reads it all', 'Compact it at its next pause', per_hour=rate))
     running = sorted(((ts, a, label) for a in active for ts, _, _, label, call in a.heavy if call in a.pending),

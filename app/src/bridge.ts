@@ -45,6 +45,7 @@ export type Snapshot = {
   /** Teams of scheduled runs: kept in the team picker after their agents stop. */
   scheduled_teams?: string[];
   first_run_done?: boolean;
+  limits?: Record<string, Limit>;
   /** An assistant's draft waiting to open in New team. */
   draft?: string | null;
 };
@@ -243,7 +244,8 @@ export type Pane = {
   session?: string;
   reachable?: boolean;
   command?: string | null;
-  state: "asking" | "stuck" | "waiting" | "working" | "idle" | "exited";
+  /** at-limit: its plan's limit is reached, and it waits for the reset (never Needs you). */
+  state: "asking" | "stuck" | "waiting" | "working" | "at-limit" | "idle" | "exited";
   since_s: number | null;
   detail: string;
   live: boolean;
@@ -260,7 +262,10 @@ export const paneAct = (a: { team: string; role: string; fix: string; button: st
 export type MenuButton = { id: string; label: string; kind: PaneButton["kind"] };
 export type MenuItem = { role: string; state: Pane["state"]; since_s: number | null; text: string; says: string; fix: string | null; buttons: MenuButton[] };
 export type MenuTeam = { name: string; where: string; need: number; items: MenuItem[] };
-export type MenuState = { count: number; teams: MenuTeam[]; spend_tokens: number | null; auto_fixes: number; paused_until: string | null };
+export type MenuState = { count: number; teams: MenuTeam[]; spend_tokens: number | null; auto_fixes: number; paused_until: string | null;
+  limits?: Record<string, Limit> };
+/** A plan's limit: `used` in percent (null when the logs give none), `resets_at` in epoch seconds. */
+export type Limit = { used: number | null; reached: boolean; resets_at: number | null };
 
 export const menuState = () => brain<MenuState>("menu.state");
 export const notificationsPause = () => brain<MenuState>("notifications.pause");
@@ -281,6 +286,13 @@ export const windowTheme = async (t: "light" | "dark" | "system") => getCurrentW
 export const onOpenSettings = (run: () => void) => listen("assieme-settings", () => run());
 /** New Team (⌘N) in the File menu. */
 export const onNewTeam = (run: () => void) => listen("assieme-new-team", () => run());
+/** Command line tools: the `assieme` launcher on PATH. "moved": installed for an app that has since moved. */
+export type CliStatus = { state: "missing" | "installed" | "moved"; path: string | null };
+export const cliStatus = () => invoke<CliStatus>("cli_status");
+export const cliInstall = () => invoke<CliStatus>("cli_install");
+export const cliRemove = () => invoke<CliStatus>("cli_remove");
+/** Command Palette (⌘K) in the View menu. */
+export const onPalette = (run: () => void) => listen("assieme-palette", () => run());
 export const onOpen = (run: (r: OpenRequest) => void) => listen<OpenRequest>("assieme-open", (e) => run(e.payload));
 
 export type MapNode = { role: string; state: Pane["state"]; since_s: number | null; agent: AgentKind; parent: string | null; group: string | null; paused?: boolean };
@@ -340,6 +352,10 @@ export type TeamMap = {
   running_min?: number | null;
   last_at?: string | null;
   spend: { tokens: number; waste_share: number } | null;
+  /** Plan limits by agent kind, per account; a kind with no data in its logs is left out. */
+  limits?: Record<string, Limit>;
+  /** Each agent's share of the team's tokens today, in percent. */
+  shares?: Record<string, number>;
   spend_ready?: boolean;
   /** Daily limits, in tokens. Null for agents found on this Mac: they get none. */
   budget?: Budget | null;
@@ -377,6 +393,8 @@ export type Settings = {
   show_commands: boolean;
   groups: Record<string, string>;
   first_run_done: boolean;
+  /** What the fixes act on: minutes of quiet (5–120), and memory full as a share (0.5–0.95). */
+  thresholds?: { quiet_minutes: number; memory_full: number };
 };
 export type QuietPair = { from_cwd: string; to_cwd: string; label: string; saved: number | null };
 export type TeamListing = { name: string; kind: "assieme" | "found"; agents: number };

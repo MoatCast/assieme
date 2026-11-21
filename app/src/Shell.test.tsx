@@ -78,6 +78,7 @@ vi.mock("./bridge", () => ({
   onOpen: (run: typeof opened) => { opened = run; return Promise.resolve(() => {}); },
   onOpenSettings: (run: () => void) => { settingsAsked = run; return Promise.resolve(() => {}); },
   onNewTeam: (run: () => void) => { newTeamAsked = run; return Promise.resolve(() => {}); },
+  onPalette: () => Promise.resolve(() => {}),
 }));
 
 import Shell, { liveTeams } from "./Shell";

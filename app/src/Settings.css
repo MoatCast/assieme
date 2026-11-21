@@ -121,3 +121,7 @@
 .assistant-phone { display: flex; align-items: center; gap: 8px; margin: 12px 18px 0; font-size: 13px; line-height: 16px; color: var(--quiet-slate); }
 .assistant-phone span { flex: 1; }
 .assistant-phone svg { flex-shrink: 0; }
+.threshold-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.threshold { box-sizing: content-box; padding: 2px 8px; border: 1px solid var(--quiet-line-strong); border-radius: 8px; background: var(--quiet-surface);
+  color: var(--quiet-ink); font: inherit; font-size: 13px; font-weight: 500; line-height: 16px; text-align: center; }
+.threshold:focus { outline: 2px solid var(--quiet-accent); outline-offset: 1px; }

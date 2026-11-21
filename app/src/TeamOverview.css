@@ -32,3 +32,4 @@
   color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
 .overview-others code { color: var(--quiet-ink); font-family: var(--quiet-font-mono); }
 .btn-outline.small { padding: 5px 12px; font-size: 13px; line-height: 16px; }
+.overview-shares { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 6px; color: var(--quiet-slate); font-size: 13px; line-height: 18px; }
