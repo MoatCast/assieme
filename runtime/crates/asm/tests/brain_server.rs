@@ -86,7 +86,13 @@ fn a_stale_socket_file_is_replaced() {
     let env = isolated();
     let sock = env.root.join("run/brain.sock");
     drop(UnixListener::bind(&sock).unwrap());
-    assert!(sock.exists() && UnixStream::connect(&sock).is_err());
+    // A child another test thread forks keeps a copy of the listener until it execs: wait that out.
+    let at = Instant::now();
+    while UnixStream::connect(&sock).is_ok() {
+        assert!(at.elapsed() < Duration::from_secs(5), "the dropped listener still answers");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(sock.exists());
     let mut child = brain(&env, &sock);
     wait_answers(&sock);
     use std::os::unix::fs::PermissionsExt;
