@@ -76,7 +76,7 @@ impl Review {
     }
 
     /// What a transcript said, read once per file version.
-    pub fn read_once<T: Clone>(&self, path: &Path, read: fn(&Path) -> T) -> T {
+    pub fn read_once<T: Clone + Send + 'static>(&self, path: &Path, read: fn(&Path) -> T) -> T {
         todo!("review.Review._read_once")
     }
 
