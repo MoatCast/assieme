@@ -18,7 +18,9 @@ pub fn path(parts: &[&str]) -> PathBuf {
 
 /// The JSON in `path`, or `default` when it is missing or damaged.
 pub fn read_json(path: &Path, default: Value) -> Value {
-    todo!("quiet._read_json")
+    let Ok(bytes) = std::fs::read(path) else { return default };
+    let Ok(text) = String::from_utf8(bytes) else { return default };
+    crate::pyrules::json_loads(&text).unwrap_or(default)
 }
 
 /// Folders are compared resolved: /var and /private/var, or a symlinked checkout, are the same place.
@@ -28,15 +30,25 @@ pub fn real(path: &str) -> String {
 
 /// Written whole or not at all: a reader never sees half a file.
 pub fn write_json(path: &Path, data: &Value) -> std::io::Result<()> {
-    todo!("quiet._write_json")
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    assieme_core::paths::write_atomic(path, &serde_json::to_vec(data)?)
 }
 
 /// Held while changing held.json: shims in several agents and the deliverer take turns.
 pub fn locked() -> std::io::Result<Locked> {
-    todo!("quiet._locked")
+    let dir = state_dir();
+    std::fs::create_dir_all(&dir)?;
+    let file = std::fs::File::create(dir.join("held.lock"))?;
+    // flock, as Python's fcntl.flock: the Python shims and the Rust brain take the same lock.
+    if unsafe { libc::flock(std::os::fd::AsRawFd::as_raw_fd(&file), libc::LOCK_EX) } != 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok(Locked(file))
 }
 
-/// The lock on `held.lock`, released on drop.
+/// The lock on `held.lock`, released when dropped (closing the file releases it).
 pub struct Locked(pub std::fs::File);
 
 /// Send held notes. Returns what was sent.
@@ -111,7 +123,15 @@ pub fn shim_main(argv: &[String], cwd: Option<&str>, now: Option<Timestamp>) -> 
 
 /// `$XDG_STATE_HOME/assieme`, else `~/.local/state/assieme`.
 pub fn state_dir() -> PathBuf {
-    todo!("quiet.state_dir")
+    match std::env::var_os("XDG_STATE_HOME").filter(|x| !x.is_empty()) {
+        Some(base) => PathBuf::from(base).join("assieme"),
+        None => {
+            // Python's expanduser: HOME without its trailing slashes.
+            let home = std::env::home_dir().unwrap_or_default();
+            let home = home.to_str().map_or(home.clone(), |h| PathBuf::from(h.trim_end_matches('/')));
+            PathBuf::from(format!("{}/.local/state/assieme", home.display()))
+        }
+    }
 }
 
 pub fn uninstall() {
