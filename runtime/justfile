@@ -113,3 +113,15 @@ release-publish version:
     git tag v{{version}}
     git push origin v{{version}}
     @echo "v{{version}} tagged: the release workflow builds and publishes it"
+
+# Static Linux builds for both CPUs, copied by `machine add` from the Mac app (needs Zig 0.16 and cargo-zigbuild).
+[unix]
+linux:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    zig="${ZIG:-$HOME/.local/share/assieme-dev/zig-0.16.0/zig}"
+    [ -x "$zig" ] || { echo "error: Zig 0.16 not found at $zig; set ZIG"; exit 1; }
+    command -v cargo-zigbuild > /dev/null || { echo "error: cargo-zigbuild not found; cargo install --locked cargo-zigbuild"; exit 1; }
+    for t in aarch64-unknown-linux-musl x86_64-unknown-linux-musl; do
+        ZIG="$zig" CARGO_ZIGBUILD_ZIG_PATH="$zig" cargo zigbuild --locked --release -p assieme-core --target "$t"
+    done
