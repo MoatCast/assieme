@@ -88,11 +88,11 @@ release-prepare version:
     git fetch origin master --tags
     @git merge-base --is-ancestor origin/master HEAD || { echo "error: behind origin/master"; exit 1; }
     @! git rev-parse -q --verify "refs/tags/v{{version}}" >/dev/null || { echo "error: v{{version}} already exists"; exit 1; }
-    sed -i.bak 's/^version = ".*"/version = "{{version}}"/' crates/assieme-core/Cargo.toml && rm -f crates/assieme-core/Cargo.toml.bak
+    sed -i.bak 's/^version = ".*"/version = "{{version}}"/' Cargo.toml && rm -f Cargo.toml.bak
     ASM_UPDATE_SCHEMA=1 cargo test -p assieme-core --test m0
     cp schema/asm.openrpc.json schema/released.openrpc.json
     just check
-    git add Cargo.lock crates/assieme-core/Cargo.toml schema
+    git add Cargo.lock Cargo.toml schema
     git commit -m "chore: release {{version}}"
     @echo "v{{version}} prepared. Review it, then: just release-publish {{version}}"
 
@@ -100,7 +100,7 @@ release-prepare version:
 [unix]
 release-publish version:
     @[ -z "$(git status --porcelain)" ] || { echo "error: working tree must be clean"; exit 1; }
-    @grep -q '^version = "{{version}}"' crates/assieme-core/Cargo.toml || { echo "error: this checkout is not {{version}}; run just release-prepare {{version}}"; exit 1; }
+    @grep -q '^version = "{{version}}"' Cargo.toml || { echo "error: this checkout is not {{version}}; run just release-prepare {{version}}"; exit 1; }
     @! git rev-parse -q --verify "refs/tags/v{{version}}" >/dev/null || { echo "error: v{{version}} already exists"; exit 1; }
     git push origin HEAD:master
     @sha="$(git rev-parse HEAD)"; run=""; \
@@ -123,5 +123,5 @@ linux:
     [ -x "$zig" ] || { echo "error: Zig 0.16 not found at $zig; set ZIG"; exit 1; }
     command -v cargo-zigbuild > /dev/null || { echo "error: cargo-zigbuild not found; cargo install --locked cargo-zigbuild"; exit 1; }
     for t in aarch64-unknown-linux-musl x86_64-unknown-linux-musl; do
-        ZIG="$zig" CARGO_ZIGBUILD_ZIG_PATH="$zig" cargo zigbuild --locked --release -p assieme-core --target "$t"
+        ZIG="$zig" CARGO_ZIGBUILD_ZIG_PATH="$zig" cargo zigbuild --locked --release -p assieme-core -p asm --target "$t"
     done

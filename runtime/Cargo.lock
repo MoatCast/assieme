@@ -53,6 +53,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "asm"
+version = "0.1.21"
+dependencies = [
+ "assieme-brain",
+ "assieme-core",
+ "libc",
+ "serde_json",
+]
+
+[[package]]
+name = "assieme-brain"
+version = "0.1.21"
+
+[[package]]
 name = "assieme-core"
 version = "0.1.21"
 dependencies = [
