@@ -1,0 +1,21 @@
+[package]
+name = "asm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "asm"
+path = "src/main.rs"
+
+[dependencies]
+assieme-brain = { path = "../assieme-brain" }
+assieme-core = { path = "../assieme-core" }
+
+[dev-dependencies]
+libc = "0.2"
+serde_json = "1"
+
+[lints]
+workspace = true

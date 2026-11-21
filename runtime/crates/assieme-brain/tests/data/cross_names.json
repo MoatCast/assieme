@@ -1,0 +1,2296 @@
+[
+ {
+  "module": "actions",
+  "name": "CATALOGUE",
+  "kind": "constant",
+  "callers": [
+   "mcpserver"
+  ]
+ },
+ {
+  "module": "actions",
+  "name": "CLIENT_ASKS",
+  "kind": "constant",
+  "callers": [
+   "mcpserver",
+   "plugin"
+  ]
+ },
+ {
+  "module": "actions",
+  "name": "handlers",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "activity",
+  "name": "MAX_ROWS",
+  "kind": "constant",
+  "callers": [
+   "improve"
+  ]
+ },
+ {
+  "module": "activity",
+  "name": "_undone",
+  "kind": "function",
+  "callers": [
+   "improve"
+  ]
+ },
+ {
+  "module": "activity",
+  "name": "register_merge",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "_rows",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "_text_of",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "box_metrics",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "box_path",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "claude_code",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "teammap"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "codex",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "teammap"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "gemini",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "teammap"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "generic",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "opencode",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "teammap"
+  ]
+ },
+ {
+  "module": "adapters",
+  "name": "program",
+  "kind": "function",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "agenttools",
+  "name": "find",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "agenttools",
+  "name": "for_agent",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "agenttools",
+  "name": "restart",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "agenttools",
+  "name": "set_tools",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "agenttools",
+  "name": "suggest",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "agenttools",
+  "name": "undo",
+  "kind": "function",
+  "callers": [
+   "activity"
+  ]
+ },
+ {
+  "module": "answers",
+  "name": "Answers",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "ask",
+  "name": "AskError",
+  "kind": "class",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "ask",
+  "name": "ask_agent",
+  "kind": "function",
+  "callers": [
+   "answers",
+   "newteam"
+  ]
+ },
+ {
+  "module": "ask",
+  "name": "first_json",
+  "kind": "function",
+  "callers": [
+   "answers",
+   "newteam"
+  ]
+ },
+ {
+  "module": "ask",
+  "name": "installed",
+  "kind": "function",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "askhook",
+  "name": "CHANGE_TOOLS",
+  "kind": "constant",
+  "callers": [
+   "plugin"
+  ]
+ },
+ {
+  "module": "bridge",
+  "name": "bind",
+  "kind": "function",
+  "callers": [
+   "team"
+  ]
+ },
+ {
+  "module": "bridge",
+  "name": "issue",
+  "kind": "function",
+  "callers": [
+   "team"
+  ]
+ },
+ {
+  "module": "bridge",
+  "name": "port",
+  "kind": "function",
+  "callers": [
+   "team"
+  ]
+ },
+ {
+  "module": "bridge",
+  "name": "prune",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "bridge",
+  "name": "revoke",
+  "kind": "function",
+  "callers": [
+   "team"
+  ]
+ },
+ {
+  "module": "bridge",
+  "name": "start",
+  "kind": "function",
+  "callers": [
+   "serve"
+  ]
+ },
+ {
+  "module": "brief",
+  "name": "add",
+  "kind": "function",
+  "callers": [
+   "mcptools",
+   "panes"
+  ]
+ },
+ {
+  "module": "brief",
+  "name": "load",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "brief",
+  "name": "remove",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "brief",
+  "name": "save",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "brief",
+  "name": "text",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "bringover",
+  "name": "draft",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "bringover",
+  "name": "find",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "bringover",
+  "name": "not_running",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "bringover",
+  "name": "started",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "bringover",
+  "name": "workspaces",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "budget",
+  "name": "TEAM",
+  "kind": "constant",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "budget",
+  "name": "check",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "budget",
+  "name": "hold",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "budget",
+  "name": "resume",
+  "kind": "function",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "budget",
+  "name": "set_limits",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "budget",
+  "name": "teams",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "budget",
+  "name": "view",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "connect",
+  "name": "handlers",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "container",
+  "name": "ContainerError",
+  "kind": "class",
+  "callers": [
+   "setup"
+  ]
+ },
+ {
+  "module": "container",
+  "name": "build_command",
+  "kind": "function",
+  "callers": [
+   "setup"
+  ]
+ },
+ {
+  "module": "container",
+  "name": "state",
+  "kind": "function",
+  "callers": [
+   "setup"
+  ]
+ },
+ {
+  "module": "detect",
+  "name": "gate_hours",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "detect",
+  "name": "live_findings",
+  "kind": "function",
+  "callers": [
+   "improve"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "CHECK_S",
+  "kind": "constant",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "LOCK",
+  "kind": "constant",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "attempted",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "check_outcomes",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "check_until",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "hold",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "measure",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "pane_fix",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "paused_teams",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "problem_key",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "refused_command",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "resume",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "fixes",
+  "name": "start_tokens",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "herdr",
+  "name": "draft",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "herdr",
+  "name": "find",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "improve",
+  "name": "apply",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "improve",
+  "name": "check",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "improve",
+  "name": "undo",
+  "kind": "function",
+  "callers": [
+   "activity"
+  ]
+ },
+ {
+  "module": "launch",
+  "name": "CLIS",
+  "kind": "constant",
+  "callers": [
+   "ask",
+   "bringover",
+   "panes",
+   "serve"
+  ]
+ },
+ {
+  "module": "launch",
+  "name": "CURSOR_OURS",
+  "kind": "constant",
+  "callers": [
+   "activity"
+  ]
+ },
+ {
+  "module": "launch",
+  "name": "MODEL",
+  "kind": "constant",
+  "callers": [
+   "herdr"
+  ]
+ },
+ {
+  "module": "launch",
+  "name": "NAMES",
+  "kind": "constant",
+  "callers": [
+   "bringover",
+   "schedule"
+  ]
+ },
+ {
+  "module": "launch",
+  "name": "check_model_effort",
+  "kind": "function",
+  "callers": [
+   "bringover",
+   "herdr"
+  ]
+ },
+ {
+  "module": "launch",
+  "name": "unmerge",
+  "kind": "function",
+  "callers": [
+   "activity"
+  ]
+ },
+ {
+  "module": "limits",
+  "name": "read",
+  "kind": "function",
+  "callers": [
+   "serve",
+   "teammap"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "NOTIFY_MAX_AGE",
+  "kind": "constant",
+  "callers": [
+   "menubar"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "REFUSAL_WINDOW",
+  "kind": "constant",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "_log",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "announce",
+  "kind": "function",
+  "callers": [
+   "menubar"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "log_path",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "notify",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "mcptools",
+   "remote"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "recent_actions",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "fixes",
+   "improve",
+   "menubar",
+   "teammap"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "record",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "agenttools",
+   "bringover",
+   "budget",
+   "fixes",
+   "improve",
+   "mcptools",
+   "newteam",
+   "panes",
+   "review",
+   "schedule",
+   "tasks",
+   "teammap"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "run",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "suggest",
+  "kind": "function",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "watch",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "watch_once",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "machine",
+  "name": "read",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "machine",
+  "name": "tick",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "menubar",
+  "name": "Menubar",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "model",
+  "name": "HUMAN",
+  "kind": "constant",
+  "callers": [
+   "adapters",
+   "detect",
+   "report",
+   "status",
+   "teammap"
+  ]
+ },
+ {
+  "module": "model",
+  "name": "Job",
+  "kind": "class",
+  "callers": [
+   "detect"
+  ]
+ },
+ {
+  "module": "model",
+  "name": "Session",
+  "kind": "class",
+  "callers": [
+   "adapters"
+  ]
+ },
+ {
+  "module": "model",
+  "name": "parse_ts",
+  "kind": "function",
+  "callers": [
+   "adapters",
+   "limits",
+   "machine",
+   "process",
+   "status"
+  ]
+ },
+ {
+  "module": "musicians",
+  "name": "INSTRUMENTS",
+  "kind": "constant",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "musicians",
+  "name": "assign",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "BUILTIN",
+  "kind": "constant",
+  "callers": [
+   "mcpserver",
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "CLAUDE_MODELS",
+  "kind": "constant",
+  "callers": [
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "KINDS",
+  "kind": "constant",
+  "callers": [
+   "mcpserver",
+   "mcptools"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "NewTeamError",
+  "kind": "class",
+  "callers": [
+   "herdr",
+   "mcptools"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "PRESETS_DIR",
+  "kind": "constant",
+  "callers": [
+   "herdr",
+   "mcpserver",
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "Starter",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "TOOL_ID",
+  "kind": "constant",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "_KIND_JOBS",
+  "kind": "constant",
+  "callers": [
+   "mcpserver"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "_as_preset",
+  "kind": "function",
+  "callers": [
+   "herdr",
+   "mcpserver",
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "_rewrite_role",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "_role_dict",
+  "kind": "function",
+  "callers": [
+   "mcptools",
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "band",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "clear_worktree",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "forget_role",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "mcptools",
+   "teammap"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "improve_brief",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "kind_brief",
+  "kind": "function",
+  "callers": [
+   "bringover",
+   "herdr",
+   "mcpserver",
+   "mcptools"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "model_options",
+  "kind": "function",
+  "callers": [
+   "herdr"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "presets",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "project_check",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "mcptools",
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "roster",
+  "kind": "function",
+  "callers": [
+   "mcptools",
+   "schedule",
+   "teammap"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "rule_draft",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "set_musician",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "suggest",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "team_name",
+  "kind": "function",
+  "callers": [
+   "remote",
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "teams_dir",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "bringover",
+   "cli",
+   "mcptools",
+   "schedule"
+  ]
+ },
+ {
+  "module": "newteam",
+  "name": "validate",
+  "kind": "function",
+  "callers": [
+   "herdr",
+   "mcptools"
+  ]
+ },
+ {
+  "module": "panes",
+  "name": "ANSWERED",
+  "kind": "constant",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "permissions",
+  "name": "GEMINI_POLICY",
+  "kind": "constant",
+  "callers": [
+   "activity"
+  ]
+ },
+ {
+  "module": "permissions",
+  "name": "RULES_FILE",
+  "kind": "constant",
+  "callers": [
+   "activity"
+  ]
+ },
+ {
+  "module": "plugin",
+  "name": "build",
+  "kind": "function",
+  "callers": [
+   "connect"
+  ]
+ },
+ {
+  "module": "preset",
+  "name": "AGENTS",
+  "kind": "constant",
+  "callers": [
+   "ask"
+  ]
+ },
+ {
+  "module": "preset",
+  "name": "PresetError",
+  "kind": "class",
+  "callers": [
+   "activity",
+   "cli",
+   "mcptools",
+   "review",
+   "schedule",
+   "teammap"
+  ]
+ },
+ {
+  "module": "preset",
+  "name": "keys",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "preset",
+  "name": "load",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "mcptools",
+   "review",
+   "schedule"
+  ]
+ },
+ {
+  "module": "preset",
+  "name": "practices",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "improve",
+   "mcpserver"
+  ]
+ },
+ {
+  "module": "preset",
+  "name": "rule_on",
+  "kind": "function",
+  "callers": [
+   "activity"
+  ]
+ },
+ {
+  "module": "preset",
+  "name": "rules_on",
+  "kind": "function",
+  "callers": [
+   "improve"
+  ]
+ },
+ {
+  "module": "preview",
+  "name": "Previews",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "process",
+  "name": "gate_finding",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "process",
+  "name": "report",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "process",
+  "name": "run_gh",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "prompts",
+  "name": "first_run_keys",
+  "kind": "function",
+  "callers": [
+   "team"
+  ]
+ },
+ {
+  "module": "prompts",
+  "name": "hook_review",
+  "kind": "function",
+  "callers": [
+   "team"
+  ]
+ },
+ {
+  "module": "prompts",
+  "name": "trust_keys",
+  "kind": "function",
+  "callers": [
+   "team"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "_drop",
+  "kind": "function",
+  "callers": [
+   "improve"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "_path",
+  "kind": "function",
+  "callers": [
+   "brief",
+   "schedule"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "_read_json",
+  "kind": "function",
+  "callers": [
+   "brief",
+   "budget",
+   "fixes",
+   "reports",
+   "schedule",
+   "tasks"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "_real",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "_write_json",
+  "kind": "function",
+  "callers": [
+   "brief",
+   "budget",
+   "connect",
+   "fixes",
+   "mcptools",
+   "menubar",
+   "preview",
+   "remote",
+   "reports",
+   "schedule",
+   "tasks"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "deliver",
+  "kind": "function",
+  "callers": [
+   "live"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "deliverer_alive",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "mcptools"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "held",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "improve",
+   "live",
+   "teammap"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "hold_note",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "improve",
+   "mcptools"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "install",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "runtime"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "is_quiet",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "live",
+   "mcptools",
+   "teammap"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "opted_out",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "pairs",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "live",
+   "teammap"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "savings",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "set_pair",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "live",
+   "teammap"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "shim_dir",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "launch",
+   "live"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "shim_main",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "state_dir",
+  "kind": "function",
+  "callers": [
+   "antigravity",
+   "connect",
+   "fixes",
+   "mcptools",
+   "menubar",
+   "preview",
+   "remote",
+   "reports",
+   "tasks"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "uninstall",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "quiet",
+  "name": "urgent",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "remote",
+  "name": "Remotes",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "remote",
+  "name": "call_main",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "remote",
+  "name": "remote_handlers",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "report",
+  "name": "NOISY_LAST_HOUR",
+  "kind": "constant",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "report",
+  "name": "REPEATED_REFUSALS",
+  "kind": "constant",
+  "callers": [
+   "improve"
+  ]
+ },
+ {
+  "module": "report",
+  "name": "aggregate",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "teammap"
+  ]
+ },
+ {
+  "module": "report",
+  "name": "to_json",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "report",
+  "name": "to_md",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "reports",
+  "name": "SHOWN",
+  "kind": "constant",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "reports",
+  "name": "clear",
+  "kind": "function",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "reports",
+  "name": "current",
+  "kind": "function",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "reports",
+  "name": "noted",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "reports",
+  "name": "running_turn",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "reports",
+  "name": "save",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "review",
+  "name": "Review",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "review",
+  "name": "_claude_said",
+  "kind": "function",
+  "callers": [
+   "menubar"
+  ]
+ },
+ {
+  "module": "review",
+  "name": "_codex_said",
+  "kind": "function",
+  "callers": [
+   "menubar"
+  ]
+ },
+ {
+  "module": "review",
+  "name": "test_command",
+  "kind": "function",
+  "callers": [
+   "launch"
+  ]
+ },
+ {
+  "module": "rules",
+  "name": "REFUSED",
+  "kind": "constant",
+  "callers": [
+   "adapters",
+   "status"
+  ]
+ },
+ {
+  "module": "rules",
+  "name": "explain",
+  "kind": "function",
+  "callers": [
+   "adapters",
+   "status"
+  ]
+ },
+ {
+  "module": "rules",
+  "name": "load",
+  "kind": "function",
+  "callers": [
+   "adapters",
+   "live",
+   "status"
+  ]
+ },
+ {
+  "module": "rules",
+  "name": "load_file",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "rules",
+  "name": "running_settings",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "live"
+  ]
+ },
+ {
+  "module": "runtime",
+  "name": "Runtime",
+  "kind": "class",
+  "callers": [
+   "cli",
+   "mcpserver"
+  ]
+ },
+ {
+  "module": "runtime",
+  "name": "RuntimeError_",
+  "kind": "class",
+  "callers": [
+   "agenttools",
+   "cli",
+   "newteam",
+   "remote",
+   "review",
+   "schedule",
+   "serve",
+   "setup",
+   "team",
+   "teammap"
+  ]
+ },
+ {
+  "module": "runtime",
+  "name": "clean_env",
+  "kind": "function",
+  "callers": [
+   "ask",
+   "preview",
+   "remote",
+   "review",
+   "scripts"
+  ]
+ },
+ {
+  "module": "schedule",
+  "name": "ENDS_NOW",
+  "kind": "constant",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "schedule",
+  "name": "Scheduler",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "schedule",
+  "name": "_load",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "scripts",
+  "name": "allow",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "scripts",
+  "name": "allowed",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "scripts",
+  "name": "env",
+  "kind": "function",
+  "callers": [
+   "preview"
+  ]
+ },
+ {
+  "module": "scripts",
+  "name": "rewrite",
+  "kind": "function",
+  "callers": [
+   "bringover",
+   "preview"
+  ]
+ },
+ {
+  "module": "scripts",
+  "name": "run",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "serve",
+  "name": "caller",
+  "kind": "function",
+  "callers": [
+   "live"
+  ]
+ },
+ {
+  "module": "serve",
+  "name": "handle",
+  "kind": "function",
+  "callers": [
+   "bridge"
+  ]
+ },
+ {
+  "module": "service",
+  "name": "install",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "service",
+  "name": "running",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "service",
+  "name": "uninstall",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "settings",
+  "name": "_check",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "settings",
+  "name": "load",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "improve",
+   "live",
+   "mcptools",
+   "menubar",
+   "newteam",
+   "schedule",
+   "serve",
+   "teammap"
+  ]
+ },
+ {
+  "module": "settings",
+  "name": "migrate",
+  "kind": "function",
+  "callers": [
+   "serve"
+  ]
+ },
+ {
+  "module": "settings",
+  "name": "set_value",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "menubar",
+   "teammap"
+  ]
+ },
+ {
+  "module": "settings",
+  "name": "threshold",
+  "kind": "function",
+  "callers": [
+   "detect",
+   "panes",
+   "status"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "SetupError",
+  "kind": "class",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "TooLarge",
+  "kind": "class",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "Unfinished",
+  "kind": "class",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "agent_path",
+  "kind": "function",
+  "callers": [
+   "antigravity",
+   "ask",
+   "connect",
+   "container",
+   "launch",
+   "newteam",
+   "serve",
+   "status"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "folder_preview",
+  "kind": "function",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "git_ready",
+  "kind": "function",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "handlers",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "too_broad",
+  "kind": "function",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "setup",
+  "name": "uncommitted",
+  "kind": "function",
+  "callers": [
+   "newteam"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "collect",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "serve",
+   "teammap"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "hc_path",
+  "kind": "function",
+  "callers": [
+   "herdr"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "herdr_core_up",
+  "kind": "function",
+  "callers": [
+   "herdr"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "herdr_terminals",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "serve",
+   "teammap"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "memory_limit",
+  "kind": "function",
+  "callers": [
+   "panes",
+   "teammap"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "now_utc",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "budget",
+   "cli",
+   "fixes",
+   "improve",
+   "mcptools",
+   "menubar",
+   "review",
+   "schedule",
+   "tasks",
+   "teammap"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "owner_queue",
+  "kind": "function",
+  "callers": [
+   "menubar",
+   "panes",
+   "serve"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "parse_ts",
+  "kind": "reexport of model.parse_ts",
+  "callers": [
+   "activity",
+   "budget",
+   "fixes",
+   "menubar",
+   "schedule",
+   "teammap"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "recent_actions",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "running_cwds",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "serve",
+   "teammap"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "stalls",
+  "kind": "function",
+  "callers": [
+   "menubar",
+   "panes",
+   "serve"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "summary",
+  "kind": "function",
+  "callers": [
+   "serve"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "to_json",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "status",
+  "name": "to_text",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "Board",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "add",
+  "kind": "function",
+  "callers": [
+   "bringover"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "board",
+  "kind": "function",
+  "callers": [
+   "teammap"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "discarded",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "fresh",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "schedule"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "merged",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "move",
+  "kind": "function",
+  "callers": [
+   "bringover"
+  ]
+ },
+ {
+  "module": "tasks",
+  "name": "unmerged",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "BRIEFED",
+  "kind": "constant",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "KIND",
+  "kind": "constant",
+  "callers": [
+   "panes"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "ROLE",
+  "kind": "constant",
+  "callers": [
+   "activity",
+   "improve",
+   "mcptools",
+   "panes",
+   "review",
+   "tasks",
+   "teammap"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "TEAM",
+  "kind": "constant",
+  "callers": [
+   "activity",
+   "mcptools",
+   "review",
+   "teammap"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "TeamError",
+  "kind": "class",
+  "callers": [
+   "cli",
+   "review"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "start",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "review"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "status",
+  "kind": "function",
+  "callers": [
+   "cli",
+   "remote",
+   "schedule",
+   "serve"
+  ]
+ },
+ {
+  "module": "team",
+  "name": "stop",
+  "kind": "function",
+  "callers": [
+   "activity",
+   "cli",
+   "schedule",
+   "teammap"
+  ]
+ },
+ {
+  "module": "teammap",
+  "name": "Brain",
+  "kind": "class",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "teammap",
+  "name": "_team_report",
+  "kind": "function",
+  "callers": [
+   "improve"
+  ]
+ },
+ {
+  "module": "teammap",
+  "name": "found_groups",
+  "kind": "function",
+  "callers": [
+   "serve"
+  ]
+ },
+ {
+  "module": "teammap",
+  "name": "group_of",
+  "kind": "function",
+  "callers": [
+   "serve"
+  ]
+ },
+ {
+  "module": "teammap",
+  "name": "is_own_session",
+  "kind": "function",
+  "callers": [
+   "serve"
+  ]
+ },
+ {
+  "module": "teammap",
+  "name": "needs_you",
+  "kind": "function",
+  "callers": [
+   "mcptools"
+  ]
+ },
+ {
+  "module": "worktree",
+  "name": "SAFE",
+  "kind": "constant",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "worktree",
+  "name": "WorktreeError",
+  "kind": "class",
+  "callers": [
+   "cli",
+   "review"
+  ]
+ },
+ {
+  "module": "worktree",
+  "name": "_git",
+  "kind": "function",
+  "callers": [
+   "herdr"
+  ]
+ },
+ {
+  "module": "worktree",
+  "name": "is_clone",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "worktree",
+  "name": "sync",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ },
+ {
+  "module": "worktree",
+  "name": "tool_name",
+  "kind": "function",
+  "callers": [
+   "review"
+  ]
+ }
+]

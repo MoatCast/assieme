@@ -13,7 +13,7 @@ PY_SUMS="https://github.com/astral-sh/python-build-standalone/releases/download/
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 res="$repo/app/src-tauri/resources"
-ASM_VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' "$repo/runtime/crates/assieme-core/Cargo.toml" | head -1)
+ASM_VERSION=$(sed -n 's/^version = "\(.*\)"$/\1/p' "$repo/runtime/Cargo.toml" | head -1)
 
 check() {
   "$res/python/bin/python3" -P -c 'import assieme, tomllib, assieme.mcpserver' || { echo "bundle broken: Python or assieme"; exit 1; }

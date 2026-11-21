@@ -1,0 +1,1 @@
+{"permissions": {"deny": ["Bash(rm:*)", "Read(./secret/**)", 5, null]}}
