@@ -5,8 +5,8 @@
 //! each log is read, so polling stays cheap on large sessions. Reading the person's own herdr (`hc`) is not ported.
 #![allow(clippy::todo)]
 use crate::adapters::{
-    Bad, Read, basename, command_label, decode_ignore, get, get_str, get_true, id_of, joined_text, loads, or_obj,
-    output_text, program, py_dumps, py_str, secs, tokens, wake_sender,
+    Bad, Read, basename, command_label, decode_ignore, get, get_str, get_true, id_of, int, loads, or_obj, output_text,
+    program, py_dumps, py_str, secs, wake_sender,
 };
 use crate::detect;
 use crate::model::HUMAN;
@@ -176,11 +176,7 @@ fn note_wake(agent: &mut Agent, ts: Timestamp, text: &str) {
 fn user_text(content: Option<&Value>) -> Read<String> {
     match content {
         Some(Value::String(s)) => Ok(s.clone()),
-        Some(Value::Array(blocks)) => {
-            let typed: Vec<Value> =
-                blocks.iter().filter(|b| b.get("type").and_then(Value::as_str) == Some("text")).cloned().collect();
-            joined_text(Some(&Value::Array(typed)))
-        }
+        Some(Value::Array(blocks)) => Ok(crate::adapters::texts(blocks, " ", true)?.unwrap_or_default()),
         _ => Ok(String::new()),
     }
 }
@@ -215,9 +211,9 @@ fn read_claude(agent: &mut Agent, rows: &[Map<String, Value>], show_text: bool, 
             agent.last = Some(ts);
             let u = or_obj(get(msg, "usage"))?;
             if u.is_some_and(|u| !u.is_empty()) {
-                let used = tokens(u, "input_tokens")?
-                    + tokens(u, "cache_read_input_tokens")?
-                    + tokens(u, "cache_creation_input_tokens")?;
+                let used = int(get(u, "input_tokens"))?
+                    + int(get(u, "cache_read_input_tokens"))?
+                    + int(get(u, "cache_creation_input_tokens"))?;
                 if used != 0 {
                     agent.context = used;
                 }
@@ -327,14 +323,14 @@ fn read_codex(agent: &mut Agent, rows: &[Map<String, Value>], show_text: bool) -
         let role = get(p, "role").and_then(Value::as_str);
         match kind_str {
             Some("message") if role == Some("user") => {
-                let text = joined_text(get(p, "content"))?;
+                let text = crate::adapters::joined(get(p, "content"), " ")?;
                 if !crate::adapters::injected(&text) {
                     note_wake(agent, ts, &text);
                     agent.asked = false;
                 }
             }
             Some("message") if role == Some("assistant") => {
-                let text = joined_text(get(p, "content"))?;
+                let text = crate::adapters::joined(get(p, "content"), " ")?;
                 let text = text.trim_end_matches(pyrules::isspace);
                 if !text.is_empty() {
                     agent.asked = text.ends_with('?');
@@ -390,10 +386,10 @@ fn read_codex(agent: &mut Agent, rows: &[Map<String, Value>], show_text: bool) -
                 let last = or_obj(get(info, "last_token_usage"))?;
                 let input = get(last, "input_tokens").filter(|v| pyrules::truthy(v));
                 if let Some(n) = input {
-                    agent.context = number(n)?;
+                    agent.context = int(Some(n))?;
                 }
                 if let Some(w) = get(info, "model_context_window").filter(|v| pyrules::truthy(v)) {
-                    agent.context_limit = Some(number(w)?);
+                    agent.context_limit = Some(int(Some(w))?);
                 }
                 if input.is_some() {
                     agent.samples.push((ts, agent.context));
@@ -403,14 +399,6 @@ fn read_codex(agent: &mut Agent, rows: &[Map<String, Value>], show_text: bool) -
         }
     }
     Ok(())
-}
-
-fn number(v: &Value) -> Read<i64> {
-    match v {
-        Value::Number(n) => n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)).ok_or(Bad),
-        Value::Bool(b) => Ok(*b as i64),
-        _ => Err(Bad),
-    }
 }
 
 /// `5 min`, or `3 h` past two hours.
@@ -628,7 +616,7 @@ pub fn collect(
     let mut all: Vec<Agent> = vec![];
     let mut by_thread: Vec<(Option<String>, usize)> = vec![];
     let mut names: Vec<(String, usize)> = vec![];
-    for path in crate::adapters::glob_deep(codex_dir, ".jsonl") {
+    for path in crate::adapters::glob_deep(codex_dir) {
         if mtime(&path) < cutoff {
             continue;
         }

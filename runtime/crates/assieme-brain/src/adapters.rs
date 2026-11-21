@@ -16,6 +16,9 @@ pub(crate) struct Bad;
 
 pub(crate) type Read<T> = Result<T, Bad>;
 
+/// Deny rules: (rule, file).
+type Rules = Vec<(String, String)>;
+
 static WAKE_MARKERS: LazyLock<Vec<(Regex, &'static str, bool)>> = LazyLock::new(|| {
     [
         (r#"<asm from="(?:\S+ )?([\w./-]+)""#, "asm", true), // Assieme's runtime
@@ -106,7 +109,7 @@ pub fn rows(path: &Path) -> Vec<Map<String, Value>> {
 
 pub(crate) fn try_rows(path: &Path) -> std::io::Result<Vec<Map<String, Value>>> {
     let text = decode_ignore(&std::fs::read(path)?);
-    Ok(text_lines(&text).into_iter().filter_map(loads).filter_map(|v| into_object(v)).collect())
+    Ok(text_lines(&text).into_iter().filter_map(loads).filter_map(into_object).collect())
 }
 
 pub(crate) fn into_object(v: Value) -> Option<Map<String, Value>> {
@@ -117,7 +120,7 @@ pub(crate) fn into_object(v: Value) -> Option<Map<String, Value>> {
 }
 
 /// `x.get(key) or {}` where x must be a dict when it is truthy.
-pub(crate) fn or_obj<'a>(v: Option<&'a Value>) -> Read<Option<&'a Map<String, Value>>> {
+pub(crate) fn or_obj(v: Option<&Value>) -> Read<Option<&Map<String, Value>>> {
     match v {
         Some(Value::Object(o)) => Ok(Some(o)),
         Some(v) if pyrules::truthy(v) => Err(Bad),
@@ -139,9 +142,9 @@ pub(crate) fn get_true(d: Option<&Map<String, Value>>, key: &str) -> bool {
     get(d, key).is_some_and(pyrules::truthy)
 }
 
-/// A token count as Python adds it: a missing key is the default; None or text fails the sum.
-pub(crate) fn tokens(d: Option<&Map<String, Value>>, key: &str) -> Read<i64> {
-    match get(d, key) {
+/// A count as Python adds it: missing is 0; None or text fails the sum.
+pub(crate) fn int(v: Option<&Value>) -> Read<i64> {
+    match v {
         None => Ok(0),
         Some(Value::Bool(b)) => Ok(*b as i64),
         Some(Value::Number(n)) => n.as_i64().or_else(|| n.as_f64().map(|f| f as i64)).ok_or(Bad),
@@ -176,68 +179,34 @@ pub(crate) fn py_str(v: &Value) -> String {
     }
 }
 
-/// `json.dumps(v)`: `", "` and `": "` separators, non-ASCII escaped.
+/// `json.dumps(v)`: `", "` and `": "` between items, non-ASCII escaped.
 pub(crate) fn py_dumps(v: &Value) -> String {
-    let mut out = String::new();
-    dump(v, &mut out);
-    out
-}
-
-fn dump(v: &Value, out: &mut String) {
-    match v {
-        Value::Array(a) => {
-            out.push('[');
-            for (i, x) in a.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                dump(x, out);
-            }
-            out.push(']');
+    use serde::Serialize;
+    use std::io::{Result, Write};
+    struct Py;
+    impl serde_json::ser::Formatter for Py {
+        fn begin_array_value<W: ?Sized + Write>(&mut self, w: &mut W, first: bool) -> Result<()> {
+            w.write_all(if first { b"" } else { b", " })
         }
-        Value::Object(o) => {
-            out.push('{');
-            for (i, (k, x)) in o.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                dump_str(k, out);
-                out.push_str(": ");
-                dump(x, out);
-            }
-            out.push('}');
+        fn begin_object_key<W: ?Sized + Write>(&mut self, w: &mut W, first: bool) -> Result<()> {
+            w.write_all(if first { b"" } else { b", " })
         }
-        Value::String(s) => match pyrules::float(v).filter(|_| s.starts_with(pyrules::MARK)) {
-            Some(f) if f.is_nan() => out.push_str("NaN"),
-            Some(f) if f.is_infinite() => out.push_str(if f > 0.0 { "Infinity" } else { "-Infinity" }),
-            _ => dump_str(s, out),
-        },
-        Value::Number(n) if n.is_f64() => out.push_str(&py_str(v)),
-        other => out.push_str(&other.to_string()),
-    }
-}
-
-fn dump_str(s: &str, out: &mut String) {
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            '\x08' => out.push_str("\\b"),
-            '\x0c' => out.push_str("\\f"),
-            c if (c as u32) < 0x20 || (c as u32) > 0x7e => {
-                let mut buf = [0u16; 2];
-                for u in c.encode_utf16(&mut buf) {
-                    out.push_str(&format!("\\u{u:04x}"));
+        fn begin_object_value<W: ?Sized + Write>(&mut self, w: &mut W) -> Result<()> {
+            w.write_all(b": ")
+        }
+        fn write_string_fragment<W: ?Sized + Write>(&mut self, w: &mut W, s: &str) -> Result<()> {
+            for c in s.chars() {
+                match c {
+                    ' '..='~' => write!(w, "{c}")?,
+                    c => c.encode_utf16(&mut [0; 2]).iter().try_for_each(|u| write!(w, "\\u{u:04x}"))?,
                 }
             }
-            c => out.push(c),
+            Ok(())
         }
     }
-    out.push('"');
+    let mut out = vec![];
+    let _ = v.serialize(&mut serde_json::Serializer::with_formatter(&mut out, Py));
+    String::from_utf8(out).unwrap_or_default()
 }
 
 /// User content -> its typed text, or None when it only carries tool results.
@@ -249,42 +218,33 @@ pub fn text_of(content: &Value) -> Option<String> {
 pub(crate) fn try_text_of(content: &Value) -> Read<Option<String>> {
     match content {
         Value::String(s) => Ok(Some(s.clone())),
-        Value::Array(blocks) => {
-            let texts = blocks
-                .iter()
-                .filter_map(Value::as_object)
-                .filter(|b| b.get("type").and_then(Value::as_str) == Some("text"))
-                .map(|b| match b.get("text") {
-                    None => Ok(String::new()),
-                    Some(Value::String(s)) => Ok(s.clone()),
-                    Some(_) => Err(Bad),
-                })
-                .collect::<Read<Vec<_>>>()?;
-            Ok((!texts.is_empty()).then(|| texts.join("\n")))
-        }
+        Value::Array(blocks) => texts(blocks, "\n", true),
         _ => Ok(None),
     }
 }
 
-/// `' '.join(b.get('text', '') for b in blocks if isinstance(b, dict))`: Codex's message text.
-pub(crate) fn joined_text(blocks: Option<&Value>) -> Read<String> {
-    let blocks = match blocks {
-        None => return Ok(String::new()),
-        Some(v) if !pyrules::truthy(v) => return Ok(String::new()),
-        Some(Value::Array(a)) => a,
-        Some(Value::String(_)) | Some(Value::Object(_)) => return Ok(String::new()), // iterating gives no dicts
-        Some(_) => return Err(Bad),
-    };
+/// `sep.join(b.get('text', '') for b in blocks if isinstance(b, dict))`, only `text` blocks when `typed`; None when
+/// no block counts. Fails where Python's join would: a text that isn't a string.
+pub(crate) fn texts(blocks: &[Value], sep: &str, typed: bool) -> Read<Option<String>> {
+    let blocks = blocks.iter().filter_map(Value::as_object);
     let texts = blocks
-        .iter()
-        .filter_map(Value::as_object)
+        .filter(|b| !typed || b.get("type").and_then(Value::as_str) == Some("text"))
         .map(|b| match b.get("text") {
-            None => Ok(String::new()),
-            Some(Value::String(s)) => Ok(s.clone()),
+            None => Ok(""),
+            Some(Value::String(s)) => Ok(s.as_str()),
             Some(_) => Err(Bad),
         })
         .collect::<Read<Vec<_>>>()?;
-    Ok(texts.join(" "))
+    Ok((!texts.is_empty()).then(|| texts.join(sep)))
+}
+
+/// Codex's message text: `sep.join(b.get('text', '') for b in content or [] if isinstance(b, dict))`.
+pub(crate) fn joined(content: Option<&Value>, sep: &str) -> Read<String> {
+    match content {
+        Some(Value::Array(a)) => Ok(texts(a, sep, false)?.unwrap_or_default()),
+        Some(v @ (Value::Number(_) | Value::Bool(true))) if pyrules::truthy(v) => Err(Bad), // not iterable
+        _ => Ok(String::new()), // falsy, or a text or dict: iterating it gives no dicts
+    }
 }
 
 /// F10: where a metrics source writes, one row per reading.
@@ -329,21 +289,9 @@ pub(crate) fn seconds(t: Timestamp) -> f64 {
 /// A Codex tool's output: a string, or a list of text blocks.
 pub(crate) fn output_text(out: Option<&Value>) -> Read<String> {
     match out {
-        Some(Value::Array(blocks)) => {
-            let texts = blocks
-                .iter()
-                .filter_map(Value::as_object)
-                .map(|b| match b.get("text") {
-                    None => Ok(String::new()),
-                    Some(Value::String(s)) => Ok(s.clone()),
-                    Some(_) => Err(Bad),
-                })
-                .collect::<Read<Vec<_>>>()?;
-            Ok(texts.join("\n"))
-        }
+        Some(Value::Array(_)) => joined(out, "\n"),
         Some(Value::String(s)) => Ok(s.clone()),
-        Some(v) => Ok(py_dumps(v)),
-        None => Ok("null".into()),
+        other => Ok(py_dumps(other.unwrap_or(&Value::Null))),
     }
 }
 
@@ -401,29 +349,10 @@ fn recent(paths: Vec<PathBuf>, since: Timestamp) -> Vec<PathBuf> {
 }
 
 /// `glob(os.path.join(root, '**', name), recursive=True)`: any depth, the top included, dot entries skipped.
-pub(crate) fn glob_deep(root: &Path, suffix: &str) -> Vec<PathBuf> {
-    fn walk(dir: &Path, suffix: &str, out: &mut Vec<PathBuf>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
-        let mut entries: Vec<_> = entries.flatten().collect();
-        entries.sort_by_key(|e| e.file_name());
-        for e in entries {
-            let name = e.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if name.starts_with('.') {
-                continue;
-            }
-            let path = e.path();
-            if name.ends_with(suffix) {
-                out.push(path.clone());
-            }
-            if path.is_dir() {
-                walk(&path, suffix, out);
-            }
-        }
-    }
-    let mut out = vec![];
-    walk(root, suffix, &mut out);
-    out
+pub(crate) fn glob_deep(root: &Path) -> Vec<PathBuf> {
+    let options = glob::MatchOptions { require_literal_leading_dot: true, ..Default::default() };
+    let pattern = root.join("**/*.jsonl");
+    glob::glob_with(&pattern.to_string_lossy(), options).map(|p| p.flatten().collect()).unwrap_or_default()
 }
 
 /// `~/.claude/projects/<project>/<session>.jsonl`, plus `<session>/subagents/agent-*.jsonl`.
@@ -439,7 +368,7 @@ pub fn claude_code(
     extra_rules: &[(String, String)],
 ) -> Vec<Session> {
     let user_settings = user_settings.map(PathBuf::from).unwrap_or_else(|| home().join(".claude/settings.json"));
-    let cache: Mutex<BTreeMap<Option<String>, Vec<(String, String)>>> = Mutex::default();
+    let cache: Mutex<BTreeMap<Option<String>, Rules>> = Mutex::default();
     let rules_for = |cwd: Option<&str>| -> Vec<(String, String)> {
         let mut cache = cache.lock().unwrap();
         cache
@@ -493,7 +422,7 @@ fn claude_session(
     parent: Option<&str>,
     since: Timestamp,
     show_text: bool,
-    rules_for: &dyn Fn(Option<&str>) -> Vec<(String, String)>,
+    rules_for: &dyn Fn(Option<&str>) -> Rules,
 ) -> Read<Session> {
     let mut s = Session { agent: agent.into(), source: "claude-code".into(), ..Session::default() };
     let rows = try_rows(path).map_err(|_| Bad)?;
@@ -568,10 +497,10 @@ fn claude_session(
             let mid = id_of(get(msg, "id"));
             if seen.insert(mid) {
                 let u = or_obj(get(msg, "usage"))?;
-                let input = tokens(u, "input_tokens")?
-                    + tokens(u, "cache_read_input_tokens")?
-                    + tokens(u, "cache_creation_input_tokens")?;
-                s.call(input, tokens(u, "output_tokens")?, Some(ts));
+                let input = int(get(u, "input_tokens"))?
+                    + int(get(u, "cache_read_input_tokens"))?
+                    + int(get(u, "cache_creation_input_tokens"))?;
+                s.call(input, int(get(u, "output_tokens"))?, Some(ts));
             }
             for b in &blocks {
                 if b.get("type").and_then(Value::as_str) != Some("tool_use") {
@@ -606,7 +535,7 @@ pub(crate) fn id_of(v: Option<&Value>) -> String {
 /// `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`. Spawned subagents name their parent thread.
 pub fn codex(root: &Path, since: Timestamp, show_text: bool) -> Vec<Session> {
     let mut sessions: Vec<(String, Option<String>, Session)> = vec![];
-    for path in recent(glob_deep(root, ".jsonl"), since) {
+    for path in recent(glob_deep(root), since) {
         let Ok((thread, parent, s)) = codex_session(&path, since, show_text) else { continue };
         let key = thread.unwrap_or_else(|| path.to_string_lossy().into_owned());
         match sessions.iter_mut().find(|(k, _, _)| *k == key) {
@@ -692,7 +621,7 @@ fn codex_session(path: &Path, since: Timestamp, show_text: bool) -> Read<(Option
         let role = get(p, "role").and_then(Value::as_str);
         match kind {
             Some("message") if role == Some("user") => {
-                let text = joined_text_lines(get(p, "content"))?;
+                let text = joined(get(p, "content"), "\n")?;
                 if injected(&text) {
                     continue;
                 }
@@ -709,7 +638,7 @@ fn codex_session(path: &Path, since: Timestamp, show_text: bool) -> Read<(Option
                 if total != last_total {
                     // the same count is re-emitted between calls; input already includes cached
                     last_total = total;
-                    s.call(tokens(last, "input_tokens")?, tokens(last, "output_tokens")?, Some(ts));
+                    s.call(int(get(last, "input_tokens"))?, int(get(last, "output_tokens"))?, Some(ts));
                 }
             }
             Some("function_call" | "custom_tool_call") => {
@@ -743,23 +672,6 @@ fn codex_session(path: &Path, since: Timestamp, show_text: bool) -> Read<(Option
         }
     }
     Ok((thread, parent, s))
-}
-
-/// `_text_of([{'type': 'text', 'text': b.get('text', '')} for b in content if dict]) or ''`.
-fn joined_text_lines(content: Option<&Value>) -> Read<String> {
-    let blocks = match content {
-        Some(v) if !pyrules::truthy(v) => return Ok(String::new()),
-        None => return Ok(String::new()),
-        Some(Value::Array(a)) => a,
-        Some(Value::String(_)) | Some(Value::Object(_)) => return Ok(String::new()),
-        Some(_) => return Err(Bad),
-    };
-    let texts: Vec<Value> = blocks
-        .iter()
-        .filter_map(Value::as_object)
-        .map(|b| serde_json::json!({"type": "text", "text": b.get("text").cloned().unwrap_or("".into())}))
-        .collect();
-    Ok(try_text_of(&Value::Array(texts))?.unwrap_or_default())
 }
 
 pub fn generic(_path: &Path, _since: Timestamp, _show_text: bool) -> Vec<Session> {

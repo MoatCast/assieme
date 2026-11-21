@@ -116,7 +116,7 @@ pub fn read(claude_dir: &Path, codex_dir: &Path, now: Timestamp) -> Result<Value
     if let Some(c) = claude(&newest(pyrules::glob(&claude_dir.join("*/*.jsonl"))), now) {
         out.insert("claude".into(), c);
     }
-    if let Some(c) = codex(&newest(crate::adapters::glob_deep(codex_dir, ".jsonl")), now) {
+    if let Some(c) = codex(&newest(crate::adapters::glob_deep(codex_dir)), now) {
         out.insert("codex".into(), c);
     }
     Ok(Value::Object(out))

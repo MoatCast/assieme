@@ -323,7 +323,8 @@ pub fn suggest(
     let now = now.unwrap_or_else(crate::status::now_utc);
     for a in agents.iter().filter(|a| a.state != "exited") {
         // A5: the second refusal of the same command is the moment to stop the loop
-        let mut recent: Vec<((&str, &str), (usize, &str))> = vec![];
+        type Refusal<'a> = ((&'a str, &'a str), (usize, &'a str)); // (label, why) -> (count, advice)
+        let mut recent: Vec<Refusal> = vec![];
         for (ts, label, why, advice) in &a.refused {
             if secs(now, *ts) <= REFUSAL_WINDOW as f64 {
                 match recent.iter_mut().find(|(k, _)| *k == (label.as_str(), why.as_str())) {
