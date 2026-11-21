@@ -345,6 +345,97 @@ pub fn glob(pattern: &Path) -> Vec<PathBuf> {
     out
 }
 
+// --- fnmatch.fnmatchcase -----------------------------------------------------------------------------------------
+
+/// `fnmatch.fnmatchcase(name, pattern)`: `*` crosses `/`, no escapes, no braces, `[!x]` negates.
+pub fn fnmatchcase(name: &str, pattern: &str) -> bool {
+    regex::Regex::new(&fnmatch_regex(pattern)).is_ok_and(|re| re.is_match(name))
+}
+
+/// CPython's `fnmatch._translate`, written for Rust's regex syntax.
+fn fnmatch_regex(pat: &str) -> String {
+    let p: Vec<char> = pat.chars().collect();
+    let n = p.len();
+    let mut out = String::from("(?s)^");
+    let lit = |c: char| if c.is_ascii_punctuation() { format!("\\{c}") } else { c.to_string() };
+    let mut i = 0;
+    while i < n {
+        let c = p[i];
+        i += 1;
+        match c {
+            '*' => {
+                while i < n && p[i] == '*' {
+                    i += 1;
+                }
+                out.push_str(".*");
+            }
+            '?' => out.push('.'),
+            '[' => {
+                let mut j = i;
+                if j < n && p[j] == '!' {
+                    j += 1;
+                }
+                if j < n && p[j] == ']' {
+                    j += 1;
+                }
+                while j < n && p[j] != ']' {
+                    j += 1;
+                }
+                if j >= n {
+                    out.push_str("\\[");
+                    continue;
+                }
+                // Python's chunks: the class split at range hyphens, with empty ranges removed.
+                let mut chunks: Vec<Vec<char>> = vec![];
+                if !p[i..j].contains(&'-') {
+                    chunks.push(p[i..j].to_vec());
+                } else {
+                    let mut k = if p[i] == '!' { i + 2 } else { i + 1 };
+                    while let Some(at) = (k < j).then(|| p[k..j].iter().position(|&x| x == '-')).flatten() {
+                        let at = k + at;
+                        chunks.push(p[i..at].to_vec());
+                        i = at + 1;
+                        k = at + 3;
+                    }
+                    let chunk = p[i..j].to_vec();
+                    if chunk.is_empty() {
+                        chunks.last_mut().unwrap().push('-');
+                    } else {
+                        chunks.push(chunk);
+                    }
+                    for k in (1..chunks.len()).rev() {
+                        if chunks[k - 1].last() > chunks[k].first() {
+                            let rest = chunks.remove(k);
+                            chunks[k - 1].pop();
+                            chunks[k - 1].extend(&rest[1..]);
+                        }
+                    }
+                }
+                i = j + 1;
+                let body: Vec<char> = chunks.join(&'\u{0}');
+                if body.is_empty() {
+                    out.push_str("[^\\s\\S]"); // never matches
+                } else if body == ['!'] {
+                    out.push('.');
+                } else {
+                    let negate = body[0] == '!';
+                    out.push('[');
+                    if negate {
+                        out.push('^');
+                    }
+                    for &c in &body[negate as usize..] {
+                        if c == '\u{0}' { out.push('-') } else { out.push_str(&lit(c)) }
+                    }
+                    out.push(']');
+                }
+            }
+            c => out.push_str(&lit(c)),
+        }
+    }
+    out.push('$');
+    out
+}
+
 // --- repr ---------------------------------------------------------------------------------------------------------
 
 /// Python's `repr()` of a scalar JSON value (containers fall back to JSON).

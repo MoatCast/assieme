@@ -1159,5 +1159,357 @@
    "in": "nope/*",
    "out": []
   }
+ ],
+ "fnmatchcase": [
+  {
+   "in": [
+    "git push origin main",
+    "git push*"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "git push",
+    "git push*"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "a/b/c",
+    "a*c"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "rm -rf /",
+    "rm -rf *"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "abc",
+    "a?c"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "ac",
+    "a?c"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "a\nb",
+    "a*b"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "abc",
+    "ABC"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "b",
+    "[abc]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "d",
+    "[!abc]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "-",
+    "[a-]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "b",
+    "[a-c]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "b",
+    "[c-a]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "c",
+    "[c-a]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "]",
+    "[]]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "a",
+    "[!]]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "[",
+    "[[]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "[",
+    "["
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "[a",
+    "[a"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "x",
+    "[]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "x",
+    "[!]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "\\",
+    "[\\]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "a\\b",
+    "a\\b"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "{a,b}",
+    "{a,b}"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "a",
+    "{a,b}"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "&",
+    "[&&]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "~",
+    "[~~]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "|",
+    "[a||]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "^",
+    "[^]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "b",
+    "[^a]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    ".",
+    "."
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "x",
+    "."
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "aaa",
+    "***"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "",
+    "*"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "",
+    ""
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "é",
+    "?"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "npm run test",
+    "npm run *"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "a+b",
+    "a+b"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "(x)",
+    "(x)"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "$HOME",
+    "$HOME"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "a",
+    "[a-c-e]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "-",
+    "[a-c-e]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "d",
+    "[a-c-e]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "b",
+    "[!a-c]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "\\",
+    "[a-\\]"
+   ],
+   "out": false
+  },
+  {
+   "in": [
+    "Z",
+    "[A-\\]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "-",
+    "[--0]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "/",
+    "[--0]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "x",
+    "[x-]"
+   ],
+   "out": true
+  },
+  {
+   "in": [
+    "-",
+    "[!x-]"
+   ],
+   "out": false
+  }
  ]
 }

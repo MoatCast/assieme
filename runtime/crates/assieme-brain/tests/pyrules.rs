@@ -85,3 +85,9 @@ fn glob() {
     };
     check("glob", got, |c| c["out"].clone());
 }
+
+#[test]
+fn fnmatchcase() {
+    let got = |c: &Value| json!(pyrules::fnmatchcase(c["in"][0].as_str().unwrap(), c["in"][1].as_str().unwrap()));
+    check("fnmatchcase", got, |c| c["out"].clone());
+}

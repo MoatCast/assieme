@@ -3,6 +3,7 @@ repo's .venv Python: .venv/bin/python runtime/crates/assieme-brain/record/pyrule
 
 The glob cases read the fixture tree tests/data/glob_tree, which this script writes (fixed relative paths)."""
 import datetime as dt
+import fnmatch
 import glob
 import json
 import math
@@ -67,6 +68,16 @@ GLOBS = ['*.jsonl', '*', '*/*.jsonl', '.*', '.*/*.jsonl', 'sub/*', 'sub/.*', '**
          '*.JSONL', 'sub', 'sub/', '*/', 'nope/*']
 
 
+FNMATCH = [('git push origin main', 'git push*'), ('git push', 'git push*'), ('a/b/c', 'a*c'), ('rm -rf /', 'rm -rf *'),
+           ('abc', 'a?c'), ('ac', 'a?c'), ('a\nb', 'a*b'), ('abc', 'ABC'), ('b', '[abc]'), ('d', '[!abc]'),
+           ('-', '[a-]'), ('b', '[a-c]'), ('b', '[c-a]'), ('c', '[c-a]'), (']', '[]]'), ('a', '[!]]'), ('[', '[[]'),
+           ('[', '['), ('[a', '[a'), ('x', '[]'), ('x', '[!]'), ('\\', '[\\]'), ('a\\b', 'a\\b'), ('{a,b}', '{a,b}'),
+           ('a', '{a,b}'), ('&', '[&&]'), ('~', '[~~]'), ('|', '[a||]'), ('^', '[^]'), ('b', '[^a]'), ('.', '.'),
+           ('x', '.'), ('aaa', '***'), ('', '*'), ('', ''), ('é', '?'), ('npm run test', 'npm run *'), ('a+b', 'a+b'),
+           ('(x)', '(x)'), ('$HOME', '$HOME'), ('a', '[a-c-e]'), ('-', '[a-c-e]'), ('d', '[a-c-e]'), ('b', '[!a-c]'),
+           ('\\', '[a-\\]'), ('Z', '[A-\\]'), ('-', '[--0]'), ('/', '[--0]'), ('x', '[x-]'), ('-', '[!x-]')]
+
+
 def canonical(v):
     """Python's value as JSON the Rust test can compare: NaN, infinities and ints past 64 bits are tagged."""
     if isinstance(v, bool) or v is None or isinstance(v, str):
@@ -117,7 +128,8 @@ def main():
            'json_loads': [{'in': s, **loads(s)} for s in JSON],
            'splitlines': [{'in': s, 'out': s.splitlines()} for s in LINES],
            'repr_str': [{'in': s, 'out': repr(s)} for s in REPR],
-           'glob': globs}
+           'glob': globs,
+           'fnmatchcase': [{'in': [name, pat], 'out': fnmatch.fnmatchcase(name, pat)} for name, pat in FNMATCH]}
     with open(os.path.join(DATA, 'pyrules.json'), 'w') as f:
         json.dump(out, f, indent=1, ensure_ascii=False)
         f.write('\n')
