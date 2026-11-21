@@ -1,8 +1,9 @@
 //! `asm cli check-configs`: agent settings that still run the Python brain, which the app no longer carries.
 use crate::prelude::*;
 
-/// What the Python brain's entries contain: `python3 -P -m assieme …`, or a path inside the app's `Resources/python`.
-const OLD: [&str; 2] = ["-m assieme", "Resources/python"];
+/// What the Python brain's entries contain: `python3 -P -m assieme …`, a path inside the app's `Resources/python`, or
+/// the `uv tool install` of the command line (whose arguments a JSON list keeps apart, so `-m assieme` never matches).
+const OLD: [&str; 3] = ["-m assieme", "Resources/python", "uv/tools/assieme"];
 
 /// The files among `files` (team, path) that hold an old entry.
 pub fn stale(files: impl IntoIterator<Item = (String, PathBuf)>) -> Vec<(String, PathBuf)> {
@@ -14,10 +15,16 @@ pub fn stale(files: impl IntoIterator<Item = (String, PathBuf)>) -> Vec<(String,
 
 /// Every settings file Assieme or the agents keep: the person's own, the assistants' plugins, and each team's copies.
 pub fn candidates(home: &Path, state: &Path, teams: &Path) -> Vec<(String, PathBuf)> {
-    let mut files: Vec<(String, PathBuf)> = [".claude/settings.json", ".codex/config.toml", ".codex/hooks.json"]
-        .iter()
-        .map(|f| ("(all teams)".to_string(), home.join(f)))
-        .collect();
+    let mut files: Vec<(String, PathBuf)> = [
+        ".claude/settings.json",
+        ".claude.json",
+        ".codex/config.toml",
+        ".codex/hooks.json",
+        "Library/Application Support/Claude/claude_desktop_config.json",
+    ]
+    .iter()
+    .map(|f| ("(all teams)".to_string(), home.join(f)))
+    .collect();
     for dir in ["assistants-plugin", "agy-plugin", "gemini"] {
         let pattern = state.join(dir).join("**/*").to_string_lossy().into_owned();
         files.extend(glob::glob(&pattern).into_iter().flatten().flatten().map(|p| ("(all teams)".to_string(), p)));
@@ -71,8 +78,20 @@ mod tests {
             r#"{"hooks": {"Stop": [{"command": "/A/Resources/python/bin/python3 -P -m assieme.hook idle"}]}}"#,
         )
         .unwrap();
-        let files = [("a".to_string(), clean), ("b".to_string(), old.clone()), ("c".to_string(), dir.join("missing"))];
-        assert_eq!(stale(files), [("b".to_string(), old)]);
+        // The Claude app keeps the command and its arguments apart, as a list
+        let app = dir.join("claude_desktop_config.json");
+        std::fs::write(
+            &app,
+            r#"{"mcpServers": {"assieme": {"command": "/U/.local/share/uv/tools/assieme/bin/python", "args": ["-P", "-m", "assieme", "mcp"]}}}"#,
+        )
+        .unwrap();
+        let files = [
+            ("a".to_string(), clean),
+            ("b".to_string(), old.clone()),
+            ("c".to_string(), dir.join("missing")),
+            ("d".to_string(), app.clone()),
+        ];
+        assert_eq!(stale(files), [("b".to_string(), old), ("d".to_string(), app)]);
         let _ = std::fs::remove_dir_all(dir);
     }
 }
