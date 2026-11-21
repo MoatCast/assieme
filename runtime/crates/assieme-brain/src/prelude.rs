@@ -10,7 +10,6 @@ pub use crate::server::{BrainError, By, Handlers, Methods};
 pub use crate::status::Agent;
 pub use crate::teammap::Brain;
 pub use jiff::Timestamp;
-pub use regex::Regex;
 pub use serde_json::{Map, Value};
 pub use std::collections::{BTreeMap, BTreeSet};
 pub use std::path::{Path, PathBuf};
