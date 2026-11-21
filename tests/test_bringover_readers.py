@@ -46,7 +46,7 @@ class ClaudeSquad(Home):
         os.makedirs(os.path.join(self.home, '.claude-squad'))
         open(os.path.join(self.home, '.claude-squad', 'state.json'), 'w').write('{not json')
         self.assertEqual(bringover.read_claude_squad(self.home),
-                         ([], "Couldn't read Claude Squad's sessions. Its worktrees are still listed under Other agent work."))
+                         ([], "Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."))
 
 
 class VibeKanban(Home):
@@ -119,7 +119,7 @@ class VibeKanban(Home):
     def test_vibe_missing_columns(self):
         self.db(drop=('workspaces', 'container_ref')).close()
         self.assertEqual(bringover.read_vibe_kanban(self.home),
-                         ([], {}, {}, "This Vibe Kanban version isn't supported yet. Its worktrees are still listed "
+                         ([], {}, {}, "This Vibe Kanban version isn't supported yet. Its agents' copies are still listed "
                                       "under Other agent work."))
 
     def test_vibe_none(self):

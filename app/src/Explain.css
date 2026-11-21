@@ -1,0 +1,10 @@
+.explain { position: relative; display: inline-flex; vertical-align: middle; }
+/* 28 px tall to stay easy to hit; the circle inside is 16 px. */
+.explain-q { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0;
+  border: 0; background: none; color: var(--quiet-slate); font: 600 11px/1 var(--quiet-font-ui); cursor: pointer; }
+.explain-q::before { content: ""; position: absolute; width: 16px; height: 16px; border: 1px solid var(--quiet-line-strong); border-radius: 50%; }
+.explain-q:hover, .explain-q[aria-expanded="true"] { color: var(--quiet-ink); }
+.explain-q:focus-visible { outline: 2px solid var(--quiet-accent); outline-offset: -4px; border-radius: 50%; }
+.explain-text { position: absolute; top: 100%; left: 0; z-index: 20; width: 260px; padding: 10px 12px; background: var(--quiet-surface);
+  border: 1px solid var(--quiet-line); border-radius: var(--quiet-radius-inner); color: var(--quiet-ink); font: 400 13px/18px var(--quiet-font-ui);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--quiet-shade) 15%, transparent); white-space: normal; }

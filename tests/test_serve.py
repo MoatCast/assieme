@@ -11,7 +11,7 @@ import time
 import unittest
 from unittest import mock
 
-from assieme import live, runtime, serve
+from assieme import live, runtime, serve, worktree
 from assieme.status import Agent
 
 NOW = dt.datetime(2026, 11, 7, 12, 0, tzinfo=dt.timezone.utc)
@@ -111,6 +111,12 @@ class HandleTest(unittest.TestCase):
             raise ValueError('bad')
         r = serve.handle({'id': 5, 'method': 'boom'}, {'boom': boom})
         self.assertEqual(r['error']['message'], 'bad')
+
+    def test_an_error_detail_follows_the_message(self):
+        def boom():
+            raise worktree.WorktreeError("Assieme couldn't make builder-1's copy.", 'git worktree add\nfatal: no')
+        r = serve.handle({'id': 6, 'method': 'boom'}, {'boom': boom})
+        self.assertEqual(r['error']['message'], "Assieme couldn't make builder-1's copy.\n\nDetails:\ngit worktree add\nfatal: no")
 
 
 class SocketTest(unittest.TestCase):

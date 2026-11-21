@@ -212,7 +212,7 @@ def read_claude_squad(home):
         if isinstance(instances, str):  # some versions keep the list as a JSON string
             instances = json.loads(instances)
     except (OSError, ValueError, AttributeError):
-        return [], "Couldn't read Claude Squad's sessions. Its worktrees are still listed under Other agent work."
+        return [], "Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."
     out = []
     for i in instances if isinstance(instances, list) else []:
         wt = i.get('worktree') if isinstance(i, dict) else None
@@ -241,7 +241,7 @@ VK_NEEDS = {'projects': {'id', 'name'},
 VK_STATUS = {'todo': 'todo', 'inprogress': 'doing', 'inreview': 'review', 'done': 'done', 'cancelled': 'cancelled'}
 VK_AGENTS = {'CLAUDE_CODE': 'claude', 'CODEX': 'codex', 'GEMINI': 'gemini', 'OPENCODE': 'opencode',
              'CURSOR_AGENT': 'cursor', 'CURSOR': 'cursor'}
-VK_UNSUPPORTED = "This Vibe Kanban version isn't supported yet. Its worktrees are still listed under Other agent work."
+VK_UNSUPPORTED = "This Vibe Kanban version isn't supported yet. Its agents' copies are still listed under Other agent work."
 
 
 def read_vibe_kanban(home):

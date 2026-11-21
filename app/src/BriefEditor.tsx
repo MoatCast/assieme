@@ -160,7 +160,7 @@ export default function BriefEditor({ role, roles, project, installed, kinds, ta
                 )}
               </div>
               <span className="editor-small">
-                {draft.owns!.length ? "Its own worktree. Nobody else edits these." : "Its own worktree. Add files to keep it to just those."}
+                {draft.owns!.length ? "Its own copy. Nobody else edits these." : "Its own copy. Add files to keep it to just those."}
               </span>
             </div>
             <label className="editor-field">

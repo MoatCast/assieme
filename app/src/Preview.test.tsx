@@ -70,13 +70,13 @@ test("a preview started here opens once when it runs; Open preview opens it agai
 
 test("a preview that didn't start says why, shows its last lines, and names what Install and try again runs", async () => {
   b.previewList.mockResolvedValue([P({ state: "failed", url: null, fix: "install", install: "npm install",
-    reason: "npm run dev stopped: vite isn't installed in builder-1's worktree.", output: "sh: vite: command not found" })]);
+    reason: "npm run dev stopped: vite isn't installed in builder-1's copy.", output: "sh: vite: command not found" })]);
   b.previewStart.mockResolvedValue(P({ state: "starting", url: null }));
   render(<Harness />);
   await flush();
   expect(screen.getByText("The preview didn't start")).toBeTruthy();
   expect(screen.getByText("sh: vite: command not found")).toBeTruthy();
-  expect(screen.getByText(/in builder-1's worktree, which downloads its packages/).textContent).toContain("Runs npm install");
+  expect(screen.getByText(/in builder-1's copy, which downloads its packages/).textContent).toContain("Runs npm install");
   fireEvent.click(screen.getByRole("button", { name: "Install and try again" }));
   await flush();
   expect(b.previewStart).toHaveBeenCalledWith("shop", "builder-1", null, true, null);

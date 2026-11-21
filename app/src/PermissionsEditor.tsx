@@ -62,7 +62,7 @@ export default function PermissionsEditor({ role, roles, project, table, asker, 
 
   const item = (key: string) => {
     if (key === "message") return messages(role, roles);
-    if (key === "edit_owned" && !role.owns?.length) return <>Edit any file in its own worktree</>;
+    if (key === "edit_owned" && !role.owns?.length) return <>Edit any file in its own copy</>;
     return <>{table.items[key]?.words ?? key}</>;
   };
   const ruleRow = (r: Rule) => (
