@@ -252,7 +252,7 @@ const FIRST_MESSAGE: &str = "First version, saved by Assieme";
 const BEFORE_TEAM_MESSAGE: &str = "Saved by Assieme before starting a team";
 
 fn real(path: &str) -> String {
-    std::fs::canonicalize(expanduser(path)).map_or_else(|_| expanduser(path), |p| p.to_string_lossy().into_owned())
+    crate::herdr::realpath(&expanduser(path))
 }
 
 /// The home folder or `/`, by resolved path, so `~/`, a trailing slash and a symlink all count.

@@ -245,7 +245,7 @@ fn checkout(cwd: &str) -> (String, Option<String>) {
     let branch = git(&["branch", "--show-current"])
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .filter(|b| !b.is_empty());
-    (crate::quiet::real(&main), branch)
+    (realpath(&main), branch)
 }
 
 // --- Python's `os.path` and `str` ------------------------------------------------------------------------------------
@@ -282,6 +282,30 @@ fn py_normpath(p: &str) -> String {
     let body = out.join("/");
     let joined = format!("{}{body}", "/".repeat(slashes));
     if joined.is_empty() { ".".into() } else { joined }
+}
+
+/// `os.path.realpath`: symlinks resolved as far as the path exists, the rest tidied as it is written.
+pub(crate) fn realpath(p: &str) -> String {
+    let abs = if p.starts_with('/') {
+        p.to_string()
+    } else {
+        format!("{}/{p}", std::env::current_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_default())
+    };
+    let norm = py_normpath(&abs);
+    let (mut cur, mut tail) = (PathBuf::from(&norm), vec![]);
+    loop {
+        if let Ok(mut done) = std::fs::canonicalize(&cur) {
+            done.extend(tail.iter().rev());
+            return done.to_string_lossy().into_owned();
+        }
+        match cur.file_name().map(|n| n.to_os_string()) {
+            Some(name) => {
+                tail.push(name);
+                cur.pop();
+            }
+            None => return norm,
+        }
+    }
 }
 
 fn py_join(a: &str, b: &str) -> String {
@@ -992,7 +1016,7 @@ fn team(env: &Env, members: Vec<Member>, project: Option<String>, mut notes: Vec
         let own = r["name"].as_str().unwrap_or("");
         let Some((main, Some(branch))) = places.get(own) else { continue };
         let cwd = &cwds.iter().find(|(s, _)| s == own).map(|c| c.1.clone()).unwrap_or_default();
-        if r["checkout"] == "branch" && crate::quiet::real(cwd) != *main {
+        if r["checkout"] == "branch" && realpath(cwd) != *main {
             notes.push(("branch".into(), Some(own.into()), branch.clone()));
         }
     }
@@ -1162,7 +1186,7 @@ fn from_script(env: &Env, text: &str, path: &str) -> Value {
         buf.clear();
     }
     lines.extend(buf);
-    let path = crate::quiet::real(path);
+    let path = realpath(path);
     let mut vars: Vars =
         [("HOME", home()), ("0", path.clone()), ("BASH_SOURCE[0]", path.clone()), ("BASH_SOURCE", path.clone())]
             .into_iter()

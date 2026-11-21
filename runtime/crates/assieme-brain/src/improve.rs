@@ -21,7 +21,7 @@ use serde_json::json;
 const ROLE: &str = crate::team::ROLE;
 
 fn real(path: Option<&str>) -> Option<String> {
-    path.filter(|p| !p.is_empty()).map(crate::quiet::real)
+    path.filter(|p| !p.is_empty()).map(crate::herdr::realpath)
 }
 
 fn names(roles: &[String]) -> String {
@@ -525,7 +525,7 @@ fn apply_with(
             let groups: Vec<&Group> = mine.iter().filter_map(|g| on.iter().find(|x| x.0 == *g)).collect();
             let text = note_text(&groups);
             hold(&m.address, cwd, &text);
-            let at = crate::quiet::real(cwd);
+            let at = crate::herdr::realpath(cwd);
             notes.push(json!([m.address, at, text]));
             for g in &mine {
                 sent.push(json!([role, m.address, at, g]));

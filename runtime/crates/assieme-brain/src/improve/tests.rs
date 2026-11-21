@@ -254,7 +254,7 @@ fn applying_holds_one_note_per_agent_and_records_one_row_per_finding() {
 }
 
 fn quiet_real(p: &str) -> String {
-    crate::quiet::real(p)
+    crate::herdr::realpath(p)
 }
 
 #[test]

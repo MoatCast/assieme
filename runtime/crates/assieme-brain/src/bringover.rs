@@ -87,7 +87,7 @@ pub(crate) struct Proc {
 }
 
 fn real(p: &str) -> String {
-    crate::quiet::real(p)
+    crate::herdr::realpath(p)
 }
 
 // --- what agents ran where -------------------------------------------------------------------------------------------
