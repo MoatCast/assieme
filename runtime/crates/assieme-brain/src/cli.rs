@@ -247,6 +247,8 @@ pub fn brain() -> (Arc<Methods>, Loop) {
     activity::register_merge(reviews.clone());
     let previews = Arc::new(preview::Previews::new(reviews.clone()));
     previews.stop_left_behind();
+    let stopper = previews.clone();
+    reviews.set_on_archive(Box::new(move |team, role| stopper.stop(team, role))); // archiving a review stops its preview
     let menu = Arc::new(menubar::Menubar::new(brain.clone(), reviews.clone()));
     let watching = {
         let menu = menu.clone();
