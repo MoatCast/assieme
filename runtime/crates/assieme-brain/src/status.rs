@@ -994,7 +994,8 @@ pub fn owner_queue(agents: &[Agent], now: Timestamp) -> Vec<Value> {
 }
 
 pub fn now_utc() -> Timestamp {
-    Timestamp::now()
+    // The replay harness pins the clock.
+    std::env::var("ASSIEME_NOW").ok().and_then(|v| v.parse().ok()).unwrap_or_else(Timestamp::now)
 }
 /// (headline, alerts).
 pub fn summary(agents: &[Agent]) -> (String, Vec<String>) {

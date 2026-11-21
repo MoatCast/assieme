@@ -493,7 +493,8 @@ def to_json(agents, now):
 
 
 def now_utc():
-    return dt.datetime.now(dt.timezone.utc)
+    pinned = os.environ.get('ASSIEME_NOW')  # the replay harness pins the clock
+    return dt.datetime.fromisoformat(pinned) if pinned else dt.datetime.now(dt.timezone.utc)
 
 
 def _wait_edges(agents, alias):
