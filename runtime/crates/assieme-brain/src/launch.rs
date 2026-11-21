@@ -4,9 +4,9 @@
 //!
 //! The brief is not on the command line: it is sent after the agent's first turn ends.
 //!
-//! What the permission, tool and container modules (session D2) give a command line comes through [`Policy`]: those
-//! modules had no declared functions when this was written. `policy()` names the one place to wire them.
+//! What the permission, tool and container modules (session D2) give a command line comes through [`d2`].
 use crate::prelude::*;
+use regex::Regex;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::sync::mpsc;
@@ -68,194 +68,65 @@ pub fn check_model_effort(agent: &str, model: Option<&str>, effort: Option<&str>
     }
 }
 
-/// What session D2's modules give a command line, by the names they have in Python. Until they are declared, the
-/// brain wires them in [`Wired`].
-pub trait Policy: Send + Sync {
-    /// `permissions.LEVELS`.
-    fn levels(&self) -> Vec<String>;
-    fn check_owns(&self, owns: &[String]) -> Option<String>;
-    fn check_rules(&self, rules: &[Value]) -> Option<String>;
-    /// `permissions.check_rule`: the validated program, or the problem.
-    fn check_rule(&self, decision: Option<&Value>, program: Option<&Value>) -> Result<Vec<String>, String>;
-    /// `permissions.table`.
-    fn table(&self) -> Value;
-    /// `permissions.claude`: (allow, deny).
-    fn claude(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> (Vec<String>, Vec<String>);
-    fn codex_args(&self, role: &Role) -> Vec<String>;
-    fn write_codex_rules(&self, cwd: &str, roles: &[&Role]);
-    /// The policy file's path, or None.
-    fn write_gemini_policy(&self, cwd: &str, role: &Role, test: Option<Vec<String>>) -> Option<String>;
-    fn opencode(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value>;
-    fn cursor(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value>;
-    fn antigravity(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value>;
-    /// `tools.off`: the ids turned off for this role among these items.
-    fn tools_off(&self, role: &Role, items: &[Value]) -> BTreeSet<String>;
-    fn skill_paths(&self, kind: &str, cwd: &str) -> BTreeMap<String, String>;
-    fn extension_servers(&self) -> BTreeMap<String, Vec<String>>;
-    /// `container.run_argv`.
-    fn container_run_argv(
-        &self,
-        role: &Role,
-        argv: &[String],
-        env: &BTreeMap<String, String>,
-        cwd: &str,
-        name: &str,
-        bridge: Option<&str>,
-    ) -> Vec<String>;
-    /// `review.test_command`: the project's test command, or None.
-    fn test_command(&self, cwd: &str) -> Option<Vec<String>>;
-    /// `container.problem`: why a container cannot run this agent, or None.
-    fn container_problem(&self, agent: &str) -> Option<String>;
-}
-
-/// The wiring to session D2's modules. Each body becomes a call to the function named in it.
-pub struct Wired;
-
+/// What session D2's modules give a command line. They had no declared functions when this was written: each body
+/// becomes a call to the function named in it.
 #[allow(clippy::todo, unused_variables)]
-impl Policy for Wired {
-    fn levels(&self) -> Vec<String> {
+pub mod d2 {
+    use crate::prelude::*;
+    use std::collections::{BTreeMap, BTreeSet};
+
+    pub fn levels() -> Vec<String> {
         todo!("permissions.LEVELS")
     }
-    fn check_owns(&self, owns: &[String]) -> Option<String> {
+    pub fn check_owns(owns: &[String]) -> Option<String> {
         todo!("permissions.check_owns")
     }
-    fn check_rules(&self, rules: &[Value]) -> Option<String> {
+    pub fn check_rules(rules: &[Value]) -> Option<String> {
         todo!("permissions.check_rules")
     }
-    fn check_rule(&self, decision: Option<&Value>, program: Option<&Value>) -> Result<Vec<String>, String> {
+    pub fn check_rule(decision: Option<&Value>, program: Option<&Value>) -> Result<Vec<String>, String> {
         todo!("permissions.check_rule")
     }
-    fn table(&self) -> Value {
+    pub fn table() -> Value {
         todo!("permissions.table")
     }
-    fn claude(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> (Vec<String>, Vec<String>) {
+    /// (allow, deny)
+    pub fn claude(role: &Role, cwd: &str, test: Option<Vec<String>>) -> (Vec<String>, Vec<String>) {
         todo!("permissions.claude")
     }
-    fn codex_args(&self, role: &Role) -> Vec<String> {
+    pub fn codex_args(role: &Role) -> Vec<String> {
         todo!("permissions.codex_args")
     }
-    fn write_codex_rules(&self, cwd: &str, roles: &[&Role]) {
+    pub fn write_codex_rules(cwd: &str, roles: &[&Role]) {
         todo!("permissions.write_codex_rules")
     }
-    fn write_gemini_policy(&self, cwd: &str, role: &Role, test: Option<Vec<String>>) -> Option<String> {
+    pub fn write_gemini_policy(cwd: &str, role: &Role, test: Option<Vec<String>>) -> Option<String> {
         todo!("permissions.write_gemini_policy")
     }
-    fn opencode(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
+    pub fn opencode(role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
         todo!("permissions.opencode")
     }
-    fn cursor(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
+    pub fn cursor(role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
         todo!("permissions.cursor")
     }
-    fn antigravity(&self, role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
+    pub fn antigravity(role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Value> {
         todo!("permissions.antigravity")
     }
-    fn tools_off(&self, role: &Role, items: &[Value]) -> BTreeSet<String> {
+    pub fn tools_off(role: &Role, items: &[Value]) -> BTreeSet<String> {
         todo!("tools.off")
     }
-    fn skill_paths(&self, kind: &str, cwd: &str) -> BTreeMap<String, String> {
+    pub fn skill_paths(kind: &str, cwd: &str) -> BTreeMap<String, String> {
         todo!("tools.skill_paths")
     }
-    fn extension_servers(&self) -> BTreeMap<String, Vec<String>> {
+    pub fn extension_servers() -> BTreeMap<String, Vec<String>> {
         todo!("tools.extension_servers")
     }
-    fn container_run_argv(
-        &self,
-        role: &Role,
-        argv: &[String],
-        env: &BTreeMap<String, String>,
-        cwd: &str,
-        name: &str,
-        bridge: Option<&str>,
-    ) -> Vec<String> {
+    pub fn container_run_argv(role: &Role, argv: &[String], env: &BTreeMap<String, String>, cwd: &str, name: &str, bridge: Option<&str>) -> Vec<String> {
         todo!("container.run_argv")
     }
-    fn test_command(&self, cwd: &str) -> Option<Vec<String>> {
-        crate::review::test_command(Path::new(cwd))
-    }
-    fn container_problem(&self, agent: &str) -> Option<String> {
+    pub fn container_problem(agent: &str) -> Option<String> {
         todo!("container.problem")
     }
-}
-
-/// Nothing turned on and nothing refused: what this module's own tests run against.
-#[cfg(test)]
-pub struct Plain;
-
-#[cfg(test)]
-impl Policy for Plain {
-    fn levels(&self) -> Vec<String> {
-        ["safe", "read-only", "trusted"].map(String::from).to_vec()
-    }
-    fn check_owns(&self, _: &[String]) -> Option<String> {
-        None
-    }
-    fn check_rules(&self, _: &[Value]) -> Option<String> {
-        None
-    }
-    fn check_rule(&self, _: Option<&Value>, program: Option<&Value>) -> Result<Vec<String>, String> {
-        Ok(serde_json::from_value(program.cloned().unwrap_or_default()).unwrap_or_default())
-    }
-    fn table(&self) -> Value {
-        json!({})
-    }
-    fn claude(&self, _: &Role, _: &str, _: Option<Vec<String>>) -> (Vec<String>, Vec<String>) {
-        (vec![], vec![])
-    }
-    fn codex_args(&self, _: &Role) -> Vec<String> {
-        vec![]
-    }
-    fn write_codex_rules(&self, _: &str, _: &[&Role]) {}
-    fn write_gemini_policy(&self, _: &str, _: &Role, _: Option<Vec<String>>) -> Option<String> {
-        None
-    }
-    fn opencode(&self, _: &Role, _: &str, _: Option<Vec<String>>) -> Option<Value> {
-        None
-    }
-    fn cursor(&self, _: &Role, _: &str, _: Option<Vec<String>>) -> Option<Value> {
-        None
-    }
-    fn antigravity(&self, _: &Role, _: &str, _: Option<Vec<String>>) -> Option<Value> {
-        None
-    }
-    fn tools_off(&self, _: &Role, _: &[Value]) -> BTreeSet<String> {
-        BTreeSet::new()
-    }
-    fn skill_paths(&self, _: &str, _: &str) -> BTreeMap<String, String> {
-        BTreeMap::new()
-    }
-    fn extension_servers(&self) -> BTreeMap<String, Vec<String>> {
-        BTreeMap::new()
-    }
-    fn container_run_argv(
-        &self,
-        _: &Role,
-        argv: &[String],
-        env: &BTreeMap<String, String>,
-        _: &str,
-        name: &str,
-        _: Option<&str>,
-    ) -> Vec<String> {
-        let mut out = vec!["docker".to_string(), "run".to_string(), name.to_string()];
-        out.extend(env.iter().map(|(k, v)| format!("{k}={v}")));
-        out.extend(argv.iter().cloned());
-        out
-    }
-    fn test_command(&self, _: &str) -> Option<Vec<String>> {
-        None
-    }
-    fn container_problem(&self, _: &str) -> Option<String> {
-        None
-    }
-}
-
-#[cfg(not(test))]
-pub fn policy() -> &'static dyn Policy {
-    &Wired
-}
-
-#[cfg(test)]
-pub fn policy() -> &'static dyn Policy {
-    &Plain
 }
 
 type Which<'a> = &'a dyn Fn(&str) -> Option<PathBuf>;
@@ -282,9 +153,8 @@ const HOOKS: [(&str, &str); 4] =
 
 /// The program that runs hooks and the team tools: this one, unless a container's own is named.
 fn asm_exe(exe: Option<&str>) -> String {
-    exe.map(String::from).unwrap_or_else(|| {
-        std::env::current_exe().map_or_else(|_| "asm".into(), |p| p.to_string_lossy().into_owned())
-    })
+    exe.map(String::from)
+        .unwrap_or_else(|| std::env::current_exe().map_or_else(|_| "asm".into(), |p| p.to_string_lossy().into_owned()))
 }
 
 /// `exe` runs it: this program on the Mac, the image's own in a container.
@@ -293,8 +163,7 @@ pub fn hook_command(state: &str, exe: Option<&str>) -> String {
 }
 
 /// What marks an entry in an agent's settings as Assieme's own.
-static OURS: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"hook (idle|working|blocked)\b").expect("a fixed pattern"));
+static OURS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"hook (idle|working|blocked)\b").expect("a fixed pattern"));
 
 fn is_ours(entry: &Value) -> bool {
     OURS.is_match(&entry.to_string())
@@ -304,8 +173,8 @@ fn mcp(exe: Option<&str>) -> Value {
     json!({"command": asm_exe(exe), "args": ["mcp"]})
 }
 
-fn test_command(cwd: Option<&str>) -> Option<Vec<String>> {
-    cwd.and_then(|c| policy().test_command(c))
+fn test_for(role: &Role, cwd: Option<&str>) -> Option<Vec<String>> {
+    cwd.filter(|_| role.level.is_some()).and_then(|c| crate::review::test_command(Path::new(c)))
 }
 
 fn limits(role: &Role, cwd: Option<&str>) -> BTreeSet<String> {
@@ -315,7 +184,7 @@ fn limits(role: &Role, cwd: Option<&str>) -> BTreeSet<String> {
         return BTreeSet::new();
     }
     let items = tool_items(&role.agent, cwd, own(role));
-    policy().tools_off(role, &items)
+    d2::tools_off(role, &items)
 }
 
 fn tool_items(kind: &str, cwd: Option<&str>, own_copy: bool) -> Vec<Value> {
@@ -338,8 +207,8 @@ fn strings<S: AsRef<str>>(v: &[S]) -> Vec<String> {
 
 fn claude(role: &Role, cwd: Option<&str>, exe: Option<&str>) -> Vec<String> {
     // Its own team's message and report tools: asking the person about each one would defeat them.
-    let test = if role.level.is_some() { test_command(cwd) } else { None };
-    let (allow, deny) = policy().claude(role, cwd.unwrap_or(""), test);
+    let test = test_for(role, cwd);
+    let (allow, deny) = d2::claude(role, cwd.unwrap_or(""), test);
     let allow: Vec<String> = std::iter::once("mcp__assieme".to_string()).chain(allow).collect();
     let mut perms = json!({ "allow": allow });
     if !deny.is_empty() {
@@ -356,7 +225,8 @@ fn claude(role: &Role, cwd: Option<&str>, exe: Option<&str>) -> Vec<String> {
         settings["deniedMcpServers"] = off_of(&off, "server").iter().map(|n| json!({"serverName": n})).collect();
     }
     if !off_of(&off, "plugin").is_empty() {
-        settings["enabledPlugins"] = off_of(&off, "plugin").iter().map(|n| (n.clone(), json!(false))).collect::<Map<_, _>>().into();
+        settings["enabledPlugins"] =
+            off_of(&off, "plugin").iter().map(|n| (n.clone(), json!(false))).collect::<Map<_, _>>().into();
     }
     let mut a = strings(&["claude", "--settings"]);
     a.push(settings.to_string());
@@ -446,7 +316,8 @@ fn codex(role: &Role, exe: Option<&str>, cwd: Option<&str>) -> Vec<String> {
     let m = mcp(exe);
     c(format!("mcp_servers.assieme.command={}", m["command"]));
     c(format!("mcp_servers.assieme.args={}", m["args"]));
-    c("mcp_servers.assieme.env_vars=[\"ASM_SESSION\",\"ASM_TERMINAL_ID\",\"XDG_STATE_HOME\",\"ASSIEME_BRIDGE\"]".into());
+    c("mcp_servers.assieme.env_vars=[\"ASM_SESSION\",\"ASM_TERMINAL_ID\",\"XDG_STATE_HOME\",\"ASSIEME_BRIDGE\"]"
+        .into());
     c("mcp_servers.assieme.default_tools_approval_mode=\"approve\"".into());
     if let Some(m) = &role.model {
         a.extend(["-m".into(), m.clone()]);
@@ -459,17 +330,15 @@ fn codex(role: &Role, exe: Option<&str>, cwd: Option<&str>) -> Vec<String> {
         a.extend(["-c".into(), format!("mcp_servers.{}.enabled=false", toml_key(&n))]);
     }
     let paths = match cwd {
-        Some(c) if !off_of(&off, "skill").is_empty() => policy().skill_paths("codex", c),
+        Some(c) if !off_of(&off, "skill").is_empty() => d2::skill_paths("codex", c),
         _ => BTreeMap::new(),
     };
-    let skills: Vec<String> = off
-        .iter()
-        .filter_map(|i| paths.get(i).map(|p| format!("{{path={},enabled=false}}", json!(p))))
-        .collect();
+    let skills: Vec<String> =
+        off.iter().filter_map(|i| paths.get(i).map(|p| format!("{{path={},enabled=false}}", json!(p)))).collect();
     if !skills.is_empty() {
         a.extend(["-c".into(), format!("skills.config=[{}]", skills.join(","))]);
     }
-    a.extend(policy().codex_args(role)); // its program rules are a file in its worktree (team writes it)
+    a.extend(d2::codex_args(role)); // its program rules are a file in its worktree (team writes it)
     if role.checkout == "read-only" && !a.iter().any(|x| x == "--sandbox") {
         a.extend(strings(&["--sandbox", "read-only"]));
     }
@@ -583,8 +452,8 @@ fn gemini(role: &Role, cwd: &str, exe: Option<&str>, trusted: bool) -> Built {
     if role.checkout == "read-only" || role.level.as_deref() == Some("read-only") {
         a.extend(strings(&["--approval-mode", "plan"]));
     }
-    let test = if role.level.is_some() { test_command(Some(cwd)) } else { None };
-    if let Some(policy_file) = policy().write_gemini_policy(cwd, role, test) {
+    let test = test_for(role, Some(cwd));
+    if let Some(policy_file) = d2::write_gemini_policy(cwd, role, test) {
         // its level and the person's rules; the workspace policy folder isn't read yet, so it is named here
         crate::worktree::exclude(cwd, &format!("/{}", crate::permissions::GEMINI_POLICY));
         a.extend(["--policy".into(), policy_file]);
@@ -593,8 +462,7 @@ fn gemini(role: &Role, cwd: &str, exe: Option<&str>, trusted: bool) -> Built {
     let name = |i: &Value| i["name"].as_str().unwrap_or("").to_string();
     if !off_of(&off, "server").is_empty() {
         // these take lists, so they go last; an extension's own servers stay allowed with it
-        let kept = policy()
-            .extension_servers()
+        let kept = d2::extension_servers()
             .into_iter()
             .filter(|(ext, _)| !off.contains(&format!("extension:{ext}")))
             .flat_map(|(_, names)| names);
@@ -608,7 +476,11 @@ fn gemini(role: &Role, cwd: &str, exe: Option<&str>, trusted: bool) -> Built {
         a.push("-e".into());
         a.extend(if names.is_empty() { vec!["none".to_string()] } else { names });
     }
-    let env = if trusted { BTreeMap::from([("GEMINI_CLI_TRUST_WORKSPACE".to_string(), "true".to_string())]) } else { BTreeMap::new() };
+    let env = if trusted {
+        BTreeMap::from([("GEMINI_CLI_TRUST_WORKSPACE".to_string(), "true".to_string())])
+    } else {
+        BTreeMap::new()
+    };
     (a, env)
 }
 
@@ -653,7 +525,8 @@ fn opencode_major(path: &str) -> u32 {
     let (tx, rx) = mpsc::channel();
     let program = path.to_string();
     std::thread::spawn(move || {
-        let _ = tx.send(std::process::Command::new(program).arg("--version").stdin(std::process::Stdio::null()).output());
+        let _ =
+            tx.send(std::process::Command::new(program).arg("--version").stdin(std::process::Stdio::null()).output());
     });
     let major = rx
         .recv_timeout(Duration::from_secs(10))
@@ -661,8 +534,7 @@ fn opencode_major(path: &str) -> u32 {
         .and_then(Result::ok)
         .and_then(|o| {
             let out = String::from_utf8_lossy(&o.stdout).into_owned();
-            let m = Regex::new(r"(\d+)\.\d+").ok()?.captures(&out)?[1].parse().ok();
-            m
+            Regex::new(r"(\d+)\.\d+").ok()?.captures(&out)?[1].parse().ok()
         })
         .unwrap_or(1);
     OPENCODE_MAJOR.lock().unwrap_or_else(|p| p.into_inner()).insert(path.to_string(), major);
@@ -677,8 +549,8 @@ fn opencode(role: &Role, cwd: &str, exe: Option<&str>, which: Which) -> Built {
     if role.checkout == "read-only" {
         config["permission"] = json!({"edit": "deny"});
     }
-    let test = if role.level.is_some() { test_command(Some(cwd)) } else { None };
-    if let Some(Value::Object(mut perms)) = policy().opencode(role, cwd, test) {
+    let test = test_for(role, Some(cwd));
+    if let Some(Value::Object(mut perms)) = d2::opencode(role, cwd, test) {
         if role.checkout == "read-only" {
             perms.insert("edit".into(), json!("deny"));
         }
@@ -726,7 +598,8 @@ pub fn unmerge(cwd: &str) {
         }
         if let Some(Value::Object(hooks)) = data.get_mut("hooks") {
             for entries in hooks.values_mut() {
-                let kept: Vec<Value> = entries.as_array().into_iter().flatten().filter(|e| !is_ours(e)).cloned().collect();
+                let kept: Vec<Value> =
+                    entries.as_array().into_iter().flatten().filter(|e| !is_ours(e)).cloned().collect();
                 *entries = Value::Array(kept);
             }
         }
@@ -744,7 +617,11 @@ pub fn unmerge(cwd: &str) {
         }
         for key in ["mcpServers", "hooks"] {
             if let Some(Value::Object(m)) = data.get_mut(key) {
-                m.retain(|_, v| !matches!(v, Value::Null) && !v.as_array().is_some_and(Vec::is_empty) && v.as_object().is_none_or(|o| !o.is_empty()));
+                m.retain(|_, v| {
+                    !matches!(v, Value::Null)
+                        && !v.as_array().is_some_and(Vec::is_empty)
+                        && v.as_object().is_none_or(|o| !o.is_empty())
+                });
                 if m.is_empty() {
                     data.remove(key);
                 }
@@ -784,10 +661,24 @@ fn cursor_permissions(cwd: &str, ours: &Value) {
     let perms = data.entry("permissions").or_insert_with(|| json!({}));
     for key in ["allow", "deny"] {
         let old: Vec<Value> = before.get(key).and_then(Value::as_array).cloned().unwrap_or_default();
-        let mut list: Vec<Value> = perms.get(key).and_then(Value::as_array).into_iter().flatten().filter(|x| !old.contains(x)).cloned().collect();
+        let mut list: Vec<Value> = perms
+            .get(key)
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter(|x| !old.contains(x))
+            .cloned()
+            .collect();
         list.extend(ours.get(key).and_then(Value::as_array).cloned().unwrap_or_default());
         let mut seen: Vec<Value> = vec![];
-        list.retain(|x| if seen.contains(x) { false } else { seen.push(x.clone()); true });
+        list.retain(|x| {
+            if seen.contains(x) {
+                false
+            } else {
+                seen.push(x.clone());
+                true
+            }
+        });
         perms[key] = Value::Array(list);
     }
     let was_tracked = tracked(cwd, CURSOR_CLI);
@@ -805,8 +696,12 @@ fn cursor(role: &Role, cwd: &str, exe: Option<&str>, trusted: bool) -> Built {
     // Cursor reads hooks and MCP servers only from files, so they go in the agent's own folder.
     let hook = |s: &str| json!([{"command": hook_command(s, exe)}]);
     let obj = |v: Value| v.as_object().cloned().unwrap_or_default();
-    merge(cwd, ".cursor/hooks.json", &obj(json!({"version": 1, "hooks": {
-        "sessionStart": hook("idle"), "beforeSubmitPrompt": hook("working"), "stop": hook("idle")}})));
+    merge(
+        cwd,
+        ".cursor/hooks.json",
+        &obj(json!({"version": 1, "hooks": {
+        "sessionStart": hook("idle"), "beforeSubmitPrompt": hook("working"), "stop": hook("idle")}})),
+    );
     // Cursor hands MCP servers none of the terminal's variables: these say which agent this is (as Codex's env_vars).
     let passed: Map<String, Value> = ["ASM_SESSION", "ASM_TERMINAL_ID", "XDG_STATE_HOME", "ASSIEME_BRIDGE"]
         .iter()
@@ -818,7 +713,8 @@ fn cursor(role: &Role, cwd: &str, exe: Option<&str>, trusted: bool) -> Built {
     if let Some(mut data) = mcp_data.clone().filter(|_| own(role)) {
         // its own copy only: shared-folder servers are locked
         let off = off_of(&limits(role, Some(cwd)), "server");
-        let before: BTreeSet<String> = data["mcpServers"].as_object().into_iter().flatten().map(|(k, _)| k.clone()).collect();
+        let before: BTreeSet<String> =
+            data["mcpServers"].as_object().into_iter().flatten().map(|(k, _)| k.clone()).collect();
         if let Some(Value::Object(servers)) = data.get_mut("mcpServers") {
             for (n, v) in committed(cwd, ".cursor/mcp.json", &["mcpServers"]).as_object().into_iter().flatten() {
                 // one turned back on returns
@@ -836,14 +732,15 @@ fn cursor(role: &Role, cwd: &str, exe: Option<&str>, trusted: bool) -> Built {
             }
         }
     }
-    let test = if role.level.is_some() { test_command(Some(cwd)) } else { None };
-    let mut ours = policy().cursor(role, cwd, test).unwrap_or_else(|| json!({"allow": [], "deny": []}));
+    let test = test_for(role, Some(cwd));
+    let mut ours = d2::cursor(role, cwd, test).unwrap_or_else(|| json!({"allow": [], "deny": []}));
     let mut allow = vec![json!("Mcp(assieme:*)")]; // its own team's tools: asking about each would defeat them
     allow.extend(ours["allow"].as_array().cloned().unwrap_or_default());
     ours["allow"] = Value::Array(allow);
     cursor_permissions(cwd, &ours);
     // Approving MCP servers approves them all: only when Assieme's is the only one there.
-    let alone = mcp_data.is_some_and(|d| d["mcpServers"].as_object().is_some_and(|m| m.len() == 1 && m.contains_key("assieme")));
+    let alone = mcp_data
+        .is_some_and(|d| d["mcpServers"].as_object().is_some_and(|m| m.len() == 1 && m.contains_key("assieme")));
     let mut a = strings(&["cursor-agent"]);
     if alone {
         a.push("--approve-mcps".into());
@@ -874,8 +771,8 @@ fn antigravity(role: &Role, cwd: &str, exe: Option<&str>, trusted: bool) -> Buil
             .expect("an object"),
     );
     let mut session = json!({"toolPermission": "request-review", "showFeedbackSurvey": false}); // anything not named asks
-    let test = if role.level.is_some() { test_command(Some(cwd)) } else { None };
-    let mut perms = policy().antigravity(role, cwd, test).unwrap_or_else(|| json!({"allow": []}));
+    let test = test_for(role, Some(cwd));
+    let mut perms = d2::antigravity(role, cwd, test).unwrap_or_else(|| json!({"allow": []}));
     // Its own team's tools, as for Claude Code: asking the person about each message would defeat them. The plugin's
     // server is named "<plugin>_<server>".
     let mut allow = vec![json!(format!("mcp({AGY_SERVER}/*)"))];
@@ -954,7 +851,7 @@ pub fn argv_with(
     if role.container {
         let (a, extra) = build(Some("asm"))?;
         let env: BTreeMap<String, String> = push.into_iter().chain(extra).collect();
-        return Ok(policy().container_run_argv(role, &a, &env, cwd, terminal.unwrap_or(&role.name), bridge));
+        return Ok(d2::container_run_argv(role, &a, &env, cwd, terminal.unwrap_or(&role.name), bridge));
     }
     let (mut a, extra) = build(None)?;
     if let Some(found) = which(&a[0]) {
@@ -964,11 +861,15 @@ pub fn argv_with(
     if Path::new(&a[0]).is_absolute() {
         // An npm-installed agent is a `#!/usr/bin/env node` script whose node sits beside it, and the core may be
         // older than this brain, with a shorter PATH. Quiet send's folder stays first, as the core sets it.
-        let shim = crate::quiet::shim_dir().to_string_lossy().into_owned();
+        // quiet send's folder, `quiet::shim_dir()`: the state folder's `bin`
+        let shim = crate::quiet::state_dir().join("bin").to_string_lossy().into_owned();
         let folder = Path::new(&a[0]).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
         let current = std::env::var("PATH").unwrap_or_default();
         let rest = current.split(':').filter(|p| !p.is_empty() && *p != shim && *p != folder);
-        env.insert("PATH".into(), [shim.as_str(), folder.as_str()].into_iter().chain(rest).collect::<Vec<_>>().join(":"));
+        env.insert(
+            "PATH".into(),
+            [shim.as_str(), folder.as_str()].into_iter().chain(rest).collect::<Vec<_>>().join(":"),
+        );
     }
     if env.is_empty() {
         return Ok(a);
@@ -993,242 +894,51 @@ pub fn argv(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::worktree::run;
 
-    fn role(agent: &str) -> Role {
-        Role { name: "r".into(), agent: agent.into(), checkout: "branch".into(), tools_new: true, ..Role::default() }
-    }
-
-    fn nowhere(_: &str) -> Option<PathBuf> {
-        None
-    }
-
-    fn folder() -> (tempfile::TempDir, String) {
+    fn repo() -> (tempfile::TempDir, String) {
         let d = tempfile::tempdir().unwrap();
         let p = std::fs::canonicalize(d.path()).unwrap().to_string_lossy().into_owned();
         for a in [vec!["init", "-q", "-b", "main"], vec!["config", "user.name", "T"], vec!["config", "user.email", "t@t"]] {
-            assert!(crate::worktree::run(&p, &a).ok);
+            assert!(run(&p, &a).ok);
         }
         std::fs::write(format!("{p}/f"), "x").unwrap();
-        assert!(crate::worktree::run(&p, &["add", "."]).ok);
-        assert!(crate::worktree::run(&p, &["commit", "-q", "-m", "x"]).ok);
+        assert!(run(&p, &["add", "."]).ok && run(&p, &["commit", "-q", "-m", "x"]).ok);
         (d, p)
     }
 
-    fn json_arg(a: &[String], flag: &str) -> Value {
-        let i = a.iter().position(|x| x == flag).expect("flag present");
-        serde_json::from_str(&a[i + 1]).unwrap()
+    fn read(p: &str, rel: &str) -> Value {
+        serde_json::from_str(&std::fs::read_to_string(format!("{p}/{rel}")).unwrap()).unwrap()
     }
 
     #[test]
-    fn model_and_effort_are_checked_in_words() {
-        assert_eq!(check_model_effort("claude", Some("opus"), Some("high")), None);
-        assert_eq!(check_model_effort("claude", Some("--evil"), None).unwrap(), "Model names use letters, digits, dots and dashes.");
-        assert_eq!(check_model_effort("codex", Some("a b"), None).is_some(), true);
-        assert_eq!(check_model_effort("gemini", None, Some("high")).unwrap(), "Gemini CLI has no thinking effort \"high\".");
-        assert_eq!(check_model_effort("codex", None, Some("ultra")), None);
-        assert!(check_model_effort("claude", None, Some("ultra")).is_some());
-        assert_eq!(check_model_effort("claude", Some(""), Some("")), None);
-    }
-
-    #[test]
-    fn only_programs_that_are_missing_are_named_and_containers_bring_their_own() {
-        let roles = [role("claude"), role("claude"), role("codex"), Role { container: true, ..role("gemini") }];
-        let which = |n: &str| (n == "claude").then(|| PathBuf::from("/bin/claude"));
-        assert_eq!(missing_clis_with(&roles, &which), ["codex"]);
-    }
-
-    #[test]
-    fn the_hook_is_asm_hook_with_a_quoted_path() {
-        assert_eq!(hook_command("idle", Some("/a b/asm")), "'/a b/asm' hook idle");
-        assert_eq!(hook_command("blocked", Some("asm")), "asm hook blocked");
-    }
-
-    #[test]
-    fn claude_gets_hooks_team_tools_and_the_role_s_options() {
-        let r = Role { model: Some("opus".into()), effort: Some("high".into()), checkout: "read-only".into(), level: Some("safe".into()), cont: true, ..role("claude") };
-        let a = claude(&r, Some("/w"), Some("asm"));
-        assert_eq!(a[0], "claude");
-        let settings = json_arg(&a, "--settings");
-        assert_eq!(settings["permissions"]["allow"], json!(["mcp__assieme"]));
-        assert_eq!(settings["hooks"]["PermissionRequest"][0]["hooks"][0]["command"], "asm hook blocked");
-        assert_eq!(json_arg(&a, "--mcp-config"), json!({"mcpServers": {"assieme": {"command": "asm", "args": ["mcp"]}}}));
-        let joined = a.join(" ");
-        for want in ["--model opus", "--effort high", "--permission-mode default", "--disallowedTools Edit Write NotebookEdit", "--continue"] {
-            assert!(joined.contains(want), "{want} in {joined}");
-        }
-        assert!(!claude(&role("claude"), Some("/w"), None).join(" ").contains("--permission-mode"));
-    }
-
-    #[test]
-    fn a_resume_wins_over_continue_but_only_where_its_folder_is() {
-        let tmp = tempfile::tempdir().unwrap();
-        let there = tmp.path().to_string_lossy().into_owned();
-        let r = Role { resume: Some("abc-1".into()), worktree: Some(there), cont: true, ..role("claude") };
-        assert!(claude(&r, None, None).join(" ").contains("--resume abc-1"));
-        let gone = Role { worktree: Some("/no/such/folder".into()), ..r };
-        let a = claude(&gone, None, None).join(" ");
-        assert!(!a.contains("--resume") && a.contains("--continue"));
-    }
-
-    #[test]
-    fn codex_trusts_exactly_our_four_hooks_and_resumes() {
-        let r = Role { resume: Some("s-1".into()), checkout: "read-only".into(), model: Some("gpt".into()), effort: Some("high".into()), ..role("codex") };
-        let a = codex(&r, Some("asm"), None);
-        assert_eq!(a[..3], ["codex", "resume", "s-1"]);
-        let state = a.iter().find(|x| x.starts_with("hooks.state=")).unwrap();
-        assert_eq!(state.matches("trusted_hash").count(), 4);
-        assert!(state.contains(&codex_hook_hash("Stop", "asm hook idle")));
-        assert!(a.join(" ").contains("model_reasoning_effort=\"high\""));
-        assert_eq!(a[a.len() - 2..], ["--sandbox", "read-only"]);
-        assert_eq!(codex_hook_hash("Stop", "x"), codex_hook_hash("Stop", "x"));
-        assert_ne!(codex_hook_hash("Stop", "x"), codex_hook_hash("Stop", "y"));
-        assert!(codex_hook_hash("Stop", "x").starts_with("sha256:") && codex_hook_hash("Stop", "x").len() == 71);
-    }
-
-    #[test]
-    fn codex_hash_matches_the_normalised_identity() {
-        // sha256 of the sorted, compact JSON Codex normalises a command hook to
-        let ident = r#"{"event_name":"Stop","hooks":[{"async":false,"command":"c","timeout":600,"type":"command"}]}"#;
-        let want = format!("sha256:{}", Sha256::digest(ident).iter().map(|b| format!("{b:02x}")).collect::<String>());
-        assert_eq!(codex_hook_hash("Stop", "c"), want);
-    }
-
-    #[test]
-    fn gemini_keeps_the_project_s_own_settings_and_replaces_only_ours() {
-        let (_d, p) = folder();
-        let path = format!("{p}/.gemini/settings.json");
+    fn our_entries_replace_ours_and_leave_the_projects_own_and_come_out_again() {
+        let (_d, p) = repo();
         std::fs::create_dir_all(format!("{p}/.gemini")).unwrap();
-        std::fs::write(&path, r#"{"theme":"dark","hooks":{"AfterAgent":[{"hooks":[{"type":"command","command":"mine.sh"}]},{"hooks":[{"type":"command","command":"/old/asm hook idle"}]}]},"mcpServers":{"other":{"command":"x"}}}"#).unwrap();
-        let r = role("gemini");
-        let (a, env) = gemini(&r, &p, Some("asm"), true);
-        assert_eq!(a, ["gemini"]);
-        assert_eq!(env["GEMINI_CLI_TRUST_WORKSPACE"], "true");
-        let got: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(got["theme"], "dark");
-        assert_eq!(got["mcpServers"]["other"]["command"], "x");
-        assert_eq!(got["mcpServers"]["assieme"]["trust"], true);
-        let after: Vec<String> = got["hooks"]["AfterAgent"].as_array().unwrap().iter().map(|e| e["hooks"][0]["command"].as_str().unwrap().to_string()).collect();
-        assert_eq!(after, ["mine.sh", "asm hook idle"], "ours replaced, never doubled");
-        gemini(&r, &p, Some("asm"), false);
-        let again: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(again, got);
-        assert!(!std::fs::read_to_string(format!("{p}/.git/info/exclude")).unwrap().is_empty(), "kept out of commits");
-    }
-
-    #[test]
-    fn a_settings_file_that_is_not_plain_json_is_left_alone() {
-        let (_d, p) = folder();
-        std::fs::create_dir_all(format!("{p}/.gemini")).unwrap();
-        std::fs::write(format!("{p}/.gemini/settings.json"), "// comment\n{}").unwrap();
-        gemini(&role("gemini"), &p, Some("asm"), false);
-        assert_eq!(std::fs::read_to_string(format!("{p}/.gemini/settings.json")).unwrap(), "// comment\n{}");
-    }
-
-    #[test]
-    fn unmerge_removes_only_ours_and_deletes_files_that_were_ours_alone() {
-        let (_d, p) = folder();
-        std::fs::create_dir_all(format!("{p}/.gemini")).unwrap();
-        std::fs::write(format!("{p}/.gemini/settings.json"), r#"{"theme":"dark","mcpServers":{"other":{"command":"x"}}}"#).unwrap();
-        gemini(&role("gemini"), &p, Some("asm"), false);
-        cursor(&role("cursor"), &p, Some("asm"), false);
-        assert!(Path::new(&format!("{p}/.cursor/hooks.json")).exists());
+        let theirs = r#"{"theme":"dark","hooks":{"AfterAgent":[{"hooks":[{"command":"mine.sh"}]},{"hooks":[{"command":"/old/asm hook idle"}]}]}}"#;
+        std::fs::write(format!("{p}/.gemini/settings.json"), theirs).unwrap();
+        let ours = || json!({"hooks": {"AfterAgent": hook_entry("idle", Some("asm"))}, "mcpServers": {"assieme": mcp(Some("asm"))}});
+        merge(&p, ".gemini/settings.json", ours().as_object().unwrap());
+        merge(&p, ".gemini/settings.json", ours().as_object().unwrap());
+        let after: Vec<Value> = read(&p, ".gemini/settings.json")["hooks"]["AfterAgent"].as_array().unwrap().clone();
+        assert_eq!(after.len(), 2, "ours replaced, never doubled: {after:?}");
+        merge(&p, ".cursor/hooks.json", json!({"version": 1, "hooks": {"stop": [{"command": hook_command("idle", None)}]}}).as_object().unwrap());
         unmerge(&p);
-        let got: Value = serde_json::from_str(&std::fs::read_to_string(format!("{p}/.gemini/settings.json")).unwrap()).unwrap();
-        assert_eq!(got, json!({"theme": "dark", "mcpServers": {"other": {"command": "x"}}}));
-        for gone in [".cursor/hooks.json", ".cursor/mcp.json", ".cursor/assieme-permissions.json", ".cursor/cli.json"] {
-            assert!(!Path::new(&format!("{p}/{gone}")).exists(), "{gone}");
-        }
+        assert_eq!(read(&p, ".gemini/settings.json")["hooks"]["AfterAgent"], json!([{"hooks": [{"command": "mine.sh"}]}]));
+        assert!(!Path::new(&format!("{p}/.cursor/hooks.json")).exists() && !Path::new(&format!("{p}/.cursor/cli.json")).exists());
     }
 
     #[test]
-    fn unmerge_puts_a_tracked_file_back_byte_for_byte() {
-        let (_d, p) = folder();
+    fn a_tracked_settings_file_goes_back_byte_for_byte() {
+        let (_d, p) = repo();
         std::fs::create_dir_all(format!("{p}/.gemini")).unwrap();
         let original = "{\"theme\":   \"dark\"}\n";
         std::fs::write(format!("{p}/.gemini/settings.json"), original).unwrap();
-        assert!(crate::worktree::run(&p, &["add", "."]).ok);
-        assert!(crate::worktree::run(&p, &["commit", "-q", "-m", "settings"]).ok);
-        gemini(&role("gemini"), &p, Some("asm"), false);
-        assert_ne!(std::fs::read_to_string(format!("{p}/.gemini/settings.json")).unwrap(), original);
-        assert!(crate::worktree::run(&p, &["status", "--porcelain"]).out.is_empty(), "skip-worktree hides our edit");
+        assert!(run(&p, &["add", "."]).ok && run(&p, &["commit", "-q", "-m", "s"]).ok);
+        merge(&p, ".gemini/settings.json", json!({"mcpServers": {"assieme": mcp(None)}}).as_object().unwrap());
+        assert!(run(&p, &["status", "--porcelain"]).out.is_empty(), "skip-worktree hides our edit");
         unmerge(&p);
         assert_eq!(std::fs::read_to_string(format!("{p}/.gemini/settings.json")).unwrap(), original);
-        assert!(crate::worktree::run(&p, &["status", "--porcelain"]).out.is_empty());
-    }
-
-    #[test]
-    fn cursor_approves_mcps_only_when_ours_is_the_only_server() {
-        let (_d, p) = folder();
-        let (a, _) = cursor(&role("cursor"), &p, Some("asm"), true);
-        assert_eq!(a, ["cursor-agent", "--approve-mcps", "--trust"]);
-        let perms: Value = serde_json::from_str(&std::fs::read_to_string(format!("{p}/.cursor/cli.json")).unwrap()).unwrap();
-        assert_eq!(perms["permissions"]["allow"], json!(["Mcp(assieme:*)"]));
-        std::fs::write(format!("{p}/.cursor/mcp.json"), r#"{"mcpServers":{"theirs":{"command":"y"}}}"#).unwrap();
-        let (b, _) = cursor(&role("cursor"), &p, Some("asm"), false);
-        assert_eq!(b, ["cursor-agent"]);
-    }
-
-    #[test]
-    fn a_cursor_rule_the_person_removed_does_not_linger() {
-        let (_d, p) = folder();
-        std::fs::create_dir_all(format!("{p}/.cursor")).unwrap();
-        std::fs::write(format!("{p}/.cursor/cli.json"), r#"{"permissions":{"allow":["Shell(ls)"],"deny":[]}}"#).unwrap();
-        cursor_permissions(&p, &json!({"allow": ["Shell(git)"], "deny": ["Shell(rm)"]}));
-        cursor_permissions(&p, &json!({"allow": [], "deny": ["Shell(rm)"]}));
-        let got: Value = serde_json::from_str(&std::fs::read_to_string(format!("{p}/.cursor/cli.json")).unwrap()).unwrap();
-        assert_eq!(got["permissions"], json!({"allow": ["Shell(ls)"], "deny": ["Shell(rm)"]}));
-    }
-
-    #[test]
-    fn antigravity_asks_about_anything_not_named_and_trusts_the_folder_for_one_session() {
-        let (_d, p) = folder();
-        let r = Role { level: Some("safe".into()), model: Some("m".into()), effort: Some("low".into()), ..role("antigravity") };
-        let (a, _) = antigravity(&r, &p, Some("asm"), true);
-        let s = json_arg(&a, "--settings");
-        assert_eq!(s["permissions"]["allow"], json!(["mcp(assieme_assieme/*)"]));
-        assert_eq!((s["toolPermission"].as_str(), s["agentMode"].as_str()), (Some("request-review"), Some("")));
-        assert_eq!(s["trustedWorkspaces"], json!([p]));
-        assert!(a.join(" ").ends_with("--model m --effort low"));
-        let hooks: Value = serde_json::from_str(&std::fs::read_to_string(format!("{p}/.agents/hooks.json")).unwrap()).unwrap();
-        assert_eq!(hooks["assieme"]["Stop"][0]["command"], "asm hook idle");
-    }
-
-    #[test]
-    fn a_kind_that_writes_settings_never_does_so_in_the_current_folder() {
-        for k in ASKS_TRUST {
-            let e = argv_with(&role(k), false, &nowhere, None, None, None, false).unwrap_err();
-            assert!(e.message.ends_with("needs the agent's own folder."), "{}", e.message);
-        }
-    }
-
-    #[test]
-    fn pushes_are_blocked_by_the_team_rule_or_a_permission_level() {
-        let one = |r: &Role, block| argv_with(r, block, &nowhere, Some("/w"), None, None, false).unwrap();
-        assert_eq!(one(&role("claude"), false)[0], "claude");
-        let blocked = one(&role("claude"), true);
-        assert_eq!(blocked[..5], ["/usr/bin/env", "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=url.assieme-push-blocked://.pushInsteadOf", "GIT_CONFIG_VALUE_0=", "claude"]);
-        let by_level = one(&Role { level: Some("safe".into()), ..role("claude") }, false);
-        assert_eq!(by_level[0], "/usr/bin/env");
-    }
-
-    #[test]
-    fn the_agent_is_started_by_full_path_with_its_own_folder_on_the_path() {
-        let which = |n: &str| (n == "claude").then(|| PathBuf::from("/opt/node/bin/claude"));
-        let a = argv_with(&role("claude"), false, &which, Some("/w"), None, None, false).unwrap();
-        assert_eq!(a[0], "/usr/bin/env");
-        let path = a[1].strip_prefix("PATH=").unwrap();
-        let parts: Vec<&str> = path.split(':').collect();
-        assert!(parts[0].ends_with("/bin") && parts[0].contains("assieme"), "{path}");
-        assert_eq!(parts[1], "/opt/node/bin");
-        assert_eq!(a[2], "/opt/node/bin/claude");
-    }
-
-    #[test]
-    fn a_container_role_runs_inside_the_containers_own_asm() {
-        let r = Role { container: true, ..role("claude") };
-        let a = argv_with(&r, true, &nowhere, Some("/w"), Some("team-r"), Some("9/abc"), false).unwrap();
-        assert_eq!(a[..3], ["docker", "run", "team-r"]);
-        let settings = json_arg(&a, "--settings");
-        assert_eq!(settings["hooks"]["Stop"][0]["hooks"][0]["command"], "asm hook idle");
+        assert!(run(&p, &["status", "--porcelain"]).out.is_empty());
     }
 }

@@ -21,8 +21,9 @@ pub const READ_FIRST: &str = "Before you ask the person anything, call team_brie
 static WRITE: Mutex<()> = Mutex::new(());
 
 fn file(team: &str) -> PathBuf {
-    let safe: String = team.chars().map(|c| if c.is_alphanumeric() || matches!(c, '_' | '.' | '-') { c } else { '-' }).collect();
-    crate::quiet::path(&["briefs", &format!("{safe}.json")])
+    let safe: String =
+        team.chars().map(|c| if c.is_alphanumeric() || matches!(c, '_' | '.' | '-') { c } else { '-' }).collect();
+    crate::quiet::state_dir().join("briefs").join(format!("{safe}.json"))
 }
 
 fn clip(s: &str, max: usize) -> String {
@@ -101,9 +102,8 @@ fn add_in(
         let mut decisions: Vec<Value> = b["decisions"].as_array().cloned().unwrap_or_default();
         // shortcut: an agent's record soon after ours for the same agent is taken as the same answer; compare the
         // words instead if agents start losing real second decisions.
-        let echo = |d: &Value| {
-            d["role"] == role && d["by"] == "you" && ms - d["ms"].as_i64().unwrap_or(0) < SAME_ANSWER_MS
-        };
+        let echo =
+            |d: &Value| d["role"] == role && d["by"] == "you" && ms - d["ms"].as_i64().unwrap_or(0) < SAME_ANSWER_MS;
         if by == "agent" && decisions.iter().any(echo) {
             return false;
         }
@@ -230,8 +230,14 @@ mod tests {
         let p = at(&dir);
         add_in(&p, "b", "Use tabs?", "yes", "you", 1_000_000).unwrap();
         assert!(add_in(&p, "b", "Tabs or spaces?", "tabs", "agent", 1_100_000).unwrap().is_none());
-        assert!(add_in(&p, "c", "Tabs or spaces?", "tabs", "agent", 1_100_000).unwrap().is_some(), "another agent's word counts");
-        assert!(add_in(&p, "b", "Line length?", "100", "agent", 1_000_000 + 300_000).unwrap().is_some(), "after five minutes it counts");
+        assert!(
+            add_in(&p, "c", "Tabs or spaces?", "tabs", "agent", 1_100_000).unwrap().is_some(),
+            "another agent's word counts"
+        );
+        assert!(
+            add_in(&p, "b", "Line length?", "100", "agent", 1_000_000 + 300_000).unwrap().is_some(),
+            "after five minutes it counts"
+        );
     }
 
     #[test]

@@ -5,6 +5,7 @@
 //! Each script runs only after the person has said yes to that exact line for that team, in its agent's copy, with the
 //! same clean environment as the live preview.
 use crate::prelude::*;
+use regex::Regex;
 use std::io::Read;
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
@@ -41,9 +42,10 @@ pub fn rewrite(line: &str) -> (String, Vec<String>) {
 }
 
 fn state_file() -> PathBuf {
-    let base = std::env::var_os("XDG_STATE_HOME").filter(|v| !v.is_empty()).map(PathBuf::from).unwrap_or_else(|| {
-        PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local").join("state")
-    });
+    let base = std::env::var_os("XDG_STATE_HOME")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local").join("state"));
     base.join("assieme").join("scripts-ok.json")
 }
 
@@ -173,7 +175,9 @@ mod tests {
 
     #[test]
     fn rewrites_conductor_variables_and_names_unknown_ones() {
-        let (line, unknown) = rewrite("cd $CONDUCTOR_WORKSPACE_PATH && serve ${CONDUCTOR_PORT} $CONDUCTOR_ROOT_PATH $CONDUCTOR_DB $CONDUCTOR_DB");
+        let (line, unknown) = rewrite(
+            "cd $CONDUCTOR_WORKSPACE_PATH && serve ${CONDUCTOR_PORT} $CONDUCTOR_ROOT_PATH $CONDUCTOR_DB $CONDUCTOR_DB",
+        );
         assert_eq!(line, "cd ${PWD} && serve ${PORT} ${CONDUCTOR_ROOT_PATH} $CONDUCTOR_DB $CONDUCTOR_DB");
         assert_eq!(unknown, ["CONDUCTOR_DB"]);
     }

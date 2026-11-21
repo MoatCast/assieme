@@ -202,7 +202,10 @@ pub fn ensure(team: &Team, role: &Role) -> Result<String, WorktreeError> {
         let st = run(&path, &["status", "--porcelain"]);
         if !st.ok || !st.out.is_empty() {
             return Err(WorktreeError::new(
-                format!("{}'s copy has changes that aren't saved yet. Save or remove them, then start again.", role.name),
+                format!(
+                    "{}'s copy has changes that aren't saved yet. Save or remove them, then start again.",
+                    role.name
+                ),
                 path,
             ));
         }
@@ -217,7 +220,9 @@ pub fn ensure(team: &Team, role: &Role) -> Result<String, WorktreeError> {
     } else {
         if exists(&branch) {
             return Err(WorktreeError::new(
-                format!("A copy named {branch} is left over from an earlier team. Rename this team, or remove the old copy."),
+                format!(
+                    "A copy named {branch} is left over from an earlier team. Rename this team, or remove the old copy."
+                ),
                 format!("git branch -D {branch}"),
             ));
         }
@@ -289,7 +294,9 @@ mod tests {
     fn repo() -> (tempfile::TempDir, String) {
         let dir = tempfile::tempdir().unwrap();
         let p = std::fs::canonicalize(dir.path()).unwrap().to_string_lossy().into_owned();
-        for args in [vec!["init", "-q", "-b", "main"], vec!["config", "user.name", "T"], vec!["config", "user.email", "t@t"]] {
+        for args in
+            [vec!["init", "-q", "-b", "main"], vec!["config", "user.name", "T"], vec!["config", "user.email", "t@t"]]
+        {
             assert!(run(&p, &args).ok);
         }
         std::fs::write(format!("{p}/a.txt"), "one\n").unwrap();
@@ -303,7 +310,13 @@ mod tests {
     }
 
     fn role(name: &str) -> Role {
-        Role { name: name.into(), agent: "claude".into(), checkout: "branch".into(), tools_new: true, ..Role::default() }
+        Role {
+            name: name.into(),
+            agent: "claude".into(),
+            checkout: "branch".into(),
+            tools_new: true,
+            ..Role::default()
+        }
     }
 
     #[test]

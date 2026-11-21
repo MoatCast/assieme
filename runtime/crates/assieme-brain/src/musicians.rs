@@ -79,7 +79,17 @@ mod tests {
 
     #[test]
     fn rule_by_place() {
-        let kinds = [Some("planner"), Some("builder"), Some("builder"), Some("builder"), Some("builder"), Some("reviewer"), Some("tester"), None, Some("odd")];
+        let kinds = [
+            Some("planner"),
+            Some("builder"),
+            Some("builder"),
+            Some("builder"),
+            Some("builder"),
+            Some("reviewer"),
+            Some("tester"),
+            None,
+            Some("odd"),
+        ];
         let got: Vec<_> = rules(&kinds).into_iter().map(|(i, _)| i).collect();
         assert_eq!(got, ["piano", "violin", "cello", "bass", "violin", "reviewer", "timpani", "flute", "clarinet"]);
         assert_eq!(rules(&kinds)[3].1, "the third builder");
