@@ -4,6 +4,7 @@
 // `agent_path` is the foundation's and is still declared with `todo!()`; its owner removes this allow.
 #![allow(clippy::todo, unused_variables)]
 use crate::prelude::*;
+use regex::Regex;
 use serde_json::json;
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};

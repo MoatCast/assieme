@@ -6,6 +6,7 @@
 //! one plain sentence per kind with the agents it is about, instead of being dropped. A team running in herdr is no
 //! longer read (it needed `hc`, which is trimmed from the port).
 use crate::prelude::*;
+use regex::Regex;
 use serde_json::json;
 use std::cell::Cell;
 
