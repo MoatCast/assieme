@@ -452,7 +452,7 @@ fn notify_and_deliver(claude: &Path, codex: &Path, announcing: bool) {
     quiet::deliver(
         &agents,
         None,
-        Some(&|notes: &[Value], why: &str| drop(live::record_delivery(notes, why, Some(now)))),
-        Some(&|notes: &[Value]| drop(live::record_given_up(notes, Some(now)))),
+        Some(&move |notes: &[Value], why: &str| drop(live::record_delivery(notes, why, Some(now)))),
+        Some(&move |notes: &[Value]| drop(live::record_given_up(notes, Some(now)))),
     );
 }

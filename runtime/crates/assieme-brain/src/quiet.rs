@@ -52,11 +52,16 @@ pub fn locked() -> std::io::Result<Locked> {
 pub struct Locked(pub std::fs::File);
 
 /// Send held notes. Returns what was sent.
+/// Called with a delivered batch of notes and why it went now.
+pub type OnBatch = dyn Fn(&[Value], &str);
+/// Called with notes that waited a day for an agent that stopped.
+pub type OnGiveUp = dyn Fn(&[Value]);
+
 pub fn deliver(
     agents: &[Agent],
     now: Option<Timestamp>,
-    on_batch: Option<&dyn Fn(&[Value], &str)>,
-    on_give_up: Option<&dyn Fn(&[Value])>,
+    on_batch: Option<&OnBatch>,
+    on_give_up: Option<&OnGiveUp>,
 ) -> Vec<Value> {
     todo!("quiet.deliver")
 }
