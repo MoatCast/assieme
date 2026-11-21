@@ -55,8 +55,8 @@ pub struct Locked(pub std::fs::File);
 pub fn deliver(
     agents: &[Agent],
     now: Option<Timestamp>,
-    on_batch: Option<&dyn Fn(&Value)>,
-    on_give_up: Option<&dyn Fn(&Value)>,
+    on_batch: Option<&dyn Fn(&[Value], &str)>,
+    on_give_up: Option<&dyn Fn(&[Value])>,
 ) -> Vec<Value> {
     todo!("quiet.deliver")
 }

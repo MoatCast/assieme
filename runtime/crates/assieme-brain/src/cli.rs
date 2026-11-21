@@ -107,7 +107,7 @@ pub fn main(args: Vec<String>) -> i32 {
             );
             let now = status::now_utc();
             let agents =
-                status::collect(&claude, &codex, now, hours, show_text, None, status::running_cwds().as_ref(), None);
+                status::collect(&claude, &codex, now, hours, show_text, status::running_cwds().as_ref(), None);
             print!("{}", if json { status::to_json(&agents, now) + "\n" } else { status::to_text(&agents, now) });
             0
         }
@@ -403,7 +403,7 @@ pub fn brain() -> (Arc<Methods>, Loop) {
 
     let mut steps = Loop::default();
     let (c, x, w) = (claude, codex, watching.clone());
-    steps.step("watch", Box::new(move || drop(live::watch_once(&c, &x, 12.0, false, !w()))));
+    steps.step("watch", Box::new(move || notify_and_deliver(&c, &x, !w())));
     let (b, w) = (brain, watching.clone());
     steps.step("brain", Box::new(move || drop(b.tick(None, (!w()).then_some(&live::notify as &Notify)))));
     steps.step(
@@ -433,4 +433,21 @@ pub fn brain() -> (Arc<Methods>, Loop) {
         }),
     );
     (methods, steps)
+}
+
+/// One round of the serve tick: plain notifications (only when the app isn't showing its own) and held quiet notes.
+fn notify_and_deliver(claude: &Path, codex: &Path, announcing: bool) {
+    let now = status::now_utc();
+    let agents = status::collect(claude, codex, now, 12.0, false, status::running_cwds().as_ref(), None);
+    let st = settings::load(None);
+    let paused = crate::model::parse_ts(&st["notify_paused_until"]).is_some_and(|p| p > now);
+    if announcing && !paused {
+        live::announce(&status::owner_queue(&agents, now), &status::stalls(&agents, now), now, None, Some(&st["notify"]));
+    }
+    quiet::deliver(
+        &agents,
+        None,
+        Some(&|notes: &[Value], why: &str| drop(live::record_delivery(notes, why, Some(now)))),
+        Some(&|notes: &[Value]| drop(live::record_given_up(notes, Some(now)))),
+    );
 }

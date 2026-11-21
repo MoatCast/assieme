@@ -827,7 +827,7 @@ impl Brain {
     pub fn collect(&self, now: Timestamp) -> Vec<Agent> {
         once("agents", || {
             let running = once("running", status::running_cwds);
-            status::collect(&self.claude_dir, &self.codex_dir, now, 12.0, false, None, running.as_ref(), None)
+            status::collect(&self.claude_dir, &self.codex_dir, now, 12.0, false, running.as_ref(), None)
         })
     }
 

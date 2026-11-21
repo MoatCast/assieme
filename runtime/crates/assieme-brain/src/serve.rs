@@ -39,7 +39,7 @@ pub fn snapshot(
     rt: &Runtime,
     starting: Vec<Value>,
 ) -> Result<Value, BrainError> {
-    let all = status::collect(claude_dir, codex_dir, now, 12.0, false, None, status::running_cwds().as_ref(), None);
+    let all = status::collect(claude_dir, codex_dir, now, 12.0, false, status::running_cwds().as_ref(), None);
     let agents: Vec<Agent> = all.into_iter().filter(|a| !teammap::is_own_session(a)).collect();
     let (_, alerts) = status::summary(&agents);
     let teams = team::status(rt, None).unwrap_or_default(); // the assieme core isn't running: no Assieme teams yet
@@ -47,12 +47,9 @@ pub fn snapshot(
     let groups = st["groups"].as_object().cloned().unwrap_or_default();
     let live_cwds =
         teams.iter().filter(|t| t["state"] == "live").filter_map(|t| t["cwd"].as_str().map(String::from)).collect();
-    // sorted names; a group may come as `{name, …}` or as its name
-    let mut found: Vec<Value> = teammap::found_groups(&agents, &groups, &live_cwds)
-        .iter()
-        .map(|g| g.get("name").unwrap_or(g).clone())
-        .collect();
-    found.sort_by_key(Value::to_string);
+    let mut found: Vec<String> =
+        teammap::found_groups(&agents, &groups, &live_cwds).into_iter().map(|(name, _)| name).collect();
+    found.sort();
     let clis: Map<String, Value> = launch::CLIS
         .iter()
         .chain(&[("asm", "asm")])
@@ -61,7 +58,6 @@ pub fn snapshot(
     let rows = agents.iter().map(|a| {
         let mut row = a.as_dict(now);
         row["cwd"] = json!(a.cwd);
-        row["herdr_address"] = json!(a.herdr_address);
         row["group"] = teammap::group_of(a, &groups).into();
         row
     });
