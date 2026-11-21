@@ -112,3 +112,17 @@ fn a_call_goes_where_its_address_says_and_comes_back_as_seen_from_here() {
         "the machine's own name is dropped"
     );
 }
+
+#[test]
+fn remote_setup_installs_the_asm_launcher() {
+    LazyLock::force(&HOME);
+    let sock = HOME.0.join("core-launcher.sock");
+    let core = testkit::FakeCore::start(
+        &sock,
+        HashMap::from([("machine.exec", json!({"code": 0, "stdout": "", "stderr": ""}))]),
+    );
+    Remotes::new(Runtime::new("assieme", Some(sock))).install_launcher("gpu-box").unwrap();
+    let line = core.calls("machine.exec").pop().unwrap()["line"].as_str().unwrap().to_string();
+    assert!(line.contains(r#"exec "$HOME/.local/bin/assieme-core" cli "$@""#), "{line}");
+    assert!(line.contains(r#"> "$HOME/.local/bin/assieme""#) && line.contains(r#"chmod +x "$HOME/.local/bin/assieme""#), "{line}");
+}
