@@ -106,8 +106,7 @@ pub fn main(args: Vec<String>) -> i32 {
                 codex_dir.unwrap_or(home.join(".codex/sessions")),
             );
             let now = status::now_utc();
-            let agents =
-                status::collect(&claude, &codex, now, hours, show_text, status::running_cwds().as_ref(), None);
+            let agents = status::collect(&claude, &codex, now, hours, show_text, status::running_cwds().as_ref(), None);
             print!("{}", if json { status::to_json(&agents, now) + "\n" } else { status::to_text(&agents, now) });
             0
         }
@@ -442,7 +441,13 @@ fn notify_and_deliver(claude: &Path, codex: &Path, announcing: bool) {
     let st = settings::load(None);
     let paused = crate::model::parse_ts(&st["notify_paused_until"]).is_some_and(|p| p > now);
     if announcing && !paused {
-        live::announce(&status::owner_queue(&agents, now), &status::stalls(&agents, now), now, None, Some(&st["notify"]));
+        live::announce(
+            &status::owner_queue(&agents, now),
+            &status::stalls(&agents, now),
+            now,
+            None,
+            Some(&st["notify"]),
+        );
     }
     quiet::deliver(
         &agents,
