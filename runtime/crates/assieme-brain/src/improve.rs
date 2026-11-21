@@ -164,7 +164,7 @@ fn finding(
 /// What a check reads from the rest of the brain.
 struct Ctx {
     now: Timestamp,
-    today: Value,
+    today: Arc<Vec<Session>>,
     /// The practice groups that are on: the person's choice (`settings.practices`) of `preset::practices()`.
     on: Vec<Group>,
     /// The action log's recent rows, and the ids of the ones undone.
