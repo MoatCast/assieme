@@ -11,7 +11,8 @@
 <p align="center">
   <img src="https://img.shields.io/github/v/release/MoatCast/assieme?style=flat-square&color=2747D9&label=release" alt="Release">
   <img src="https://img.shields.io/badge/macOS-Apple%20silicon-2747D9?style=flat-square" alt="macOS on Apple silicon">
-  <img src="https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex-2747D9?style=flat-square" alt="Claude Code and Codex">
+  <img src="https://img.shields.io/badge/built%20in-Rust-2747D9?style=flat-square" alt="Built in Rust">
+  <img src="https://img.shields.io/badge/agents-Claude%20Code%20%C2%B7%20Codex%20%C2%B7%20more-2747D9?style=flat-square" alt="Claude Code, Codex and more">
   <img src="https://img.shields.io/badge/licence-Apache--2.0-2747D9?style=flat-square" alt="Apache-2.0">
 </p>
 
@@ -19,91 +20,105 @@
   <img src="assets/readme/band.png" width="880" alt="The band: a pianist, a violinist, a cellist raising a hand because it needs you, a flautist, the conductor, a trumpeter, a clarinettist, a bassist and a timpanist.">
 </p>
 
-Assieme ("together", in Italian) runs a team of Claude Code and Codex agents on your Mac. Each agent plays its own part
-on its own branch. Assieme shows you who is playing, who has stopped and who needs you. Assieme fixes stuck agents, full memory and refused commands on its own, and tells you what it did. Questions, merges and money stay yours.
+Assieme ("together", in Italian) runs a team of coding agents on your Mac: Claude Code, Codex, Antigravity, Gemini
+CLI, OpenCode and Cursor. Each agent works on its own branch, in its own live terminal. One window shows who is
+working, who has stopped and who needs you. When an agent gets stuck, loops or runs low on memory, Assieme fixes it on
+its own and lists what it did. Questions, merges and money stay yours.
+
+<p align="center">
+  <img src="assets/readme/needs-you.png" width="880" alt="The Assieme window: on the left, the team's agents grouped as needs you, working and done; on the right, the planner asking whether to ship behind a flag or straight to main, with answer buttons above its live terminal.">
+</p>
 
 ---
 
-## The team, on stage
+## Why Assieme
+
+- **One window for the whole team.** The agents on the left, grouped by what they need from you. An agent with a
+  question goes to the top, with how long it has waited and who it is holding up; answer with one click.
+- **It fixes problems on its own.** A stuck agent, a repeated refused command, memory filling up: Assieme acts, checks
+  that the fix worked, and pauses the agent and asks you if it did not.
+- **You decide what matters.** Agents never push. You review each branch, then merge, with Undo.
+- **Fast and light, because it runs on Rust.** Assieme is one Rust program that runs the terminals, watches the agents
+  and answers the app. There is no Python or Node runtime to install. It idles at about 35 MB of memory, its agent
+  hooks start in under 5 ms, and the app is a 30 MB download.
+
+## Assieme fixes it, then tells you
 
 <p align="center">
-  <img src="assets/readme/team.png" width="880" alt="The Team screen: two agents need you. The band plays above a map of who wakes whom; cards on the right hold the planner's question with answer buttons, a stuck builder with a fix, a tip that saves 12%, and work ready to review.">
+  <img src="assets/readme/fixing.png" width="880" alt="builder-3 is stuck: the same test failed 4 times. Assieme asked it to try another way at 14:22 and is checking until 14:32.">
 </p>
 
-Every agent is a musician, and its role is its instrument. A raised hand means it needs you. The map below shows who
-wakes whom, and the cards on the right hold each question with its answers and each problem with its fix.
+Each fix shows what Assieme noticed, what it did and when it will check the result. A fix that does not work pauses
+the agent and asks you. Every action is in Activity, with Undo where it applies.
+
+## The team at a glance
+
+<p align="center">
+  <img src="assets/readme/overview.png" width="880" alt="Team overview: 2 problems fixed today, $4.20 spent of a $10 daily limit, what Assieme did today, and a map of who works with whom.">
+</p>
+
+What Assieme did today, what the team has spent against its daily limit, and a map of who works with whom.
 
 ## Every terminal, live
 
 <p align="center">
-  <img src="assets/readme/terminals.png" width="880" alt="Six live terminals. The planner asks a question and the stuck builder offers a fix, each answerable from its pane.">
+  <img src="assets/readme/terminals.png" width="880" alt="Six live terminals in a grid. The planner's pane has its answer buttons; builder-3's pane shows Assieme checking its fix; the tester's pane has Review changes.">
 </p>
 
-Real terminals that keep running when the window is closed. Answer a question from the pane, or open one full size to
-type.
+Real terminals that keep running when the window is closed. Answer from the pane, or open one full size to type.
 
 ## Review, then merge
 
 <p align="center">
-  <img src="assets/readme/review.png" width="880" alt="A review: tests pass 212 of 212, no conflicts with main, only its own files touched. The reviewer's note sits on the line it is about, with Ask builder-1 to fix it.">
+  <img src="assets/readme/review.png" width="880" alt="A review of the tester's branch: tests pass 212 of 212, no conflicts with main, a reviewer's note on line 15 with Ask tester to fix it, and Merge into main.">
 </p>
 
-Every agent that edits works on its own branch. One screen holds the diff, the test results, the conflict check and
-the reviewer's notes, with Ask for changes, Open pull request, Merge and Undo.
+The diff, the test results, the conflict check and the reviewer's notes, on one screen. Ask for changes, open a pull
+request, or merge. Assieme refuses a merge that would lose work, and Undo puts the branch back.
 
-## The plan, as it moves
+## A new team, ready to work
 
 <p align="center">
-  <img src="assets/readme/board.png" width="880" alt="The task board: to do, doing, review and done, with the agent on each card and the stuck one showing its fix.">
+  <img src="assets/readme/new-team.png" width="880" alt="New team, last step: what Assieme does before the agents start, while they work and always, then 6 agents on This Mac and Start 6 agents.">
 </p>
 
-The planner's split becomes cards that move from to do to done, reported by the agents themselves.
+Choose a project, a task and a team, from one agent to a planner with builders, a reviewer and a tester. Before you
+start, Assieme shows what it does for the team: rules for every agent, fixes while they work, a branch per agent and no
+pushes.
 
-## From your phone
+## Also in the app
 
-<p align="center">
-  <img src="assets/readme/phone.png" width="880" alt="The phone guide: continue a Claude Code or Codex session from your phone; every change asks you first, and your Mac must stay awake and online.">
-</p>
-
-Install Assieme in Claude Code, Codex or the Claude app from Settings. Then ask, from your phone, "What needs me?",
-answer an agent, review its work or start a team. Every change asks you first.
-
-## What makes it unique
-
-Other tools let you start agents and watch them. Assieme also notices the problem, explains it and offers the fix.
-
-- **It says why a team has stopped,** following who waits on whom down to the cause:
-  `lead waits on you (asked 10 min ago)`.
-- **Every alert comes with its fix:** a stuck agent, a refused command, memory filling up. One button, or automatic
-  once you trust it, and logged with Undo.
-- **It shows what agents cost each other,** tracing the wake-ups that re-read a whole context and did no work.
-- **Agents report for themselves,** saying when they are stuck or need a decision.
-- **A new team starts tuned:** a branch per builder, read-only reviewers, no `git push`, and practices learned from real
-  teams.
-- **Your assistant helps, you stay in charge.** Claude Code, Codex or the Claude app can act on your teams; every change
-  asks you first.
+- **Daily limits** per team or per agent: at the limit, Assieme pauses and asks you, or just tells you.
+- **Bring your team over** from another tool, with its agents, folders and branches.
+- **Remote machines:** run agents on a Linux box or another Mac over SSH, shown in the same window.
+- **Previews** of a web app an agent is building, stopped when its work is merged.
+- **Your assistant helps, you stay in charge.** Connect Assieme to Claude Code, Codex or the Claude app, then ask
+  "What needs me?" from your phone. Every change asks you first.
 
 ## Install
 
 **Download** the latest `.dmg` from [Releases](https://github.com/MoatCast/assieme/releases/latest), open it and drag
 Assieme to Applications. It is signed and notarised by Apple, and updates itself.
 
-You need an Apple silicon Mac and Claude Code or Codex. First run finds the agents you already use and sets up the
-rest.
+You need an Apple silicon Mac and at least one coding agent, such as Claude Code or Codex. First run finds the agents
+you already use and sets up the rest.
 
 <details>
 <summary>Build from source</summary>
 
-You need Node and Rust.
+You need Node, Rust, [just](https://github.com/casey/just), [Zig](https://ziglang.org) 0.16 (for the terminal
+library) and `cargo install --locked cargo-zigbuild` (for the Linux builds remote machines use).
 
 ```bash
-git clone https://github.com/MoatCast/assieme.git
-cd assieme/app
-npm install
-sh scripts/bundle.sh
+git clone --recurse-submodules https://github.com/MoatCast/assieme.git
+cd assieme/runtime && just check     # the runtime and the brain, with their tests
+cd ../app && npm install
+sh scripts/bundle.sh                 # builds the runtime into the app
 npx tauri build --bundles app
 open src-tauri/target/release/bundle/macos/Assieme.app
 ```
+
+Set `ZIG` to your Zig binary if it is not on your `PATH`.
 
 </details>
 
@@ -113,19 +128,20 @@ open src-tauri/target/release/bundle/macos/Assieme.app
 For scripts and power users: install it from Settings › General › Command line tools in the app.
 
 ```bash
-assieme                         # live view: what needs you, alerts, one-key fixes
-assieme status [--watch]        # one line per agent, alerts first
-assieme report --hours 24       # who woke whom, what it cost, what was refused
+assieme status                  # one line per agent: working, stuck, waiting on you
+assieme team status             # the agents of every team
 assieme team start <preset> --task "Add retries to the payment client"
+assieme team stop <team>
 ```
 
 </details>
 
 ## Safe by default
 
-It never kills an agent without asking, never widens permission rules and never answers a permission prompt for you.
-An agent's work stays on its own branch until you merge it. Assieme runs on your Mac with no telemetry, and talks only
-to your agents, your git remote and any assistant you connect.
+Assieme never kills an agent without asking, never widens an agent's permissions and never answers a permission
+prompt for you. Pushing is blocked by default; an agent's work stays on its own branch until you merge it.
+Assieme runs on your Mac with no telemetry, and talks only to your agents, your git remote and any assistant you
+connect.
 
 ## Licence
 
