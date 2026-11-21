@@ -1174,7 +1174,7 @@
  },
  {
   "module": "quiet",
-  "name": "_drop",
+  "name": "forget_delivered",
   "kind": "function",
   "callers": [
    "improve"

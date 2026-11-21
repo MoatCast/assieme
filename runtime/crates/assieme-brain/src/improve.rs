@@ -543,7 +543,7 @@ pub fn undo(e: &Value, _rt: &Runtime) -> Result<(), BrainError> {
         let mine: Vec<Value> =
             held.iter().filter(|h| h["to"] == address && h["to_cwd"] == cwd && h["text"] == body).cloned().collect();
         if !mine.is_empty() {
-            crate::quiet::drop(&mine);
+            crate::quiet::forget_delivered(&mine);
             continue;
         }
         let sent = e["sent"].as_array().into_iter().flatten().filter(|s| s[1] == address && s[2] == cwd);

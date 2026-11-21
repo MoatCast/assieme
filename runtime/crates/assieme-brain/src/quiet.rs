@@ -27,7 +27,7 @@ fn write_list(name: &str, items: Vec<Value>) {
 }
 
 /// Remove exactly the notes that were sent; one that arrived meanwhile stays for the next round.
-pub fn drop(delivered: &[Value]) {
+pub fn forget_delivered(delivered: &[Value]) {
     let Ok(_lock) = locked() else { return };
     write_list("held.json", list("held.json").into_iter().filter(|n| !delivered.contains(n)).collect());
 }
@@ -247,13 +247,13 @@ pub fn deliver(
             }
             let Some(to) = to.filter(|_| !gone) else {
                 if waited >= GIVE_UP_AFTER {
-                    drop(notes);
+                    forget_delivered(notes);
                     on_give_up.iter().for_each(|f| f(notes));
                 }
                 continue;
             };
             if capture(asm, &["send", &to, &batch_text(notes)], &env(last), 60).is_some() {
-                drop(notes);
+                forget_delivered(notes);
                 let why = if busy { "busy" } else { "overdue" };
                 sent.push(json!([to, notes.len(), why]));
                 on_batch.iter().for_each(|f| f(notes, why));

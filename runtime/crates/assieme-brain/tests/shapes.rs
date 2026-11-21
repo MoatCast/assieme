@@ -819,7 +819,7 @@ fn prompts_trust_keys_128() {
 
 /// From improve.
 fn quiet_drop_129() {
-    let _ = quiet::drop(any());
+    let _ = quiet::forget_delivered(any());
 }
 
 /// From schedule.
