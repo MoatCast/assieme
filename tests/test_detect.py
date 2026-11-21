@@ -88,6 +88,10 @@ class ReadingCommands(unittest.TestCase):
         self.assertEqual(detect.commands_of('tools.x cmd: "' + '\\a' * 26), [])
         self.assertLess(time.perf_counter() - started, 1)
 
+    def test_asm_ls_is_safe(self):
+        for cmd in ('asm ls', 'asm send coord "ok"', 'hc ls'):
+            self.assertFalse(detect.changes_something('Bash', cmd), cmd)
+
     def test_read_only_commands_change_nothing(self):
         for cmd in ('ls -la', 'git status && git diff', 'hc send coord "ok"', 'cat a | grep b'):
             self.assertFalse(detect.changes_something('Bash', cmd), cmd)

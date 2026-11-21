@@ -434,5 +434,5 @@ class CursorAgentToolsTest(unittest.TestCase):
         launch.BUILDERS['cursor'](role('cursor'), d)
         with open(os.path.join(d, '.cursor', 'mcp.json')) as f:
             env = json.load(f)['mcpServers']['assieme']['env']
-        for name in ('HC_SESSION', 'HC_TERMINAL_ID', 'XDG_STATE_HOME'):
+        for name in ('ASM_SESSION', 'ASM_TERMINAL_ID', 'XDG_STATE_HOME'):
             self.assertEqual(env[name], '${env:%s}' % name)

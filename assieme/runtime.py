@@ -1,7 +1,6 @@
-"""The runtime layer: talks to an isolated herdr-core (`hc`) core over its socket.
+"""The runtime layer: talks to Assieme's own core (`asm`, the fork in runtime/) over its socket.
 
-This is the runtime interface: a fork of hc later replaces what this module calls, not
-its callers. One JSON-RPC request and reply per line, one connection per call.
+This is the runtime interface: what this module calls can change, not its callers. One JSON-RPC request and reply per line, one connection per call.
 """
 import json
 import os
@@ -21,7 +20,7 @@ _MARKERS = {'CLAUDECODE', 'CLAUDE_CODE_CHILD_SESSION', 'CLAUDE_CODE_ENTRYPOINT',
 
 
 class RuntimeError_(Exception):
-    """An error from hc (or from starting it), with hc's error kind and a hint."""
+    """An error from the core (or from starting it), with its error kind and a hint."""
 
     def __init__(self, kind, message, hint=''):
         super().__init__(message)
@@ -34,10 +33,10 @@ def clean_env(env):
 
 
 def socket_path():
-    if os.environ.get('ASSIEME_HC_SOCKET'):  # a brain on a remote machine, started inside that machine's core
-        return os.environ['ASSIEME_HC_SOCKET']
+    if os.environ.get('ASSIEME_ASM_SOCKET'):  # a brain on a remote machine, started inside that machine's core
+        return os.environ['ASSIEME_ASM_SOCKET']
     base = os.environ.get('XDG_STATE_HOME') or os.path.expanduser('~/.local/state')
-    return os.path.join(base, 'assieme', 'hc.sock')
+    return os.path.join(base, 'assieme', 'asm.sock')
 
 
 class Runtime:
@@ -48,20 +47,21 @@ class Runtime:
         """Start this session's core (clean environment) unless it is listening; a stale socket file is removed."""
         if self._connect() is not None:
             return
-        if not shutil.which('hc'):
-            raise RuntimeError_('hc_missing', 'hc is not installed',
-                                'install herdr-core (hc) from https://github.com/herdrdev/herdr-core')
+        if not shutil.which('asm'):
+            raise RuntimeError_('asm_missing', "Assieme's runtime is not installed",
+                                'reinstall Assieme, which carries it')
         if os.path.exists(self.sock):
             os.remove(self.sock)
         os.makedirs(os.path.dirname(self.sock), exist_ok=True)
-        # Agents inherit the core's PATH, so their `hc send` goes through quiet send. A core started before this keeps
+        # Agents inherit the core's PATH, so their `asm send` goes through quiet send. A core started before this keeps
         # its old PATH until it restarts: its agents' notes are simply not held.
         shim = quiet.install()
-        env = clean_env(os.environ) | {'HC_SESSION': self.session, 'HC_SOCKET': self.sock,
-                                       'PATH': shim + os.pathsep + os.environ.get('PATH', '')}
-        r = subprocess.run(['hc', 'server', 'start'], env=env, capture_output=True, text=True)
+        # The person's own herdr settings never reach agents: their `hc` keeps its default.
+        env = {k: v for k, v in clean_env(os.environ).items() if not k.startswith('HC_')}
+        env |= {'ASM_SESSION': self.session, 'ASM_SOCKET': self.sock, 'PATH': shim + os.pathsep + os.environ.get('PATH', '')}
+        r = subprocess.run(['asm', 'server', 'start'], env=env, capture_output=True, text=True)
         if r.returncode != 0:
-            raise RuntimeError_('start_failed', f'hc server start failed: {(r.stderr or r.stdout).strip()}')
+            raise RuntimeError_('start_failed', f"Assieme's runtime did not start: {(r.stderr or r.stdout).strip()}")
 
     def _connect(self):
         s = socket.socket(socket.AF_UNIX)
@@ -78,13 +78,13 @@ class Runtime:
             self.ensure_core()
             s = self._connect()
             if s is None:
-                raise RuntimeError_('unavailable', f'cannot reach the hc core at {self.sock}')
+                raise RuntimeError_('unavailable', f"cannot reach Assieme's runtime at {self.sock}")
         with s, s.makefile('rwb') as f:
             f.write((json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params}) + '\n').encode())
             f.flush()
             line = f.readline()
         if not line:
-            raise RuntimeError_('unavailable', f'the hc core closed the connection during {method}')
+            raise RuntimeError_('unavailable', f"Assieme's runtime closed the connection during {method}")
         msg = json.loads(line)
         if 'error' in msg:
             e = msg['error']

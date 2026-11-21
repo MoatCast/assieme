@@ -3,7 +3,7 @@ assieme status     one snapshot of team health
 assieme watch      notifications only, no screen
 assieme report     who woke whom, what it cost, what was refused
 assieme team       start, list and stop a team from a preset
-assieme quiet      quiet send: the hc stand-in on or off
+assieme quiet      quiet send: the asm stand-in on or off
 """
 import argparse
 import datetime as dt
@@ -19,9 +19,9 @@ from . import actions, activity, adapters, answers, bridge, bringover, connect, 
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    if argv[:1] == ['shim']:  # the hc stand-in: hc's own flags must reach it untouched
+    if argv[:1] == ['shim']:  # the asm stand-in: asm's own flags must reach it untouched
         return quiet.shim_main(argv[1:])
-    if argv[:1] == ['call'] and len(argv) == 2:  # the Mac's brain asking this machine's, over hc's line
+    if argv[:1] == ['call'] and len(argv) == 2:  # the Mac's brain asking this machine's, over the core's line
         return remote.call_main(argv[1])
     p = argparse.ArgumentParser(prog='assieme', description='Run with no command for the live view: team health, '
                                 'what needs you, and one-key fixes. Commands give snapshots and reports.')
@@ -48,7 +48,7 @@ def main(argv=None):
     s.add_argument('--claude-dir', default=os.path.expanduser('~/.claude/projects'))
     s.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
     s.add_argument('--show-text', action='store_true', help='show command arguments (off: program names only)')
-    q = sub.add_parser('quiet', help='quiet send: put the hc stand-in on (or off) for your agents')
+    q = sub.add_parser('quiet', help='quiet send: put the asm stand-in on (or off) for your agents')
     q.add_argument('switch', choices=['on', 'off', 'status'])
     t = sub.add_parser('team', help='start, list and stop a team of agents from a preset')
     tsub = t.add_subparsers(dest='team_cmd', required=True)
@@ -270,7 +270,7 @@ def _team(args):
                 if s.note:
                     print('\n'.join('    ' + line for line in s.note.splitlines()))
                 if s.state == 'needs-you':
-                    print(f'    open it: HC_SESSION={getattr(rt, "session", "assieme")} HC_SOCKET={rt.sock} hc attach {s.address}')
+                    print(f'    open it: ASM_SESSION={getattr(rt, "session", "assieme")} ASM_SOCKET={rt.sock} asm attach {s.address}')
                     print(f'    then: assieme team start {args.preset}')
                 if s.state in ('exited', 'not-reporting'):
                     print(f'    retry: assieme team start {args.preset} --only {s.role}')
@@ -295,7 +295,7 @@ Nothing changes until you also mark a pair quiet in the live view (`assieme`, th
 Undo with `assieme quiet off`.""")
     elif switch == 'off':
         quiet.uninstall()
-        print('Quiet send is off: the hc stand-in is removed. Held notes are still delivered while assieme runs.')
+        print('Quiet send is off: the asm stand-in is removed. Held notes are still delivered while assieme runs.')
     else:
         ps, held = quiet.pairs(), quiet.held()
         print(f"stand-in installed: {'yes' if os.path.exists(os.path.join(quiet.shim_dir(), 'hc')) else 'no'}")

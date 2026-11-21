@@ -90,7 +90,7 @@ class Tools:
             return {'sent': 'held', 'detail': f'{to} gets this with its next turn. It was not woken.'}
         reports.noted(name, to)
         # The marker the logs already read, so the map still shows who woke whom.
-        rt.send(target['address'], f'<hc from="{address} {me}">{text}</hc>')
+        rt.send(target['address'], f'<asm from="{address} {me}">{text}</asm>')
         return {'sent': 'now', 'detail': f'Sent to {to}.'}
 
     def report(self, address, state, note=''):

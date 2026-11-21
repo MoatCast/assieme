@@ -1,5 +1,5 @@
-"""Remote machines (step 15): host lists, routing and merges with stubs, and one run through a real hc to a fake
-remote: a fake `ssh` first on the core's PATH runs the other side as a second hc session with its own home."""
+"""Remote machines (step 15): host lists, routing and merges with stubs, and one run through a real asm to a fake
+remote: a fake `ssh` first on the core's PATH runs the other side as a second asm session with its own home."""
 import base64
 import io
 import json
@@ -17,6 +17,7 @@ import unittest
 from unittest import mock
 
 from assieme import remote, runtime, team
+from tests.asm_bin import ASM_DIR
 
 
 class SshHostsTest(unittest.TestCase):
@@ -73,7 +74,7 @@ class AddressTest(unittest.TestCase):
 class FailureTest(unittest.TestCase):
     def test_each_failure_in_plain_cases(self):
         e = lambda kind, msg: runtime.RuntimeError_(kind, msg)
-        self.assertEqual(remote._failure('b', e('hc_missing', 'hc is not installed on b'))['result'], 'not_set_up')
+        self.assertEqual(remote._failure('b', e('asm_missing', 'b has no asm'))['result'], 'not_set_up')
         self.assertEqual(remote._failure('b', e('needs_login', 'b wants a login'))['result'], 'needs_login')
         self.assertEqual(remote._failure('b', e('unreachable', 'cannot reach b: Host key verification failed.'))['result'],
                          'new_host_key')
@@ -131,6 +132,13 @@ class RoutingTest(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.dir)
+
+    def test_serve_line_uses_asm_socket(self):
+        self.rx.call = lambda machine, method, **p: {}
+        self.rt.there = []
+        self.rx.start_brain('devbox')
+        [line] = [p['line'] for m, p in self.rt.calls if m == 'terminal.run']
+        self.assertIn('ASSIEME_ASM_SOCKET="$ASM_TERMINAL_SOCKET" exec', line)
 
     def test_local_calls_stay_here(self):
         self.assertEqual(self.h['team.view'](team='web'), {'team': 'web', 'here': True})
@@ -238,6 +246,21 @@ class PackageTest(unittest.TestCase):
 
 
 class TickTest(unittest.TestCase):
+    def test_set_up_machines_the_core_does_not_know_are_dropped(self):
+        store = os.path.join(tempfile.mkdtemp(), 'r.json')
+        with open(store, 'w') as f:
+            json.dump({'rows': {}, 'set_up': ['devbox', 'gone']}, f)
+        rt = StubRt()
+        rx = remote.Remotes(rt, store=store, thread=lambda target, daemon=True, args=(): type('T', (), {'start': lambda s: None})())
+        rx.tick()
+        self.assertEqual(rx.set_up, {'devbox'})
+        with open(store) as f:
+            self.assertEqual(json.load(f)['set_up'], ['devbox'])
+        rt.call = lambda method, **p: (_ for _ in ()).throw(runtime.RuntimeError_('unavailable', 'no core'))
+        rx.set_up.add('later')
+        rx._forget_unknown()
+        self.assertEqual(rx.set_up, {'devbox', 'later'}, 'an unreachable core proves nothing')
+
     def test_after_sleep_it_dials_at_once_and_a_lost_brain_comes_back(self):
         rt = StubRt()
         now = [1000.0]
@@ -248,7 +271,7 @@ class TickTest(unittest.TestCase):
         rx.tick()
         rt.state = 'unreachable'
         now[0] += 30
-        rx.tick()  # a short gap: hc's own retry is enough
+        rx.tick()  # a short gap: the core's own retry is enough
         self.assertFalse(any(m == 'machine.connect' for m, _ in rt.calls))
         now[0] += 600
         rx.tick()
@@ -350,9 +373,9 @@ class ReviewFixesTest(unittest.TestCase):
         self.assertEqual(held, [True])
 
 
-@unittest.skipUnless(shutil.which('hc'), 'needs hc')
+@unittest.skipUnless(ASM_DIR, 'needs asm: build runtime/ first')
 class FakeRemoteTest(unittest.TestCase):
-    """Through a real hc core: the remote side is a second hc session with its own home, reached by a fake ssh."""
+    """Through a real asm core: the remote side is a second asm session with its own home, reached by a fake ssh."""
 
     def setUp(self):
         self.root = tempfile.mkdtemp(dir='/tmp', prefix='s15')
@@ -368,14 +391,14 @@ R={self.there}
 exec env -i HOME=$R PATH=$R/.local/bin:/usr/bin:/bin XDG_STATE_HOME=$R/state XDG_CONFIG_HOME=$R/config sh -c "$last"
 ''')
         os.chmod(os.path.join(fakebin, 'ssh'), 0o755)
-        self.sock = os.path.join(self.here, 'assieme', 'hc.sock')
-        env = runtime.clean_env(os.environ) | {'HC_SESSION': 'assieme', 'HC_SOCKET': self.sock,
-                                               'XDG_STATE_HOME': self.here, 'PATH': fakebin + ':' + os.environ['PATH']}
-        subprocess.run(['hc', 'server', 'start'], env=env, check=True, capture_output=True)
+        self.sock = os.path.join(self.here, 'assieme', 'asm.sock')
+        env = runtime.clean_env(os.environ) | {'ASM_SESSION': 'assieme', 'ASM_SOCKET': self.sock,
+                                               'XDG_STATE_HOME': self.here, 'PATH': f"{fakebin}:{ASM_DIR}:{os.environ['PATH']}"}
+        subprocess.run(['asm', 'server', 'start'], env=env, check=True, capture_output=True)
         self.rt = runtime.Runtime(sock=self.sock)
-        self.hc = shutil.which('hc')
-        # `hc machine add --install` makes its own ssh calls: they reach the fake too.
-        path = mock.patch.dict(os.environ, {'PATH': fakebin + ':' + os.environ['PATH']})
+        self.asm = shutil.which('asm', path=ASM_DIR)
+        # `asm machine add --install` makes its own ssh calls: they reach the fake too.
+        path = mock.patch.dict(os.environ, {'PATH': f"{fakebin}:{ASM_DIR}:{os.environ['PATH']}"})
         path.start()
         self.addCleanup(path.stop)
 
@@ -389,9 +412,9 @@ exec env -i HOME=$R PATH=$R/.local/bin:/usr/bin:/bin XDG_STATE_HOME=$R/state XDG
                                  thread=lambda target, args=(), daemon=True: type('T', (), {'start': lambda s: target(*args)})())
 
     def tearDown(self):
-        for env in ({'HC_SOCKET': self.sock, 'HC_SESSION': 'assieme', 'XDG_STATE_HOME': self.here},
-                    {'HOME': self.there, 'HC_SESSION': 'assieme', 'XDG_STATE_HOME': os.path.join(self.there, 'state')}):
-            exe = os.path.join(self.there, '.local/bin/hc') if 'HOME' in env else self.hc
+        for env in ({'ASM_SOCKET': self.sock, 'ASM_SESSION': 'assieme', 'XDG_STATE_HOME': self.here},
+                    {'HOME': self.there, 'ASM_SESSION': 'assieme', 'XDG_STATE_HOME': os.path.join(self.there, 'state')}):
+            exe = os.path.join(self.there, '.local/bin/asm') if 'HOME' in env else self.asm
             if os.path.exists(exe):
                 subprocess.run([exe, 'server', 'stop'], env={'PATH': '/usr/bin:/bin'} | env, capture_output=True)
         self._kill_mine()
@@ -418,7 +441,7 @@ exec env -i HOME=$R PATH=$R/.local/bin:/usr/bin:/bin XDG_STATE_HOME=$R/state XDG
         self.rx.setup('devbox')
         job = self.rx._job('devbox')
         self.assertEqual((job['error'], [s['state'] for s in job['steps']]), (None, ['done', 'done', 'done']))
-        self.assertTrue(os.path.exists(os.path.join(self.there, '.local/bin/hc')), 'hc copied there')
+        self.assertTrue(os.path.exists(os.path.join(self.there, '.local/bin/asm')), 'asm copied there')
         c = self.rx.check('devbox')
         self.assertEqual((c['ready'], c['outdated']), (True, False))
         self.assertEqual(self.rx.test('devbox')['result'], 'ready')
@@ -435,7 +458,7 @@ exec env -i HOME=$R PATH=$R/.local/bin:/usr/bin:/bin XDG_STATE_HOME=$R/state XDG
 
         # The line drops: the team stays, marked unreachable; Try now brings it back.
         open(os.path.join(self.there, 'down'), 'w').close()
-        connect = subprocess.run(['pgrep', '-f', os.path.join(self.there, '.local/bin/herdr-core') + ' connect'],
+        connect = subprocess.run(['pgrep', '-f', os.path.join(self.there, '.local/bin/assieme-core') + ' connect'],
                                  capture_output=True, text=True).stdout.split()
         for pid in connect:
             os.kill(int(pid), signal.SIGTERM)

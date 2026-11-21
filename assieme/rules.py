@@ -57,7 +57,7 @@ def explain(text, tool, command, rules, path=None):
     if SAFETY.search(text):
         return 'built-in safety check', 'delete named paths instead of a broad removal'
     if SLEEP.search(text):
-        return 'built-in sleep guard', 'wait with `hc wait` or a Monitor loop instead of sleep'
+        return 'built-in sleep guard', 'wait with `asm wait` or a Monitor loop instead of sleep'
     if PATH_RULE.search(text):
         p = path or (re.search(r"'([^']+)'", text) or [None, None])[1]
         for rule, src in rules:

@@ -1,4 +1,4 @@
-"""Team presets: a folder with team.toml and one Markdown brief per role (briefs use hc's template format)."""
+"""Team presets: a folder with team.toml and one Markdown brief per role (briefs use the core's template format)."""
 import os
 import re
 import tomllib
@@ -60,7 +60,7 @@ class Team:
 
 
 def _body(text):
-    """The brief without hc's `---` header."""
+    """The brief without the template's `---` header."""
     if text.startswith('---\n'):
         end = text.find('\n---', 4)
         if end != -1:

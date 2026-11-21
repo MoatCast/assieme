@@ -1,4 +1,4 @@
-"""Step 16: the licence's terms for the fork, and that the app still runs on hc."""
+"""Step 16: the licence's terms for the fork, and that the app runs on it."""
 import re
 import subprocess
 from pathlib import Path
@@ -53,6 +53,5 @@ def test_nothing_downloads_a_release():
     assert source == []
 
 
-def test_the_app_and_bundle_still_run_on_hc():
-    assert "['hc', 'server', 'start']" in (ROOT / 'assieme/runtime.py').read_text()
-    assert not list((ROOT / 'app/src-tauri').glob('**/assieme-core*'))
+def test_the_brain_runs_asm():
+    assert "['asm', 'server', 'start']" in (ROOT / 'assieme/runtime.py').read_text()

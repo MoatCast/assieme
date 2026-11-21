@@ -1,7 +1,7 @@
 """What agents say about themselves through the MCP server: stuck, or needing a decision.
 
 One report per team and role, in a small file so it survives a brain restart. A report lasts until the agent's next
-turn (hc counts turns), or a new one replaces it. A teammate's note isn't the person's answer, so a turn it wakes
+turn (the core counts turns), or a new one replaces it. A teammate's note isn't the person's answer, so a turn it wakes
 doesn't count.
 """
 import os
@@ -44,7 +44,7 @@ def clear(team, role):
 
 
 def running_turn(row):
-    """The turn in progress or just ended. hc counts a turn when it ends, so one that's under way is one more."""
+    """The turn in progress or just ended. The core counts a turn when it ends, so one that's under way is one more."""
     turn = row.get('turn')
     return None if turn is None else turn + ((row.get('status') or {}).get('state') == 'working')
 

@@ -161,11 +161,27 @@ class StatusTest(unittest.TestCase):
         self.assertEqual(status.collect(self.claude, self.codex, NOW + dt.timedelta(hours=13)), [])
 
 
+class WaitInTranscriptTest(unittest.TestCase):
+    def collect(self, command):
+        with tempfile.TemporaryDirectory() as root:
+            write(os.path.join(root, 'claude', '-Users-x-team-w', 's.jsonl'), [prompt(60), tool(50, 'w1', command=command)])
+            [agent] = status.collect(os.path.join(root, 'claude'), os.path.join(root, 'codex'), NOW)
+        return agent
+
+    def test_transcript_asm_wait_not_stuck(self):
+        self.assertNotEqual(self.collect('asm wait builder').state, 'stuck')
+        self.assertEqual(self.collect('sleep 999').state, 'stuck')
+
+    def test_transcript_hc_wait_still_read(self):
+        self.assertNotEqual(self.collect('hc wait builder').state, 'stuck')
+
+
 class SendTargetTest(unittest.TestCase):
     def test_targets(self):
         self.assertEqual(status._send_targets('cd x && hc send --if idle builder "a; b" && hc send --force t3 hi'),
                          ['builder', 't3'])
         self.assertEqual(status._send_targets('echo hc send'), [])
+        self.assertEqual(status._send_targets('asm send coord done && hc send t3 hi'), ['coord', 't3'])
 
 
 if __name__ == '__main__':

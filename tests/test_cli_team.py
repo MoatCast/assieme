@@ -36,7 +36,7 @@ class CliTeamTest(unittest.TestCase):
             code, out, _ = run(['team', 'start', '/presets/demo', '--task', 'fix it'])
         self.assertEqual(code, 0)
         self.assertRegex(out, r'coordinator\s+running')
-        self.assertIn('hc attach t2', out)
+        self.assertIn('asm attach t2', out)
         self.assertIn('then: assieme team start /presets/demo', out)
 
     def test_team_start_bad_preset_exits_1_with_message(self):

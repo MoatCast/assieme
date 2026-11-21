@@ -53,3 +53,11 @@ class OpencodeTest(unittest.TestCase):
 
     def test_a_missing_or_strange_database_yields_nothing(self):
         self.assertEqual(list(adapters.opencode('/nonexistent/opencode.db', SINCE)), [])
+
+
+class WakeTagTest(unittest.TestCase):
+    def test_asm_from_tag(self):
+        self.assertEqual(adapters.wake_sender('<asm from="t2 builder">done</asm>'), ('builder', 'asm'))
+
+    def test_hc_from_tag_still_read(self):
+        self.assertEqual(adapters.wake_sender('<hc from="t2 builder">done</hc>'), ('builder', 'hc'))
