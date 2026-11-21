@@ -1,0 +1,5372 @@
+[
+ {
+  "file": null,
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "migrate"
+  ],
+  "ok": false,
+  "after": null
+ },
+ {
+  "file": "",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "",
+  "call": [
+   "migrate"
+  ],
+  "ok": false,
+  "after": null
+ },
+ {
+  "file": "not json",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "not json",
+  "call": [
+   "migrate"
+  ],
+  "ok": false,
+  "after": null
+ },
+ {
+  "file": "[1, 2]",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "[1, 2]",
+  "call": [
+   "migrate"
+  ],
+  "ok": false,
+  "after": null
+ },
+ {
+  "file": "{}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "\"x\"",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "\"x\"",
+  "call": [
+   "migrate"
+  ],
+  "ok": false,
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "migrate"
+  ],
+  "ok": false,
+  "after": null
+ },
+ {
+  "file": "{\"fixes_version\": 2.0}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"fixes_version\": 2.0}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes_version\": true}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"fixes_version\": true}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes_version\": 3, \"thresholds\": {\"quiet_minutes\": 5, \"memory_full\": 0.5}}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 3,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 5,
+    "memory_full": 0.5
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"fixes_version\": 3, \"thresholds\": {\"quiet_minutes\": 5, \"memory_full\": 0.5}}",
+  "call": [
+   "migrate"
+  ],
+  "ok": false,
+  "after": null
+ },
+ {
+  "file": "{\"thresholds\": {\"quiet_minutes\": 120.0, \"memory_full\": 1}}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 120.0,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"thresholds\": {\"quiet_minutes\": 120.0, \"memory_full\": 1}}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 120.0,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"thresholds\": {\"quiet_minutes\": true}}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"thresholds\": {\"quiet_minutes\": true}}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"thresholds\": {\"quiet_minutes\": NaN}}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"thresholds\": {\"quiet_minutes\": NaN}}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"notify_paused_until\": 5}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"notify_paused_until\": 5}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"groups\": []}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"groups\": []}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes_version\": 1}",
+  "call": [
+   "load"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": null
+ },
+ {
+  "file": "{\"fixes_version\": 1}",
+  "call": [
+   "migrate"
+  ],
+  "ok": true,
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": true,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "ask"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "auto"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "never"
+  ],
+  "error": "no setting 'fixes.nudge' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes.other",
+   "ask"
+  ],
+  "error": "no setting 'fixes.other' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes",
+   "ask"
+  ],
+  "error": "no setting 'fixes' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "notify.stalls",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "notify.stalls",
+   0
+  ],
+  "error": "no setting 'notify.stalls' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "notify.other",
+   true
+  ],
+  "error": "no setting 'notify.other' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "practices.tests",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {
+    "tests": true
+   },
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {
+    "tests": true
+   },
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "practices.tests",
+   "yes"
+  ],
+  "error": "no setting 'practices.tests' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "practices",
+   true
+  ],
+  "error": "no setting 'practices' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "show_commands",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": true,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": true,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "show_commands",
+   1
+  ],
+  "error": "no setting 'show_commands' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "show_commands.x",
+   true
+  ],
+  "error": "no setting 'show_commands.x' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes_notice",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "run_found.team",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "team": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "team": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "run_found.a.b",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "a.b": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "a.b": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "run_found.team",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "team": false
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "run_found",
+   true
+  ],
+  "error": "no setting 'run_found' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "first_run_done",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   null
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   "2027-01-15T08:00:00Z"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   5
+  ],
+  "error": "no setting 'notify_paused_until' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "groups",
+   {
+    "a": "x"
+   }
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {
+    "a": "x"
+   },
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {
+    "a": "x"
+   },
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "groups",
+   [
+    "a"
+   ]
+  ],
+  "error": "no setting 'groups' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "groups.a",
+   "x"
+  ],
+  "error": "no setting 'groups.a' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 5,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 5,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   120
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 120,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 120,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   4
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   121
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   4.99
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   30.5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 30.5,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 30.5,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   true
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   "30"
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.5
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.5
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.95
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.95
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.95
+   }
+  }
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.49
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.951
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   1
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.other",
+   1
+  ],
+  "error": "no setting 'thresholds.other' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds",
+   {}
+  ],
+  "error": "no setting 'thresholds' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "unknown",
+   1
+  ],
+  "error": "no setting 'unknown' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "it's",
+   true
+  ],
+  "error": "no setting \"it's\" with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes.it's\"",
+   "ask"
+  ],
+  "error": "no setting 'fixes.it\\'s\"' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "",
+   true
+  ],
+  "error": "no setting '' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   ".",
+   true
+  ],
+  "error": "no setting '.' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "practices.",
+   true
+  ],
+  "error": "no setting 'practices.' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "fixes_version",
+   1
+  ],
+  "error": "no setting 'fixes_version' with that value",
+  "after": null
+ },
+ {
+  "file": null,
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   {
+    "$py": "nan"
+   }
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "ask"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "auto"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "never"
+  ],
+  "error": "no setting 'fixes.nudge' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes.other",
+   "ask"
+  ],
+  "error": "no setting 'fixes.other' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes",
+   "ask"
+  ],
+  "error": "no setting 'fixes' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "notify.stalls",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "notify.stalls",
+   0
+  ],
+  "error": "no setting 'notify.stalls' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "notify.other",
+   true
+  ],
+  "error": "no setting 'notify.other' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "practices.tests",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "practices.tests",
+   "yes"
+  ],
+  "error": "no setting 'practices.tests' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "practices",
+   true
+  ],
+  "error": "no setting 'practices' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "show_commands",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": true,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": true,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "show_commands",
+   1
+  ],
+  "error": "no setting 'show_commands' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "show_commands.x",
+   true
+  ],
+  "error": "no setting 'show_commands.x' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes_notice",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "run_found.team",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true,
+    "team": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true,
+    "team": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "run_found.a.b",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "run_found.team",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true,
+    "team": false
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "run_found",
+   true
+  ],
+  "error": "no setting 'run_found' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "first_run_done",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   null
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   "2027-01-15T08:00:00Z"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   5
+  ],
+  "error": "no setting 'notify_paused_until' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "groups",
+   {
+    "a": "x"
+   }
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "x"
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "x"
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "groups",
+   [
+    "a"
+   ]
+  ],
+  "error": "no setting 'groups' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "groups.a",
+   "x"
+  ],
+  "error": "no setting 'groups.a' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 5,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 5,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   120
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 120,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 120,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   4
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   121
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   4.99
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   30.5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30.5,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30.5,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   true
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   "30"
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.5
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.5
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.95
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.95
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "ask",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 2,
+   "run_found": {
+    "t1": true,
+    "a.b": true
+   },
+   "practices": {
+    "tests": true,
+    "fmt": false
+   },
+   "notify": {
+    "needs_you": false,
+    "stalls": true,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {
+    "a": "One",
+    "d": " x "
+   },
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 30,
+    "memory_full": 0.95
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.49
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.951
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   1
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.other",
+   1
+  ],
+  "error": "no setting 'thresholds.other' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds",
+   {}
+  ],
+  "error": "no setting 'thresholds' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "unknown",
+   1
+  ],
+  "error": "no setting 'unknown' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "it's",
+   true
+  ],
+  "error": "no setting \"it's\" with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes.it's\"",
+   "ask"
+  ],
+  "error": "no setting 'fixes.it\\'s\"' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "",
+   true
+  ],
+  "error": "no setting '' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   ".",
+   true
+  ],
+  "error": "no setting '.' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "practices.",
+   true
+  ],
+  "error": "no setting 'practices.' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "fixes_version",
+   1
+  ],
+  "error": "no setting 'fixes_version' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"weird\", \"tell\": \"ask\", \"extra\": \"ask\"}, \"fixes_version\": 2, \"notify\": {\"needs_you\": false, \"stalls\": 0, \"finished\": null, \"other\": false}, \"practices\": {\"tests\": true, \"lint\": \"yes\", \"fmt\": false}, \"groups\": {\"a\": \"One\", \"b\": \"  \", \"c\": 3, \"d\": \" x \"}, \"show_commands\": 1, \"notify_paused_until\": \"2027-01-15T08:00:00Z\", \"first_run_done\": true, \"fixes_notice\": \"true\", \"run_found\": {\"t1\": true, \"t2\": 1, \"a.b\": true, \"t3\": false}, \"thresholds\": {\"quiet_minutes\": 30, \"memory_full\": 0.96, \"other\": 5}, \"unknown\": 1}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   {
+    "$py": "nan"
+   }
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "ask"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "auto"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "auto",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes.nudge",
+   "never"
+  ],
+  "error": "no setting 'fixes.nudge' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes.other",
+   "ask"
+  ],
+  "error": "no setting 'fixes.other' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes",
+   "ask"
+  ],
+  "error": "no setting 'fixes' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "notify.stalls",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "notify.stalls",
+   0
+  ],
+  "error": "no setting 'notify.stalls' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "notify.other",
+   true
+  ],
+  "error": "no setting 'notify.other' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "practices.tests",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {
+    "tests": true
+   },
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {
+    "tests": true
+   },
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "practices.tests",
+   "yes"
+  ],
+  "error": "no setting 'practices.tests' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "practices",
+   true
+  ],
+  "error": "no setting 'practices' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "show_commands",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": true,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": true,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "show_commands",
+   1
+  ],
+  "error": "no setting 'show_commands' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "show_commands.x",
+   true
+  ],
+  "error": "no setting 'show_commands.x' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes_notice",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "run_found.team",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {
+    "team": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {
+    "team": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "run_found.a.b",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {
+    "a.b": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {
+    "a.b": true
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "run_found.team",
+   false
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {
+    "team": false
+   },
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "run_found",
+   true
+  ],
+  "error": "no setting 'run_found' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "first_run_done",
+   true
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": true,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   null
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   "2027-01-15T08:00:00Z"
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": "2027-01-15T08:00:00Z",
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "notify_paused_until",
+   5
+  ],
+  "error": "no setting 'notify_paused_until' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "groups",
+   {
+    "a": "x"
+   }
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {
+    "a": "x"
+   },
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {
+    "a": "x"
+   },
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "groups",
+   [
+    "a"
+   ]
+  ],
+  "error": "no setting 'groups' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "groups.a",
+   "x"
+  ],
+  "error": "no setting 'groups.a' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 5,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 5,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   120
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 120,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 120,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   4
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   121
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   4.99
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   30.5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 30.5,
+    "memory_full": 0.75
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 30.5,
+    "memory_full": 0.75
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   true
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   "30"
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.5
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.5
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.5
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.95
+  ],
+  "ok": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.95
+   }
+  },
+  "after": {
+   "fixes": {
+    "nudge": "ask",
+    "compact": "auto",
+    "tell": "auto",
+    "quiet": "auto"
+   },
+   "fixes_notice": false,
+   "fixes_version": 1,
+   "run_found": {},
+   "practices": {},
+   "notify": {
+    "needs_you": true,
+    "stalls": false,
+    "finished": true
+   },
+   "notify_paused_until": null,
+   "show_commands": false,
+   "groups": {},
+   "first_run_done": false,
+   "thresholds": {
+    "quiet_minutes": 15,
+    "memory_full": 0.95
+   }
+  }
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.49
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   0.951
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.memory_full",
+   1
+  ],
+  "error": "Enter a share from 50% to 95%.",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.other",
+   1
+  ],
+  "error": "no setting 'thresholds.other' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds",
+   {}
+  ],
+  "error": "no setting 'thresholds' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "unknown",
+   1
+  ],
+  "error": "no setting 'unknown' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "it's",
+   true
+  ],
+  "error": "no setting \"it's\" with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes.it's\"",
+   "ask"
+  ],
+  "error": "no setting 'fixes.it\\'s\"' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "",
+   true
+  ],
+  "error": "no setting '' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   ".",
+   true
+  ],
+  "error": "no setting '.' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "practices.",
+   true
+  ],
+  "error": "no setting 'practices.' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "fixes_version",
+   1
+  ],
+  "error": "no setting 'fixes_version' with that value",
+  "after": null
+ },
+ {
+  "file": "{\"fixes\": {\"nudge\": \"ask\", \"compact\": \"auto\"}, \"notify\": {\"stalls\": false}}",
+  "call": [
+   "set_value",
+   "thresholds.quiet_minutes",
+   {
+    "$py": "nan"
+   }
+  ],
+  "error": "Enter a number of minutes from 5 to 120.",
+  "after": null
+ }
+]
