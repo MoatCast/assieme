@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Emitter, Manager, State};
 
@@ -107,6 +107,9 @@ async fn terminal_read(session: String, address: String) -> Result<String, Strin
     .map_err(|e| e.to_string())?
 }
 
+/// True while the start-up install (after the app moved or updated) is running.
+static INSTALLING: AtomicBool = AtomicBool::new(false);
+
 /// Where everything lives: this app's Resources folder, the person's home and the state folder.
 fn layout(app: &tauri::AppHandle) -> Result<assieme_service::Layout, String> {
     let res = app.path().resource_dir().map_err(|e| e.to_string())?;
@@ -126,6 +129,9 @@ fn install_service(layout: &assieme_service::Layout) -> Result<(), String> {
 
 #[tauri::command]
 async fn service_running(app: tauri::AppHandle) -> bool {
+    if INSTALLING.load(Ordering::Relaxed) {
+        return true; // the start-up install is still bringing the service up: starting counts as running
+    }
     let Ok(layout) = layout(&app) else {
         return false;
     };
@@ -256,7 +262,11 @@ pub fn run() {
             if let Ok(layout) = layout(app.handle())
                 && assieme_service::needs_install(&layout)
             {
-                std::thread::spawn(move || drop(install_service(&layout)));
+                INSTALLING.store(true, Ordering::Relaxed);
+                std::thread::spawn(move || {
+                    let _ = install_service(&layout);
+                    INSTALLING.store(false, Ordering::Relaxed);
+                });
             }
             Ok(menubar::setup(app.handle())?)
         })

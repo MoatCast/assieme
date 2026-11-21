@@ -33,8 +33,9 @@ export default function StartStep({ panel, practices, value, roles, machine, fix
   return (
     <StepPanel {...panel} title="What Assieme does for this team"
       hint="It starts every agent with these and keeps watching while they work. All of it is on." footer={<>
-        <span className="safe">You can change these any time in Settings.</span>
-        {error && <span className="error" role="alert">{failed.message} <Details text={failed.detail} /></span>}
+        {error
+          ? <span className="error grow" role="alert">{failed.message} <Details text={failed.detail} /></span>
+          : <span className="safe">You can change these any time in Settings.</span>}
         <button type="button" className="quiet" onClick={onBack}>Back</button>
         <button type="button" className="primary" disabled={pending} onClick={onStart}>{n === 1 ? "Start 1 agent" : `Start ${n} agents`}</button>
       </>}>
