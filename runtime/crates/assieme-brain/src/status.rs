@@ -19,8 +19,9 @@ pub struct Agent {
     pub last: Option<Timestamp>,
     pub turn_start: Option<Timestamp>,
     pub detail: String,
-    /// tool id -> (tool name, label)
-    pub pending: BTreeMap<String, (String, String)>,
+    /// The calls still open, in the order they started: tool id -> (tool name, label, command). A missing id or
+    /// name is "", a missing label "None", as Python's str() would show them.
+    pub pending: Vec<(String, (String, String, String))>,
     pub cmds: Vec<String>,
     /// (time, target) messages this agent sent
     pub sends: Vec<(Timestamp, String)>,
@@ -31,7 +32,8 @@ pub struct Agent {
     pub peers: BTreeSet<String>,
     pub thread: Option<String>,
     pub parent_thread: Option<String>,
-    pub children: Vec<String>,
+    /// Its subagents, read the same way.
+    pub children: Vec<Agent>,
     pub herdr: Option<Value>,
     pub herdr_address: Option<String>,
     pub herdr_space: Option<String>,
@@ -47,8 +49,8 @@ pub struct Agent {
     /// (time, kind, full suite?, label, tool id)
     pub heavy: Vec<(Timestamp, String, bool, String, String)>,
     pub heavy_end: BTreeMap<String, Timestamp>,
-    /// (time, fingerprint, turn, label)
-    pub failures: Vec<(Timestamp, String, i64, String)>,
+    /// (time, fingerprint, when its turn began, label)
+    pub failures: Vec<(Timestamp, String, Option<Timestamp>, String)>,
     pub samples: Vec<(Timestamp, i64)>,
 }
 
