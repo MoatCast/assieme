@@ -785,14 +785,6 @@
  },
  {
   "module": "machine",
-  "name": "read",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "machine",
   "name": "tick",
   "kind": "function",
   "callers": [

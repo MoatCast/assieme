@@ -698,11 +698,6 @@ fn live_watch_once_104() {
 }
 
 /// From cli.
-fn machine_read_105() {
-    let _ = machine::read(any(), None);
-}
-
-/// From cli.
 fn machine_tick_106() {
     let _ = machine::tick(any(), None);
 }
