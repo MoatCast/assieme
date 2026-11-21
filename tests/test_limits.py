@@ -78,6 +78,17 @@ class Limits(unittest.TestCase):
                                                     codex_row(NOW - 60, {'used_percent': 40.0, 'resets_at': NOW + 600})])
         self.assertEqual(self.read(), {'codex': {'used': 40.0, 'reached': False, 'resets_at': NOW + 600}})
 
+    def test_odd_codex_lines_are_skipped(self):
+        # a non-dict payload, or a resets_at given as text, must not break the whole reading
+        write(os.path.join(self.codex, 'a.jsonl'), [
+            codex_row(NOW - 120, {'used_percent': 50.0, 'resets_at': NOW + 600}),
+            {'timestamp': stamp(NOW - 60), 'type': 'event_msg', 'payload': ['token_count']}])
+        self.assertEqual(self.read(), {'codex': {'used': 50.0, 'reached': False, 'resets_at': NOW + 600}})
+
+    def test_codex_reset_as_text_counts_as_unknown(self):
+        write(os.path.join(self.codex, 'a.jsonl'), [codex_row(NOW - 60, {'used_percent': 20.0, 'resets_at': 'soon'})])
+        self.assertEqual(self.read(), {'codex': {'used': 20.0, 'reached': False, 'resets_at': None}})
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -45,8 +45,8 @@ def _rows(paths):
 def _codex(paths, now):
     latest = None
     for t, o in _rows(paths):
-        p = o.get('payload') or {}
-        if p.get('type') == 'token_count' and isinstance(p.get('rate_limits'), dict):
+        p = o.get('payload')
+        if isinstance(p, dict) and p.get('type') == 'token_count' and isinstance(p.get('rate_limits'), dict):
             latest = (t, p['rate_limits'])
     if not latest:
         return None
@@ -56,6 +56,8 @@ def _codex(paths, now):
         if not isinstance(w, dict) or not isinstance(w.get('used_percent'), (int, float)):
             continue
         resets = w.get('resets_at')
+        if not isinstance(resets, (int, float)):
+            resets = None  # missing or malformed: an unknown reset time, not a crash
         if resets is None and isinstance(w.get('resets_in_seconds'), (int, float)):  # older Codex
             resets = t + w['resets_in_seconds']
         if resets is not None and resets <= now:
