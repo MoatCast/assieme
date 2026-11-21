@@ -78,9 +78,9 @@ pub trait World {
 }
 
 /// The real thing: Assieme's core and this machine.
-struct Live<'a>(&'a Runtime);
+pub struct Live(pub Runtime);
 
-impl World for Live<'_> {
+impl World for Live {
     fn list(&self, labels: &BTreeMap<String, String>, all: bool) -> Result<Vec<Value>, RuntimeError> {
         self.0.list(labels, all)
     }
@@ -161,7 +161,7 @@ fn labels_of(name: Option<&str>) -> BTreeMap<String, String> {
     name.map(|n| BTreeMap::from([(TEAM.to_string(), n.to_string())])).unwrap_or_default()
 }
 
-fn status_with(w: &dyn World, name: Option<&str>) -> Result<Vec<Value>, RuntimeError> {
+pub fn status_with(w: &dyn World, name: Option<&str>) -> Result<Vec<Value>, RuntimeError> {
     let mut rows = vec![];
     for x in w.list(&labels_of(name), true)? {
         let labels = &x["labels"];
@@ -177,7 +177,7 @@ fn status_with(w: &dyn World, name: Option<&str>) -> Result<Vec<Value>, RuntimeE
 
 /// The terminals of a team (all teams when None).
 pub fn status(rt: &Runtime, name: Option<&str>) -> Result<Vec<Value>, RuntimeError> {
-    status_with(&Live(rt), name)
+    status_with(&Live(rt.clone()), name)
 }
 
 fn stop_with(w: &dyn World, name: &str) -> Result<usize, RuntimeError> {
@@ -195,7 +195,7 @@ fn stop_with(w: &dyn World, name: &str) -> Result<usize, RuntimeError> {
 
 /// Stop a team's live terminals. Returns how many.
 pub fn stop(rt: &Runtime, name: &str) -> Result<usize, RuntimeError> {
-    stop_with(&Live(rt), name)
+    stop_with(&Live(rt.clone()), name)
 }
 
 const OWNS: &str = "You own these files: {files}. Edit only these; ask before changing any other file.";
@@ -482,32 +482,32 @@ pub fn start(
     ask: &dyn Fn(&str) -> bool,
     only: Option<&str>,
 ) -> Result<Vec<Started>, BrainError> {
-    start_with(&Live(rt), tm, task, ask, only)
+    start_with(&Live(rt.clone()), tm, task, ask, only)
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use std::cell::RefCell;
 
     /// A core in memory: terminals are made by `start`, and each one's replies are scripted.
     #[derive(Default)]
-    struct Fake {
-        clock: RefCell<f64>,
-        made: RefCell<Vec<(String, Vec<String>, BTreeMap<String, String>, Option<String>)>>,
-        terminals: RefCell<BTreeMap<String, Value>>,
-        screens: RefCell<BTreeMap<String, String>>,
-        sent: RefCell<Vec<(String, String)>>,
-        keyed: RefCell<Vec<(String, Vec<String>)>>,
-        killed: RefCell<Vec<String>>,
-        labelled: RefCell<Vec<String>>,
-        revoked: RefCell<Vec<String>>,
-        listing: RefCell<Vec<Value>>,
+    pub(crate) struct Fake {
+        pub(crate) clock: RefCell<f64>,
+        pub(crate) made: RefCell<Vec<(String, Vec<String>, BTreeMap<String, String>, Option<String>)>>,
+        pub(crate) terminals: RefCell<BTreeMap<String, Value>>,
+        pub(crate) screens: RefCell<BTreeMap<String, String>>,
+        pub(crate) sent: RefCell<Vec<(String, String)>>,
+        pub(crate) keyed: RefCell<Vec<(String, Vec<String>)>>,
+        pub(crate) killed: RefCell<Vec<String>>,
+        pub(crate) labelled: RefCell<Vec<String>>,
+        pub(crate) revoked: RefCell<Vec<String>>,
+        pub(crate) listing: RefCell<Vec<Value>>,
         /// Sends fail this many times with "still starting".
-        busy: RefCell<u32>,
+        pub(crate) busy: RefCell<u32>,
         /// What a new terminal reports at the first look (default: a working agent).
-        first: RefCell<Option<Value>>,
-        missing: Vec<String>,
+        pub(crate) first: RefCell<Option<Value>>,
+        pub(crate) missing: Vec<String>,
     }
 
     impl World for Fake {
@@ -586,7 +586,7 @@ mod tests {
         }
     }
 
-    fn repo() -> (tempfile::TempDir, String) {
+    pub(crate) fn repo() -> (tempfile::TempDir, String) {
         let d = tempfile::tempdir().unwrap();
         let p = std::fs::canonicalize(d.path()).unwrap().to_string_lossy().into_owned();
         for a in [vec!["init", "-q", "-b", "main"], vec!["config", "user.name", "T"], vec!["config", "user.email", "t@t"]] {
@@ -598,20 +598,20 @@ mod tests {
         (d, p)
     }
 
-    fn team(project: &str, roles: Vec<Role>) -> Team {
+    pub(crate) fn team(project: &str, roles: Vec<Role>) -> Team {
         Team { name: "demo".into(), project: project.into(), roles, ..Team::default() }
     }
 
-    fn role(name: &str, agent: &str, parent: Option<&str>) -> Role {
+    pub(crate) fn role(name: &str, agent: &str, parent: Option<&str>) -> Role {
         Role { brief: format!("You are {name}."), parent: parent.map(String::from), ..Role::new(name, agent) }
     }
 
-    fn yes(_: &str) -> bool {
+    pub(crate) fn yes(_: &str) -> bool {
         true
     }
 
     /// Runs `body` with the state folder in a temporary place, since a start saves the team's goal.
-    fn with_state<T>(body: impl FnOnce() -> T) -> T {
+    pub(crate) fn with_state<T>(body: impl FnOnce() -> T) -> T {
         static ONE: Mutex<()> = Mutex::new(());
         let _g = ONE.lock().unwrap_or_else(|p| p.into_inner());
         let dir = tempfile::tempdir().unwrap();

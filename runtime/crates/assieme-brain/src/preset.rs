@@ -326,7 +326,7 @@ fn read_role(raw: &toml::Table, path: &str, folder: &Path) -> Result<Role, Prese
 }
 
 /// A path as `os.path.abspath` makes it: made absolute, `.` and `..` folded away, no symlinks followed.
-fn absolute(path: &Path) -> PathBuf {
+pub fn absolute(path: &Path) -> PathBuf {
     let full = if path.is_absolute() { path.to_path_buf() } else { std::env::current_dir().unwrap_or_default().join(path) };
     let mut out = PathBuf::new();
     for part in full.components() {
