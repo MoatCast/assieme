@@ -247,7 +247,9 @@ fn run_undo(e: &Value, rt: &Runtime) -> Result<(), BrainError> {
         }
         "merge" => {
             let review = MERGES.lock().unwrap_or_else(|e| e.into_inner()).clone();
-            review.ok_or_else(|| BrainError::new("This can't be undone."))?.undo(s("id"))?;
+            let review = review.ok_or_else(|| BrainError::new("This can't be undone."))?;
+            review.remember(s("id"), &e["restore"]); // after a brain restart the record is only in the log
+            review.undo(s("id"))?;
         }
         _ => return Err(BrainError::new("This can't be undone.")),
     }

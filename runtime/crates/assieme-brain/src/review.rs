@@ -735,6 +735,13 @@ impl Review {
         Ok(json!({"role": role, "base": base, "problem": problem, "undo": uid, "preview_stopped": previewed}))
     }
 
+    /// After a brain restart the undo record is only in the Activity row's `restore`: take it back, unless still held.
+    pub fn remember(&self, id: &str, restore: &Value) {
+        if let Ok(undo) = serde_json::from_value::<Undo>(restore.clone()) {
+            lock(&self.state).undos.entry(id.to_string()).or_insert(undo);
+        }
+    }
+
     pub fn undo(&self, id: &str) -> Result<Value, ReviewError> {
         let (out, team) = self.undone(id)?;
         tasks::unmerged(&team, id, None);
@@ -1216,7 +1223,11 @@ mod tests {
             assert_eq!(w.core.calls("terminal.kill"), [json!({"terminal": "t1"})], "its agent was stopped");
             let uid = done["undo"].as_str().unwrap();
             let logged = std::fs::read_to_string(w.review.log.as_ref().unwrap()).unwrap();
-            assert!(logged.lines().any(|l| l.contains(uid) && l.contains("\"restore\"")), "the row carries `restore`");
+            let row: Value =
+                logged.lines().filter_map(|l| serde_json::from_str(l).ok()).find(|r: &Value| r["id"] == uid).unwrap();
+            // a brain restart: the record survives only in the logged row
+            lock(&w.review.state).undos.clear();
+            w.review.remember(uid, &row["restore"]);
 
             let (out, team) = w.review.undone(uid).unwrap();
             assert_eq!((out["role"].as_str(), team.as_str()), (Some("dev"), w.team.as_str()));
