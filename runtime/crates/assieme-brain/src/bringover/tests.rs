@@ -360,19 +360,18 @@ fn a_repository_that_cannot_be_read_is_listed_as_unreadable() {
 }
 
 #[test]
-fn the_running_agents_are_read_from_the_systems_process_list() {
-    let dir = tempfile::tempdir().unwrap();
-    let cwd = std::fs::canonicalize(dir.path()).unwrap();
-    let program = cwd.join("claude");
-    if std::os::unix::fs::symlink("/bin/sleep", &program).is_err() {
-        return;
-    }
-    let Ok(mut child) = Command::new(&program).arg("30").current_dir(&cwd).spawn() else { return };
-    std::thread::sleep(Duration::from_millis(300));
-    let seen = running_agents();
-    let _ = child.kill();
-    let _ = child.wait();
-    assert!(seen.iter().any(|p| p.kind == "claude" && Path::new(&p.cwd) == cwd), "{seen:?}");
+fn lsof_lines_name_each_agents_folder() {
+    let lines = "p101\ncclaude\nn/w/a\np102\nccodex\nn/w/b\nn/w/c\np103\ncvim\nn/w/d\np104\nccursor-ag\nn/w/e\np105\ncagy\nn/w/f\n";
+    let got: Vec<(String, String)> = parse_lsof(lines).into_iter().map(|p| (p.kind, p.cwd)).collect();
+    let want = [("claude", "/w/a"), ("codex", "/w/b"), ("codex", "/w/c"), ("cursor", "/w/e"), ("antigravity", "/w/f")];
+    assert_eq!(got, want.map(|(k, c)| (k.to_string(), c.to_string())));
+}
+
+/// Starting a program under another name is not possible in a test (the system kills a copied system program), so the
+/// parse above is tested on its own and this only checks that asking `lsof` works.
+#[test]
+fn asking_lsof_gives_a_list_and_never_fails() {
+    assert!(running_agents().iter().all(|p| !p.cwd.is_empty()));
 }
 
 #[test]

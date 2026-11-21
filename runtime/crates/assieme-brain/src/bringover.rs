@@ -168,21 +168,29 @@ pub(crate) fn history(claude_dir: &Path, codex_dir: &Path, now: Timestamp, days:
     out
 }
 
-/// The agent programs Assieme knows that are running, from their working folders.
+/// The agent programs Assieme knows that are running, from their working folders (`lsof`, as the Python brain asked it:
+/// `sysinfo` would add crates the notices script can't give a license text for).
 pub(crate) fn running_agents() -> Vec<Proc> {
-    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
-    let Ok(mut sys) = System::new() else { return vec![] };
-    sys.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::nothing().with_cwd(UpdateKind::Always),
-    );
-    let mut out = vec![];
-    for p in sys.processes().values() {
-        let name = p.name().to_string_lossy();
-        let kind = AGENT_PROGRAMS.iter().find(|(prog, _)| name.starts_with(prog)).map(|(_, k)| *k);
-        if let (Some(kind), Some(cwd)) = (kind, p.cwd()) {
-            out.push(Proc { kind: kind.into(), cwd: cwd.to_string_lossy().into_owned() });
+    let mut cmd = std::process::Command::new("lsof");
+    cmd.args(["-a", "-d", "cwd", "-Fpcn"]);
+    for (program, _) in AGENT_PROGRAMS {
+        cmd.args(["-c", program]);
+    }
+    let Ok(Some(listed)) = crate::setup::run(cmd, None, LIMIT) else { return vec![] };
+    parse_lsof(&String::from_utf8_lossy(&listed.stdout))
+}
+
+/// `lsof -Fpcn` lines: a `p` line starts a process, its `c` line names its command, each `n` line is a folder.
+fn parse_lsof(text: &str) -> Vec<Proc> {
+    let (mut out, mut kind) = (vec![], None::<&str>);
+    for line in text.lines() {
+        let (tag, value) = line.split_at(line.chars().next().map_or(0, char::len_utf8));
+        match tag {
+            "p" => kind = None,
+            // lsof cuts a command's name at nine characters
+            "c" => kind = AGENT_PROGRAMS.iter().find(|(p, _)| value.starts_with(&p[..p.len().min(9)])).map(|(_, k)| *k),
+            "n" => out.extend(kind.map(|k| Proc { kind: k.into(), cwd: value.to_string() })),
+            _ => {}
         }
     }
     out
