@@ -358,6 +358,31 @@
             "minimum": 0,
             "type": "integer"
           },
+          "keeps_running_after_logout": {
+            "description": "True: systemd lingering is enabled; false: programs stop at last logout.\nNull: unsupported, not applicable or unknown.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "login_session": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LoginSession"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "OS login inherited by this core. Absent when unavailable or unsupported."
+          },
+          "logout_linger_user": {
+            "description": "Account for the administrator's loginctl enable-linger command.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "methods": {
             "items": {
               "type": "string"
@@ -503,6 +528,33 @@
         ],
         "type": "object"
       },
+      "LoginSession": {
+        "description": "The OS login a process inherited, rather than text restored from its environment.",
+        "properties": {
+          "gui": {
+            "description": "Unknown provenance never triggers automatic replacement.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "id": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "user": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "user"
+        ],
+        "type": "object"
+      },
       "Machine": {
         "properties": {
           "host": {
@@ -512,6 +564,22 @@
           "id": {
             "description": "The other core's permanent id.",
             "type": "string"
+          },
+          "keeps_running_after_logout": {
+            "default": null,
+            "description": "Last observed systemd logout protection; null for old or unsupported cores.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "logout_linger_user": {
+            "default": null,
+            "description": "Remote account for loginctl enable-linger, when applicable.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
             "description": "What this core calls it: `rohan` in `rohan/t7`.",
@@ -576,6 +644,22 @@
           "id": {
             "description": "The other core's permanent id.",
             "type": "string"
+          },
+          "keeps_running_after_logout": {
+            "default": null,
+            "description": "Last observed systemd logout protection; null for old or unsupported cores.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "logout_linger_user": {
+            "default": null,
+            "description": "Remote account for loginctl enable-linger, when applicable.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
             "description": "What this core calls it: `rohan` in `rohan/t7`.",
@@ -1085,10 +1169,24 @@
               "null"
             ]
           },
+          "keeps_running_after_logout": {
+            "description": "True: systemd lingering is enabled; false: programs stop at last logout.\nNull: unsupported, not applicable or unknown. Checked on every request.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "live": {
             "format": "uint",
             "minimum": 0,
             "type": "integer"
+          },
+          "logout_linger_user": {
+            "description": "Account for the administrator's loginctl enable-linger command.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "pid": {
             "format": "uint32",
@@ -1513,7 +1611,7 @@
       "name": "Apache-2.0"
     },
     "title": "assieme-core",
-    "version": "0.1.19"
+    "version": "0.1.21"
   },
   "methods": [
     {
@@ -1631,10 +1729,34 @@
     },
     {
       "description": "Planned restart (e.g. after an update): screens are saved, programs keep running, the next core adopts them.",
-      "errors": [],
+      "errors": [
+        {
+          "code": -32602,
+          "data": {
+            "kind": "invalid_params"
+          },
+          "message": "invalid_params"
+        }
+      ],
       "name": "server.restart",
       "paramStructure": "by-name",
-      "params": [],
+      "params": [
+        {
+          "description": "Replacement environment for the next core; requires PATH. Omit to preserve\nthis core's environment. Normal startup filtering applies; session paths\nand service bookkeeping still belong to the next launcher.",
+          "name": "environment",
+          "required": false,
+          "schema": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Replacement environment for the next core; requires PATH. Omit to preserve\nthis core's environment. Normal startup filtering applies; session paths\nand service bookkeeping still belong to the next launcher.",
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        }
+      ],
       "result": {
         "name": "result",
         "schema": {
@@ -1781,7 +1903,7 @@
           }
         },
         {
-          "description": "Set on top of the core's environment. Clients pass their terminal\nidentity here (TERM, TERM_PROGRAM, COLORTERM).",
+          "description": "Override the core's environment and terminal identity. Omit terminal\nidentity variables to use the core's defaults.",
           "name": "env",
           "required": false,
           "schema": {
@@ -1789,7 +1911,7 @@
               "type": "string"
             },
             "default": {},
-            "description": "Set on top of the core's environment. Clients pass their terminal\nidentity here (TERM, TERM_PROGRAM, COLORTERM).",
+            "description": "Override the core's environment and terminal identity. Omit terminal\nidentity variables to use the core's defaults.",
             "type": "object"
           }
         },
@@ -2474,7 +2596,7 @@
       }
     },
     {
-      "description": "Paste text and press Enter, once nobody has typed for ~3 s; keys a person presses meanwhile are held, then delivered. Refuses a blocked program unless `force`.",
+      "description": "Paste text and press Enter after a person sends or clears their draft (at most 60 s since their last key), otherwise after ~3 s of quiet. Keys pressed during delivery are held, then delivered. Refuses a blocked program unless `force`.",
       "errors": [
         {
           "code": -32000,
@@ -2531,6 +2653,13 @@
             "kind": "config"
           },
           "message": "config"
+        },
+        {
+          "code": -32000,
+          "data": {
+            "kind": "cancelled"
+          },
+          "message": "cancelled"
         }
       ],
       "name": "terminal.send",
@@ -2839,7 +2968,7 @@
       }
     },
     {
-      "description": "Press named keys, encoded for the program's current keyboard modes. Same quiet rule as send.",
+      "description": "Press named keys, encoded for the program's current keyboard modes, after ~3 s of quiet. Does not wait for an unsent draft.",
       "errors": [
         {
           "code": -32000,

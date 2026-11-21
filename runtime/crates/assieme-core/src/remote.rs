@@ -12,7 +12,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -49,6 +49,7 @@ pub struct Line {
     mirror: Mutex<(u64, Option<u32>, Vec<u8>)>,
     /// What the core there said it can do (its `hello`).
     features: Vec<String>,
+    closed: AtomicBool,
 }
 
 impl Line {
@@ -57,11 +58,18 @@ impl Line {
         Arc::new(Line {
             features: features.filter_map(|f| f.as_str().map(String::from)).collect(),
             frames,
+            closed: AtomicBool::new(false),
             pending: Mutex::default(),
             streams: Mutex::default(),
             next: AtomicU64::new(2),
             mirror: Mutex::default(),
         })
+    }
+
+    fn close(&self) {
+        let mut pending = lock(&self.pending);
+        self.closed.store(true, Ordering::Relaxed);
+        pending.clear();
     }
 
     /// A reply to one of our calls: to whoever waits for it.
@@ -85,7 +93,7 @@ impl Line {
         let _ = self.frames.send(wire::encode(0, wire::DATA, message.to_string().as_bytes()));
     }
 
-    /// A call that gets `deadline` to answer: a stuck machine never holds us.
+    /// A call bounded by its deadline and the line's health.
     pub async fn call(
         &self,
         machine: &str,
@@ -115,24 +123,38 @@ impl Line {
                 wire::MAX_PAYLOAD >> 20
             )));
         }
-        let (tx, rx) = oneshot::channel();
-        lock(&self.pending).insert(id, (tx, sink));
-        let _ = self.frames.send(wire::encode(0, wire::DATA, req.as_bytes()));
-        let _asked = Asked { line: self, id };
-        let Ok(reply) = tokio::time::timeout(deadline, rx).await else {
-            return Err(RpcError::new(
-                "unavailable",
-                format!("{machine} didn't answer within {} s", deadline.as_secs()),
-                "it may be busy or stuck; asm machine ls shows its line",
-            ));
-        };
-        let reply = reply.map_err(|_| {
+        let lost = || {
             RpcError::new(
                 "unavailable",
                 format!("lost the line to {machine} during the call"),
                 "it may have happened there; check, then retry",
             )
-        })?;
+        };
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut pending = lock(&self.pending);
+            if self.closed.load(Ordering::Relaxed) {
+                return Err(lost());
+            }
+            pending.insert(id, (tx, sink));
+        }
+        let _asked = Asked { line: self, id };
+        self.frames.send(wire::encode(0, wire::DATA, req.as_bytes())).map_err(|_| lost())?;
+        let reply = tokio::select! {
+            reply = tokio::time::timeout(deadline, rx) => reply.map_err(|_| {
+                RpcError::new(
+                    "unavailable",
+                    format!("{machine} didn't answer within {} s", deadline.as_secs()),
+                    if method == "terminal.send" {
+                        "it may still have been typed; check with asm read before retrying"
+                    } else {
+                        "it may be busy or stuck; asm machine ls shows its line"
+                    },
+                )
+            })?,
+            err = crate::server::send_cancelled(), if method == "terminal.send" => return Err(err),
+        };
+        let reply = reply.map_err(|_| lost())?;
         match reply.get("error") {
             Some(e) => Err(RpcError::from_json(e)),
             None => Ok(reply["result"].clone()),
@@ -210,7 +232,7 @@ pub fn start_all(core: &Arc<Core>) {
 }
 
 /// Dials the machine, holds the line, and dials again after a drop (backing
-/// off to 30 s) until the machine is removed.
+/// off to 30 s, or more slowly when a login is needed) until it is removed.
 pub fn keep_up(core: &Arc<Core>, id: String) {
     let mut st = core.lock();
     st.lines.insert(id.clone(), LineState::Connecting);
@@ -224,7 +246,9 @@ pub fn forget(core: &Core, st: &mut State, id: &str) {
     for (address, record) in st.mirrors.remove(id).unwrap_or_default() {
         core.deliver(st, "removed", &address, json!({}), &record, Some(&record));
     }
-    st.lines.remove(id);
+    if let Some(LineState::Connected(line)) = st.lines.remove(id) {
+        line.close();
+    }
     if let Some(task) = st.line_tasks.remove(id) {
         task.abort();
     }
@@ -239,6 +263,7 @@ pub fn forget(core: &Core, st: &mut State, id: &str) {
 
 async fn supervise(core: Arc<Core>, id: String) {
     let mut backoff = Duration::from_millis(250);
+    let mut login_backoff = Duration::ZERO;
     loop {
         let Some(m) = core.lock().machines.iter().find(|m| m.id == id).cloned() else { return };
         let down = |st: &mut State, why: String| {
@@ -265,6 +290,7 @@ async fn supervise(core: Arc<Core>, id: String) {
             }
             Ok(d) => {
                 backoff = Duration::from_millis(250);
+                login_backoff = Duration::ZERO;
                 // It may have been updated since it was added.
                 if let Some(v) = d.hello["version"].as_str().filter(|v| *v != m.version) {
                     let mut st = core.lock();
@@ -280,12 +306,35 @@ async fn supervise(core: Arc<Core>, id: String) {
                 core.changed.notify_waiters();
                 continue;
             }
-            Err(e) if e.kind == "needs_login" => down(&mut core.lock(), "needs_login".into()),
+            Err(e) if e.kind == "needs_login" => {
+                down(&mut core.lock(), "needs_login".into());
+                // Slow enough that a failing key doesn't get the person banned (fail2ban, CrowdSec),
+                // but an ssh-agent unlocked later still reconnects on its own.
+                login_backoff = Duration::from_secs(match login_backoff.as_secs() {
+                    0 => 120,
+                    120 => 300,
+                    _ => 600,
+                });
+                tokio::time::sleep(login_backoff).await;
+                continue;
+            }
             Err(e) if e.kind == "incompatible" => down(&mut core.lock(), "needs_update".into()),
             Err(e) => down(&mut core.lock(), e.message),
         }
         tokio::time::sleep(backoff).await;
         backoff = (backoff * 2).min(reconnect_max());
+    }
+}
+
+async fn refresh_status(core: &Arc<Core>, m: &Machine, line: &Arc<Line>) {
+    loop {
+        if let Ok(status) = line.call(&m.name, "server.status", json!({}), Duration::from_secs(2)).await {
+            let mut st = core.lock();
+            let Some(saved) = st.machines.iter_mut().find(|saved| saved.id == m.id) else { return };
+            saved.keeps_running_after_logout = status["keeps_running_after_logout"].as_bool();
+            saved.logout_linger_user = status["logout_linger_user"].as_str().map(String::from);
+        }
+        tokio::time::sleep(Duration::from_secs(3)).await;
     }
 }
 
@@ -302,6 +351,8 @@ async fn hold(core: &Arc<Core>, m: &Machine, mut d: crate::machines::Dialed) {
     }
     core.changed.notify_waiters();
     tokio::spawn(reattach(core.clone(), m.clone(), line.clone()));
+    let refresh = refresh_status(core, m, &line);
+    tokio::pin!(refresh);
     // Everything that happens there, to keep its mirror here and tell subscribers.
     let id = line.next.fetch_add(1, Ordering::Relaxed);
     lock(&line.mirror).0 = id;
@@ -323,8 +374,10 @@ async fn hold(core: &Arc<Core>, m: &Machine, mut d: crate::machines::Dialed) {
     // Silence is no bytes at all: a big frame on a slow link keeps flowing.
     let heard = wire::Heard::default();
     let mut stdout = heard.watch(&mut d.stdout);
+    let mut sends = crate::server::Sends::default();
     loop {
         let (channel, kind, payload) = tokio::select! {
+            () = &mut refresh => break,
             frame = wire::read_frame(&mut stdout) => match frame {
                 Ok(Some(frame)) => frame,
                 _ => break,
@@ -348,7 +401,14 @@ async fn hold(core: &Arc<Core>, m: &Machine, mut d: crate::machines::Dialed) {
                         }
                     }
                     None => line.take_reply(message),
-                    Some(_) => drop(tokio::spawn(from_machine(core.clone(), m.clone(), line.clone(), message))),
+                    Some("$/cancelRequest") => sends.cancel(Some(&message["params"]["id"].to_string())),
+                    Some(_) => {
+                        let cancelled = sends.track(&message);
+                        drop(tokio::spawn(
+                            crate::server::SEND_CANCELLED
+                                .scope(cancelled, from_machine(core.clone(), m.clone(), line.clone(), message)),
+                        ));
+                    }
                 }
             }
             (0, _) => {}
@@ -388,10 +448,10 @@ async fn hold(core: &Arc<Core>, m: &Machine, mut d: crate::machines::Dialed) {
         }
     }
     // Calls still waiting on it fail now ("lost the line"), not at their deadline.
-    lock(&line.pending).clear();
+    line.close();
     // Viewers here hear that the line is gone and stay open; the programs keep
     // running there, and the viewers get them back with the line.
-    let notice = format!("\r\n[line to {} lost; reconnecting...]\r\n", m.name);
+    let notice = lost_notice(&m.name);
     for (_, (conn, here)) in lock(&line.streams).drain() {
         conn.with(|out| {
             out.data(here, notice.as_bytes());
@@ -400,6 +460,11 @@ async fn hold(core: &Arc<Core>, m: &Machine, mut d: crate::machines::Dialed) {
     // Killed, not waited for: a Mac core once never heard the old ssh had
     // died and stayed "connecting" for good. It is reaped in the background.
     let _ = d.child.start_kill();
+}
+
+/// CAN first: the line may have dropped mid-sequence, which would swallow this.
+fn lost_notice(machine: &str) -> String {
+    format!("\x18\r\n[line to {machine} lost; reconnecting...]\r\n")
 }
 
 /// A machine's terminals now (after a connect, or after it says we missed
@@ -605,7 +670,9 @@ pub fn peer_joined(core: &Arc<Core>, conn: &Arc<Conn>, hello: &Value) {
     for message in std::mem::take(&mut peer.outbox) {
         line.message(&message);
     }
-    st.peer_lines.insert(id.into(), (conn_key(conn), line));
+    if let Some((_, old)) = st.peer_lines.insert(id.into(), (conn_key(conn), line)) {
+        old.close();
+    }
     save_peers(core, &st);
 }
 
@@ -632,7 +699,12 @@ pub fn is_peer(core: &Core, conn: &Arc<Conn>) -> bool {
 
 pub fn peer_left(core: &Core, conn: &Arc<Conn>) {
     let key = conn_key(conn);
-    core.lock().peer_lines.retain(|_, (k, _)| *k != key);
+    core.lock().peer_lines.retain(|_, (k, line)| {
+        if *k == key {
+            line.close();
+        }
+        *k != key
+    });
 }
 
 /// A reply from a peer to one of our calls. False: not a peer's connection.
@@ -883,7 +955,7 @@ async fn forward_waiting(core: &Core, m: &Machine, method: &str, mut params: Val
         params["labels"]["asm.run"] = mark.clone().into();
     }
     let first = match forward_once(core, m, method, params.clone()).await {
-        Err(e) if line_lost(&e) => e,
+        Err(e) if line_lost(&e) && method != "terminal.send" => e,
         done => return done,
     };
     let caller = params["caller"].clone();
@@ -943,7 +1015,7 @@ async fn forward_once(core: &Core, m: &Machine, method: &str, mut params: Value)
         // An older core ends a child with its parent only when asked to.
         params["die_with_parent"] = json!(params["outlive_parent"] != true);
     }
-    let deadline = deadline_for(core, method, &params);
+    let deadline = if method == "terminal.send" { Duration::MAX } else { deadline_for(core, method, &params) };
     let line = line(core, m).await?;
     // An older core would read no program as "nothing to run".
     let own_shell = params["argv"].as_array().is_none_or(Vec::is_empty) || params.get("line").is_some();
@@ -985,7 +1057,18 @@ pub async fn forward_to(core: &Core, to: &To, method: &str, params: Value) -> Re
             let line = found
                 .ok_or_else(|| RpcError::new("unavailable", format!("{name} is not connected"), "try again later"))?;
             let calls_me = core.lock().peers.get(id).map(|p| p.calls_me.clone()).unwrap_or_default();
-            let deadline = deadline_for(core, method, &params);
+            // Reverse calls have no incoming heartbeat monitor: leave room for
+            // a walked-away draft, but still bound a stuck peer. Its config may
+            // differ: never shorten the default allowance using our local cap.
+            let draft = if method == "terminal.send" {
+                crate::input::draft_timeout(&core.paths.config)
+                    .max(crate::input::default_draft_timeout())
+                    .max(crate::input::quiet())
+                    + crate::server::heartbeat_every().min(Duration::from_secs(5))
+            } else {
+                Duration::ZERO
+            };
+            let deadline = deadline_for(core, method, &params) + draft;
             let reply = line.call(name, method, params, deadline).await?;
             Ok(if method.starts_with("doc.") { reply } else { localize(core, name, &[calls_me.as_str()], reply) })
         }

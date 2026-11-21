@@ -134,7 +134,7 @@ def _codex(role, py=None, cwd=None):
     # Codex hands MCP servers a short list of variables: these say which agent this is.
     a += ['-c', f'mcp_servers.assieme.command={json.dumps(_mcp(py)["command"])}',
           '-c', f'mcp_servers.assieme.args={json.dumps(_mcp(py)["args"])}',
-          '-c', 'mcp_servers.assieme.env_vars=["HC_SESSION","HC_TERMINAL_ID","XDG_STATE_HOME","ASSIEME_BRIDGE","PYTHONPATH"]',
+          '-c', 'mcp_servers.assieme.env_vars=["ASM_SESSION","ASM_TERMINAL_ID","XDG_STATE_HOME","ASSIEME_BRIDGE","PYTHONPATH"]',
           '-c', 'mcp_servers.assieme.default_tools_approval_mode="approve"']
     if role.model:
         a += ['-m', role.model]
@@ -382,7 +382,7 @@ def _cursor(role, cwd, py=None, trusted=False):
     _merge(cwd, '.cursor/hooks.json', {'version': 1, 'hooks': {
         'sessionStart': hook('idle'), 'beforeSubmitPrompt': hook('working'), 'stop': hook('idle')}})
     # Cursor hands MCP servers none of the terminal's variables: these say which agent this is (as Codex's env_vars).
-    passed = {n: '${env:%s}' % n for n in ('HC_SESSION', 'HC_TERMINAL_ID', 'XDG_STATE_HOME', 'ASSIEME_BRIDGE', 'PYTHONPATH')}
+    passed = {n: '${env:%s}' % n for n in ('ASM_SESSION', 'ASM_TERMINAL_ID', 'XDG_STATE_HOME', 'ASSIEME_BRIDGE', 'PYTHONPATH')}
     mcp = _merge(cwd, '.cursor/mcp.json', {'mcpServers': {'assieme': _mcp(py) | {'env': passed}}})
     if mcp is not None and _own(role):  # its own copy only: shared-folder servers are locked
         off = _off(_limits(role, cwd), 'server')

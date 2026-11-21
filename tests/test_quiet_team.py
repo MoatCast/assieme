@@ -9,13 +9,13 @@ from tests.test_quiet import RECEIVER, SENDER, FakeHC, QuietTestCase, Receiver
 
 class SessionTest(QuietTestCase):
     def hold(self):
-        with mock.patch.dict(os.environ, {'HC_SESSION': 'assieme', 'HC_SOCKET': '/s/hc.sock'}):
+        with mock.patch.dict(os.environ, {'ASM_SESSION': 'assieme', 'ASM_SOCKET': '/s/asm.sock'}):
             self.send('send', 'coord', 'suite done')
 
     def test_hold_records_session_and_socket(self):
         self.hold()
         [n] = quiet.held()[RECEIVER]
-        self.assertEqual((n['session'], n['socket']), ('assieme', '/s/hc.sock'))
+        self.assertEqual((n['session'], n['socket']), ('assieme', '/s/asm.sock'))
 
     def test_deliver_uses_the_notes_session(self):
         self.hold()
@@ -25,11 +25,11 @@ class SessionTest(QuietTestCase):
             seen.update(kw.get('env') or {})
             return FakeHC()(cmd, **kw)
         self.assertEqual(quiet.deliver([Receiver('working')], run=hc), [('coord', 1, 'busy')])
-        self.assertEqual((seen['HC_SESSION'], seen['HC_SOCKET']), ('assieme', '/s/hc.sock'))
+        self.assertEqual((seen['ASM_SESSION'], seen['ASM_SOCKET']), ('assieme', '/s/asm.sock'))
 
     def test_notes_for_two_sessions_go_in_two_batches(self):
         self.hold()
-        with mock.patch.dict(os.environ, {'HC_SESSION': 'other', 'HC_SOCKET': '/s/o.sock'}):
+        with mock.patch.dict(os.environ, {'ASM_SESSION': 'other', 'ASM_SOCKET': '/s/o.sock'}):
             self.send('send', 'coord', 'lint clean')
         hc = FakeHC()
         self.assertEqual(len(quiet.deliver([Receiver('working')], run=hc)), 2)
@@ -47,12 +47,12 @@ class SessionTest(QuietTestCase):
         self.assertEqual(len(quiet.held()[RECEIVER]), 1)
 
     def test_hold_note_for_an_agent(self):
-        quiet.hold_note('t2', '/w/x', 'assieme: practices changed', 'assieme', '/s/hc.sock')
+        quiet.hold_note('t2', '/w/x', 'assieme: practices changed', 'assieme', '/s/asm.sock')
         [n] = quiet.held()['/w/x']
         self.assertEqual((n['from'], n['to']), ('assieme', 't2'))
 
     def test_shim_runs_python_with_P(self):
-        with open(os.path.join(quiet.install(), 'hc')) as f:
+        with open(os.path.join(quiet.install(), 'asm')) as f:
             self.assertIn(' -P -m assieme shim "$@"', f.read())
 
 
@@ -79,10 +79,10 @@ class CoreTest(QuietTestCase):
         def fake_run(cmd, env=None, **kw):
             seen.update(env)
             return mock.Mock(returncode=0)
-        with mock.patch.object(runtime.subprocess, 'run', fake_run), mock.patch.object(runtime.shutil, 'which', return_value='/x/hc'):
+        with mock.patch.object(runtime.subprocess, 'run', fake_run), mock.patch.object(runtime.shutil, 'which', return_value='/x/asm'):
             runtime.Runtime(sock=os.path.join(self.tmp.name, 'c.sock')).ensure_core()
         self.assertTrue(seen['PATH'].startswith(quiet.shim_dir() + os.pathsep))
-        self.assertTrue(os.path.exists(os.path.join(quiet.shim_dir(), 'hc')))
+        self.assertTrue(os.path.exists(os.path.join(quiet.shim_dir(), 'asm')))
 
 
 class DeliveryRowTest(QuietTestCase):

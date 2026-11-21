@@ -59,6 +59,8 @@ Per command: asm <command> --help
 Settings: ~/.config/assieme-core/config.toml. notes = false: asm types nothing
 on its own (no notes to parent agents, no <asm> tags on messages).
 shell = ["nu"] overrides the shell for new terminals and keep recovery.
+draft_wait = 60: seconds a draft holds sends and notes after your last key;
+0 keeps only the quiet pause. Changes apply to the next delivery.
 
 Examples
   asm run --on vps "cd app && npm test"     like ssh, in a terminal that stays
@@ -519,7 +521,7 @@ Options:
 ## asm send
 
 ```text
-Paste text into a terminal and press Enter (waits for a person to pause)
+Paste text into a terminal and press Enter (waits for a person's unfinished draft)
 
 Usage: asm send [OPTIONS] <TERMINAL> <TEXT>
 
@@ -564,8 +566,9 @@ Restart the core (e.g. after an update); programs keep running
 Usage: asm server restart [OPTIONS]
 
 Options:
-      --json  JSON output even in a terminal
-  -h, --help  Print help
+      --fresh  Take this shell's environment for new terminals; run from a terminal outside Assieme
+      --json   JSON output even in a terminal
+  -h, --help   Print help
 ```
 
 ## asm server start

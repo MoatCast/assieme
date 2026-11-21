@@ -12,7 +12,7 @@ import traceback
 
 from . import launch, limits, runtime, settings, setup, status, team, teammap
 
-CLIS = {**launch.CLIS, 'hc': 'hc', 'herdr': 'herdr'}
+CLIS = {**launch.CLIS, 'asm': 'asm', 'hc': 'hc', 'herdr': 'herdr'}  # hc: the person's own herdr
 
 
 def brain_socket_path():

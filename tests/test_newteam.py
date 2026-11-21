@@ -122,7 +122,7 @@ class CheckSaveTest(unittest.TestCase):
 
     def test_on_a_remote_machine_missing_git_is_said_plainly(self):
         with mock.patch.object(newteam.setup, 'git_ready', return_value=False), \
-                mock.patch.dict(os.environ, {'ASSIEME_HC_SOCKET': '/tmp/x.sock'}):
+                mock.patch.dict(os.environ, {'ASSIEME_ASM_SOCKET': '/tmp/x.sock'}):
             got = newteam.project_check(os.path.join(self.d, 'nope'))
         self.assertEqual(got, {'ok': False, 'reason': 'This machine needs git. Install it there, then choose the folder again.'})
 

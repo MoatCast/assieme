@@ -65,7 +65,7 @@ def _hc_targets(command, verb):
         except ValueError:
             words = seg.split()
         for i in range(len(words) - 1):
-            if os.path.basename(words[i]) == 'hc' and words[i + 1] == verb:
+            if os.path.basename(words[i]) in ('asm', 'hc') and words[i + 1] == verb:
                 rest = words[i + 2:]
                 while rest and rest[0].startswith('-'):
                     rest = rest[2:] if rest[0] in VALUE_FLAGS else rest[1:]
@@ -265,8 +265,8 @@ def _finish(agent, now, stuck_after):
         agent.state, agent.detail = 'waiting on you', f'asked {_ago(age)} ago'
         agent.ask_kind = {'AskUserQuestion': 'a question', 'ExitPlanMode': 'a plan to approve'}.get(tool[0], 'an approval')
         agent.ask_since = agent.last
-    elif tool and re.search(r'\bhc\s+wait\b', tool[2] or ''):  # waiting is its job: never "stuck" by silence
-        agent.detail = 'waiting (hc wait)'
+    elif tool and re.search(r'\b(?:asm|hc)\s+wait\b', tool[2] or ''):  # waiting is its job: never "stuck" by silence
+        agent.detail = 'waiting'
     elif age > stuck_after:  # working with no new log row for this long (Settings › Fixes)
         agent.state = 'stuck'
         agent.detail = f'silent {_ago(age)}, last {tool[1]}' if tool else f'no reply for {_ago(age)} (stuck, or the session closed)'
@@ -509,7 +509,7 @@ def _apply_herdr(agents, terminals):
 
 
 def hc_path():
-    """The person's herdr install's own hc, else theirs on the login PATH: the brain's PATH puts the bundled one first."""
+    """The person's herdr install's own hc, else theirs on the login PATH."""
     herdr = setup.agent_path('herdr')
     own = herdr and os.path.join(os.path.dirname(herdr), 'hc')
     return own if own and os.access(own, os.X_OK) else setup.agent_path('hc')
@@ -604,9 +604,9 @@ def _wait_edges(agents, alias):
         waited = [alias[t] for t in _hc_targets(tool[2] if tool else '', 'wait') if t in alias]
         if a.state == 'waiting on you':
             a.waits_on = ['you']
-        elif a.state == 'working' and waited:  # `hc wait <agent>`: busy on paper, blocked in fact
+        elif a.state == 'working' and waited:  # `asm wait <agent>`: busy on paper, blocked in fact
             a.waits_on = [w.name for w in waited]
-            a.detail = f"waiting for {', '.join(a.waits_on)} (hc wait)"
+            a.detail = f"waiting for {', '.join(a.waits_on)}"
         elif a.state == 'idle':
             # its last message this turn went to X, and X has not answered since: it may wait on X
             sends = [(ts, alias.get(t)) for ts, t in a.sends if alias.get(t) not in (None, a)

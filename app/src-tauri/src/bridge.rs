@@ -1,6 +1,6 @@
-//! The bridge between the page and the two local services: the brain (`assieme serve`) and herdr-core's
-//! `assieme` session. Plain functions over Unix sockets, so they are tested without Tauri; `lib.rs` wraps them
-//! as commands. Terminals in any other hc session are only ever read, never attached.
+//! The bridge between the page and the two local services: the brain (`assieme serve`) and Assieme's runtime
+//! (`asm`). Plain functions over Unix sockets, so they are tested without Tauri; `lib.rs` wraps them as commands.
+//! Terminals in the person's own herdr-core sessions are only ever read, never attached.
 use crate::frame::{self, CLOSE, CREDIT, DATA, RESIZE};
 use serde_json::{Value, json};
 use std::io::{BufRead, BufReader, Write};
@@ -30,10 +30,10 @@ pub fn brain_socket() -> PathBuf {
     state_home().join("assieme/brain.sock")
 }
 
-/// The `assieme` session's socket (fixed by Assieme), or another session's default hc socket.
-pub fn hc_socket(session: &str) -> PathBuf {
+/// Assieme's runtime socket for the `assieme` session, or the person's own herdr-core socket for another.
+pub fn core_socket(session: &str) -> PathBuf {
     if session == "assieme" {
-        state_home().join("assieme/hc.sock")
+        state_home().join("assieme/asm.sock")
     } else {
         state_home().join(format!("herdr-core/{session}/{session}.sock"))
     }
@@ -103,7 +103,7 @@ impl Stream {
                     }
                 }
                 Some(_) => {}
-                None => return Err("hc closed the connection during attach".into()),
+                None => return Err("the core closed the connection during attach".into()),
             }
         };
         let writer = Arc::new(Mutex::new(w));
@@ -114,7 +114,7 @@ impl Stream {
                     Ok(Some((ch, DATA, p))) if ch == channel => {
                         let n = p.len() as u32;
                         on_data(p);
-                        // Return the credit at once, so hc keeps streaming past its 256 KiB window.
+                        // Return the credit at once, so the core keeps streaming past its 256 KiB window.
                         if credit.lock().unwrap().write_all(&frame::encode(channel, CREDIT, &n.to_le_bytes())).is_err() {
                             break "lost".to_string();
                         }
@@ -168,9 +168,9 @@ mod tests {
         p
     }
 
-    /// Fake hc: answers `hello` and `terminal.attach`, sends `total` bytes on channel 1 in 16 KiB frames,
+    /// Fake core: answers `hello` and `terminal.attach`, sends `total` bytes on channel 1 in 16 KiB frames,
     /// then reports every frame the client sent until it closes.
-    fn fake_hc(sock: &Path, total: usize) -> mpsc::Receiver<(u32, u8, Vec<u8>)> {
+    fn fake_core(sock: &Path, total: usize) -> mpsc::Receiver<(u32, u8, Vec<u8>)> {
         let listener = UnixListener::bind(sock).unwrap();
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn data_frames_return_credit() {
         let sock = temp_sock("credit");
-        let rx = fake_hc(&sock, 300 * 1024);
+        let rx = fake_core(&sock, 300 * 1024);
         let (s, got, _) = open(&sock, true);
         let (_, _, attach) = rx.recv_timeout(Duration::from_secs(5)).unwrap();
         let attach: Value = serde_json::from_slice(&attach).unwrap();
@@ -234,7 +234,7 @@ mod tests {
     #[test]
     fn resize_frame_is_cols_then_rows_le() {
         let sock = temp_sock("resize");
-        let rx = fake_hc(&sock, 0);
+        let rx = fake_core(&sock, 0);
         let (s, _, _) = open(&sock, false);
         rx.recv_timeout(Duration::from_secs(5)).unwrap();
         s.resize(120, 40).unwrap();
@@ -328,8 +328,8 @@ mod tests {
 
     #[test]
     fn read_only_for_other_sessions() {
-        assert!(hc_socket("default").ends_with("herdr-core/default/default.sock"));
-        assert!(hc_socket("assieme").ends_with("assieme/hc.sock"));
+        assert!(core_socket("default").ends_with("herdr-core/default/default.sock"));
+        assert!(core_socket("assieme").ends_with("assieme/asm.sock"));
         let sock = temp_sock("read");
         let rx = fake_line_server(&sock, "{\"id\":1,\"result\":{\"text\":\"hello\"}}\n");
         assert_eq!(read_text_at(&sock, "t4").unwrap(), "hello");
@@ -338,7 +338,7 @@ mod tests {
     }
 }
 
-/// Against a real hc: `ASSIEME_REAL_TERMINAL=t5 cargo test --lib real_hc -- --ignored`.
+/// Against a real core: `ASSIEME_REAL_TERMINAL=t5 cargo test --lib real_core -- --ignored`.
 #[cfg(test)]
 mod real {
     use super::*;
@@ -347,12 +347,12 @@ mod real {
 
     #[test]
     #[ignore]
-    fn real_hc_stream() {
+    fn real_core_stream() {
         let address = std::env::var("ASSIEME_REAL_TERMINAL").expect("set ASSIEME_REAL_TERMINAL");
         let got = Arc::new(Mutex::new(Vec::new()));
         let g = got.clone();
         let (tx, rx) = mpsc::channel();
-        let s = Stream::open(&hc_socket("assieme"), &address, 100, 30, true, move |b| g.lock().unwrap().extend(b), move |w| {
+        let s = Stream::open(&core_socket("assieme"), &address, 100, 30, true, move |b| g.lock().unwrap().extend(b), move |w| {
             let _ = tx.send(w);
         })
         .unwrap();

@@ -2,7 +2,19 @@
 # Machines
 
 Run a program on another machine and come back to it from here.
-The program lives there. Losing your connection does not end it.
+The program lives there. On Linux with systemd, asm tries to enable lingering
+so it survives your last login ending. If the server refuses and logind has a finite stop delay,
+adding still succeeds with a warning and `asm machine ls` shows `! stops at logout`.
+Run the suggested `sudo loginctl enable-linger -- <user>` on that machine once.
+The warning clears automatically when an administrator enables it.
+
+The API reports `keeps_running_after_logout` and `logout_linger_user` in
+`hello`, `server.status` and machine results. False means lingering is off
+and logind has a finite user stop delay. An infinite or unreadable delay
+returns null, as do older cores and other OSes. Checks run in the background
+at startup, after the core's own enable attempt, and about every minute.
+Until the first check finishes, the result is null.
+This reports logout protection, not survival across a reboot.
 
 [Back to the README](../README.md) · [Command reference](commands.md#asm-machine)
 
@@ -15,6 +27,30 @@ asm machine add user@host --name box
 asm machine ls
 asm run --on box --cwd /srv/app cargo test
 ```
+
+The target can be any of these:
+
+| You write | ssh connects to |
+| --- | --- |
+| `vps` | the Host `vps` from `~/.ssh/config` (its user, port and key) |
+| `user@10.0.0.7` | `10.0.0.7` as `user`, on port 22 |
+| `user@10.0.0.7:2222` | `10.0.0.7` as `user`, on port 2222 |
+| `ssh://user@10.0.0.7:2222` | the same, in ssh's own URL form |
+
+A port goes after a colon, as in `user@host:2222`; asm passes it to ssh as `ssh://user@host:2222`.
+For a machine you use often, a Host entry keeps the details in one place:
+
+```text
+Host box
+  HostName 10.0.0.7
+  Port 2222
+  User user
+```
+
+Then `asm machine add box` is enough. The same targets work in Assieme's add-machine dialog, which also lists the Hosts from your SSH config.
+
+Without `--name`, the first host label becomes its name (IPs stay whole), shortened to 32 characters.
+Names that are taken or look like terminal ids get a numbered suffix: `t14` becomes `t14-2`.
 
 The other machine needs asm. In an interactive terminal, add asks before copying asm there if it is missing or too old to talk to.
 For a script, `asm machine add user@host --name box --install` allows that copy without asking.
@@ -37,7 +73,7 @@ A custom connection command receives a shell line as its last argument.
 It must carry stdin and stdout unchanged and ask no questions:
 
 ```sh
-asm machine add --name box --via 'ssh -p 2222 -i /home/me/.ssh/key user@host'
+asm machine add --name box --via 'ssh -i /home/me/.ssh/key -o ProxyJump=bastion user@host'
 asm machine add --name sandbox --temp --via 'fly ssh console -a my-app --pty=false -C'
 ```
 
@@ -109,5 +145,8 @@ Repeat old/new pairs for several edits; all succeed or none do.
 - With a custom connection, check that it passes bytes unchanged and does not prompt. Do not request a remote PTY.
 - If a socket path is too long, use a shorter session name or socket path. See [state and endpoints](security.md#state-and-endpoints).
 
-Once a machine is added, core retries a lost connection. Reattach after it returns.
+Once a machine is added, core retries a lost connection. If SSH authentication fails,
+it shows `needs_login` and retries after 2 minutes, then 5 minutes, then every 10 minutes.
+Run `asm machine login box` in a terminal to log in and reconnect immediately.
+A successful connection resets these delays. Reattach after it returns.
 To forget the connection here, use `asm machine rm box`. That does not stop its remote terminals.

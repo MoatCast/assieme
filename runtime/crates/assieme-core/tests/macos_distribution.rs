@@ -2,6 +2,8 @@
 //! macOS release orchestration, without production identities or credentials.
 #![cfg(unix)]
 
+mod common;
+
 use std::ffi::OsStr;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -27,8 +29,8 @@ struct Scratch {
 impl Scratch {
     fn new() -> Self {
         static NEXT: AtomicU32 = AtomicU32::new(0);
-        let root = PathBuf::from(format!(
-            "/var/tmp/asm-macos-distribution-{}-{}",
+        let root = common::test_tmp().join(format!(
+            "asm-macos-distribution-{}-{}",
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));

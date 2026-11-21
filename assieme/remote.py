@@ -1,9 +1,9 @@
-"""Remote machines (step 15): another machine's agents and brain, reached only through hc's machine line.
+"""Remote machines (step 15): another machine's agents and brain, reached only through the core's machine line.
 
 Each machine runs its own brain beside its agents, in a terminal of its own `assieme` core, so a remote team keeps
 being coordinated while this Mac sleeps. In the Mac's brain this module lists hosts, tests and sets up machines,
 forwards the app's calls to the brain where the team lives (`machine.exec` running `assieme call` there), and adds
-remote teams to the calls that list every team. Assieme never runs ssh itself: hc does, with the person's own ssh,
+remote teams to the calls that list every team. Assieme never runs ssh itself: its core does, with the person's own ssh,
 SSH config and agent, and nothing here reads a key or a password.
 """
 import base64
@@ -219,7 +219,7 @@ class _Listed:
 def _failure(target, e):
     """What Test connection says when the machine can't be added. `result` is what the app shows."""
     why = str(e)
-    if e.kind in ('hc_missing', 'incompatible', 'needs_update'):
+    if e.kind in ('asm_missing', 'incompatible', 'needs_update'):
         return {'result': 'not_set_up', 'target': target}
     if e.kind == 'needs_login':
         return {'result': 'needs_login', 'target': target}
@@ -232,10 +232,10 @@ def _failure(target, e):
 
 class Remotes:
     def __init__(self, rt, store=None, install=install_assieme, thread=threading.Thread, clock=time.monotonic,
-                 notify=live.notify, hc=None, opener=None, sleep=time.sleep):
+                 notify=live.notify, asm=None, opener=None, sleep=time.sleep):
         self.rt, self.install, self.thread, self.clock, self.notify, self.sleep = rt, install, thread, clock, notify, sleep
         self.store = store or os.path.join(quiet.state_dir(), 'remote.json')
-        self.hc = hc or (lambda: shutil.which('hc') or 'hc')
+        self.asm = asm or (lambda: shutil.which('asm') or 'asm')
         self.opener = opener or (lambda path: subprocess.run(['open', '-a', 'Terminal', path], capture_output=True, timeout=10))
         self.lock, self.jobs, self.last_tick, self.raw_at, self.starts = threading.Lock(), {}, None, None, set()
         self.ms_at = None                     # (when, the machine list), read at most once a second
@@ -253,7 +253,7 @@ class Remotes:
     def _save(self):
         quiet._write_json(self.store, {'rows': self.rows, 'set_up': sorted(self.set_up)})
 
-    # --- what hc knows ---
+    # --- what the core knows ---
 
     def _raw(self):
         """The core's list with every machine's terminals, read at most once a second."""
@@ -534,7 +534,7 @@ class Remotes:
         return out | {'ready': True, 'outdated': version != package_digest(), 'git': st['git'], 'agents': st['agents']}
 
     def test(self, target):
-        """Test connection: add the machine (hc dials it) and say what is there, in one of the `result`s."""
+        """Test connection: add the machine (the core dials it) and say what is there, in one of the `result`s."""
         target = (target or '').strip()
         if not TARGET.match(target) or target.startswith('-'):
             raise RemoteError('Type a host from your SSH config, or user@address.')
@@ -602,25 +602,25 @@ class Remotes:
             with self.lock:
                 job['done'] = True
 
-    def _hc_cli(self, *args):
-        env = runtime.clean_env(os.environ) | {'HC_SOCKET': self.rt.sock, 'HC_SESSION': self.rt.session}
-        r = subprocess.run([self.hc(), *args, '--json'], capture_output=True, text=True, env=env, timeout=600)
+    def _asm_cli(self, *args):
+        env = runtime.clean_env(os.environ) | {'ASM_SOCKET': self.rt.sock, 'ASM_SESSION': self.rt.session}
+        r = subprocess.run([self.asm(), *args, '--json'], capture_output=True, text=True, env=env, timeout=600)
         try:
             out = json.loads((r.stdout.strip() or r.stderr.strip()).splitlines()[-1])
         except (ValueError, IndexError):
-            raise RemoteError((r.stderr or r.stdout).strip() or 'hc failed') from None
+            raise RemoteError((r.stderr or r.stdout).strip() or 'the core failed') from None
         if r.returncode != 0 or 'error' in out:
             e = out.get('error') or {}
-            raise RemoteError(e.get('message') or 'hc failed')
+            raise RemoteError(e.get('message') or 'the core failed')
         return out
 
     def _add_installing(self, job):
-        """The machine, added with hc on it: hc copies itself there (same OS and CPU) or downloads its own release."""
+        """The machine, added with asm on it: the core copies itself there, or the Linux build the app carries."""
         known = next((m for m in self.machines() if m['target'] == job['target']), None)
         if known and known['state'] == 'needs_update':
-            self._hc_cli('machine', 'update', known['name'])
+            self._asm_cli('machine', 'update', known['name'])
         elif not known:
-            known = self._hc_cli('machine', 'add', job['target'], '--session', SESSION, '--install')
+            known = self._asm_cli('machine', 'add', job['target'], '--session', SESSION, '--install')
         self._fresh()
         with self.lock:
             job['machine'] = known['name']
@@ -640,9 +640,9 @@ class Remotes:
             return
         for t in live_:
             self.rt.kill(t['address'])
-        # It finds its core through the variable hc gives every program in its terminals.
+        # It finds its core through the variable the core gives every program in its terminals.
         self.rt.call('terminal.run', on=machine, name=BRAIN_NAME, labels={SERVICE: BRAIN}, wait=False, no_parent=True,
-                     line=f'ASSIEME_HC_SOCKET="$HC_TERMINAL_SOCKET" exec {ASSIEME} serve')
+                     line=f'ASSIEME_ASM_SOCKET="$ASM_TERMINAL_SOCKET" exec {ASSIEME} serve')
         deadline = self.clock() + BRAIN_WAIT_S
         while True:
             try:
@@ -671,14 +671,14 @@ class Remotes:
         return {'ok': True}
 
     def open_terminal(self, target=None, machine=None):
-        """Terminal, on `ssh <target>` (a password, a new host key) or on hc's login for a machine already added.
+        """Terminal, on `ssh <target>` (a password, a new host key) or on the core's login for a machine already added.
         The person answers ssh there; Assieme sees none of it."""
         if machine:
             m = next((x for x in self.machines() if x['name'] == machine), None)
             if m is None:
                 raise RemoteError(f'No machine named {machine}.')
-            line = (f'HC_SOCKET={shlex.quote(self.rt.sock)} HC_SESSION={shlex.quote(self.rt.session)} '
-                    f'exec {shlex.quote(self.hc())} machine login {shlex.quote(machine)}')
+            line = (f'ASM_SOCKET={shlex.quote(self.rt.sock)} ASM_SESSION={shlex.quote(self.rt.session)} '
+                    f'exec {shlex.quote(self.asm())} machine login {shlex.quote(machine)}')
         else:
             target = (target or '').strip()
             if not TARGET.match(target) or target.startswith('-'):
@@ -709,11 +709,12 @@ class Remotes:
     # --- the brain's tick ---
 
     def tick(self, watching=True):
-        """After the Mac slept, dial every machine at once instead of at hc's next retry. A machine Assieme set up
+        """After the Mac slept, dial every machine at once instead of at the core's next retry. A machine Assieme set up
         whose brain is gone (the machine restarted) gets it back. With the app closed, remote news notifies here."""
         now = self.clock()
         slept = self.last_tick is not None and now - self.last_tick > WOKE_S
         self.last_tick = now
+        self._forget_unknown()
         for m in self.machines():
             if m['state'] != 'connected':
                 if slept:
@@ -729,6 +730,19 @@ class Remotes:
                 self.thread(target=self._revive, args=(name,), daemon=True).start()
         if not watching:
             self._notify_news(now)
+
+    def _forget_unknown(self):
+        """Machines set up on a core that no longer knows them (added before the switch to asm) are dropped from
+        set_up: the person adds them again. Only on a list the core gave: an unreachable core proves nothing."""
+        try:
+            known = {m['name'] for m in self.rt.call('machine.list')['machines'] if m.get('session') == SESSION}
+        except runtime.RuntimeError_:
+            return
+        with self.lock:
+            stale = self.set_up - known
+            self.set_up -= stale
+        if stale:
+            self._save()
 
     def _revive(self, name):
         """Start the brain there; after a failure the next try waits REVIVE_S. Never on the tick's own thread."""
@@ -793,7 +807,7 @@ def brain_socket_path():
 
 def call_main(method, stdin=None, stdout=None, sock=None):
     """`assieme call <method>`: one request to this machine's brain, the parameters as JSON on stdin, the reply on
-    stdout. The Mac's brain reaches a remote brain this way, over hc's line."""
+    stdout. The Mac's brain reaches a remote brain this way, over the core's line."""
     stdin, stdout = stdin or sys.stdin, stdout or sys.stdout
     try:
         raw = stdin.read()

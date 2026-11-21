@@ -167,7 +167,7 @@ class ToolsTest(State):
         t = self.tools([row('a', 't1'), row('b', 't2')])
         self.assertEqual(t.message('t1', 'b', 'done?')['sent'], 'now')
         [(to, text)] = self.brain.rt.sent
-        self.assertEqual((to, wake_sender(text)), ('t2', ('a', 'hc')))
+        self.assertEqual((to, wake_sender(text)), ('t2', ('a', 'asm')))
 
     def test_a_message_names_teammates_when_wrong_and_waits_for_a_booting_agent(self):
         t = self.tools([row('a', 't1'), row('b', 't2'), row('c', 't3', briefed=False)])
@@ -379,9 +379,18 @@ class ServerTest(State):
             return {t.name for t in (await c.list_tools()).tools}
         return self.run_with(server, body)
 
+    def test_mcp_identity_reads_asm_env(self):
+        self.assertEqual(mcpserver.agent_address({'ASM_SESSION': 'assieme', 'ASM_TERMINAL_ID': 't3'}), 't3')
+        self.assertIsNone(mcpserver.agent_address({'HC_SESSION': 'assieme', 'HC_TERMINAL_ID': 't3'}))
+
+    def test_instructions_name_asm(self):
+        text = mcpserver.agent_server('t1').instructions
+        self.assertIn('`asm send`', text)
+        self.assertNotIn('hc', text.split())
+
     def test_the_face_comes_from_the_terminal(self):
-        self.assertEqual(mcpserver.agent_address({'HC_SESSION': 'assieme', 'HC_TERMINAL_ID': 't3'}), 't3')
-        self.assertIsNone(mcpserver.agent_address({'HC_SESSION': 'default', 'HC_TERMINAL_ID': 't3'}))
+        self.assertEqual(mcpserver.agent_address({'ASM_SESSION': 'assieme', 'ASM_TERMINAL_ID': 't3'}), 't3')
+        self.assertIsNone(mcpserver.agent_address({'ASM_SESSION': 'default', 'ASM_TERMINAL_ID': 't3'}))
         self.assertIsNone(mcpserver.agent_address({}))
 
     def test_an_agent_gets_no_control_tools(self):

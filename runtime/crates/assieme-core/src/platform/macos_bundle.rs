@@ -6,9 +6,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub const EXECUTABLE: &str = "Contents/MacOS/assieme-core";
-// shortcut: no Apple team yet, so only ad-hoc builds verify; set it when the app is signed.
 const REQUIREMENT: &str =
-    "=identifier \"dev.assieme.core\" and anchor apple generic and certificate leaf[subject.OU] = \"ASSIEME-TEAM-ID\"";
+    "=identifier \"dev.assieme.core\" and anchor apple generic and certificate leaf[subject.OU] = \"P2B76CVJ4Y\"";
 const LSREGISTER: &str =
     "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
 
@@ -43,7 +42,7 @@ pub fn verify(path: &Path, local: bool) -> io::Result<()> {
             return verify("=identifier \"dev.assieme.core\"");
         }
     }
-    Err(io::Error::other("expected Assieme's Developer ID signature (dev.assieme.core, team not set yet)"))
+    Err(io::Error::other("expected Assieme's Developer ID signature (dev.assieme.core, team P2B76CVJ4Y)"))
 }
 
 struct Link {

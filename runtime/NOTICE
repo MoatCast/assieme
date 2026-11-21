@@ -2,7 +2,8 @@ assieme-core
 Part of Assieme.
 
 This runtime is a one-time fork of herdr-core (https://github.com/herdrdev/herdr-core),
-licensed under the Apache License, Version 2.0, taken at tag v0.1.19 (commit 06793ed).
+licensed under the Apache License, Version 2.0, taken at tag v0.1.19 (commit 06793ed), with fixes from upstream's v0.1.20 and v0.1.21
+ported by hand.
 herdr-core ships no NOTICE file of its own. See LICENSE for the licence text.
 
 Changed by Assieme: the fork was renamed throughout (the program, its commands,

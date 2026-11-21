@@ -129,7 +129,7 @@ def model_options(codex_cache=None):
 
 def project_check(path):
     if not setup.git_ready():
-        if sys.platform != 'darwin' or os.environ.get('ASSIEME_HC_SOCKET'):  # a remote machine: nothing to click here
+        if sys.platform != 'darwin' or os.environ.get('ASSIEME_ASM_SOCKET'):  # a remote machine: nothing to click here
             return {'ok': False, 'reason': NO_GIT}
         return {'ok': False, 'reason': NO_TOOLS, 'tools': True}
     path = os.path.expanduser(path)

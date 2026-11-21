@@ -57,7 +57,7 @@ def _drop(keep):
 
 
 def prune(live):
-    """Forget the tickets of terminals that are gone: hc may give their address to a new one."""
+    """Forget the tickets of terminals that are gone: the core may give their address to a new one."""
     _drop(lambda address: address in live)
 
 

@@ -3,9 +3,9 @@
 
 mod common;
 
+use assieme_core::wire;
 use common::framed::{Framed, Viewer};
 use common::*;
-use assieme_core::wire;
 use serde_json::json;
 use std::time::{Duration, Instant};
 

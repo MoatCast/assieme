@@ -21,7 +21,7 @@ def parse_ts(ts):
 class Turn:
     """Everything an agent did after one wake, until the next one."""
     sender: str         # agent that sent the wake, or HUMAN
-    channel: str        # how it arrived: human, hc, team, subagent, notify, spawn, generic
+    channel: str        # how it arrived: human, asm, hc (the person's herdr), team, subagent, notify, spawn, generic
     calls: int = 0      # model calls the receiver made in this turn
     tokens: int = 0     # input tokens summed over those calls: receiver context x calls
     text: str = ''      # first 80 chars of the wake; filled only with --show-text

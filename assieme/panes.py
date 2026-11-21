@@ -1,6 +1,6 @@
 """The Terminals view: one pane per Assieme agent, with its state, the needs-you strip, and the buttons that act.
 
-Panes are built from `hc`'s terminal rows (hook status, folder, program), the log agents `status.collect` finds,
+Panes are built from the core's terminal rows (hook status, folder, program), the log agents `status.collect` finds,
 matched by worktree folder, the same suggestions as the command-line live view (`live.suggest`), the menu on the
 agent's screen, and suggested answers to a plain-word question (`answers.Answers`).
 """
@@ -74,7 +74,7 @@ RUN_GAP_MS = 120_000  # agents of one start are created within seconds of each o
 
 
 def _current_run(rows):
-    """The rows of the team's latest start: `hc` keeps finished terminals of earlier runs under the same name."""
+    """The rows of the team's latest start: the core keeps finished terminals of earlier runs under the same name."""
     live = [r.get('created_ms') or 0 for r in rows if r.get('state') == 'live']
     since = (min(live) if live else max((r.get('created_ms') or 0 for r in rows), default=0)) - RUN_GAP_MS
     return [r for r in rows if r.get('state') == 'live' or (r.get('created_ms') or 0) >= since]

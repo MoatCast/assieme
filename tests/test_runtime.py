@@ -1,4 +1,4 @@
-"""Runtime client for an isolated hc core: a fake core over a Unix socket, plus a real hc when installed."""
+"""Runtime client for Assieme's core: a fake core over a Unix socket, plus a real asm when built."""
 import json
 import os
 import shutil
@@ -10,6 +10,7 @@ import unittest
 from unittest import mock
 
 from assieme import runtime
+from tests.asm_bin import ASM_DIR
 
 
 class CleanEnvTest(unittest.TestCase):
@@ -24,9 +25,19 @@ class CleanEnvTest(unittest.TestCase):
 
 
 class SocketPathTest(unittest.TestCase):
+    def test_default_socket_is_asm(self):
+        with mock.patch.dict(os.environ, {'XDG_STATE_HOME': '/s'}):
+            os.environ.pop('ASSIEME_ASM_SOCKET', None)
+            self.assertEqual(runtime.socket_path(), '/s/assieme/asm.sock')
+
+    def test_a_remote_brain_finds_its_core_by_asm_socket(self):
+        with mock.patch.dict(os.environ, {'ASSIEME_ASM_SOCKET': '/r/core.sock'}):
+            self.assertEqual(runtime.socket_path(), '/r/core.sock')
+
     def test_honours_xdg_state_home(self):
         with mock.patch.dict(os.environ, {'XDG_STATE_HOME': '/s'}):
-            self.assertEqual(runtime.socket_path(), '/s/assieme/hc.sock')
+            os.environ.pop('ASSIEME_ASM_SOCKET', None)
+            self.assertEqual(runtime.socket_path(), '/s/assieme/asm.sock')
 
 
 class _Handler(socketserver.StreamRequestHandler):
@@ -36,7 +47,7 @@ class _Handler(socketserver.StreamRequestHandler):
             self.server.requests.append(req)
             m, i = req['method'], req['id']
             if m == 'boom':
-                msg = {'id': i, 'error': {'code': -32000, 'message': 'nope', 'data': {'kind': 'not_found', 'hint': 'hc ls'}}}
+                msg = {'id': i, 'error': {'code': -32000, 'message': 'nope', 'data': {'kind': 'not_found', 'hint': 'asm ls'}}}
             else:
                 msg = {'id': i, 'result': {'terminal.run': {'address': 't9'}, 'terminal.read': {'text': 'hi'}}.get(m, {})}
             self.wfile.write((json.dumps(msg) + '\n').encode())
@@ -45,7 +56,7 @@ class _Handler(socketserver.StreamRequestHandler):
 class FakeCoreTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(dir='/tmp')
-        self.sock = os.path.join(self.dir, 'hc.sock')
+        self.sock = os.path.join(self.dir, 'asm.sock')
         self.server = socketserver.ThreadingUnixStreamServer(self.sock, _Handler)
         self.server.requests = []
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
@@ -71,51 +82,63 @@ class FakeCoreTest(unittest.TestCase):
     def test_error_carries_kind(self):
         with self.assertRaises(runtime.RuntimeError_) as e:
             self.rt.call('boom')
-        self.assertEqual((e.exception.kind, e.exception.hint), ('not_found', 'hc ls'))
+        self.assertEqual((e.exception.kind, e.exception.hint), ('not_found', 'asm ls'))
 
 
 class EnsureCoreTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(dir='/tmp')
-        self.sock = os.path.join(self.dir, 'hc.sock')
+        self.sock = os.path.join(self.dir, 'asm.sock')
 
     def tearDown(self):
         shutil.rmtree(self.dir, ignore_errors=True)
 
-    def test_missing_socket_starts_core_with_clean_env(self):
-        with mock.patch.dict(os.environ, {'CLAUDECODE': '1', 'PATH': os.environ['PATH']}), \
-             mock.patch('shutil.which', return_value='/bin/hc'), \
+    def test_runtime_starts_asm_server(self):
+        with mock.patch.dict(os.environ, {'HC_SESSION': 'theirs', 'HC_SOCKET': '/h.sock', 'PATH': os.environ['PATH']}), \
+             mock.patch('shutil.which', return_value='/bin/asm'), \
              mock.patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0, '', '')) as run:
             runtime.Runtime(sock=self.sock).ensure_core()
         env = run.call_args.kwargs['env']
-        self.assertEqual((env['HC_SESSION'], env['HC_SOCKET']), ('assieme', self.sock))
+        self.assertEqual(run.call_args.args[0], ['asm', 'server', 'start'])
+        self.assertEqual((env['ASM_SESSION'], env['ASM_SOCKET']), ('assieme', self.sock))
+        self.assertEqual([k for k in env if k.startswith('HC_')], [])
+
+    def test_missing_socket_starts_core_with_clean_env(self):
+        with mock.patch.dict(os.environ, {'CLAUDECODE': '1', 'PATH': os.environ['PATH']}), \
+             mock.patch('shutil.which', return_value='/bin/asm'), \
+             mock.patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0, '', '')) as run:
+            runtime.Runtime(sock=self.sock).ensure_core()
+        env = run.call_args.kwargs['env']
+        self.assertEqual((env['ASM_SESSION'], env['ASM_SOCKET']), ('assieme', self.sock))
         self.assertNotIn('CLAUDECODE', env)
-        self.assertEqual(run.call_args.args[0], ['hc', 'server', 'start'])
 
     def test_stale_socket_file_is_removed_before_starting(self):
         open(self.sock, 'w').close()  # a leftover file nobody listens on
-        with mock.patch('shutil.which', return_value='/bin/hc'), \
+        with mock.patch('shutil.which', return_value='/bin/asm'), \
              mock.patch('subprocess.run', return_value=subprocess.CompletedProcess([], 0, '', '')):
             runtime.Runtime(sock=self.sock).ensure_core()
         self.assertFalse(os.path.exists(self.sock))
 
-    def test_hc_not_installed(self):
+    def test_asm_not_installed(self):
         with mock.patch('shutil.which', return_value=None):
             with self.assertRaises(runtime.RuntimeError_) as e:
                 runtime.Runtime(sock=self.sock).ensure_core()
-        self.assertEqual(e.exception.kind, 'hc_missing')
-        self.assertIn('herdr-core', e.exception.hint)
+        self.assertEqual(e.exception.kind, 'asm_missing')
+        self.assertIn('reinstall Assieme', e.exception.hint)
 
 
-@unittest.skipUnless(shutil.which('hc'), 'hc not installed')
+@unittest.skipUnless(ASM_DIR, 'no asm: build runtime/ first')
 class RealCoreTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(dir='/tmp')
-        self.rt = runtime.Runtime(session='assieme-test', sock=os.path.join(self.dir, 'hc.sock'))
+        path = mock.patch.dict(os.environ, {'PATH': ASM_DIR + os.pathsep + os.environ['PATH']})
+        path.start()
+        self.addCleanup(path.stop)
+        self.rt = runtime.Runtime(session='assieme-test', sock=os.path.join(self.dir, 'asm.sock'))
 
     def tearDown(self):
-        env = runtime.clean_env(os.environ) | {'HC_SESSION': 'assieme-test', 'HC_SOCKET': self.rt.sock}
-        subprocess.run(['hc', 'server', 'stop'], env=env, capture_output=True)
+        env = runtime.clean_env(os.environ) | {'ASM_SESSION': 'assieme-test', 'ASM_SOCKET': self.rt.sock}
+        subprocess.run(['asm', 'server', 'stop'], env=env, capture_output=True)
         shutil.rmtree(self.dir, ignore_errors=True)
 
     def test_shell_program_runs_and_is_listed_by_label(self):

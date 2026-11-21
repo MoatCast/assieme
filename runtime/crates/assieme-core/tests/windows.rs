@@ -652,6 +652,32 @@ fn planned_restarts_preserve_the_environment_for_new_terminals() {
 }
 
 #[test]
+fn fresh_restart_uses_the_callers_environment_and_keeps_running_programs() {
+    let s = Session::new();
+    let started = cmd(&s.name, &s.root)
+        .env("NO_COLOR", "1")
+        .env("ASM_SESSION_VALUE", "dirty")
+        .args(["server", "start"])
+        .output()
+        .unwrap();
+    assert!(started.status.success(), "{}", String::from_utf8_lossy(&started.stderr));
+    let t = s.bg(&["powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 100"]);
+    let pid = s.json(&["get", &t])["pid"].clone();
+    let out = cmd(&s.name, &s.root)
+        .env_remove("NO_COLOR")
+        .env("ASM_SESSION_VALUE", "fresh")
+        .args(["server", "restart", "--fresh"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert_eq!(s.json(&["get", &t])["pid"], pid);
+    let probe = s.file("fresh.ps1", r#"Write-Output "ENV:$env:NO_COLOR|$env:ASM_SESSION_VALUE""#);
+    let (code, out) = s.out(&["run", "--timeout", "15", "powershell", "-NoProfile", "-File", &probe]);
+    assert_eq!(code, 0, "{out}");
+    assert!(out.contains("ENV:|fresh"), "{out}");
+}
+
+#[test]
 fn a_copied_disks_restart_environment_does_not_replace_the_new_machines() {
     let s = Session::new();
     let machine = assieme_core::platform::machine_id().expect("Windows machine ID");
@@ -849,4 +875,24 @@ fn configured_shell_uses_argv_and_is_read_live_for_new_and_recovered_terminals()
         let err: Value = serde_json::from_slice(&out.stderr).unwrap();
         assert_eq!(err["error"]["kind"], kind, "{err}");
     }
+}
+
+#[test]
+fn a_lost_kept_terminal_shows_what_its_program_left_above_the_new_shell() {
+    let s = Session::new();
+    let config = s.root.join("config/assieme-core/config.toml");
+    std::fs::create_dir_all(config.parent().unwrap()).unwrap();
+    std::fs::write(&config, "restore_screen = true\n").unwrap();
+    let t = s.bg(&["--keep", "cmd.exe", "/c", "echo left-on-screen& ping -n 120 127.0.0.1 >nul"]);
+    let text = |t: &str| s.out(&["read", t, "--lines", "200"]).1;
+    wait_until("output", || text(&t).contains("left-on-screen"));
+    let old = s.json(&["get", &t])["pid"].as_u64().unwrap();
+    let holder = s.json(&["server", "status"])["holder"]["pid"].as_u64().unwrap();
+    Command::new("taskkill").args(["/F", "/PID", &holder.to_string()]).output().unwrap();
+    wait_until("new shell", || s.json(&["get", &t])["pid"].as_u64().is_some_and(|p| p != old));
+    s.out(&["send", &t, "echo ('after-' + 2)"]);
+    wait_until("new shell answers", || text(&t).contains("after-2"));
+    let text = text(&t);
+    let at = |needle: &str| text.find(needle).unwrap_or_else(|| panic!("{needle:?} missing: {text:?}"));
+    assert!(at("left-on-screen") < at("this is a new shell") && at("this is a new shell") < at("after-2"), "{text:?}");
 }

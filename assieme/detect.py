@@ -67,7 +67,7 @@ WHOLE = {'run', '.', './...', 'tests', 'test', 'tests/', 'test/', '--', 'src', '
 
 CHANGE_TOOLS = {'Edit', 'Write', 'NotebookEdit', 'MultiEdit', 'Agent', 'Task', 'apply_patch', 'spawn_agent', 'js'}
 READ_ONLY = {'ls', 'cat', 'head', 'tail', 'grep', 'egrep', 'rg', 'find', 'wc', 'awk', 'sed', 'pwd', 'cd', 'echo', 'printf', 'date',
-             'sleep', 'which', 'jq', 'sort', 'uniq', 'cut', 'tr', 'stat', 'file', 'du', 'df', 'true', 'test', 'tree', 'ps', 'hc',
+             'sleep', 'which', 'jq', 'sort', 'uniq', 'cut', 'tr', 'stat', 'file', 'du', 'df', 'true', 'test', 'tree', 'ps', 'asm', 'hc',
              'basename', 'dirname', 'realpath', 'diff', 'nl', 'less', 'column', 'xargs'}
 READ_ONLY_GIT = {'status', 'log', 'diff', 'show', 'branch', 'rev-parse', 'blame', 'remote', 'ls-files', 'describe', 'fetch',
                  'merge-base', 'shortlog', 'worktree'}

@@ -29,10 +29,17 @@ sh "$here/bundle.sh" --refresh
 # A few standard-library test files are invalid on purpose, so compileall's exit code is not the check here.
 "$res/python/bin/python3" -m compileall -q --invalidation-mode unchecked-hash "$res/python/lib" > /dev/null || :
 echo "== Signing what the app carries"
-find "$res" -type f | while IFS= read -r f; do
+find "$res" -type f -not -path "$res/asm/*" | while IFS= read -r f; do
   if file -b "$f" | grep -q Mach-O; then
     codesign --force --timestamp --options runtime --sign "$identity" "$f"
   fi
+done
+# Assieme's runtime is signed as a bundle, inside out, with its entitlements: `update --from` and Mac remote
+# installs check this signature (team P2B76CVJ4Y, dev.assieme.core).
+core="$res/asm/Assieme Core.app"
+for target in "$core/Contents/MacOS/assieme-core" "$core"; do
+  codesign --force --timestamp --options runtime --identifier dev.assieme.core \
+    --entitlements "$app/../runtime/distribution/macos-entitlements.plist" --sign "$identity" "$target"
 done
 echo "== Building the app"
 # bundle.sh ran above; running it again inside tauri build would undo the compiled files.
@@ -40,6 +47,10 @@ echo "== Building the app"
   --config '{"build":{"beforeBuildCommand":"npm run build"},"bundle":{"macOS":{"signingIdentity":null}}}')
 built="$app/src-tauri/target/release/bundle/macos/Assieme.app"
 codesign --verify --deep --strict "$built"
+built_core="$built/Contents/Resources/asm/Assieme Core.app"
+codesign -d --entitlements - "$built_core" 2>&1 | grep -q com.apple.security.cs.allow-dyld-environment-variables \
+  || { echo "the core lost its entitlements"; exit 1; }
+codesign -dv "$built_core" 2>&1 | grep -q '^TeamIdentifier=P2B76CVJ4Y$' || { echo "the core is not signed by team P2B76CVJ4Y"; exit 1; }
 
 echo "== Notarising the app"
 ditto -c -k --keepParent "$built" "$out/notarise.zip"

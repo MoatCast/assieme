@@ -252,7 +252,9 @@ pub(super) fn line_state(m: &Value) -> String {
                 m["name"].as_str().unwrap_or("?")
             )
         }
-        Some("needs_update") => format!("needs an asm update: asm machine update {}", m["name"].as_str().unwrap_or("?")),
+        Some("needs_update") => {
+            format!("needs an asm update: asm machine update {}", m["name"].as_str().unwrap_or("?"))
+        }
         Some(state) => format!("{state}{}{why}", since.unwrap_or_default()),
         None => "?".into(),
     }

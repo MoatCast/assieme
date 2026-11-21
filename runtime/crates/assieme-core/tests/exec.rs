@@ -182,7 +182,9 @@ fn a_client_that_stops_reading_its_replies_is_disconnected_not_kept_in_memory() 
     for id in 1..=8 {
         let call = json!({"jsonrpc": "2.0", "id": id, "method": "machine.exec",
             "params": {"argv": ["head", "-c", "8388608", "/dev/zero"]}});
-        stream.write_all(&assieme_core::wire::encode(0, assieme_core::wire::DATA, call.to_string().as_bytes())).unwrap();
+        stream
+            .write_all(&assieme_core::wire::encode(0, assieme_core::wire::DATA, call.to_string().as_bytes()))
+            .unwrap();
     }
     // Do not drain replies until the core closes: reading early can keep the queue below its cap.
     use std::os::fd::AsRawFd;

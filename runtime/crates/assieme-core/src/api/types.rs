@@ -129,6 +129,14 @@ pub struct HelloResult {
     pub framed: bool,
     pub methods: Vec<String>,
     pub features: Vec<String>,
+    /// OS login inherited by this core. Absent when unavailable or unsupported.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub login_session: Option<crate::platform::LoginSession>,
+    /// True: systemd lingering is enabled; false: programs stop at last logout.
+    /// Null: unsupported, not applicable or unknown.
+    pub keeps_running_after_logout: Option<bool>,
+    /// Account for the administrator's loginctl enable-linger command.
+    pub logout_linger_user: Option<String>,
 }
 
 #[derive(Serialize, JsonSchema, Clone)]
@@ -157,6 +165,11 @@ pub struct StatusResult {
     /// system package manager): it updates asm, `asm update` won't.
     /// Null for a replaceable plain install.
     pub installed_by: Option<String>,
+    /// True: systemd lingering is enabled; false: programs stop at last logout.
+    /// Null: unsupported, not applicable or unknown. Checked on every request.
+    pub keeps_running_after_logout: Option<bool>,
+    /// Account for the administrator's loginctl enable-linger command.
+    pub logout_linger_user: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -187,6 +200,14 @@ pub struct DocGetResult {
 #[derive(Serialize, JsonSchema)]
 pub struct DocSetResult {
     pub version: u64,
+}
+
+#[derive(Deserialize, JsonSchema)]
+pub struct RestartParams {
+    /// Replacement environment for the next core; requires PATH. Omit to preserve
+    /// this core's environment. Normal startup filtering applies; session paths
+    /// and service bookkeeping still belong to the next launcher.
+    pub environment: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -242,8 +263,8 @@ pub struct RunParams {
     #[arg(long, value_name = "MACHINE")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub on: Option<String>,
-    /// Set on top of the core's environment. Clients pass their terminal
-    /// identity here (TERM, TERM_PROGRAM, COLORTERM).
+    /// Override the core's environment and terminal identity. Omit terminal
+    /// identity variables to use the core's defaults.
     #[arg(skip)]
     #[serde(default)]
     pub env: BTreeMap<String, String>,
@@ -330,7 +351,6 @@ pub struct ListResult {
     pub hidden_finished: usize,
     /// Machines added here and their lines: one that is not connected is
     /// listed here, not waited on.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub machines: Vec<crate::remote::MachineView>,
 }
 

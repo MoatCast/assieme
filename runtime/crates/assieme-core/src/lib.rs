@@ -5,13 +5,13 @@ pub mod attach;
 pub mod cli;
 pub mod client;
 pub mod config;
+pub mod delivery;
 pub mod events;
 pub mod exec;
 pub mod files;
 pub mod foreground;
 pub mod holder;
 pub mod holder_proto;
-pub mod delivery;
 pub mod input;
 mod kept;
 pub mod keys;
@@ -36,3 +36,10 @@ pub mod terminals;
 pub mod viewers;
 pub mod wait;
 pub mod wire;
+
+/// The folder tests put their scratch data in: `ASM_TEST_TMPDIR` if set, else
+/// /var/tmp, whose short path keeps socket paths under the macOS limit.
+#[cfg(test)]
+pub(crate) fn test_tmp() -> std::path::PathBuf {
+    std::env::var_os("ASM_TEST_TMPDIR").map_or_else(|| "/var/tmp".into(), Into::into)
+}

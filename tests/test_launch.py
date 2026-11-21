@@ -196,7 +196,7 @@ class McpTest(unittest.TestCase):
         conf = tomllib.loads('\n'.join(a[i + 1] for i, x in enumerate(a) if x == '-c' and a[i + 1].startswith('mcp_servers.')))
         s = conf['mcp_servers']['assieme']
         self.assertEqual(s['args'], ['-P', '-m', 'assieme', 'mcp'])
-        self.assertIn('HC_TERMINAL_ID', s['env_vars'])
+        self.assertIn('ASM_TERMINAL_ID', s['env_vars'])
 
 
 def env_of(a):

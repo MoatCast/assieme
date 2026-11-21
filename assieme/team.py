@@ -1,4 +1,4 @@
-"""Start, list and stop a team of agents from a preset, through the runtime (an isolated hc core).
+"""Start, list and stop a team of agents from a preset, through the runtime (Assieme's own core, `asm`).
 
 Starting one agent: its worktree, the agent with our status hook, the folder-trust prompt (asked once per
 project, answered with explicit keys), then its first status report, and only then its brief and task.
@@ -57,7 +57,7 @@ def stop(rt, name):
 OWNS = 'You own these files: {files}. Edit only these; ask before changing any other file.'
 WAIT_FOR_PARENT = '{parent} will send you your work. Until then, wait and do nothing.'
 TOOLS = ('Your assieme tools: message_agent reaches a teammate by name, list_teammates shows who is here. If you are '
-         "stuck, or only the person can decide, call report and end your turn. Don't use `hc send`.\n"
+         "stuck, or only the person can decide, call report and end your turn. Don't use `asm send`.\n"
          f'{brief.READ_FIRST} When the person answers a question of yours, call record_decision so no teammate asks again.\n'
          'The person follows the work on a board of cards. add_task makes a card for a piece of work; set_task moves '
          'one: doing when you start it, review when it is committed, done when there is nothing to review. '
@@ -68,7 +68,7 @@ REPORT_TO_YOU = ('These agents report to you and wait for you to send them work 
 
 
 def terminal_name(team_name, role_name):
-    return re.sub(r'[^\w.-]', '-', f'{team_name}-{role_name}')  # all hc accepts in a name
+    return re.sub(r'[^\w.-]', '-', f'{team_name}-{role_name}')  # all the core accepts in a name
 
 
 def _brief(rt, t, role, task, tm, clock=time):
@@ -96,7 +96,7 @@ def _brief(rt, t, role, task, tm, clock=time):
             rt.send(t, '\n\n'.join(parts))
             break
         except runtime.RuntimeError_ as e:
-            # Codex's start-up logo can keep animating past the 5 s hc waits for a screen to settle.
+            # Codex's start-up logo can keep animating past the 5 s the core waits for a screen to settle.
             if e.kind != 'unavailable' or 'still starting' not in str(e) or clock.monotonic() >= deadline:
                 raise
             clock.sleep(1)

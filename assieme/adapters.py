@@ -13,6 +13,7 @@ from . import detect, rules
 from .model import HUMAN, Session, parse_ts
 
 WAKE_MARKERS = [
+    (re.compile(r'<asm from="(?:\S+ )?([\w./-]+)"'), 'asm'),                    # Assieme's runtime, same shape
     (re.compile(r'<hc from="(?:\S+ )?([\w./-]+)"'), 'hc'),                      # <hc from="t2">, or "<term> <name>" 
     (re.compile(r'<teammate-message teammate_id="([\w.-]+)"'), 'team'),         # Claude Code Agent Teams
     (re.compile(r'^\s*<task-notification>'), 'notify'),                         # a background subagent finished

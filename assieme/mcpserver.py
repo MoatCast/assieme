@@ -79,7 +79,7 @@ def agent_address(env=None):
     env = os.environ if env is None else env
     if _bridge(env):
         return 'bridge'  # the brain knows which agent this is from its ticket
-    return env.get('HC_TERMINAL_ID') if env.get('HC_SESSION') == runtime.Runtime().session else None
+    return env.get('ASM_TERMINAL_ID') if env.get('ASM_SESSION') == runtime.Runtime().session else None
 
 
 class Yes(BaseModel):
@@ -126,7 +126,7 @@ def _read_guide(name):
 
 def agent_server(address):
     m = MCPServer('assieme', instructions=(
-        'You are an agent in an Assieme team. Use these tools instead of `hc send`: message_agent to reach a teammate, '
+        'You are an agent in an Assieme team. Use these tools instead of `asm send`: message_agent to reach a teammate, '
         'report when you are stuck or need the person to decide, then end your turn. The person follows the work on a '
         'board of cards: keep yours current with set_task, and make one with add_task for each piece of work you plan.'))
 

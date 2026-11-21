@@ -45,7 +45,7 @@ async fn terminal_open(
     on_close: Channel<String>,
 ) -> Result<u32, String> {
     let s = Stream::open(
-        &bridge::hc_socket("assieme"),
+        &bridge::core_socket("assieme"),
         &address,
         cols,
         rows,
@@ -89,7 +89,7 @@ async fn terminal_close(streams: State<'_, Streams>, id: u32) -> Result<(), Stri
 /// Read-only text of a terminal in any session: the only access to sessions other than `assieme`.
 #[tauri::command]
 async fn terminal_read(session: String, address: String) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || bridge::read_text_at(&bridge::hc_socket(&session), &address))
+    tauri::async_runtime::spawn_blocking(move || bridge::read_text_at(&bridge::core_socket(&session), &address))
         .await
         .map_err(|e| e.to_string())?
 }
@@ -103,11 +103,11 @@ async fn service_running() -> bool {
     .unwrap_or(false)
 }
 
-/// Install the background brain with the Python and hc bundled inside the app.
+/// Install the background brain with the Python and Assieme's runtime bundled inside the app.
 #[tauri::command]
 async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
     let res = app.path().resource_dir().map_err(|e| e.to_string())?;
-    service::install(&res.join("python/bin/python3"), &res.join("hc-bin"))
+    service::install(&res.join("python/bin/python3"), &[&res.join("asm-bin")])
 }
 
 /// Command line tools (Settings › General): the launcher, from the Python inside this app.

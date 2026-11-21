@@ -6,7 +6,7 @@ use crate::rpc::RpcError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 
@@ -32,6 +32,12 @@ pub struct Machine {
     pub host: String,
     /// Its asm version when last seen.
     pub version: String,
+    /// Last observed systemd logout protection; null for old or unsupported cores.
+    #[serde(default)]
+    pub keeps_running_after_logout: Option<bool>,
+    /// Remote account for loginctl enable-linger, when applicable.
+    #[serde(default)]
+    pub logout_linger_user: Option<String>,
 }
 
 impl Machine {
@@ -123,10 +129,12 @@ pub fn default_name(target: &str, taken: impl Fn(&str) -> bool) -> Option<String
     if name.len() > 32 {
         name = name.chars().take(32).collect::<String>().trim_end_matches('-').into();
     }
-    check_name(&name).ok()?;
+    if !crate::terminals::id_shaped(&name) {
+        check_name(&name).ok()?;
+    }
     let base = name.clone();
     let mut number = 1;
-    while taken(&name) {
+    while crate::terminals::id_shaped(&name) || taken(&name) {
         number += 1;
         let suffix = format!("-{number}");
         name = format!("{}{}", base[..base.len().min(32 - suffix.len())].trim_end_matches('-'), suffix);
@@ -264,8 +272,10 @@ fn unreachable(to: Reach, why: &str) -> RpcError {
 
 /// ssh refused us a login only a person can give (code, password, key).
 fn wants_login(err: &str) -> bool {
-    err.contains("Permission denied")
-        && ["publickey", "keyboard-interactive", "password"].iter().any(|k| err.contains(k))
+    // Too many keys offered (sshd's MaxAuthTries) fails auth the same way; retrying fast gets banned.
+    err.contains("Too many authentication failures")
+        || err.contains("Permission denied")
+            && ["publickey", "keyboard-interactive", "password"].iter().any(|k| err.contains(k))
 }
 
 /// An open pipe to the core there, past its hello.
@@ -459,7 +469,6 @@ pub fn install(paths: &crate::paths::Paths, to: Reach, session: Option<&str>) ->
     if let Some(s) = session {
         check_name(s)?;
     }
-    let here = format!("{} {}", std::env::consts::OS, std::env::consts::ARCH);
     let probe = run_raw(paths, to, "uname -sm", b"")?;
     let there = platform(&last_line(&probe.stdout));
     let windows = if probe.status.success() {
@@ -470,7 +479,11 @@ pub fn install(paths: &crate::paths::Paths, to: Reach, session: Option<&str>) ->
     };
     if windows {
         if to.via {
-            return Err(RpcError::new("install_failed", format!("{target} runs Windows"), "install asm there yourself"));
+            return Err(RpcError::new(
+                "install_failed",
+                format!("{target} runs Windows"),
+                "install asm there yourself",
+            ));
         }
         WINDOWS.lock().unwrap_or_else(|p| p.into_inner()).push(target.to_string());
         return Err(RpcError::new("install_failed", format!("{target} runs Windows"), "install asm there yourself"));
@@ -489,14 +502,18 @@ pub fn install(paths: &crate::paths::Paths, to: Reach, session: Option<&str>) ->
     let current = std::env::current_exe()
         .and_then(|path| path.canonicalize())
         .map_err(|e| RpcError::internal(format!("cannot find this asm: {e}")))?;
-    let bin = if there == here && (bundle || !current.ends_with("Assieme Core.app/Contents/MacOS/assieme-core")) {
-        current
-    } else {
-        return Err(RpcError::new(
-            "install_failed",
-            format!("{target} is {there}, and this asm only runs on {here}"),
-            "install asm there yourself",
-        ));
+    // A root install takes no bundled macOS copy; a Linux build is a plain file.
+    let bin = match build_for(&current, &there) {
+        Some(bin) if bin != current || bundle || !current.ends_with("Assieme Core.app/Contents/MacOS/assieme-core") => {
+            bin
+        }
+        _ => {
+            return Err(RpcError::new(
+                "install_failed",
+                format!("{target} is {there}, and this asm has no build for it"),
+                "install asm there yourself",
+            ));
+        }
     };
     let (exe, bundled) = install_payload(&bin, &scratch.0)?;
     let n = exe.len();
@@ -526,6 +543,18 @@ pub fn install(paths: &crate::paths::Paths, to: Reach, session: Option<&str>) ->
          {session}$d/assieme-core server restart > /dev/null; $d/assieme-core --version"
     );
     run_there(paths, to, &format!("sh -c '{script}'"), &exe)
+}
+
+/// The build to copy to a machine that is `there` ("linux x86_64"): this one
+/// when it matches this machine, else a Linux build the app bundles beside it
+/// at `Contents/Resources/linux/<arch>/assieme-core`.
+fn build_for(current: &Path, there: &str) -> Option<PathBuf> {
+    if there == format!("{} {}", std::env::consts::OS, std::env::consts::ARCH) {
+        return Some(current.to_path_buf());
+    }
+    let arch = there.strip_prefix("linux ").filter(|a| matches!(*a, "aarch64" | "x86_64"))?;
+    let linux = current.parent()?.parent()?.join("Resources/linux").join(arch).join("assieme-core");
+    linux.is_file().then_some(linux)
 }
 
 fn install_payload(bin: &Path, scratch: &Path) -> Result<(Vec<u8>, bool), RpcError> {
@@ -575,6 +604,58 @@ impl Drop for Scratch {
 mod tests {
     use super::*;
 
+    fn here() -> String {
+        format!("{} {}", std::env::consts::OS, std::env::consts::ARCH)
+    }
+
+    /// A bundle-shaped tree: `Contents/MacOS/assieme-core`, with the Linux x86_64 build beside it when `linux`.
+    fn tree(linux: bool) -> (std::path::PathBuf, std::path::PathBuf) {
+        let root = std::env::temp_dir().join(format!("asm-build-for-{}", crate::platform::random_hex()));
+        let current = root.join("Contents/MacOS/assieme-core");
+        std::fs::create_dir_all(current.parent().unwrap()).unwrap();
+        std::fs::write(&current, b"").unwrap();
+        if linux {
+            let built = root.join("Contents/Resources/linux/x86_64/assieme-core");
+            std::fs::create_dir_all(built.parent().unwrap()).unwrap();
+            std::fs::write(built, b"").unwrap();
+        }
+        (root, current)
+    }
+
+    #[test]
+    fn build_for_same_platform_is_current() {
+        let (root, current) = tree(false);
+        assert_eq!(build_for(&current, &here()), Some(current.clone()));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn build_for_linux_finds_sibling() {
+        let (root, current) = tree(true);
+        let want = root.join("Contents/Resources/linux/x86_64/assieme-core");
+        if here() != "linux x86_64" {
+            assert_eq!(build_for(&current, "linux x86_64"), Some(want));
+        }
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn build_for_linux_missing_is_none() {
+        let (root, current) = tree(true);
+        if here() != "linux aarch64" {
+            assert_eq!(build_for(&current, "linux aarch64"), None);
+        }
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn build_for_windows_is_none() {
+        let (root, current) = tree(true);
+        assert_eq!(build_for(&current, "windows x86_64"), None);
+        assert_eq!(build_for(&current, "linux riscv64"), None);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     #[test]
     fn a_name_comes_from_the_target_host() {
         let default_name = |target| super::default_name(target, |_| false);
@@ -597,6 +678,19 @@ mod tests {
         assert_eq!(platform("Linux x86_64"), "linux x86_64");
         assert_eq!(platform("MINGW64_NT-10.0 x86_64"), "windows x86_64");
         assert_eq!(platform("MSYS_NT-10.0 x86_64"), "windows x86_64");
+    }
+
+    #[test]
+    fn id_shaped_hosts_get_a_free_name() {
+        for host in ["t440s", "t14", &format!("t1{}", "b".repeat(30))] {
+            let expected = format!("{}-2", &host[..host.len().min(30)]);
+            assert_eq!(default_name(host, |_| false), Some(expected));
+            assert_eq!(
+                default_name(host, |name| name.ends_with("-2")),
+                Some(format!("{}-3", &host[..host.len().min(30)]))
+            );
+        }
+        assert_eq!(default_name("t14!", |_| false), None);
     }
 
     #[test]

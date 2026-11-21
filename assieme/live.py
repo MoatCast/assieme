@@ -336,7 +336,7 @@ def quiet_line():
         return ''
     n = sum(len(v) for v in quiet.held().values())
     line = f"Quiet send: {len(ps)} pair{'s' if len(ps) > 1 else ''} quiet ({', '.join(p['label'] for p in ps)}); {n} note(s) held."
-    if not os.path.exists(os.path.join(quiet.shim_dir(), 'hc')):
+    if not os.path.exists(os.path.join(quiet.shim_dir(), 'asm')):
         line += ' Agents are not using it yet: run `assieme quiet on`.'
     return line
 
