@@ -458,6 +458,7 @@ fn build(
     let mut out = json!({
         "team": team_name, "found": found, "stopped": stopped, "fixes_today": fixes_today,
         "last_at": every.first().map_or(Value::Null, |r| r["at"].clone()),
+        "last_day": every.first().map_or(Value::Null, |r| r["day"].clone()),
         "running_min": if stopped { Value::Null } else { running_min(rows, now) },
         "open_tasks": open_tasks, "run": if stopped && !rows.is_empty() { run_of(rows, &done, team_name) } else { Value::Null },
         "title": title, "subtitle": sub, "budget": bud, "panes": panes_, "strip": strip, "nodes": nodes, "edges": edges,
@@ -732,8 +733,13 @@ pub fn found_groups(
 ) -> Vec<(String, Vec<Agent>)> {
     let taken: BTreeSet<String> = taken_cwds.iter().filter_map(|c| real(Some(c))).collect();
     let mut out: Vec<(String, Vec<Agent>)> = vec![];
+    // An agent in one of Assieme's own copies is a team's, even after its terminal stopped (a merge, say).
+    let in_copy = |a: &Agent| a.cwd.as_deref().is_some_and(|c| c.contains("/.assieme/worktrees/"));
     for a in agents.iter().filter(|a| {
-        a.state != "exited" && !real(a.cwd.as_deref()).is_some_and(|c| taken.contains(&c)) && !is_own_session(a)
+        a.state != "exited"
+            && !real(a.cwd.as_deref()).is_some_and(|c| taken.contains(&c))
+            && !is_own_session(a)
+            && !in_copy(a)
     }) {
         let g = group_of(a, st_groups);
         match out.iter_mut().find(|x| x.0 == g) {
@@ -1264,5 +1270,27 @@ impl Brain {
         add("team.run_found", Box::new(|b, p| b.run_found(arg(p, "team")?, p["on"] == true)));
         add("groups.set", Box::new(|_, p| settings::set_value("groups", &p["groups"], None)));
         out
+    }
+}
+
+#[cfg(test)]
+mod found_tests {
+    use super::*;
+
+    /// A merged agent's log lives on in its old copy: it is no found team, while the person's own agent is.
+    #[test]
+    fn an_agent_in_assieme_s_copy_is_never_a_found_team() {
+        let agent = |name: &str, cwd: &str| {
+            let mut a = Agent::new(name, "claude", Path::new("/x.jsonl"));
+            a.cwd = Some(cwd.into());
+            a
+        };
+        let agents = [agent("mine", "/p/app"), agent("builder", "/p/app/.assieme/worktrees/builder")];
+        let names: Vec<String> = found_groups(&agents, &Map::new(), &BTreeSet::new())
+            .into_iter()
+            .flat_map(|(_, a)| a)
+            .map(|a| a.name)
+            .collect();
+        assert_eq!(names, ["mine"]);
     }
 }
