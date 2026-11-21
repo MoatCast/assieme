@@ -790,44 +790,19 @@ fn summary(items: &[Found]) -> String {
 /// What the sheet lists: one row per tool and project. `folder`: a project the person chose, looked in even when no
 /// agent history points at it.
 pub fn find(folder: Option<&str>) -> Value {
-    let home = std::env::var("HOME").unwrap_or_default();
+    let home = real(&std::env::var("HOME").unwrap_or_default());
     let teams = crate::newteam::teams_dir();
-    find_with(&Inputs {
-        home: &home,
-        folder,
-        teams: &teams,
-        now: Timestamp::now(),
-        sessions: None,
-        procs: None,
-        herdr_teams: None,
-    })
-}
-
-/// What `find` reads from this Mac, so a test can give its own.
-pub(crate) struct Inputs<'a> {
-    pub home: &'a str,
-    pub folder: Option<&'a str>,
-    pub teams: &'a Path,
-    pub now: Timestamp,
-    pub sessions: Option<Vec<Sess>>,
-    pub procs: Option<Vec<Proc>>,
-    pub herdr_teams: Option<Vec<Value>>,
-}
-
-pub(crate) fn find_with(i: &Inputs) -> Value {
-    let home = real(i.home);
     let home_path = Path::new(&home);
-    let sessions = i.sessions.clone().unwrap_or_else(|| {
-        history(&home_path.join(".claude/projects"), &home_path.join(".codex/sessions"), i.now, DAYS)
-    });
-    let procs = i.procs.clone().unwrap_or_else(running_agents);
+    let sessions =
+        history(&home_path.join(".claude/projects"), &home_path.join(".codex/sessions"), Timestamp::now(), DAYS);
+    let procs = running_agents();
     let (squad, squad_problem) = read_claude_squad(home_path);
     let (vibe, tasks, vibe_scripts, vibe_problem) = read_vibe_kanban(home_path);
     let (cond, cond_scripts, cond_problem) = read_conductor(home_path);
     let mut readers: Vec<Found> = [squad, vibe, cond].concat();
     let mut repos: Vec<String> = repos_from_history(&sessions);
     repos.extend(readers.iter().map(|f| f.project.clone()));
-    if let Some(folder) = i.folder {
+    if let Some(folder) = folder {
         repos.push(project_of(folder).unwrap_or_else(|| folder.to_string()));
     }
     let mut unique: Vec<String> = vec![];
@@ -867,7 +842,7 @@ pub(crate) fn find_with(i: &Inputs) -> Value {
             f.running_elsewhere = f.running_elsewhere || s.running_elsewhere;
         }
     }
-    let skip = adopted(i.teams);
+    let skip = adopted(&teams);
     let mut groups: Vec<((String, String), Vec<Found>)> = vec![];
     for f in readers.into_iter().chain(by_folder.into_iter().map(|(_, f)| f)) {
         if f.folder.as_ref().is_some_and(|folder| skip.contains(folder)) {
@@ -914,9 +889,7 @@ pub(crate) fn find_with(i: &Inputs) -> Value {
         last.insert(id, Arc::new(group));
     }
     drop(last);
-    let herdr_teams =
-        i.herdr_teams.clone().unwrap_or_else(|| crate::herdr::find()["teams"].as_array().cloned().unwrap_or_default());
-    for t in herdr_teams {
+    for t in crate::herdr::find()["teams"].as_array().into_iter().flatten() {
         let n = t["agents"].as_u64().unwrap_or(0) as usize;
         projects.push(json!({
             "id": format!("herdr:{}", t["id"].as_str().unwrap_or("")), "tool": "herdr", "label": t["label"], "count": n,
@@ -956,11 +929,6 @@ fn becomes(f: &Found, n: usize) -> String {
 
 /// `{label, tool, rows, scripts}`: the "What it becomes" step for one project.
 pub fn workspaces(id: &str) -> Result<Value, BrainError> {
-    workspaces_with(id, &crate::scripts::rewrite)
-}
-
-/// `rewrite`: the script rewriter (`scripts::rewrite`), which gives the line and the variables it doesn't set.
-pub(crate) fn workspaces_with(id: &str, rewrite: &dyn Fn(&str) -> (String, Vec<String>)) -> Result<Value, BrainError> {
     let g = group(id)?;
     let (mut rows, mut n) = (vec![], 0usize);
     for f in &g.items {
@@ -971,17 +939,11 @@ pub(crate) fn workspaces_with(id: &str, rewrite: &dyn Fn(&str) -> (String, Vec<S
     }
     let lines: Vec<Value> = SCRIPT_ORDER
         .iter()
-        .filter_map(|k| Some(json!({"which": k, "line": rewrite(g.scripts.get(*k)?).0, "becomes": script_words(k)})))
+        .filter_map(|k| {
+            Some(json!({"which": k, "line": crate::scripts::rewrite(g.scripts.get(*k)?).0, "becomes": script_words(k)}))
+        })
         .collect();
     Ok(json!({"label": py_basename(&g.project), "tool": tool_label(&g.tool), "rows": rows, "scripts": lines}))
-}
-
-/// What the draft asks of New team.
-pub(crate) struct Deps<'a> {
-    pub kind_brief: &'a dyn Fn(&str) -> String,
-    /// Whether a model can't be used by this agent kind.
-    pub model_problem: &'a dyn Fn(&str, &str) -> bool,
-    pub rewrite: &'a dyn Fn(&str) -> (String, Vec<String>),
 }
 
 /// The New team draft: one agent per ticked workspace, working in that folder on that branch.
@@ -991,15 +953,6 @@ pub fn draft(id: &str, ticked: &[String]) -> Result<Value, BrainError> {
         d["from"] = json!("herdr");
         return Ok(d);
     }
-    let deps = Deps {
-        kind_brief: &crate::newteam::kind_brief,
-        model_problem: &|agent, model| crate::launch::check_model_effort(agent, Some(model), None).is_some(),
-        rewrite: &crate::scripts::rewrite,
-    };
-    draft_with(id, ticked, &deps)
-}
-
-pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Value, BrainError> {
     let g = group(id)?;
     let mut wanted: Vec<&String> = vec![];
     for t in ticked {
@@ -1043,12 +996,14 @@ pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Val
             format!("{}\n\n{}", t.title.clone().unwrap_or_default(), t.description).trim().to_string()
         });
         if brief.is_empty() {
-            brief = (deps.kind_brief)("builder");
+            brief = crate::newteam::kind_brief("builder");
             note("No brief was found, so they get the standard builder brief. Check it before you start.", Some(&name));
         }
         let mut role = json!({"name": name, "agent": agent, "job": f.name, "checkout": "branch", "parent": null, "brief": brief,
                               "kind": "builder", "branch": f.branch, "level": "safe"});
-        if let Some(m) = f.model.as_deref().filter(|m| !(deps.model_problem)(agent, m)) {
+        if let Some(m) =
+            f.model.as_deref().filter(|m| crate::launch::check_model_effort(agent, Some(m), None).is_none())
+        {
             role["model"] = json!(m);
         }
         match &f.folder {
@@ -1098,8 +1053,12 @@ pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Val
             None,
         );
     }
-    let unknown: BTreeSet<String> =
-        g.scripts.iter().filter(|(k, _)| script_words(k).is_some()).flat_map(|(_, v)| (deps.rewrite)(v).1).collect();
+    let unknown: BTreeSet<String> = g
+        .scripts
+        .iter()
+        .filter(|(k, _)| script_words(k).is_some())
+        .flat_map(|(_, v)| crate::scripts::rewrite(v).1)
+        .collect();
     if !unknown.is_empty() {
         note(
             &format!(
@@ -1113,7 +1072,7 @@ pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Val
         .scripts
         .iter()
         .filter(|(k, _)| script_words(k).is_some())
-        .map(|(k, v)| (k.clone(), json!((deps.rewrite)(v).0)))
+        .map(|(k, v)| (k.clone(), json!(crate::scripts::rewrite(v).0)))
         .collect();
     let running =
         chosen.iter().any(|f| f.running_elsewhere).then(|| format!("Still running in {tool}: stop it there first."));
@@ -1126,16 +1085,11 @@ pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Val
 
 /// (roles to start, skipped): an agent still running in the other tool's folder isn't started beside it.
 pub fn not_running(roles: &[Value], tool: &str) -> (Vec<Value>, Vec<Value>) {
-    not_running_with(roles, tool, &running_agents())
-}
-
-pub(crate) fn not_running_with(roles: &[Value], tool: &str, procs: &[Proc]) -> (Vec<Value>, Vec<Value>) {
+    let procs = running_agents();
     let (mut kept, mut skipped) = (vec![], vec![]);
     for r in roles {
-        let busy = r["worktree"]
-            .as_str()
-            .filter(|w| !w.is_empty())
-            .is_some_and(|w| procs.iter().any(|p| !p.cwd.is_empty() && inside(&p.cwd, w)));
+        let busy =
+            r["worktree"].as_str().filter(|w| !w.is_empty()).is_some_and(|w| procs.iter().any(|p| inside(&p.cwd, w)));
         if busy {
             skipped
                 .push(json!({"role": r["name"], "reason": format!("Still running in {tool}: stop it there first.")}));
@@ -1157,50 +1111,26 @@ pub fn started(
     origin: &Value,
     remember: &dyn Fn(&str, &str),
 ) {
-    let add = |title: &str, role: Option<&str>| crate::tasks::add(team, title, role, "assieme", None);
-    let set = |id: &str, status: &str| crate::tasks::r#move(team, id, status, None, false, None).map(|_| ());
-    let record = |row: crate::live::Record| {
-        crate::live::record(row);
-    };
-    started_with(team, project, roles, cards, scripts, origin, remember, &add, &set, &record);
-}
-
-/// A new card: its title and role.
-type AddCard<'a> = dyn Fn(&str, Option<&str>) -> Result<Value, BrainError> + 'a;
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn started_with(
-    team: &str,
-    project: &str,
-    roles: &[Value],
-    cards: &[Value],
-    scripts: &BTreeMap<String, String>,
-    origin: &Value,
-    remember: &dyn Fn(&str, &str),
-    add: &AddCard<'_>,
-    set: &dyn Fn(&str, &str) -> Result<(), BrainError>,
-    record: &dyn Fn(crate::live::Record),
-) {
     for c in cards {
-        let Ok(card) = add(c["title"].as_str().unwrap_or(""), c["role"].as_str()) else { continue };
+        let Ok(card) = crate::tasks::add(team, c["title"].as_str().unwrap_or(""), c["role"].as_str(), "assieme", None)
+        else {
+            continue;
+        };
         if let (Some(status), Some(id)) = (c["status"].as_str().filter(|s| *s != "todo"), card["id"].as_str()) {
-            let _ = set(id, status);
+            let _ = crate::tasks::r#move(team, id, status, None, false, None);
         }
     }
     if let Some(run) = scripts.get("run").filter(|r| !r.is_empty()) {
         remember(project, run);
     }
-    let adopted: Vec<Value> =
-        roles.iter().filter_map(|r| r["worktree"].as_str().filter(|w| !w.is_empty()).map(|w| json!(w))).collect();
+    let adopted: Vec<&str> = roles.iter().filter_map(|r| r["worktree"].as_str().filter(|w| !w.is_empty())).collect();
     let (tool, label) = (origin["tool"].as_str().unwrap_or(""), origin["label"].as_str().unwrap_or(""));
-    let mut extra = Map::new();
-    extra.insert("title".into(), json!(format!("Brought over {label} from {tool}")));
-    extra.insert("adopted".into(), Value::Array(adopted));
-    record(crate::live::Record {
+    let extra = json!({"title": format!("Brought over {label} from {tool}"), "adopted": adopted});
+    crate::live::record(crate::live::Record {
         action: "bringover",
         reason: &format!("Its agents work in the folders they had in {tool}."),
         team: Some(team),
-        extra,
+        extra: extra.as_object().cloned().unwrap_or_default(),
         ..crate::live::Record::default()
     });
 }

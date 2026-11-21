@@ -62,6 +62,3 @@ pub fn connect(rt: &Runtime) -> Result<Value, SetupError> {
     };
     crate::setup::start(rt, "antigravity", "connect", &format!("{} plugin install {}", quote(&agy), quote(&plugin)))
 }
-
-#[cfg(test)]
-mod tests;

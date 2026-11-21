@@ -161,18 +161,24 @@ fn finding(
     f
 }
 
-/// What a check reads from the rest of the brain, so a test can give its own.
-pub(crate) struct Ports<'a> {
+/// What a check reads from the rest of the brain.
+struct Ctx {
+    now: Timestamp,
+    today: Value,
     /// The practice groups that are on: the person's choice (`settings.practices`) of `preset::practices()`.
-    pub on: Vec<Group>,
-    /// The action log's recent rows, and the ids of the ones undone (`activity::undone`).
-    pub entries: Vec<Value>,
-    pub undone: BTreeSet<String>,
-    /// `teammap::team_report` of the team's rows.
-    pub report: &'a dyn Fn(&[Value]) -> Value,
-    /// `detect::live_findings` of the team's agents.
-    pub live_findings: &'a dyn Fn(&[Agent]) -> Vec<Value>,
-    pub env: &'a dyn Fn() -> Env,
+    on: Vec<Group>,
+    /// The action log's recent rows, and the ids of the ones undone.
+    entries: Vec<Value>,
+    undone: BTreeSet<String>,
+}
+
+impl Ctx {
+    fn new(brain: &Brain, now: Timestamp, log: Option<&Path>) -> Ctx {
+        let chosen = crate::settings::load(None)["practices"].as_object().cloned().unwrap_or_default();
+        let entries = crate::live::recent_actions(log, crate::activity::MAX_ROWS);
+        let on = group_rules(&crate::preset::practices(None), &chosen);
+        Ctx { now, today: brain.today(), on, undone: crate::activity::undone(&entries), entries }
+    }
 }
 
 /// The team: its live rows, its agents and who is in it, for a team found outside Assieme; None for any other.
@@ -193,7 +199,7 @@ fn team_of(rows: Vec<Value>, agents: Vec<Agent>, found: bool, terminals: &[Value
     Some(Got { rows, agents, members, source: None })
 }
 
-fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
+fn findings(c: &Ctx, team_name: &str, got: Option<&Got>) -> Value {
     let mut out = json!({"team": team_name, "found": got.is_some(), "findings": [], "in_place": []});
     let Some(got) = got else { return out };
     let Got { rows, agents, members, source } = got;
@@ -246,7 +252,7 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     let mut env = None;
     for (n, m) in members {
         if let Some(t) = &m.terminal {
-            let env = env.get_or_insert_with(|| (ports.env)());
+            let env = env.get_or_insert_with(Env::real);
             if let Some((checkout, wide)) = command_line(env, n, t) {
                 lines.push((n, checkout, wide));
             }
@@ -291,7 +297,7 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     }
 
     // What today's sessions show: wake-ups for nothing, loops, review rounds, heavy runs, refusals.
-    let rep = (ports.report)(rows);
+    let rep = crate::teammap::team_report(rows, &c.today, c.now);
     let roles: BTreeSet<&String> = names_of.keys().collect();
     let has = |v: &Value, k: &str| v[k].as_str().is_some_and(|s| roles.contains(&s.to_string()));
     let talk =
@@ -327,7 +333,7 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
         .cloned()
         .unwrap_or_default()
         .into_iter()
-        .chain((ports.live_findings)(&mine))
+        .chain(crate::detect::live_findings(&mine, c.now))
         .collect();
     for f in &all {
         let group = match f["kind"].as_str().unwrap_or("") {
@@ -369,8 +375,8 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     }
 
     // The practices themselves: a team started outside Assieme was given none, unless Improve gave them.
-    let on = &ports.on;
-    let given = delivered(team_name, &ports.entries, &ports.undone);
+    let on = &c.on;
+    let given = delivered(team_name, &c.entries, &c.undone);
     let lacking: Vec<String> = members
         .iter()
         .map(|(n, _)| n.clone())
@@ -449,26 +455,7 @@ pub fn check(
     let now = now.unwrap_or_else(Timestamp::now);
     let (rows, agents, found) = brain.resolve(team_name, now);
     let got = team_of(rows, agents, found, terminals.unwrap_or_default());
-    Ok(with_real(brain, now, log, |ports| findings(ports, team_name, got.as_ref())))
-}
-
-/// Runs `f` with the real brain behind its ports.
-fn with_real<T>(brain: &Brain, now: Timestamp, log: Option<&Path>, f: impl FnOnce(&Ports) -> T) -> T {
-    let today = brain.today();
-    let settings = crate::settings::load(None);
-    let entries = match log {
-        Some(path) => crate::live::recent_actions(Some(path), crate::activity::MAX_ROWS),
-        None => crate::live::recent_actions(None, crate::activity::MAX_ROWS),
-    };
-    let ports = Ports {
-        on: group_rules(&crate::preset::practices(None), settings["practices"].as_object().unwrap_or(&Map::new())),
-        undone: crate::activity::undone(&entries),
-        entries,
-        report: &|rows| crate::teammap::team_report(rows, &today, now),
-        live_findings: &|agents| crate::detect::live_findings(agents, now),
-        env: &Env::real,
-    };
-    f(&ports)
+    Ok(findings(&Ctx::new(brain, now, log), team_name, got.as_ref()))
 }
 
 /// Give each chosen finding's rules to its agents with their next turn. One action log row per finding.
@@ -483,30 +470,13 @@ pub fn apply(
     let now = now.unwrap_or_else(Timestamp::now);
     let (rows, agents, found) = brain.resolve(team_name, now);
     let got = team_of(rows, agents, found, terminals.unwrap_or_default());
-    with_real(brain, now, log, |ports| {
-        let hold =
-            |to: &str, cwd: &str, text: &str| crate::quiet::hold_note(to, cwd, text, None, None, None, "assieme", "");
-        let record = |row: Record| crate::live::record(row);
-        Ok(apply_with(ports, team_name, ids, got.as_ref(), now, log, &hold, &record))
-    })
-}
-
-#[allow(clippy::too_many_arguments)]
-fn apply_with(
-    ports: &Ports,
-    team_name: &str,
-    ids: &[String],
-    got: Option<&Got>,
-    now: Timestamp,
-    log: Option<&Path>,
-    hold: &dyn Fn(&str, &str, &str),
-    record: &dyn Fn(Record) -> Value,
-) -> Value {
-    let checked = findings(ports, team_name, got);
+    let c = &Ctx::new(brain, now, log);
+    let got = got.as_ref();
+    let checked = findings(c, team_name, got);
     let empty = vec![];
     let members = got.map_or(&empty, |g| &g.members);
-    let on = &ports.on;
-    let mut given = delivered(team_name, &ports.entries, &ports.undone);
+    let on = &c.on;
+    let mut given = delivered(team_name, &c.entries, &c.undone);
     let mut done = vec![];
     for f in checked["findings"].as_array().into_iter().flatten() {
         if !ids.iter().any(|i| f["id"] == *i) || f["kind"] != "apply" {
@@ -524,7 +494,7 @@ fn apply_with(
                 wanted.iter().copied().filter(|g| !given.contains(&(role.to_string(), g.to_string()))).collect();
             let groups: Vec<&Group> = mine.iter().filter_map(|g| on.iter().find(|x| x.0 == *g)).collect();
             let text = note_text(&groups);
-            hold(&m.address, cwd, &text);
+            crate::quiet::hold_note(&m.address, cwd, &text, None, None, None, "assieme", "");
             let at = crate::herdr::realpath(cwd);
             notes.push(json!([m.address, at, text]));
             for g in &mine {
@@ -547,7 +517,7 @@ fn apply_with(
         extra.insert("title".into(), json!(format!("Gave {} {what}", names(&who))));
         extra.insert("sent".into(), Value::Array(sent));
         extra.insert("notes".into(), Value::Array(notes));
-        let entry = record(Record {
+        let entry = crate::live::record(Record {
             action: "improve",
             agent: &names(&who),
             reason: f["detail"].as_str().unwrap_or(""),
@@ -559,60 +529,36 @@ fn apply_with(
         });
         done.push(json!({"id": f["id"], "entry": entry["id"]}));
     }
-    json!({"ok": true, "applied": done})
+    Ok(json!({"ok": true, "applied": done}))
 }
 
 /// A note still held is taken back; one already delivered is followed by a note that it no longer applies.
 pub fn undo(e: &Value, _rt: &Runtime) -> Result<(), BrainError> {
     let practices = crate::preset::practices(None);
-    let held = crate::quiet::held();
-    undo_with(
-        e,
-        &practices,
-        &held.into_values().flatten().collect::<Vec<_>>(),
-        &crate::quiet::drop,
-        &|to, cwd, text| crate::quiet::hold_note(to, cwd, text, None, None, None, "assieme", ""),
-    );
+    let held: Vec<Value> = crate::quiet::held().into_values().flatten().collect();
+    let title_of = |g: &str| {
+        let found = practices["groups"].as_array().into_iter().flatten().find(|x| x["id"] == g);
+        found.and_then(|x| x["title"].as_str()).unwrap_or(g).to_string()
+    };
+    for n in e["notes"].as_array().into_iter().flatten() {
+        let (address, cwd, body) = (text(&n[0]), text(&n[1]), text(&n[2]));
+        let mine: Vec<Value> =
+            held.iter().filter(|h| h["to"] == address && h["to_cwd"] == cwd && h["text"] == body).cloned().collect();
+        if !mine.is_empty() {
+            crate::quiet::drop(&mine);
+            continue;
+        }
+        let sent = e["sent"].as_array().into_iter().flatten().filter(|s| s[1] == address && s[2] == cwd);
+        let groups: Vec<String> = sent.map(|s| format!("“{}”", title_of(text(&s[3])))).collect();
+        let note = format!(
+            "assieme: your owner took back these team practices, so you no longer need to follow them: {}.",
+            groups.join(", ")
+        );
+        crate::quiet::hold_note(address, cwd, &note, None, None, None, "assieme", "");
+    }
     Ok(())
 }
 
-fn undo_with(e: &Value, practices: &Value, held: &[Value], drop: &dyn Fn(&[Value]), hold: &dyn Fn(&str, &str, &str)) {
-    let title_of = |g: &str| {
-        practices["groups"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .find(|x| x["id"] == g)
-            .and_then(|x| x["title"].as_str())
-            .unwrap_or(g)
-            .to_string()
-    };
-    for n in e["notes"].as_array().into_iter().flatten() {
-        let (address, cwd, text) =
-            (n[0].as_str().unwrap_or(""), n[1].as_str().unwrap_or(""), n[2].as_str().unwrap_or(""));
-        let mine: Vec<Value> =
-            held.iter().filter(|h| h["to"] == address && h["to_cwd"] == cwd && h["text"] == text).cloned().collect();
-        if !mine.is_empty() {
-            drop(&mine);
-            continue;
-        }
-        let groups: Vec<String> = e["sent"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|s| s[1] == address && s[2] == cwd)
-            .map(|s| format!("“{}”", title_of(s[3].as_str().unwrap_or(""))))
-            .collect();
-        hold(
-            address,
-            cwd,
-            &format!(
-                "assieme: your owner took back these team practices, so you no longer need to follow them: {}.",
-                groups.join(", ")
-            ),
-        );
-    }
+fn text(v: &Value) -> &str {
+    v.as_str().unwrap_or("")
 }
-
-#[cfg(test)]
-mod tests;

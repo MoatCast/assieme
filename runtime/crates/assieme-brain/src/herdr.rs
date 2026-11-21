@@ -10,125 +10,26 @@ use regex::Regex;
 use serde_json::json;
 use std::cell::Cell;
 
-const KINDS: [&str; 2] = ["claude", "codex"];
+/// Whether `w` is one of the space-separated words of `list`.
+fn has(list: &str, w: &str) -> bool {
+    list.split(' ').any(|x| x == w)
+}
+
 /// Agent kinds herdr knows (`herdr agent start --kind`): one of these that isn't Claude Code or Codex is left out with a
 /// note; any other program (a shell, a dev server) isn't an agent and is skipped.
-const HERDR_KINDS: [&str; 26] = [
-    "pi",
-    "claude",
-    "codex",
-    "gemini",
-    "cursor",
-    "devin",
-    "agy",
-    "cline",
-    "omp",
-    "mastracode",
-    "opencode",
-    "copilot",
-    "kimi",
-    "kiro",
-    "droid",
-    "amp",
-    "grok",
-    "hermes",
-    "kilo",
-    "qodercli",
-    "qwen",
-    "letta",
-    "maki",
-    "muse",
-    "cursor-agent",
-    "aider",
-];
+const HERDR_KINDS: &str = "pi claude codex gemini cursor devin agy cline omp mastracode opencode copilot kimi kiro droid amp grok hermes kilo qodercli qwen letta maki muse cursor-agent aider";
 const MAX_BRIEF: u64 = 256 * 1024;
-
 /// Options that take a value; the rest are switches. Claude Code's tool and folder lists take several values.
-const VALUED_CLAUDE: [&str; 24] = [
-    "--model",
-    "--effort",
-    "--permission-mode",
-    "--settings",
-    "--mcp-config",
-    "--append-system-prompt",
-    "--append-system-prompt-file",
-    "--system-prompt",
-    "--system-prompt-file",
-    "--fallback-model",
-    "--session-id",
-    "--resume",
-    "-r",
-    "--output-format",
-    "--input-format",
-    "--agents",
-    "--name",
-    "-n",
-    "--add-dir",
-    "--allowedTools",
-    "--allowed-tools",
-    "--disallowedTools",
-    "--disallowed-tools",
-    "--plugin-dir",
-];
-const VALUED_CODEX: [&str; 15] = [
-    "-m",
-    "--model",
-    "-c",
-    "--config",
-    "-s",
-    "--sandbox",
-    "-a",
-    "--ask-for-approval",
-    "-p",
-    "--profile",
-    "-C",
-    "--cd",
-    "-i",
-    "--image",
-    "-o",
-];
-const VALUED_MORE: [&str; 4] = ["--output-last-message", "--enable", "--disable", "--setting-sources"];
-const SEVERAL: [&str; 5] =
-    ["--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--add-dir"];
+const VALUED_CLAUDE: &str = "--model --effort --permission-mode --settings --mcp-config --append-system-prompt --append-system-prompt-file --system-prompt --system-prompt-file --fallback-model --session-id --resume -r --output-format --input-format --agents --name -n --add-dir --allowedTools --allowed-tools --disallowedTools --disallowed-tools --plugin-dir --setting-sources";
+const VALUED_CODEX: &str = "-m --model -c --config -s --sandbox -a --ask-for-approval -p --profile -C --cd -i --image --add-dir -o --output-last-message --enable --disable";
+const SEVERAL: &str = "--allowedTools --allowed-tools --disallowedTools --disallowed-tools --add-dir";
 /// Read here, so they aren't listed as left out.
-const READ: [&str; 25] = [
-    "--model",
-    "-m",
-    "--effort",
-    "--permission-mode",
-    "--dangerously-skip-permissions",
-    "--allow-dangerously-skip-permissions",
-    "--append-system-prompt",
-    "--append-system-prompt-file",
-    "--system-prompt",
-    "--system-prompt-file",
-    "--allowedTools",
-    "--allowed-tools",
-    "--disallowedTools",
-    "--disallowed-tools",
-    "-s",
-    "--sandbox",
-    "-a",
-    "--ask-for-approval",
-    "--full-auto",
-    "--yolo",
-    "--dangerously-bypass-approvals-and-sandbox",
-    "-c",
-    "--config",
-    "--settings",
-    "--mcp-config",
-];
-const WIDE_MODES: [&str; 4] = ["auto", "acceptEdits", "bypassPermissions", "dontAsk"];
+const READ: &str = "--model -m --effort --permission-mode --dangerously-skip-permissions --allow-dangerously-skip-permissions --append-system-prompt --append-system-prompt-file --system-prompt --system-prompt-file --allowedTools --allowed-tools --disallowedTools --disallowed-tools -s --sandbox -a --ask-for-approval --full-auto --yolo --dangerously-bypass-approvals-and-sandbox -c --config --settings --mcp-config";
 /// "${opts[@]}": options only known when the script runs.
 const ARRAY: &str = "\u{1}";
-const HC_VALUED: [&str; 6] = ["--name", "--cwd", "--on", "--label", "--parent", "--timeout"];
 
 fn valued(kind: &str, a: &str) -> bool {
-    if kind == "claude" {
-        VALUED_CLAUDE.contains(&a) || VALUED_MORE[3] == a
-    } else {
-        VALUED_CODEX.contains(&a) || VALUED_MORE[..3].contains(&a) || a == "--add-dir"
-    }
+    has(if kind == "claude" { VALUED_CLAUDE } else { VALUED_CODEX }, a)
 }
 
 /// One word of a command line; None where it is only known when the script runs.
@@ -515,7 +416,7 @@ fn options(kind: &str, args: &[Word]) -> (BTreeMap<String, Vec<V>>, Vec<Word>) {
         } else if a.starts_with("--") && a.contains('=') {
             let (flag, value) = a.split_once('=').unwrap_or((a, ""));
             opts.entry(flag.to_string()).or_default().push(V::S(value.to_string()));
-        } else if valued(kind, a) && kind == "claude" && SEVERAL.contains(&a) {
+        } else if valued(kind, a) && kind == "claude" && has(SEVERAL, a) {
             let mut j = i + 1;
             while j < args.len() && !args[j].as_deref().unwrap_or("").starts_with('-') {
                 opts.entry(a.to_string()).or_default().push(args[j].clone().map_or(V::Unknown, V::S));
@@ -643,7 +544,7 @@ pub(crate) fn agent_role(
         if mode.as_deref() == Some("plan") || blocked.contains("Edit") || blocked.contains("Write") {
             role["checkout"] = json!("read-only");
         }
-        if let Some(m) = mode.as_deref().filter(|m| WIDE_MODES.contains(m)) {
+        if let Some(m) = mode.as_deref().filter(|m| has("auto acceptEdits bypassPermissions dontAsk", m)) {
             wide.push(format!("permission mode \"{m}\""));
         }
         if truthy(&first(&["--dangerously-skip-permissions", "--allow-dangerously-skip-permissions"])) {
@@ -723,7 +624,7 @@ pub(crate) fn agent_role(
     if !config.is_empty() {
         say("extras", &config.keys().cloned().collect::<Vec<_>>().join(", "));
     }
-    let other: Vec<&String> = opts.keys().filter(|f| !READ.contains(&f.as_str())).collect();
+    let other: Vec<&String> = opts.keys().filter(|f| !has(READ, f)).collect();
     if !other.is_empty() {
         say("extras", &other.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "));
     }
@@ -890,7 +791,7 @@ pub(crate) fn split(argv: &[Word]) -> (Word, Vec<Word>, Vars) {
         for line in splitlines(&script) {
             let ws = words(&line, &env); // the variables set in front of it fill in its words
             for (j, w) in ws.iter().enumerate() {
-                if let Some(w) = w.as_deref().filter(|w| HERDR_KINDS.contains(&py_basename(w).as_str())) {
+                if let Some(w) = w.as_deref().filter(|w| has(HERDR_KINDS, &py_basename(w))) {
                     return (Some(py_basename(w)), ws[j + 1..].to_vec(), env);
                 }
             }
@@ -920,8 +821,8 @@ fn team(env: &Env, members: Vec<Member>, project: Option<String>, mut notes: Vec
             notes.push(("unknown-program".into(), Some(shown.unwrap_or(format!("agent-{n}"))), String::new()));
             continue;
         };
-        if !KINDS.contains(&prog.as_str()) {
-            if HERDR_KINDS.contains(&prog.as_str()) {
+        if prog != "claude" && prog != "codex" {
+            if has(HERDR_KINDS, &prog) {
                 // anything else (a shell, a dev server) isn't an agent
                 notes.push(("other-cli".into(), Some(shown.unwrap_or(prog.clone())), prog));
             }
@@ -1315,7 +1216,7 @@ fn script_member(tool: &str, ws: &[Word]) -> Member {
             i += 1;
             break;
         }
-        if HC_VALUED.contains(&w.as_str()) && i + 1 < ws.len() {
+        if has("--name --cwd --on --label --parent --timeout", w) && i + 1 < ws.len() {
             let value = ws[i + 1].clone();
             match w.as_str() {
                 "--name" => name = value,
