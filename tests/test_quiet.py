@@ -203,7 +203,7 @@ class LiveQuietTest(QuietTestCase):
         x = {'from': 'builder', 'to': 'coord', 'empty': 198, 'wakes': 252, 'empty_tokens': 82e6}
         [s] = live.suggest([b, c], [], {}, send_less=[x])
         self.assertEqual((s.action, s.pair), ('quiet', (SENDER, RECEIVER, 'builder -> coord')))
-        self.assertTrue(live.run_action(s, log=os.path.join(self.tmp.name, 'a.jsonl'))[0])
+        quiet.set_pair(*s.pair)
         self.assertTrue(quiet.is_quiet(SENDER, RECEIVER))
         self.assertEqual(live.suggest([b, c], [], {}, send_less=[x]), [])  # already quiet: gone
 

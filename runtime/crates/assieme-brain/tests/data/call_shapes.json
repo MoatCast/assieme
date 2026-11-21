@@ -51,45 +51,12 @@
  },
  {
   "module": "adapters",
-  "name": "box_metrics",
-  "positional": 2,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "adapters",
-  "name": "box_path",
-  "positional": 0,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "adapters",
   "name": "claude_code",
   "positional": 2,
   "keywords": [],
   "none": [],
   "callers": [
    "teammap"
-  ]
- },
- {
-  "module": "adapters",
-  "name": "claude_code",
-  "positional": 3,
-  "keywords": [
-   "cwd_rules",
-   "extra_rules"
-  ],
-  "none": [],
-  "callers": [
-   "cli"
   ]
  },
  {
@@ -104,16 +71,6 @@
  },
  {
   "module": "adapters",
-  "name": "codex",
-  "positional": 3,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "adapters",
   "name": "gemini",
   "positional": 2,
   "keywords": [],
@@ -124,42 +81,12 @@
  },
  {
   "module": "adapters",
-  "name": "gemini",
-  "positional": 3,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "adapters",
-  "name": "generic",
-  "positional": 3,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "adapters",
   "name": "opencode",
   "positional": 2,
   "keywords": [],
   "none": [],
   "callers": [
    "teammap"
-  ]
- },
- {
-  "module": "adapters",
-  "name": "opencode",
-  "positional": 3,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
   ]
  },
  {
@@ -518,16 +445,6 @@
  },
  {
   "module": "detect",
-  "name": "gate_hours",
-  "positional": 1,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "detect",
   "name": "live_findings",
   "positional": 2,
   "keywords": [],
@@ -756,6 +673,18 @@
   "none": [],
   "callers": [
    "menubar"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "announce",
+  "positional": 3,
+  "keywords": [
+   "switches"
+  ],
+  "none": [],
+  "callers": [
+   "cli"
   ]
  },
  {
@@ -1175,7 +1104,17 @@
  },
  {
   "module": "live",
-  "name": "run",
+  "name": "record_delivery",
+  "positional": 3,
+  "keywords": [],
+  "none": [],
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "record_given_up",
   "positional": 2,
   "keywords": [],
   "none": [],
@@ -1193,38 +1132,6 @@
   "none": [],
   "callers": [
    "panes"
-  ]
- },
- {
-  "module": "live",
-  "name": "watch",
-  "positional": 3,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "live",
-  "name": "watch_once",
-  "positional": 2,
-  "keywords": [
-   "announcing"
-  ],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "machine",
-  "name": "read",
-  "positional": 1,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
   ]
  },
  {
@@ -1257,7 +1164,6 @@
    "adapters",
    "limits",
    "machine",
-   "process",
    "status"
   ]
  },
@@ -1549,26 +1455,6 @@
   ]
  },
  {
-  "module": "process",
-  "name": "gate_finding",
-  "positional": 2,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "process",
-  "name": "report",
-  "positional": 4,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
   "module": "prompts",
   "name": "first_run_keys",
   "positional": 1,
@@ -1683,7 +1569,7 @@
   ],
   "none": [],
   "callers": [
-   "live"
+   "cli"
   ]
  },
  {
@@ -1706,7 +1592,6 @@
   "callers": [
    "cli",
    "improve",
-   "live",
    "teammap"
   ]
  },
@@ -1788,7 +1673,6 @@
   "none": [],
   "callers": [
    "cli",
-   "live",
    "teammap"
   ]
  },
@@ -1800,16 +1684,6 @@
   "none": [],
   "callers": [
    "teammap"
-  ]
- },
- {
-  "module": "quiet",
-  "name": "set_pair",
-  "positional": "*",
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "live"
   ]
  },
  {
@@ -1852,8 +1726,7 @@
   "none": [],
   "callers": [
    "cli",
-   "launch",
-   "live"
+   "launch"
   ]
  },
  {
@@ -1942,36 +1815,6 @@
   "none": [],
   "callers": [
    "teammap"
-  ]
- },
- {
-  "module": "report",
-  "name": "aggregate",
-  "positional": 5,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "report",
-  "name": "to_json",
-  "positional": 2,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "report",
-  "name": "to_md",
-  "positional": 3,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
   ]
  },
  {
@@ -2074,29 +1917,7 @@
   "none": [],
   "callers": [
    "adapters",
-   "live",
    "status"
-  ]
- },
- {
-  "module": "rules",
-  "name": "load_file",
-  "positional": 1,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "rules",
-  "name": "running_settings",
-  "positional": 0,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli",
-   "live"
   ]
  },
  {
@@ -2208,36 +2029,6 @@
   ]
  },
  {
-  "module": "service",
-  "name": "install",
-  "positional": 0,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "service",
-  "name": "running",
-  "positional": 0,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "service",
-  "name": "uninstall",
-  "positional": 0,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli"
-  ]
- },
- {
   "module": "settings",
   "name": "_check",
   "positional": 2,
@@ -2255,8 +2046,8 @@
   "none": [],
   "callers": [
    "activity",
+   "cli",
    "improve",
-   "live",
    "mcptools",
    "menubar",
    "newteam",
@@ -2319,8 +2110,8 @@
   "none": [],
   "callers": [
    "antigravity",
-   "launch",
-   "status"
+   "herdr",
+   "launch"
   ]
  },
  {
@@ -2378,7 +2169,6 @@
   "name": "collect",
   "positional": 3,
   "keywords": [
-   "herdr",
    "running"
   ],
   "none": [],
@@ -2391,33 +2181,22 @@
   "name": "collect",
   "positional": 4,
   "keywords": [
-   "herdr",
    "running"
   ],
   "none": [],
   "callers": [
+   "cli",
    "serve"
   ]
  },
  {
   "module": "status",
   "name": "collect",
-  "positional": 7,
+  "positional": 6,
   "keywords": [],
   "none": [],
   "callers": [
    "cli"
-  ]
- },
- {
-  "module": "status",
-  "name": "herdr_terminals",
-  "positional": 0,
-  "keywords": [],
-  "none": [],
-  "callers": [
-   "cli",
-   "serve"
   ]
  },
  {
@@ -2457,6 +2236,7 @@
   "keywords": [],
   "none": [],
   "callers": [
+   "cli",
    "menubar",
    "panes",
    "serve"
@@ -2490,6 +2270,7 @@
   "keywords": [],
   "none": [],
   "callers": [
+   "cli",
    "menubar",
    "panes",
    "serve"

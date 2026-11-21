@@ -172,11 +172,11 @@ fn call(root: &Path, f: &str, a: &Value) -> Value {
                 a["running"].as_array().map(|r| r.iter().map(|x| x.as_str().unwrap().into()).collect());
             let hours = a["hours"].as_f64().unwrap_or(12.0);
             let agents =
-                status::collect(&p("claude"), &p("codex"), now(), hours, show, None, running.as_ref(), Some(&no_rules));
+                status::collect(&p("claude"), &p("codex"), now(), hours, show, running.as_ref(), Some(&no_rules));
             Value::Array(agents.iter().map(agent).collect())
         }
         "status.stalls" => {
-            let agents = status::collect(&p("claude"), &p("codex"), now(), 12.0, false, None, None, Some(&no_rules));
+            let agents = status::collect(&p("claude"), &p("codex"), now(), 12.0, false, None, Some(&no_rules));
             json!({"stalls": status::stalls(&agents, now()), "queue": status::owner_queue(&agents, now()),
                    "warnings": detect::live_findings(&agents, now())})
         }

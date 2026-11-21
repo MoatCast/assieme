@@ -106,50 +106,6 @@ class StatusTest(unittest.TestCase):
         self.assertNotIn('secret', text)
         self.assertEqual(json.loads(status.to_json(self.agents, NOW))['agents'][0]['state'], 'stuck')
 
-    def test_herdr_blocked_means_waiting_on_you(self):
-        agents = status.collect(self.claude, self.codex, NOW, herdr=[
-            {'address': 't1', 'cwd': '/Users/x/team/a', 'state': 'live', 'status': {'state': 'blocked', 'kind': 'permission'}},
-            {'address': 't2', 'cwd': '/Users/x/team/g', 'state': 'live', 'status': None},
-            {'address': 't3', 'cwd': '/Users/x/team/e', 'state': 'done', 'status': {'state': 'blocked'}}])
-        by = {a.name: a for a in agents}
-        self.assertEqual((by['a'].state, by['a'].herdr, by['a'].detail), ('waiting on you', 'blocked', 'herdr: permission'))
-        self.assertEqual((by['g'].state, by['g'].herdr), ('idle', 'unreported'))
-        self.assertEqual((by['e'].state, by['e'].herdr), ('waiting on subagents', None))  # finished terminal ignored
-
-    def test_herdr_workspace_comes_with_the_agent(self):  # its team, wherever its folder is
-        agents = status.collect(self.claude, self.codex, NOW, herdr=[
-            {'address': 't1', 'cwd': '/Users/x/team/a', 'state': 'live', 'status': None, 'where': 'Shop team / a',
-             'labels': {'herdr.space': 'spshop'}},
-            {'address': 't2', 'cwd': '/Users/x/team/g', 'state': 'live', 'status': None, 'where': '~ / 1'}])
-        by = {a.name: a for a in agents}
-        self.assertEqual((by['a'].herdr_space, by['g'].herdr_space), ('Shop team', None))
-
-    def test_a_live_herdr_terminal_is_not_a_closed_session(self):
-        # The agent moved into another worktree: its log names that folder, where no process runs.
-        write(os.path.join(self.claude, '-Users-x-team-s', 's.jsonl'),
-              [prompt(60) | {'cwd': '/Users/x/elsewhere'}, done(59) | {'cwd': '/Users/x/elsewhere'}])
-        agents = status.collect(self.claude, self.codex, NOW, running=set(), herdr=[
-            {'address': 't9', 'cwd': '/Users/x/team/s', 'state': 'live', 'agent': 'claude-code', 'status': None}])
-        s = next(a for a in agents if a.herdr_address == 't9')
-        self.assertNotEqual(s.state, 'exited')
-
-    def test_herdr_terminal_goes_to_the_session_of_its_kind(self):  # a Claude Code and a Codex log in one folder
-        claude, codex = status.Agent('c', 'claude-code', '/l/-w-b/c.jsonl'), status.Agent('x', 'codex', '/l/x.jsonl')
-        claude.cwd = codex.cwd = '/w/b'
-        claude.state = codex.state = 'idle'
-        status._apply_herdr([claude, codex], [{'address': 't2', 'cwd': '/w/b', 'state': 'live', 'agent': 'codex',
-                                               'status': None, 'where': 'Shop / b', 'labels': {'herdr.space': 's'}}])
-        self.assertEqual((codex.herdr_address, codex.herdr_space, claude.herdr_address), ('t2', 'Shop', None))
-
-    def test_herdr_terminals_keep_their_labels(self):
-        from unittest import mock
-        replies = {'ls': {'terminals': [{'address': 't1', 'state': 'live'}]},
-                   'get': {'status': {'state': 'idle'}, 'labels': {'herdr.space': 'spshop'}}}
-        with mock.patch.object(status, 'herdr_core_up', return_value=True), \
-                mock.patch.object(status, '_hc_json', side_effect=lambda *a: replies[a[0]]):
-            t = status.herdr_terminals()[0]
-        self.assertEqual((t['status'], t['labels']), ({'state': 'idle'}, {'herdr.space': 'spshop'}))
-
     def test_interrupt_ends_the_turn(self):
         write(os.path.join(self.claude, '-Users-x-team-g', 's.jsonl'), [
             prompt(40), {'type': 'user', 'timestamp': ago(39), 'message': {'content': [
@@ -292,25 +248,6 @@ class NamesTest(unittest.TestCase):
                  f'{home}--codex-worktrees-x-Site']
         self.assertEqual(sorted(_strip_common_prefix(names).values()),
                          ['Alpha', 'agent-wakegraph', 'coord', 'x-Site'])
-
-
-class HerdrCheckTest(unittest.TestCase):
-    def test_no_herdr_core_runs_no_hc_command(self):
-        # Any `hc` command starts a herdr core of its own: First run's check must not start one by looking.
-        from unittest import mock
-        with mock.patch.object(status, 'herdr_core_up', return_value=False), \
-                mock.patch.object(status.subprocess, 'run') as run:
-            self.assertEqual(status.herdr_terminals(), [])
-        run.assert_not_called()
-
-    def test_a_running_core_is_read_with_herdrs_own_hc(self):
-        from unittest import mock
-        got = mock.Mock(stdout=json.dumps({'terminals': []}))
-        with mock.patch.object(status, 'herdr_core_up', return_value=True), \
-                mock.patch.object(status, 'hc_path', return_value='/herdr/bin/hc'), \
-                mock.patch.object(status.subprocess, 'run', return_value=got) as run:
-            self.assertEqual(status.herdr_terminals(), [])
-        self.assertEqual(run.call_args.args[0][0], '/herdr/bin/hc')
 
 
 class QuietThresholdTest(unittest.TestCase):

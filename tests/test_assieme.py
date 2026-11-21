@@ -1,13 +1,11 @@
 """All tests build synthetic logs in a temp dir; none read real logs."""
-import contextlib
 import datetime as dt
-import io
 import json
 import os
 import tempfile
 import unittest
 
-from assieme import adapters, cli, report
+from assieme import adapters, report
 
 SINCE = dt.datetime(2098, 12, 31, tzinfo=dt.timezone.utc)
 FUTURE = 4_100_000_000  # mtime in 2099, after SINCE
@@ -181,47 +179,6 @@ class CodexTest(unittest.TestCase):
         self.assertEqual((p.calls, p.tokens, len(p.turns)), (3, 120_000, 1))
         self.assertEqual(dict(p.refusals), {('exec_command: git', 'Codex sandbox or approval'): 1})
         self.assertEqual(s['codex:app/subagent'].turns[0].sender, 'codex:app')
-
-
-class GenericTest(unittest.TestCase):
-    def test_generic_events(self):
-        with tempfile.TemporaryDirectory() as root:
-            path = os.path.join(root, 'e.jsonl')
-            write_jsonl(path, [
-                {'ts': '2099-01-01T00:00:00+02:00', 'agent': 'a', 'type': 'wake', 'from': 'b'},
-                {'ts': '2099-01-01T00:00:01Z', 'agent': 'a', 'type': 'call', 'input_tokens': 100},
-                {'ts': '2099-01-01T00:00:02Z', 'agent': 'a', 'type': 'refusal', 'command': 'rm -rf /'},
-                {'ts': '1999-01-01T00:00:00Z', 'agent': 'a', 'type': 'call', 'input_tokens': 5}])
-            [s] = adapters.generic(path, SINCE)
-        self.assertEqual((s.calls, s.tokens, s.turns[0].sender, dict(s.refusals)), (1, 100, 'b', {('cmd: rm', 'reported'): 1}))
-
-
-class CliTest(unittest.TestCase):
-    def run_cli(self, *args):
-        with tempfile.TemporaryDirectory() as root:
-            claude_team(os.path.join(root, 'claude'))
-            codex_pair(os.path.join(root, 'codex'))
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                # synthetic logs are dated 2099; a huge window reaches back to cover "now" too
-                cli.main(['report', '--hours', '1e6', '--claude-dir', os.path.join(root, 'claude'),
-                          '--codex-dir', os.path.join(root, 'codex'), *args])
-            return out.getvalue()
-
-    def test_json(self):
-        r = json.loads(self.run_cli('--json'))
-        self.assertIn('coord', r['agents'])
-        self.assertIn('codex:app', r['agents'])
-        self.assertEqual(len(r['flags']), 3)
-
-    def test_markdown_hides_text_by_default(self):
-        md = self.run_cli('--md')
-        self.assertIn('## Who woke whom', md)
-        self.assertIn('| builder | coord | hc | 25 |', md)
-        self.assertIn('1. builder -> coord: 25 of 25 wakes did no work', md)
-        self.assertNotIn('2. ', md.split('## Agents')[0])  # tiny edges are not worth naming
-        self.assertNotIn('SECRET-TEXT', md)
-        self.assertNotIn('abc', md)
 
 
 if __name__ == '__main__':

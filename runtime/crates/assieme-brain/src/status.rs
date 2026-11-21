@@ -2,7 +2,7 @@
 //!
 //! F1 live health and F2 stall alarm: what each agent is doing right now, read from its own logs.
 //! States: working, stuck, waiting on subagents, waiting on you, idle with work waiting, idle, exited. Only the tail of
-//! each log is read, so polling stays cheap on large sessions. Reading the person's own herdr (`hc`) is not ported.
+//! each log is read, so polling stays cheap on large sessions. The person's own herdr is not read.
 #![allow(clippy::todo)]
 use crate::adapters::{
     Bad, Read, basename, command_label, decode_ignore, get, get_str, get_true, id_of, int, loads, or_obj, output_text,
@@ -43,9 +43,6 @@ pub struct Agent {
     pub parent_thread: Option<String>,
     /// Its subagents, read the same way.
     pub children: Vec<Agent>,
-    pub herdr: Option<Value>,
-    pub herdr_address: Option<String>,
-    pub herdr_space: Option<String>,
     pub cwd: Option<String>,
     pub asked: bool,
     pub turn_by: Option<String>,
@@ -99,7 +96,7 @@ impl Agent {
 
     pub fn as_dict(&self, now: Timestamp) -> Value {
         json!({"agent": self.name, "source": self.source, "state": self.state, "detail": self.detail,
-               "seconds": self.last.map(|l| secs(now, l) as i64), "herdr": self.herdr})
+               "seconds": self.last.map(|l| secs(now, l) as i64)})
     }
 }
 
@@ -537,8 +534,7 @@ pub fn recent_actions(path: &Path, source: &str, show_text: bool, n: usize) -> V
     out.into_iter().rev().take(n).collect()
 }
 
-/// Read recent logs -> agents with health states. `herdr` (the person's own herdr) is not read any more: it is
-/// accepted and ignored. `rules_for`: the deny rules for a folder; None reads each folder's and the person's.
+/// Read recent logs -> agents with health states. `rules_for`: the deny rules for a folder; None reads each folder's and the person's.
 #[allow(clippy::too_many_arguments)]
 pub fn collect(
     claude_dir: &Path,
@@ -546,7 +542,6 @@ pub fn collect(
     now: Timestamp,
     hours: f64,
     show_text: bool,
-    _herdr: Option<&[Value]>,
     running: Option<&BTreeSet<String>>,
     rules_for: Option<&RulesFor>,
 ) -> Vec<Agent> {
@@ -1001,20 +996,6 @@ pub fn owner_queue(agents: &[Agent], now: Timestamp) -> Vec<Value> {
 pub fn now_utc() -> Timestamp {
     Timestamp::now()
 }
-/// The person's herdr install's own hc, else theirs on the login PATH.
-pub fn hc_path() -> Option<PathBuf> {
-    todo!("status.hc_path")
-}
-
-pub fn herdr_core_up() -> bool {
-    todo!("status.herdr_core_up")
-}
-
-/// Live herdr-core terminals; [] when herdr's core isn't running; None when they can't be read.
-pub fn herdr_terminals() -> Option<Vec<Value>> {
-    todo!("status.herdr_terminals")
-}
-
 /// (headline, alerts).
 pub fn summary(agents: &[Agent]) -> (String, Vec<String>) {
     let head: Vec<String> = ORDER

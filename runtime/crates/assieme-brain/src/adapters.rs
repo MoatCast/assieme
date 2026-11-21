@@ -674,10 +674,6 @@ fn codex_session(path: &Path, since: Timestamp, show_text: bool) -> Read<(Option
     Ok((thread, parent, s))
 }
 
-pub fn generic(_path: &Path, _since: Timestamp, _show_text: bool) -> Vec<Session> {
-    todo!("adapters.generic")
-}
-
 /// A Gemini message's text: a string, or a list of parts with `text`.
 fn gemini_text(content: Option<&Value>) -> String {
     match content {

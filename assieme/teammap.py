@@ -8,7 +8,6 @@ import contextlib
 import dataclasses
 import datetime as dt
 import functools
-import json
 import os
 import subprocess
 import threading
@@ -368,9 +367,8 @@ def detail(team_name, role, built, agents, roster, now, rows=None, show_commands
             'wakers': _wakers(a, alias, now) if a else [], 'empty_wakes': sum(e['empty'] for e in edge_in)}
 
 
-def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
-    """Carry out the fixes switched to automatic, on teams started in Assieme and on found teams the person let Assieme
-    run (st['run_found']), the latter through `herdr` and only for agents in a herdr terminal. Only buttons that are fixes: a
+def run_automatic(views, st, rt, log=None, now=None, tokens=None):
+    """Carry out the fixes switched to automatic, on teams started in Assieme. Only buttons that are fixes: a
     question is the person's to answer. One attempt per problem (fixes.problem_key), measured as it starts.
     `tokens` is role -> (tokens now, tokens when the problem began)."""
     now = now or status.now_utc()
@@ -378,12 +376,9 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
     with fixes.LOCK:  # a failed try counts as the attempt too: otherwise it would retry and log a row every tick
         entries = live.recent_actions(log, 500)
         for name, built in views.items():
-            found = built.get('found')
-            if found and not st['run_found'].get(name):
-                continue
+            if built.get('found'):
+                continue  # agents started outside Assieme can only be watched
             for p in built['panes']:
-                if found and not p['reachable']:
-                    continue  # a plain terminal agent can only be watched
                 for b in (p['fix'] or {}).get('buttons', []):
                     action = b.get('action')
                     if b['kind'] != 'action' or st['fixes'].get(action) != 'auto':
@@ -397,14 +392,12 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
                            for k in (-1, 0, 1)):
                         continue
                     try:
-                        if found:
-                            herdr = herdr or HerdrRt()
-                        (herdr if found else rt).send(p['address'], b['send'])
+                        rt.send(p['address'], b['send'])
                         ok, detail_ = True, 'sent'
                     except Exception as e:  # a failed fix is a row in Activity, and the others still run
                         ok, detail_ = False, str(e)[:120]
                     now_t, start_t = (tokens or {}).get((name, p['role']), (None, None))
-                    entry = live.record(action, p['role'], p['fix']['text'] + (' (team found in herdr)' if found else ''), ok, detail_, team=name, by='auto',
+                    entry = live.record(action, p['role'], p['fix']['text'], ok, detail_, team=name, by='auto',
                                         address=p['address'], log=log, now=now, problem=key, refused=fixes.refused_command(b['send']),
                                         measured=fixes.measure(p, now_t, start_t), check_until=fixes.check_until(now),
                                         # a nudge's words are the same for every agent; a tell's can name a refused command
@@ -414,34 +407,11 @@ def run_automatic(views, st, rt, log=None, now=None, tokens=None, herdr=None):
     return out
 
 
-class HerdrRt:
-    """The person's own herdr-core, for agents started outside Assieme: the same calls, through the `hc` command."""
-
-    def _hc(self, *args):
-        r = subprocess.run(['hc', *args], capture_output=True, text=True, timeout=60)
-        if r.returncode:
-            raise RuntimeError((r.stderr or r.stdout).strip()[:120] or 'hc failed')
-        return r.stdout
-
-    def send(self, t, text):
-        self._hc('send', t, text)
-
-    def keys(self, t, keys):
-        self._hc('keys', t, *keys)
-
-    def read(self, t, lines=0):
-        return self._hc('read', t)
-
-    def interrupt(self, t, timeout_s=3):
-        self.keys(t, ['esc'])
-
-
 class Brain:
     """What the app asks about teams. One object so that `team.view`, `team.map` and the buttons see the same team."""
 
-    def __init__(self, claude_dir, codex_dir, rt, starter, answers, herdr=None):
+    def __init__(self, claude_dir, codex_dir, rt, starter, answers):
         self.claude_dir, self.codex_dir, self.rt, self.starter, self.answers = claude_dir, codex_dir, rt, starter, answers
-        self.herdr = herdr or HerdrRt()
         self.today = Today(claude_dir, codex_dir)
         self._view = threading.local()
 
@@ -463,9 +433,6 @@ class Brain:
             seen[key] = read()
         return seen[key]
 
-    def terminals(self):
-        return self._once('herdr', status.herdr_terminals)
-
     def _assieme_rows(self, name=None):
         try:
             rows = self._once(('rows', name), lambda: self.rt.list({team.TEAM: name} if name else {}, all=True))
@@ -473,13 +440,12 @@ class Brain:
             return []
         return [r for r in rows if (r.get('labels') or {}).get(team.TEAM) and (not name or r['labels'][team.TEAM] == name)]
 
-    def _collect(self, now, herdr):
-        return self._once(('agents', json.dumps(herdr, sort_keys=True, default=str)),
-                          lambda: status.collect(self.claude_dir, self.codex_dir, now, herdr=herdr,
-                                                 running=self._once('running', status.running_cwds)))
+    def _collect(self, now):
+        return self._once('agents', lambda: status.collect(self.claude_dir, self.codex_dir, now,
+                                                           running=self._once('running', status.running_cwds)))
 
     def _found(self, now):
-        agents = self._collect(now, self.terminals())
+        agents = self._collect(now)
         taken = {r.get('cwd') for r in self._assieme_rows() if r.get('state') == 'live'}
         return agents, found_groups(agents, settings.load()['groups'], taken)
 
@@ -487,13 +453,12 @@ class Brain:
         """(rows, agents, found, the runtime that reaches them)."""
         rows = self._assieme_rows(name)
         if any(r.get('state') == 'live' for r in rows):
-            live_rows = [r for r in self._assieme_rows() if r.get('state') == 'live']
-            return rows, self._collect(now, live_rows), False, self.rt
+            return rows, self._collect(now), False, self.rt
         # A stopped team and the person's own agents in that folder usually share a name: the running ones win.
         agents, groups_ = self._found(now)
         if rows and not groups_.get(name):
             return rows, agents, False, self.rt
-        return found_rows(name, groups_.get(name, [])), agents, True, self.herdr
+        return found_rows(name, groups_.get(name, [])), agents, True, self.rt
 
     def _read(self, rt):
         def read(address):
@@ -629,18 +594,14 @@ class Brain:
             return []
         names = {r['labels'][team.TEAM] for r in self._assieme_rows() if r.get('state') == 'live'}
         views = {n: self._map(n) for n in names if auto or n in limited or n in paused}
-        if auto or paused:  # found teams the person let Assieme run
-            views |= {n: self._map(n) for n in self._found(now)[1] if st['run_found'].get(n) and (auto or n in paused)}
         for n in names & limited:
             budget.check(n, views[n], self.rt, now, announce)
         if not auto and not paused:
             return []
-        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now), herdr=self.herdr) if auto else []
+        done = run_automatic(views, st, self.rt, now=now, tokens=self._problem_tokens(views, now)) if auto else []
         if st['fixes'].get('quiet') == 'auto':
             done += hold_automatically({n: v for n, v in views.items() if not v.get('found')}, now)
-        mine = {n: v for n, v in views.items() if not v.get('found')}  # each team's outcomes through the runtime that reaches it
-        return done + fixes.check_outcomes(mine, self.rt, now=now) + fixes.check_outcomes(
-            {n: v for n, v in views.items() if v.get('found')}, self.herdr, now=now)
+        return done + fixes.check_outcomes(views, self.rt, now=now)
 
     def _problem_tokens(self, views, now):
         """(team, role) -> (tokens now, tokens when its problem began), for the panes that have a problem."""
@@ -709,13 +670,11 @@ def remove_agent(teams, rt, team_name, role):
 
 
 def group_of(a, st_groups):
-    """The found team an agent belongs to: the person's choice, else its herdr workspace, else its repository (a
+    """The found team an agent belongs to: the person's choice, else its repository (a
     worktree counts as the project it was made from), else its folder."""
     chosen = st_groups.get(_real(a.cwd))
     if chosen:
         return chosen
-    if getattr(a, 'herdr_space', None):
-        return a.herdr_space
     cwd = (a.cwd or '').rstrip('/')
     marker = f'{os.sep}.assieme{os.sep}worktrees{os.sep}'
     if marker in cwd:  # the worktree of a team that's no longer running
@@ -757,8 +716,8 @@ def found_groups(agents, st_groups, taken_cwds):
 
 
 def found_rows(name, agents):
-    """Agents started outside Assieme, in the shape of `hc`'s rows. Without a herdr terminal they can only be watched."""
-    return [{'address': a.herdr_address or f'log:{a.name}', 'state': 'finished' if a.state == 'exited' else 'live',
-             'status': {'state': a.herdr} if a.herdr else None, 'cwd': a.cwd, 'created_ms': 0,
+    """Agents started outside Assieme, in the shape of the core's rows. They can only be watched."""
+    return [{'address': f'log:{a.name}', 'state': 'finished' if a.state == 'exited' else 'live',
+             'status': None, 'cwd': a.cwd, 'created_ms': 0,
              'argv': ['codex' if a.source == 'codex' else 'claude'],
              'labels': {team.TEAM: name, team.ROLE: a.name}} for a in agents]

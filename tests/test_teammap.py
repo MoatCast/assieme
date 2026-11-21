@@ -272,9 +272,9 @@ class GroupTest(unittest.TestCase):
 
 
 class FoundTest(MapCase):
-    def agent(self, name, cwd, state='idle', address=None, source='claude-code'):
+    def agent(self, name, cwd, state='idle', source='claude-code'):
         a = Agent(name, source, f'/logs/{name}.jsonl')
-        a.cwd, a.state, a.last, a.herdr_address = cwd, state, NOW, address
+        a.cwd, a.state, a.last = cwd, state, NOW
         return a
 
     def test_found_groups_by_folder_and_skips_exited_and_team_folders(self):
@@ -293,12 +293,6 @@ class FoundTest(MapCase):
         got = teammap.found_groups([self.agent('x', '/w/shop/.assieme/worktrees/builder')], {}, set())
         self.assertEqual(list(got), ['shop'])
 
-    def test_a_herdr_workspace_is_one_team_across_folders(self):  # each herdr agent in its own worktree folder
-        a, b = self.agent('steward', '/w/shop-steward'), self.agent('builder2', '/w/shop-builder2')
-        a.herdr_space = b.herdr_space = 'Shop team'
-        got = teammap.found_groups([a, b, self.agent('solo', '/w/other')], {}, set())
-        self.assertEqual({k: [x.name for x in v] for k, v in got.items()}, {'Shop team': ['steward', 'builder2'], 'other': ['solo']})
-
     def test_worktrees_of_one_repository_are_one_team(self):
         import subprocess
         with tempfile.TemporaryDirectory() as d:
@@ -311,10 +305,9 @@ class FoundTest(MapCase):
             got = teammap.found_groups([self.agent('lead', main), self.agent('builder', wt)], {}, set())
         self.assertEqual({k: [x.name for x in v] for k, v in got.items()}, {'shop': ['lead', 'builder']})
 
-    def test_found_rows_mark_what_can_be_reached(self):
-        rows = teammap.found_rows('shop', [self.agent('a', '/w/a', address='t3'), self.agent('b', '/w/b', source='codex')])
-        self.assertEqual(rows[0]['address'], 't3')
-        self.assertTrue(rows[1]['address'].startswith('log:'))
+    def test_found_rows_can_only_be_watched(self):
+        rows = teammap.found_rows('shop', [self.agent('a', '/w/a'), self.agent('b', '/w/b', source='codex')])
+        self.assertTrue(all(r['address'].startswith('log:') for r in rows))
         self.assertEqual(rows[1]['argv'], ['codex'])
 
     def test_found_agent_without_terminal_gets_no_buttons(self):
@@ -501,42 +494,23 @@ class RunAutomaticTest(MapCase):
 class FoundRunTest(MapCase):
     def setUp(self):
         super().setUp()
+        self.sent = []
         outer = self
-        self.herdr_sent, self.sent = [], []
 
         class Rt:
             def send(self, t, text):
                 outer.sent.append(t)
         self.rt = Rt()
-
-        class Herdr:
-            def send(self, t, text):
-                outer.herdr_sent.append(t)
-        self.herdr = Herdr()
         settings.set_value('fixes.nudge', 'auto')
 
-    def found_views(self, plain=False):
-        a = FoundTest.agent(self, 'a', '/w/a', 'stuck', address=None if plain else 'w1:2')
+    def test_a_found_team_is_only_watched(self):
+        a = FoundTest.agent(self, 'a', '/w/a', 'stuck')
         a.detail = 'silent 18 min'
-        return {'herdr-shop': self.build(teammap.found_rows('herdr-shop', [a]), [a], found=True)}
-
-    def run_found(self, views, on=True):
+        views = {'herdr-shop': self.build(teammap.found_rows('herdr-shop', [a]), [a], found=True)}
         st = settings.load()
-        st['run_found'] = {'herdr-shop': True} if on else {}
-        return teammap.run_automatic(views, st, self.rt, now=NOW, herdr=self.herdr)
-
-    def test_found_team_is_left_alone_until_asked(self):
-        self.assertEqual(self.run_found(self.found_views(), on=False), [])
-        self.assertEqual(self.herdr_sent, [])
-
-    def test_found_team_runs_after_opt_in(self):
-        out = self.run_found(self.found_views())
-        self.assertEqual(self.herdr_sent, ['w1:2'])
+        st['run_found'] = {'herdr-shop': True}
+        self.assertEqual(teammap.run_automatic(views, st, self.rt, now=NOW), [])
         self.assertEqual(self.sent, [])
-        self.assertIn('found in herdr', out[0]['reason'])
-
-    def test_plain_terminal_agents_stay_needs_you(self):
-        self.assertEqual(self.run_found(self.found_views(plain=True)), [])
 
     def test_map_says_whether_assieme_runs_a_found_team(self):
         m = self.build([row('a')], found=True)
@@ -560,90 +534,6 @@ class FoundRunTest(MapCase):
         self.assertEqual((r['title'], r['reason']), ('Stopped running herdr-shop', 'You took this team back.'))
         activity.undo(r['id'], self.rt)
         self.assertTrue(settings.load()['run_found'].get('herdr-shop'))
-
-
-class FoundTickTest(MapCase):
-    """Found teams through TeamMap.tick, the way the app runs them."""
-    def setUp(self):
-        super().setUp()
-        self.calls = []
-        outer = self
-
-        class Herdr:
-            def send(self, t, text):
-                outer.calls.append(('send', t, text))
-
-            def interrupt(self, t, timeout_s=3):
-                outer.calls.append(('interrupt', t))
-
-            def keys(self, t, keys):
-                outer.calls.append(('keys', t, list(keys)))
-
-            def read(self, t, lines=0):
-                return '⏺ ok\n'
-        self.brain = teammap.Brain('/c', '/x', FakeRt([]), None, NoAnswers(), herdr=Herdr())
-        a = FoundTest.agent(self, 'a', '/w/a', 'stuck', address='w1:2')
-        a.detail, a.last = 'silent 18 min', NOW - dt.timedelta(minutes=18)
-        self.agent = a
-        self.brain._found = lambda now: ([a], {'herdr-shop': [a]})
-        settings.set_value('fixes.nudge', 'auto')
-        settings.set_value('run_found.herdr-shop', True)
-
-    def tick(self, minutes=0):
-        now = NOW + dt.timedelta(minutes=minutes)
-        with mock.patch.object(status, 'now_utc', return_value=now):
-            return self.brain.tick(now)
-
-    def sends(self, kind='send'):
-        return [c for c in self.calls if c[0] == kind]
-
-    def test_opted_in_team_gets_one_nudge_through_herdr(self):
-        self.tick()
-        self.tick(1)
-        self.assertEqual(len(self.sends()), 1)
-        self.assertEqual(self.sends()[0][1], 'w1:2')
-        self.assertEqual(self.brain.rt.sent, [])
-
-    def test_still_stuck_after_the_nudge_pauses_through_herdr(self):
-        self.tick()
-        self.tick(60)
-        self.assertEqual(self.sends('interrupt'), [('interrupt', 'w1:2')])
-        self.assertTrue(fixes.is_paused('herdr-shop', 'a'))
-
-    def test_resume_on_a_found_team_sends_through_herdr(self):
-        self.tick()
-        self.tick(60)
-        self.calls.clear()
-        with mock.patch.object(status, 'now_utc', return_value=NOW), mock.patch.object(status, 'running_cwds', return_value=set()):
-            self.brain.act('herdr-shop', 'a', 'fixpause:herdr-shop/a', 'resume')
-        self.assertEqual(self.calls, [('send', 'w1:2', fixes.RESUME)])
-
-    def test_interrupt_presses_esc_by_the_name_hc_knows(self):
-        with mock.patch.object(teammap.HerdrRt, '_hc') as hc:
-            teammap.HerdrRt().interrupt('w1:2')
-        hc.assert_called_once_with('keys', 'w1:2', 'esc')
-
-    def test_a_pause_ends_by_itself_when_every_fix_asks_first(self):
-        self.tick()
-        self.tick(60)
-        fixes.hold('herdr-shop', 'a', 'planner', 'use the flag')
-        for k in settings.defaults()['fixes']:
-            settings.set_value(f'fixes.{k}', 'ask')
-        self.calls.clear()
-        self.agent.turn_start = NOW + dt.timedelta(minutes=61)
-        self.tick(62)
-        self.assertFalse(fixes.is_paused('herdr-shop', 'a'))
-        [(_, to, text)] = self.sends()  # the held note, and no automatic fix
-        self.assertEqual(to, 'w1:2')
-        self.assertIn('- from planner: use the flag', text)
-
-    def test_after_undo_the_next_tick_sends_nothing(self):
-        settings.set_value('run_found.herdr-shop', False)  # undo restores what it was before
-        self.brain.run_found('herdr-shop', True)
-        [e] = [x for x in live.recent_actions(None, 5) if x['action'] == 'run_found']
-        activity.undo(e['id'], self.brain.rt)
-        self.tick()
-        self.assertEqual(self.calls, [])
 
 
 class FakeRt:
@@ -718,32 +608,31 @@ class BrainTest(MapCase):
                 self.assertFalse({'refused', 'turn_at'} & set(p))
             self.assertTrue({'refused', 'turn_at'} <= set(b._map('shop')['panes'][0]))  # the brain's own tick still reads them
 
-    def test_one_view_reads_the_logs_once_for_the_same_terminals(self):
+    def test_one_view_reads_the_logs_once(self):
         b = self.brain()
         with mock.patch.object(status, 'running_cwds', return_value=set()) as cwds, \
              mock.patch.object(status, 'collect', return_value=[]) as collect:
             with b.one_view():
-                b._collect(NOW, [{'address': 't1'}])
-                b._collect(NOW, [{'address': 't1'}])
-                b._collect(NOW, [{'address': 't2'}])
-            self.assertEqual(collect.call_count, 2)
+                b._collect(NOW)
+                b._collect(NOW)
+            self.assertEqual(collect.call_count, 1)
             self.assertEqual(cwds.call_count, 1)
-            b._collect(NOW, [{'address': 't1'}])  # the view has ended: fresh again
-            self.assertEqual(collect.call_count, 3)
+            b._collect(NOW)  # the view has ended: fresh again
+            self.assertEqual(collect.call_count, 2)
 
     def test_one_view_is_only_for_the_thread_that_opened_it(self):
         b = self.brain()
         with mock.patch.object(status, 'running_cwds', return_value=set()), \
              mock.patch.object(status, 'collect', return_value=[]) as collect:
             with b.one_view():
-                b._collect(NOW, None)
-                t = threading.Thread(target=b._collect, args=(NOW, None))
+                b._collect(NOW)
+                t = threading.Thread(target=b._collect, args=(NOW,))
                 t.start()
                 t.join()
             self.assertEqual(collect.call_count, 2)
 
     def test_team_map_unknown_team_is_empty(self):
-        with mock.patch.object(status, 'herdr_terminals', return_value=None), mock.patch.object(status, 'running_cwds', return_value=set()):
+        with mock.patch.object(status, 'running_cwds', return_value=set()):
             m = self.brain().map('gone')
         self.assertTrue(m['stopped'])
         self.assertEqual(m['nodes'], [])

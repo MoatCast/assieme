@@ -1,7 +1,6 @@
 """Sessions -> per-agent totals, the wake graph, refusals and flags; rendered as Markdown or JSON."""
 import collections
 import datetime as dt
-import json
 
 from . import detect
 from .model import HUMAN
@@ -87,49 +86,3 @@ def aggregate(sessions, now=None, hours=None, boxes=(), machine=()):
                      for (a, c, w), n in refusals.most_common()],
         'flags': flags,
     }
-
-
-def to_json(r, meta):
-    return json.dumps({**meta, **r}, indent=2, sort_keys=True)
-
-
-def to_md(r, meta, show_text=False):
-    total = sum(a['tokens'] for a in r['agents'].values())
-    lines = [f"# assieme: last {meta['hours']} h (since {meta['since']})", '',
-             '## Flags', ''] + ([f'- {f}' for f in r['flags']] + [f"- {f['line']}" for f in r['findings']] or ['- none']) + ['']
-    lines += ['## Send less', '',
-              f"Wakes between agents that did no work cost {r['empty_tokens'] / 1e6:.1f}M tokens "
-              f"({100 * r['empty_tokens'] / (total or 1):.0f}% of all input).", '']
-    lines += [f"{i}. {x['text']}" for i, x in enumerate(r['send_less'], 1)] or ['- nothing to cut']
-    lines += ['']
-    lines += ['## Agents', '', '| Agent | Source | Sessions | Calls | Input tokens | Share | Peak context | Growth an hour | '
-              'Changed nothing | Last hour |', '|---|---|---|---|---|---|---|---|---|---|']
-    for name, a in sorted(r['agents'].items(), key=lambda kv: -kv[1]['tokens']):
-        lines.append(f"| {name} | {', '.join(a['sources'])} | {a['sessions']} | {a['calls']} | "
-                     f"{a['tokens'] / 1e6:.1f}M | {100 * a['tokens'] / (total or 1):.0f}% | {a['peak'] // 1000}K | "
-                     f"{a.get('growth_per_hour', 0) // 1000}K | {a.get('idle_tokens', 0) / 1e6:.1f}M | "
-                     f"{100 * a.get('share_last_hour', 0):.0f}% |")
-    lines += ['', '## Who woke whom', '',
-              '| From | To | Via | Wakes | Per hour | Last hour | Empty (<= %d calls) | Cost | Cost of empty |%s'
-              % (EMPTY_CALLS, ' Last wake |' if show_text else ''),
-              '|---|---|---|---|---|---|---|---|---|' + ('---|' if show_text else '')]
-    for e in sorted(r['edges'], key=lambda e: -e['tokens']):
-        rate = '-' if e['per_hour'] is None else f"{e['per_hour']:.1f}"
-        lines.append(f"| {e['from']} | {e['to']} | {', '.join(e['channels'])} | {e['wakes']} | {rate} | {e['last_hour']} | "
-                     f"{e['empty']} | {e['tokens'] / 1e6:.2f}M | {e['empty_tokens'] / 1e6:.2f}M |"
-                     + (f" {e['sample'].replace('|', '/')} |" if show_text else ''))
-    lines += ['', '## Refused commands', '']
-    lines += [f"- {x['agent']}: `{x['command']}` x{x['count']}, by {x['why']}" + (f". {x['advice']}" if x['advice'] else '')
-              for x in r['refusals']] or ['- none']
-    if r.get('process'):
-        lines += ['', '## Process weight', '', '| Item | Hours | Changed lines | Commits | Fixes | Reviews | Checks |', '|---|---|---|---|---|---|---|']
-        for i in sorted(r['process']['items'], key=lambda i: -i['hours'])[:20]:
-            lines.append(f"| {i['repo']} {i['id']} | {i['hours']:.1f} | {i['lines']} | {i['commits']} | {i['fixes']} | "
-                         f"{'-' if i['reviews'] is None else i['reviews']} | {'-' if i['checks'] is None else i['checks']} |")
-        lines += ['', 'Hours by gate or rule: ' + (', '.join(
-            f'{k} {v:.1f}' for k, v in sorted(r['process']['gates'].items(), key=lambda kv: -kv[1])[:8]) or 'none')]
-    lines += ['', '## Detectors', '', '| Detector | Fired | Why |', '|---|---|---|']
-    lines += [f"| {d['id']} | {d['fired']} | {d['reason']} |" for d in r['detectors']]
-    lines += ['', f"Total input tokens: {total / 1e6:.1f}M. A wake's cost is the receiver's input tokens summed over "
-              'its calls in that turn, i.e. context x calls.']
-    return '\n'.join(lines) + '\n'

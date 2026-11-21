@@ -33,373 +33,338 @@ fn adapters_text_of_4() {
     let _ = adapters::text_of(any());
 }
 
-/// From cli.
-fn adapters_box_metrics_5() {
-    let _ = adapters::box_metrics(any(), any());
-}
-
-/// From cli.
-fn adapters_box_path_6() {
-    let _ = adapters::box_path();
-}
-
 /// From teammap.
-fn adapters_claude_code_7() {
+fn adapters_claude_code_5() {
     let _ = adapters::claude_code(any(), any(), any(), None, None, any());
 }
 
-/// From cli.
-fn adapters_claude_code_8() {
-    let _ = adapters::claude_code(any(), any(), any(), None, any(), any());
-}
-
 /// From teammap.
-fn adapters_codex_9() {
-    let _ = adapters::codex(any(), any(), any());
-}
-
-/// From cli.
-fn adapters_codex_10() {
+fn adapters_codex_6() {
     let _ = adapters::codex(any(), any(), any());
 }
 
 /// From teammap.
-fn adapters_gemini_11() {
+fn adapters_gemini_7() {
     let _ = adapters::gemini(any(), any(), any());
-}
-
-/// From cli.
-fn adapters_gemini_12() {
-    let _ = adapters::gemini(any(), any(), any());
-}
-
-/// From cli.
-fn adapters_generic_13() {
-    let _ = adapters::generic(any(), any(), any());
 }
 
 /// From teammap.
-fn adapters_opencode_14() {
-    let _ = adapters::opencode(any(), any(), any());
-}
-
-/// From cli.
-fn adapters_opencode_15() {
+fn adapters_opencode_8() {
     let _ = adapters::opencode(any(), any(), any());
 }
 
 /// From panes.
-fn adapters_program_16() {
+fn adapters_program_9() {
     let _ = adapters::program(any());
 }
 
 /// From teammap.
-fn agenttools_find_17() {
+fn agenttools_find_10() {
     let _ = agenttools::find(any(), any(), any());
 }
 
 /// From teammap.
-fn agenttools_for_agent_18() {
+fn agenttools_for_agent_11() {
     let _ = agenttools::for_agent(any(), any(), any());
 }
 
 /// From teammap.
-fn agenttools_restart_19() {
+fn agenttools_restart_12() {
     let _ = agenttools::restart(any(), any(), any(), any());
 }
 
 /// From teammap.
-fn agenttools_set_tools_20() {
+fn agenttools_set_tools_13() {
     let _ = agenttools::set_tools(any(), any(), any(), any(), any());
 }
 
 /// From teammap.
-fn agenttools_suggest_21() {
+fn agenttools_suggest_14() {
     let _ = agenttools::suggest(any(), any(), any(), any());
 }
 
 /// From activity.
-fn agenttools_undo_22() {
+fn agenttools_undo_15() {
     let _ = agenttools::undo(any());
 }
 
 /// From cli.
-fn answers_new_23() {
+fn answers_new_16() {
     let _ = answers::Answers::new();
 }
 
 /// From newteam.
-fn ask_ask_agent_24() {
+fn ask_ask_agent_17() {
     let _ = ask::ask_agent(any(), any(), any(), any(), any());
 }
 
 /// From answers, newteam.
-fn ask_first_json_25() {
+fn ask_first_json_18() {
     let _ = ask::first_json(any());
 }
 
 /// From newteam.
-fn ask_installed_26() {
+fn ask_installed_19() {
     let _ = ask::installed();
 }
 
 /// From team.
-fn bridge_bind_27() {
+fn bridge_bind_20() {
     let _ = bridge::bind(any(), any());
 }
 
 /// From team.
-fn bridge_issue_28() {
+fn bridge_issue_21() {
     let _ = bridge::issue();
 }
 
 /// From team.
-fn bridge_port_29() {
+fn bridge_port_22() {
     let _ = bridge::port();
 }
 
 /// From cli.
-fn bridge_prune_30() {
+fn bridge_prune_23() {
     let _ = bridge::prune(any());
 }
 
 /// From team.
-fn bridge_revoke_31() {
+fn bridge_revoke_24() {
     let _ = bridge::revoke(any());
 }
 
 /// From serve.
-fn bridge_start_32() {
+fn bridge_start_25() {
     let _ = bridge::start(any(), any());
 }
 
 /// From mcptools.
-fn brief_add_33() {
+fn brief_add_26() {
     let _ = brief::add(any(), any(), any(), any(), any(), None);
 }
 
 /// From mcptools, panes.
-fn brief_add_34() {
+fn brief_add_27() {
     let _ = brief::add(any(), any(), any(), any(), any(), None);
 }
 
 /// From mcptools.
-fn brief_text_35() {
+fn brief_text_28() {
     let _ = brief::text(any(), any());
 }
 
 /// From mcptools.
-fn bringover_draft_36() {
+fn bringover_draft_29() {
     let _ = bringover::draft(any(), any());
 }
 
 /// From cli.
-fn bringover_find_37() {
+fn bringover_find_30() {
     let _ = bringover::find(any());
 }
 
 /// From cli.
-fn bringover_not_running_38() {
+fn bringover_not_running_31() {
     let _ = bringover::not_running(any(), any());
 }
 
 /// From cli.
-fn bringover_started_39() {
+fn bringover_started_32() {
     let _ = bringover::started(any(), any(), any(), any(), any(), any(), any());
 }
 
 /// From cli.
-fn bringover_workspaces_40() {
+fn bringover_workspaces_33() {
     let _ = bringover::workspaces(any());
 }
 
 /// From teammap.
-fn budget_check_41() {
+fn budget_check_34() {
     let _ = budget::check(any(), any(), any(), any(), any(), None);
 }
 
 /// From mcptools.
-fn budget_hold_42() {
+fn budget_hold_35() {
     let _ = budget::hold(any(), any(), any(), any());
 }
 
 /// From panes.
-fn budget_resume_43() {
+fn budget_resume_36() {
     let _ = budget::resume(any(), any(), any(), any(), any(), any(), any());
 }
 
 /// From teammap.
-fn budget_set_limits_44() {
+fn budget_set_limits_37() {
     let _ = budget::set_limits(any(), any(), any(), any(), any(), any(), None, None);
 }
 
 /// From teammap.
-fn budget_teams_45() {
+fn budget_teams_38() {
     let _ = budget::teams();
 }
 
 /// From teammap.
-fn budget_view_46() {
+fn budget_view_39() {
     let _ = budget::view(any(), any(), any(), any());
 }
 
 /// From cli.
-fn connect_handlers_47() {
+fn connect_handlers_40() {
     let _ = connect::handlers();
 }
 
 /// From setup.
-fn container_build_command_48() {
+fn container_build_command_41() {
     let _ = container::build_command(any());
 }
 
 /// From setup.
-fn container_state_49() {
+fn container_state_42() {
     let _ = container::state(any());
 }
 
-/// From cli.
-fn detect_gate_hours_50() {
-    let _ = detect::gate_hours(any());
-}
-
 /// From improve.
-fn detect_live_findings_51() {
+fn detect_live_findings_43() {
     let _ = detect::live_findings(any(), any());
 }
 
 /// From teammap.
-fn fixes_attempted_52() {
+fn fixes_attempted_44() {
     let _ = fixes::attempted(any(), any());
 }
 
 /// From teammap.
-fn fixes_check_outcomes_53() {
+fn fixes_check_outcomes_45() {
     let _ = fixes::check_outcomes(any(), any(), None, any());
 }
 
 /// From teammap.
-fn fixes_check_until_54() {
+fn fixes_check_until_46() {
     let _ = fixes::check_until(any());
 }
 
 /// From mcptools.
-fn fixes_hold_55() {
+fn fixes_hold_47() {
     let _ = fixes::hold(any(), any(), any(), any());
 }
 
 /// From teammap.
-fn fixes_measure_56() {
+fn fixes_measure_48() {
     let _ = fixes::measure(any(), any(), any());
 }
 
 /// From teammap.
-fn fixes_pane_fix_57() {
+fn fixes_pane_fix_49() {
     let _ = fixes::pane_fix(any(), any(), any());
 }
 
 /// From teammap.
-fn fixes_paused_teams_58() {
+fn fixes_paused_teams_50() {
     let _ = fixes::paused_teams();
 }
 
 /// From teammap.
-fn fixes_problem_key_59() {
+fn fixes_problem_key_51() {
     let _ = fixes::problem_key(any(), any(), any(), any());
 }
 
 /// From teammap.
-fn fixes_refused_command_60() {
+fn fixes_refused_command_52() {
     let _ = fixes::refused_command(any());
 }
 
 /// From teammap.
-fn fixes_resume_61() {
+fn fixes_resume_53() {
     let _ = fixes::resume(any(), any(), any(), None, None, any());
 }
 
 /// From teammap.
-fn fixes_start_tokens_62() {
+fn fixes_start_tokens_54() {
     let _ = fixes::start_tokens(any(), any(), any(), any(), any());
 }
 
 /// From mcptools.
-fn herdr_draft_63() {
+fn herdr_draft_55() {
     let _ = herdr::draft(any());
 }
 
 /// From teammap.
-fn improve_apply_64() {
+fn improve_apply_56() {
     let _ = improve::apply(any(), any(), any(), None, None, None);
 }
 
 /// From teammap.
-fn improve_check_65() {
+fn improve_check_57() {
     let _ = improve::check(any(), any(), None, None, None);
 }
 
 /// From activity.
-fn improve_undo_66() {
+fn improve_undo_58() {
     let _ = improve::undo(any(), any());
 }
 
 /// From herdr.
-fn launch_check_model_effort_67() {
+fn launch_check_model_effort_59() {
     let _ = launch::check_model_effort(any(), None, any());
 }
 
 /// From bringover.
-fn launch_check_model_effort_68() {
+fn launch_check_model_effort_60() {
     let _ = launch::check_model_effort(any(), any(), None);
 }
 
 /// From activity.
-fn launch_unmerge_69() {
+fn launch_unmerge_61() {
     let _ = launch::unmerge(any());
 }
 
 /// From serve, teammap.
-fn limits_read_70() {
+fn limits_read_62() {
     let _ = limits::read(any(), any(), any());
 }
 
 /// From review.
-fn live_log_71() {
+fn live_log_63() {
     let _ = live::log(any(), any());
 }
 
 /// From menubar.
-fn live_announce_72() {
+fn live_announce_64() {
+    let _ = live::announce(any(), any(), any(), any(), any());
+}
+
+/// From cli.
+fn live_announce_65() {
     let _ = live::announce(any(), any(), any(), any(), any());
 }
 
 /// From review.
-fn live_log_path_73() {
+fn live_log_path_66() {
     let _ = live::log_path();
 }
 
 /// From cli.
-fn live_notify_74() {
+fn live_notify_67() {
     let _ = live::notify(any(), any());
 }
 
 /// From menubar, teammap.
-fn live_recent_actions_75() {
+fn live_recent_actions_68() {
     let _ = live::recent_actions(None, any());
 }
 
 /// From activity, fixes, improve, teammap.
-fn live_recent_actions_76() {
+fn live_recent_actions_69() {
     let _ = live::recent_actions(any(), any());
 }
 
 /// From teammap.
-fn live_record_77() {
+fn live_record_70() {
     let _ = live::record(any());
 }
 
 /// From fixes.
-fn live_record_78() {
+fn live_record_71() {
     let _ = live::record(live::Record {
         action: any(),
         address: any(),
@@ -414,7 +379,7 @@ fn live_record_78() {
 }
 
 /// From mcptools, newteam, tasks.
-fn live_record_79() {
+fn live_record_72() {
     let _ = live::record(live::Record {
         action: any(),
         address: any(),
@@ -426,13 +391,13 @@ fn live_record_79() {
 }
 
 /// From bringover.
-fn live_record_80() {
+fn live_record_73() {
     let _ =
         live::record(live::Record { action: any(), agent: any(), reason: any(), team: any(), ..Default::default() });
 }
 
 /// From budget.
-fn live_record_81() {
+fn live_record_74() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -448,7 +413,7 @@ fn live_record_81() {
 }
 
 /// From review.
-fn live_record_82() {
+fn live_record_75() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -463,7 +428,7 @@ fn live_record_82() {
 }
 
 /// From schedule.
-fn live_record_83() {
+fn live_record_76() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -478,7 +443,7 @@ fn live_record_83() {
 }
 
 /// From newteam.
-fn live_record_84() {
+fn live_record_77() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -492,7 +457,7 @@ fn live_record_84() {
 }
 
 /// From fixes.
-fn live_record_85() {
+fn live_record_78() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -506,7 +471,7 @@ fn live_record_85() {
 }
 
 /// From budget, fixes.
-fn live_record_86() {
+fn live_record_79() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -520,7 +485,7 @@ fn live_record_86() {
 }
 
 /// From teammap.
-fn live_record_87() {
+fn live_record_80() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -533,7 +498,7 @@ fn live_record_87() {
 }
 
 /// From activity.
-fn live_record_88() {
+fn live_record_81() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -545,13 +510,13 @@ fn live_record_88() {
 }
 
 /// From agenttools.
-fn live_record_89() {
+fn live_record_82() {
     let _ =
         live::record(live::Record { action: any(), agent: any(), reason: any(), team: any(), ..Default::default() });
 }
 
 /// From activity.
-fn live_record_90() {
+fn live_record_83() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -563,7 +528,7 @@ fn live_record_90() {
 }
 
 /// From improve.
-fn live_record_91() {
+fn live_record_84() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -576,7 +541,7 @@ fn live_record_91() {
 }
 
 /// From activity.
-fn live_record_92() {
+fn live_record_85() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -589,7 +554,7 @@ fn live_record_92() {
 }
 
 /// From budget.
-fn live_record_93() {
+fn live_record_86() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -602,7 +567,7 @@ fn live_record_93() {
 }
 
 /// From schedule.
-fn live_record_94() {
+fn live_record_87() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -614,7 +579,7 @@ fn live_record_94() {
 }
 
 /// From agenttools.
-fn live_record_95() {
+fn live_record_88() {
     let _ = live::record(live::Record {
         action: any(),
         agent: any(),
@@ -626,25 +591,25 @@ fn live_record_95() {
 }
 
 /// From teammap.
-fn live_record_96() {
+fn live_record_89() {
     let _ =
         live::record(live::Record { action: any(), agent: any(), reason: any(), team: any(), ..Default::default() });
 }
 
 /// From agenttools, schedule, teammap.
-fn live_record_97() {
+fn live_record_90() {
     let _ =
         live::record(live::Record { action: any(), agent: any(), reason: any(), team: any(), ..Default::default() });
 }
 
 /// From teammap.
-fn live_record_98() {
+fn live_record_91() {
     let _ =
         live::record(live::Record { action: any(), agent: any(), reason: any(), team: any(), ..Default::default() });
 }
 
 /// From panes.
-fn live_record_99() {
+fn live_record_92() {
     let _ = live::record(live::Record {
         action: any(),
         address: any(),
@@ -661,7 +626,7 @@ fn live_record_99() {
 }
 
 /// From fixes.
-fn live_record_100() {
+fn live_record_93() {
     let _ = live::record(live::Record {
         action: any(),
         address: any(),
@@ -678,731 +643,661 @@ fn live_record_100() {
 }
 
 /// From cli.
-fn live_run_101() {
-    let _ = live::run(any(), any(), any(), any());
+fn live_record_delivery_94() {
+    let _ = live::record_delivery(any(), any(), any());
+}
+
+/// From cli.
+fn live_record_given_up_95() {
+    let _ = live::record_given_up(any(), any());
 }
 
 /// From panes.
-fn live_suggest_102() {
+fn live_suggest_96() {
     let _ = live::suggest(any(), any(), any(), any(), any(), any(), any());
 }
 
 /// From cli.
-fn live_watch_103() {
-    let _ = live::watch(any(), any(), any(), any());
-}
-
-/// From cli.
-fn live_watch_once_104() {
-    let _ = live::watch_once(any(), any(), any(), any(), any());
-}
-
-/// From cli.
-fn machine_read_105() {
-    let _ = machine::read(any(), None);
-}
-
-/// From cli.
-fn machine_tick_106() {
+fn machine_tick_97() {
     let _ = machine::tick(any(), None);
 }
 
 /// From cli.
-fn menubar_new_107() {
+fn menubar_new_98() {
     let _ = menubar::Menubar::new(any(), any());
 }
 
-/// From adapters, limits, machine, process, status.
-fn model_parse_ts_108() {
+/// From adapters, limits, machine, status.
+fn model_parse_ts_99() {
     let _ = model::parse_ts(any());
 }
 
 /// From mcptools.
-fn musicians_assign_109() {
+fn musicians_assign_100() {
     let _ = musicians::assign(any());
 }
 
 /// From cli.
-fn newteam_new_110() {
+fn newteam_new_101() {
     let _ = newteam::Starter::new(any(), any(), any());
 }
 
 /// From herdr, mcpserver, schedule.
-fn newteam_as_preset_111() {
+fn newteam_as_preset_102() {
     let _ = newteam::as_preset(any(), any(), None);
 }
 
 /// From review.
-fn newteam_rewrite_role_112() {
+fn newteam_rewrite_role_103() {
     let _ = newteam::rewrite_role(any(), any(), any());
 }
 
 /// From mcptools, schedule.
-fn newteam_role_dict_113() {
+fn newteam_role_dict_104() {
     let _ = newteam::role_dict(any());
 }
 
 /// From teammap.
-fn newteam_band_114() {
+fn newteam_band_105() {
     let _ = newteam::band(any(), any());
 }
 
 /// From review.
-fn newteam_clear_worktree_115() {
+fn newteam_clear_worktree_106() {
     let _ = newteam::clear_worktree(any(), any());
 }
 
 /// From activity, mcptools, teammap.
-fn newteam_forget_role_116() {
+fn newteam_forget_role_107() {
     let _ = newteam::forget_role(any(), any());
 }
 
 /// From bringover, herdr, mcpserver, mcptools.
-fn newteam_kind_brief_117() {
+fn newteam_kind_brief_108() {
     let _ = newteam::kind_brief(any());
 }
 
 /// From herdr.
-fn newteam_model_options_118() {
+fn newteam_model_options_109() {
     let _ = newteam::model_options();
 }
 
 /// From cli.
-fn newteam_presets_119() {
+fn newteam_presets_110() {
     let _ = newteam::presets(None);
 }
 
 /// From mcptools, schedule.
-fn newteam_project_check_120() {
+fn newteam_project_check_111() {
     let _ = newteam::project_check(any());
 }
 
 /// From teammap.
-fn newteam_roster_121() {
+fn newteam_roster_112() {
     let _ = newteam::roster(any(), None);
 }
 
 /// From mcptools, schedule.
-fn newteam_roster_122() {
+fn newteam_roster_113() {
     let _ = newteam::roster(any(), any());
 }
 
 /// From teammap.
-fn newteam_set_musician_123() {
+fn newteam_set_musician_114() {
     let _ = newteam::set_musician(any(), any(), any(), any());
 }
 
 /// From remote, schedule.
-fn newteam_team_name_124() {
+fn newteam_team_name_115() {
     let _ = newteam::team_name(any(), any());
 }
 
 /// From activity, bringover, cli, mcptools, schedule.
-fn newteam_teams_dir_125() {
+fn newteam_teams_dir_116() {
     let _ = newteam::teams_dir();
 }
 
 /// From herdr, mcptools.
-fn newteam_validate_126() {
+fn newteam_validate_117() {
     let _ = newteam::validate(any());
 }
 
 /// From connect.
-fn plugin_build_127() {
+fn plugin_build_118() {
     let _ = plugin::build(any());
 }
 
 /// From mcptools.
-fn preset_keys_128() {
+fn preset_keys_119() {
     let _ = preset::keys();
 }
 
 /// From mcptools, schedule.
-fn preset_load_129() {
+fn preset_load_120() {
     let _ = preset::load(any(), any());
 }
 
 /// From cli, review.
-fn preset_load_130() {
+fn preset_load_121() {
     let _ = preset::load(any(), any());
 }
 
 /// From activity, improve, mcpserver.
-fn preset_practices_131() {
+fn preset_practices_122() {
     let _ = preset::practices(any());
 }
 
 /// From activity.
-fn preset_rule_on_132() {
+fn preset_rule_on_123() {
     let _ = preset::rule_on(any(), any());
 }
 
 /// From improve.
-fn preset_rules_on_133() {
+fn preset_rules_on_124() {
     let _ = preset::rules_on(any());
 }
 
 /// From cli.
-fn preview_new_134() {
+fn preview_new_125() {
     let _ = preview::Previews::new(any());
 }
 
-/// From cli.
-fn process_gate_finding_135() {
-    let _ = process::gate_finding(any(), any());
-}
-
-/// From cli.
-fn process_report_136() {
-    let _ = process::report(any(), any(), any(), any());
-}
-
 /// From team.
-fn prompts_first_run_keys_137() {
+fn prompts_first_run_keys_126() {
     let _ = prompts::first_run_keys(any());
 }
 
 /// From team.
-fn prompts_hook_review_138() {
+fn prompts_hook_review_127() {
     let _ = prompts::hook_review(any());
 }
 
 /// From team.
-fn prompts_trust_keys_139() {
+fn prompts_trust_keys_128() {
     let _ = prompts::trust_keys(any());
 }
 
 /// From improve.
-fn quiet_drop_140() {
+fn quiet_drop_129() {
     let _ = quiet::drop(any());
 }
 
 /// From schedule.
-fn quiet_path_141() {
+fn quiet_path_130() {
     let _ = quiet::path(any());
 }
 
 /// From brief.
-fn quiet_path_142() {
+fn quiet_path_131() {
     let _ = quiet::path(any());
 }
 
 /// From brief, budget, fixes, reports, schedule, tasks.
-fn quiet_read_json_143() {
+fn quiet_read_json_132() {
     let _ = quiet::read_json(any(), any());
 }
 
 /// From mcptools.
-fn quiet_real_144() {
+fn quiet_real_133() {
     let _ = quiet::real(any());
 }
 
 /// From brief, budget, connect, fixes, mcptools, menubar, preview, remote, reports, schedule, tasks.
-fn quiet_write_json_145() {
+fn quiet_write_json_134() {
     let _ = quiet::write_json(any(), any());
 }
 
-/// From live.
-fn quiet_deliver_146() {
+/// From cli.
+fn quiet_deliver_135() {
     let _ = quiet::deliver(any(), None, any(), any());
 }
 
 /// From cli, mcptools.
-fn quiet_deliverer_alive_147() {
+fn quiet_deliverer_alive_136() {
     let _ = quiet::deliverer_alive(None);
 }
 
-/// From cli, improve, live, teammap.
-fn quiet_held_148() {
+/// From cli, improve, teammap.
+fn quiet_held_137() {
     let _ = quiet::held();
 }
 
 /// From mcptools.
-fn quiet_hold_note_149() {
+fn quiet_hold_note_138() {
     let _ = quiet::hold_note(any(), any(), any(), any(), any(), None, any(), any());
 }
 
 /// From improve.
-fn quiet_hold_note_150() {
+fn quiet_hold_note_139() {
     let _ = quiet::hold_note(any(), any(), any(), None, None, None, any(), any());
 }
 
 /// From activity.
-fn quiet_hold_note_151() {
+fn quiet_hold_note_140() {
     let _ = quiet::hold_note(any(), any(), any(), any(), any(), None, any(), any());
 }
 
 /// From cli, runtime.
-fn quiet_install_152() {
+fn quiet_install_141() {
     let _ = quiet::install();
 }
 
 /// From activity, live, mcptools, teammap.
-fn quiet_is_quiet_153() {
+fn quiet_is_quiet_142() {
     let _ = quiet::is_quiet(any(), any());
 }
 
 /// From teammap.
-fn quiet_opted_out_154() {
+fn quiet_opted_out_143() {
     let _ = quiet::opted_out(any(), any());
 }
 
-/// From cli, live, teammap.
-fn quiet_pairs_155() {
+/// From cli, teammap.
+fn quiet_pairs_144() {
     let _ = quiet::pairs();
 }
 
 /// From teammap.
-fn quiet_savings_156() {
+fn quiet_savings_145() {
     let _ = quiet::savings(any(), any(), any(), any());
 }
 
-/// From live.
-fn quiet_set_pair_157() {
-    let _ = quiet::set_pair(any(), any(), any(), any());
-}
-
 /// From activity.
-fn quiet_set_pair_158() {
+fn quiet_set_pair_146() {
     let _ = quiet::set_pair(any(), any(), any(), any());
 }
 
 /// From teammap.
-fn quiet_set_pair_159() {
+fn quiet_set_pair_147() {
     let _ = quiet::set_pair(any(), any(), any(), any());
 }
 
 /// From teammap.
-fn quiet_set_pair_160() {
+fn quiet_set_pair_148() {
     let _ = quiet::set_pair(any(), any(), any(), any());
 }
 
-/// From cli, launch, live.
-fn quiet_shim_dir_161() {
+/// From cli, launch.
+fn quiet_shim_dir_149() {
     let _ = quiet::shim_dir();
 }
 
 /// From cli.
-fn quiet_shim_main_162() {
+fn quiet_shim_main_150() {
     let _ = quiet::shim_main(any(), None, None);
 }
 
 /// From antigravity, connect, fixes, mcptools, menubar, preview, remote, reports, tasks.
-fn quiet_state_dir_163() {
+fn quiet_state_dir_151() {
     let _ = quiet::state_dir();
 }
 
 /// From cli.
-fn quiet_uninstall_164() {
+fn quiet_uninstall_152() {
     let _ = quiet::uninstall();
 }
 
 /// From mcptools.
-fn quiet_urgent_165() {
+fn quiet_urgent_153() {
     let _ = quiet::urgent(any());
 }
 
 /// From cli.
-fn remote_new_166() {
+fn remote_new_154() {
     let _ = remote::Remotes::new(any());
 }
 
 /// From cli.
-fn remote_call_main_167() {
+fn remote_call_main_155() {
     let _ = remote::call_main(any(), None);
 }
 
 /// From cli.
-fn remote_remote_handlers_168() {
+fn remote_remote_handlers_156() {
     let _ = remote::remote_handlers();
 }
 
 /// From teammap.
-fn report_aggregate_169() {
+fn report_aggregate_157() {
     let _ = report::aggregate(any(), any(), any(), any(), any());
-}
-
-/// From cli.
-fn report_aggregate_170() {
-    let _ = report::aggregate(any(), any(), any(), any(), any());
-}
-
-/// From cli.
-fn report_to_json_171() {
-    let _ = report::to_json(any(), any());
-}
-
-/// From cli.
-fn report_to_md_172() {
-    let _ = report::to_md(any(), any(), any());
 }
 
 /// From panes.
-fn reports_clear_173() {
+fn reports_clear_158() {
     let _ = reports::clear(any(), any());
 }
 
 /// From panes.
-fn reports_current_174() {
+fn reports_current_159() {
     let _ = reports::current(any(), any(), any());
 }
 
 /// From mcptools.
-fn reports_noted_175() {
+fn reports_noted_160() {
     let _ = reports::noted(any(), any());
 }
 
 /// From mcptools.
-fn reports_running_turn_176() {
+fn reports_running_turn_161() {
     let _ = reports::running_turn(any());
 }
 
 /// From mcptools.
-fn reports_save_177() {
+fn reports_save_162() {
     let _ = reports::save(any(), any(), any(), any(), None, any());
 }
 
 /// From cli.
-fn review_new_178() {
+fn review_new_163() {
     let _ = review::Review::new(any(), any());
 }
 
 /// From launch.
-fn review_test_command_179() {
+fn review_test_command_164() {
     let _ = review::test_command(any());
 }
 
 /// From status.
-fn rules_explain_180() {
+fn rules_explain_165() {
     let _ = rules::explain(any(), any(), any(), any(), None);
 }
 
 /// From adapters.
-fn rules_explain_181() {
+fn rules_explain_166() {
     let _ = rules::explain(any(), any(), any(), any(), any());
 }
 
-/// From adapters, live, status.
-fn rules_load_182() {
+/// From adapters, status.
+fn rules_load_167() {
     let _ = rules::load(any(), any());
 }
 
-/// From cli.
-fn rules_load_file_183() {
-    let _ = rules::load_file(any());
-}
-
-/// From cli, live.
-fn rules_running_settings_184() {
-    let _ = rules::running_settings();
-}
-
 /// From cli, mcpserver.
-fn runtime_new_185() {
+fn runtime_new_168() {
     let _ = runtime::Runtime::new(any(), None);
 }
 
 /// From ask, preview, remote, review, scripts.
-fn runtime_clean_env_186() {
+fn runtime_clean_env_169() {
     let _ = runtime::clean_env(any());
 }
 
 /// From cli.
-fn schedule_new_187() {
+fn schedule_new_170() {
     let _ = schedule::Scheduler::new(any(), any(), any(), any());
 }
 
 /// From cli.
-fn schedule_load_188() {
+fn schedule_load_171() {
     let _ = schedule::load();
 }
 
 /// From review.
-fn scripts_allowed_189() {
+fn scripts_allowed_172() {
     let _ = scripts::allowed(any(), any(), any());
 }
 
 /// From preview.
-fn scripts_env_190() {
+fn scripts_env_173() {
     let _ = scripts::env(any());
 }
 
 /// From bringover, preview.
-fn scripts_rewrite_191() {
+fn scripts_rewrite_174() {
     let _ = scripts::rewrite(any());
 }
 
 /// From review.
-fn scripts_run_192() {
+fn scripts_run_175() {
     let _ = scripts::run(any(), any(), any(), None, any());
 }
 
 /// From live.
-fn serve_caller_193() {
+fn serve_caller_176() {
     let _ = serve::caller();
 }
 
 /// From bridge.
-fn serve_handle_194() {
+fn serve_handle_177() {
     let _ = serve::handle(any(), any());
 }
 
-/// From cli.
-fn service_install_195() {
-    let _ = service::install();
-}
-
-/// From cli.
-fn service_running_196() {
-    let _ = service::running();
-}
-
-/// From cli.
-fn service_uninstall_197() {
-    let _ = service::uninstall();
-}
-
 /// From teammap.
-fn settings_check_198() {
+fn settings_check_178() {
     let _ = settings::check(any(), any());
 }
 
-/// From activity, improve, live, mcptools, menubar, newteam, schedule, serve, teammap.
-fn settings_load_199() {
+/// From activity, cli, improve, mcptools, menubar, newteam, schedule, serve, teammap.
+fn settings_load_179() {
     let _ = settings::load(None);
 }
 
 /// From serve.
-fn settings_migrate_200() {
+fn settings_migrate_180() {
     let _ = settings::migrate(None);
 }
 
 /// From menubar.
-fn settings_set_value_201() {
+fn settings_set_value_181() {
     let _ = settings::set_value(any(), any(), None);
 }
 
 /// From activity, menubar, teammap.
-fn settings_set_value_202() {
+fn settings_set_value_182() {
     let _ = settings::set_value(any(), any(), None);
 }
 
 /// From detect, panes, status.
-fn settings_threshold_203() {
+fn settings_threshold_183() {
     let _ = settings::threshold(any());
 }
 
-/// From antigravity, launch, status.
-fn setup_agent_path_204() {
+/// From antigravity, herdr, launch.
+fn setup_agent_path_184() {
     let _ = setup::agent_path(any());
 }
 
 /// From newteam.
-fn setup_folder_preview_205() {
+fn setup_folder_preview_185() {
     let _ = setup::folder_preview(any());
 }
 
 /// From newteam.
-fn setup_git_ready_206() {
+fn setup_git_ready_186() {
     let _ = setup::git_ready();
 }
 
 /// From cli.
-fn setup_handlers_207() {
+fn setup_handlers_187() {
     let _ = setup::handlers(any());
 }
 
 /// From newteam.
-fn setup_too_broad_208() {
+fn setup_too_broad_188() {
     let _ = setup::too_broad(any());
 }
 
 /// From newteam.
-fn setup_uncommitted_209() {
+fn setup_uncommitted_189() {
     let _ = setup::uncommitted(any());
 }
 
 /// From teammap.
-fn status_collect_210() {
-    let _ = status::collect(any(), any(), any(), any(), any(), any(), any(), None);
-}
-
-/// From serve.
-fn status_collect_211() {
-    let _ = status::collect(any(), any(), any(), any(), any(), any(), any(), None);
-}
-
-/// From cli.
-fn status_collect_212() {
-    let _ = status::collect(any(), any(), any(), any(), any(), any(), any(), None);
+fn status_collect_190() {
+    let _ = status::collect(any(), any(), any(), any(), any(), any(), None);
 }
 
 /// From cli, serve.
-fn status_herdr_terminals_213() {
-    let _ = status::herdr_terminals();
+fn status_collect_191() {
+    let _ = status::collect(any(), any(), any(), any(), any(), any(), None);
+}
+
+/// From cli.
+fn status_collect_192() {
+    let _ = status::collect(any(), any(), any(), any(), any(), any(), None);
 }
 
 /// From panes, teammap.
-fn status_memory_limit_214() {
+fn status_memory_limit_193() {
     let _ = status::memory_limit(any());
 }
 
 /// From activity, budget, cli, fixes, improve, mcptools, menubar, review, tasks, teammap.
-fn status_now_utc_215() {
+fn status_now_utc_194() {
     let _ = status::now_utc();
 }
 
-/// From menubar, panes, serve.
-fn status_owner_queue_216() {
+/// From cli, menubar, panes, serve.
+fn status_owner_queue_195() {
     let _ = status::owner_queue(any(), any());
 }
 
 /// From teammap.
-fn status_recent_actions_217() {
+fn status_recent_actions_196() {
     let _ = status::recent_actions(any(), any(), any(), any());
 }
 
 /// From cli, serve.
-fn status_running_cwds_218() {
+fn status_running_cwds_197() {
     let _ = status::running_cwds();
 }
 
-/// From menubar, panes, serve.
-fn status_stalls_219() {
+/// From cli, menubar, panes, serve.
+fn status_stalls_198() {
     let _ = status::stalls(any(), any());
 }
 
 /// From serve.
-fn status_summary_220() {
+fn status_summary_199() {
     let _ = status::summary(any());
 }
 
 /// From cli.
-fn status_to_json_221() {
+fn status_to_json_200() {
     let _ = status::to_json(any(), any());
 }
 
 /// From cli.
-fn status_to_text_222() {
+fn status_to_text_201() {
     let _ = status::to_text(any(), any());
 }
 
 /// From cli.
-fn tasks_new_223() {
+fn tasks_new_202() {
     let _ = tasks::Board::new(any(), any(), any());
 }
 
 /// From bringover.
-fn tasks_add_224() {
+fn tasks_add_203() {
     let _ = tasks::add(any(), any(), any(), any(), None);
 }
 
 /// From teammap.
-fn tasks_board_225() {
+fn tasks_board_204() {
     let _ = tasks::board(any());
 }
 
 /// From review.
-fn tasks_discarded_226() {
+fn tasks_discarded_205() {
     let _ = tasks::discarded(any(), any(), None);
 }
 
 /// From cli, schedule.
-fn tasks_fresh_227() {
+fn tasks_fresh_206() {
     let _ = tasks::fresh(any(), any());
 }
 
 /// From review.
-fn tasks_merged_228() {
+fn tasks_merged_207() {
     let _ = tasks::merged(any(), any(), any(), any(), None);
 }
 
 /// From bringover.
-fn tasks_move_229() {
+fn tasks_move_208() {
     let _ = tasks::r#move(any(), any(), any(), None, any(), None);
 }
 
 /// From review.
-fn tasks_unmerged_230() {
+fn tasks_unmerged_209() {
     let _ = tasks::unmerged(any(), any(), None);
 }
 
 /// From review.
-fn team_start_231() {
+fn team_start_210() {
     let _ = team::start(any(), any(), any(), any(), any());
 }
 
 /// From cli.
-fn team_start_232() {
+fn team_start_211() {
     let _ = team::start(any(), any(), any(), any(), any());
 }
 
 /// From cli, remote, serve.
-fn team_status_233() {
+fn team_status_212() {
     let _ = team::status(any(), None);
 }
 
 /// From cli, remote, schedule.
-fn team_status_234() {
+fn team_status_213() {
     let _ = team::status(any(), any());
 }
 
 /// From activity, cli, schedule, teammap.
-fn team_stop_235() {
+fn team_stop_214() {
     let _ = team::stop(any(), any());
 }
 
 /// From cli.
-fn teammap_new_236() {
+fn teammap_new_215() {
     let _ = teammap::Brain::new(any(), any(), any(), any(), any());
 }
 
 /// From improve.
-fn teammap_team_report_237() {
+fn teammap_team_report_216() {
     let _ = teammap::team_report(any(), any(), any());
 }
 
 /// From serve.
-fn teammap_found_groups_238() {
+fn teammap_found_groups_217() {
     let _ = teammap::found_groups(any(), any(), any());
 }
 
 /// From serve.
-fn teammap_group_of_239() {
+fn teammap_group_of_218() {
     let _ = teammap::group_of(any(), any());
 }
 
 /// From serve.
-fn teammap_is_own_session_240() {
+fn teammap_is_own_session_219() {
     let _ = teammap::is_own_session(any());
 }
 
 /// From mcptools.
-fn teammap_needs_you_241() {
+fn teammap_needs_you_220() {
     let _ = teammap::needs_you(any());
 }
 
 /// From herdr.
-fn worktree_git_242() {
+fn worktree_git_221() {
     let _ = worktree::git(any(), any());
 }
 
 /// From herdr.
-fn worktree_git_243() {
+fn worktree_git_222() {
     let _ = worktree::git(any(), any());
 }
 
 /// From review.
-fn worktree_is_clone_244() {
+fn worktree_is_clone_223() {
     let _ = worktree::is_clone(any());
 }
 
 /// From review.
-fn worktree_sync_245() {
+fn worktree_sync_224() {
     let _ = worktree::sync(any());
 }
 
 /// From review.
-fn worktree_tool_name_246() {
+fn worktree_tool_name_225() {
     let _ = worktree::tool_name(any());
 }

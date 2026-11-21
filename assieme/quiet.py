@@ -1,11 +1,11 @@
 """A3 quiet send: routine notes between agents wait for the receiver's next turn instead of waking it.
 
 How it fits together:
-- The owner marks a sender -> receiver pair quiet (Settings or a saving tip in the app, one key in the live view).
+- The owner marks a sender -> receiver pair quiet (Settings or a saving tip in the app).
   Pairs live in quiet.json.
 - Agents keep typing `asm send`. A small `asm` stand-in holds notes on quiet pairs in a queue and passes everything
   else to the real asm. Agents started in Assieme get it from the core's PATH; for others, `assieme quiet on` prints the line.
-- The live view and `assieme watch` deliver held notes as one batch while the receiver is busy (so the note
+- The brain's service tick delivers held notes as one batch while the receiver is busy (so the note
   joins its current turn), or after MAX_HOLD if it stays idle: one wake instead of many.
 
 Safety: questions and URGENT/! notes always go now, `--now` forces it, and when no assieme loop is running

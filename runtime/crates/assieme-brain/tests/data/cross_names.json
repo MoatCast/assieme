@@ -66,26 +66,9 @@
  },
  {
   "module": "adapters",
-  "name": "box_metrics",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "adapters",
-  "name": "box_path",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "adapters",
   "name": "claude_code",
   "kind": "function",
   "callers": [
-   "cli",
    "teammap"
   ]
  },
@@ -94,7 +77,6 @@
   "name": "codex",
   "kind": "function",
   "callers": [
-   "cli",
    "teammap"
   ]
  },
@@ -103,16 +85,7 @@
   "name": "gemini",
   "kind": "function",
   "callers": [
-   "cli",
    "teammap"
-  ]
- },
- {
-  "module": "adapters",
-  "name": "generic",
-  "kind": "function",
-  "callers": [
-   "cli"
   ]
  },
  {
@@ -120,7 +93,6 @@
   "name": "opencode",
   "kind": "function",
   "callers": [
-   "cli",
    "teammap"
   ]
  },
@@ -449,14 +421,6 @@
  },
  {
   "module": "detect",
-  "name": "gate_hours",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "detect",
   "name": "live_findings",
   "kind": "function",
   "callers": [
@@ -698,6 +662,7 @@
   "name": "announce",
   "kind": "function",
   "callers": [
+   "cli",
    "menubar"
   ]
  },
@@ -753,7 +718,15 @@
  },
  {
   "module": "live",
-  "name": "run",
+  "name": "record_delivery",
+  "kind": "function",
+  "callers": [
+   "cli"
+  ]
+ },
+ {
+  "module": "live",
+  "name": "record_given_up",
   "kind": "function",
   "callers": [
    "cli"
@@ -765,30 +738,6 @@
   "kind": "function",
   "callers": [
    "panes"
-  ]
- },
- {
-  "module": "live",
-  "name": "watch",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "live",
-  "name": "watch_once",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "machine",
-  "name": "read",
-  "kind": "function",
-  "callers": [
-   "cli"
   ]
  },
  {
@@ -843,7 +792,6 @@
    "adapters",
    "limits",
    "machine",
-   "process",
    "status"
   ]
  },
@@ -1201,30 +1149,6 @@
   ]
  },
  {
-  "module": "process",
-  "name": "gate_finding",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "process",
-  "name": "report",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "process",
-  "name": "run_gh",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
   "module": "prompts",
   "name": "first_run_keys",
   "kind": "function",
@@ -1309,7 +1233,7 @@
   "name": "deliver",
   "kind": "function",
   "callers": [
-   "live"
+   "cli"
   ]
  },
  {
@@ -1328,7 +1252,6 @@
   "callers": [
    "cli",
    "improve",
-   "live",
    "teammap"
   ]
  },
@@ -1376,7 +1299,6 @@
   "kind": "function",
   "callers": [
    "cli",
-   "live",
    "teammap"
   ]
  },
@@ -1394,7 +1316,6 @@
   "kind": "function",
   "callers": [
    "activity",
-   "live",
    "teammap"
   ]
  },
@@ -1404,8 +1325,7 @@
   "kind": "function",
   "callers": [
    "cli",
-   "launch",
-   "live"
+   "launch"
   ]
  },
  {
@@ -1493,24 +1413,7 @@
   "name": "aggregate",
   "kind": "function",
   "callers": [
-   "cli",
    "teammap"
-  ]
- },
- {
-  "module": "report",
-  "name": "to_json",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "report",
-  "name": "to_md",
-  "kind": "function",
-  "callers": [
-   "cli"
   ]
  },
  {
@@ -1617,25 +1520,7 @@
   "kind": "function",
   "callers": [
    "adapters",
-   "live",
    "status"
-  ]
- },
- {
-  "module": "rules",
-  "name": "load_file",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "rules",
-  "name": "running_settings",
-  "kind": "function",
-  "callers": [
-   "cli",
-   "live"
   ]
  },
  {
@@ -1758,30 +1643,6 @@
   ]
  },
  {
-  "module": "service",
-  "name": "install",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "service",
-  "name": "running",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
-  "module": "service",
-  "name": "uninstall",
-  "kind": "function",
-  "callers": [
-   "cli"
-  ]
- },
- {
   "module": "settings",
   "name": "_check",
   "kind": "function",
@@ -1795,8 +1656,8 @@
   "kind": "function",
   "callers": [
    "activity",
+   "cli",
    "improve",
-   "live",
    "mcptools",
    "menubar",
    "newteam",
@@ -1866,10 +1727,10 @@
    "ask",
    "connect",
    "container",
+   "herdr",
    "launch",
    "newteam",
-   "serve",
-   "status"
+   "serve"
   ]
  },
  {
@@ -1924,32 +1785,6 @@
  },
  {
   "module": "status",
-  "name": "hc_path",
-  "kind": "function",
-  "callers": [
-   "herdr"
-  ]
- },
- {
-  "module": "status",
-  "name": "herdr_core_up",
-  "kind": "function",
-  "callers": [
-   "herdr"
-  ]
- },
- {
-  "module": "status",
-  "name": "herdr_terminals",
-  "kind": "function",
-  "callers": [
-   "cli",
-   "serve",
-   "teammap"
-  ]
- },
- {
-  "module": "status",
   "name": "memory_limit",
   "kind": "function",
   "callers": [
@@ -1980,6 +1815,7 @@
   "name": "owner_queue",
   "kind": "function",
   "callers": [
+   "cli",
    "menubar",
    "panes",
    "serve"
@@ -1992,6 +1828,7 @@
   "callers": [
    "activity",
    "budget",
+   "cli",
    "fixes",
    "menubar",
    "schedule",
@@ -2021,6 +1858,7 @@
   "name": "stalls",
   "kind": "function",
   "callers": [
+   "cli",
    "menubar",
    "panes",
    "serve"
