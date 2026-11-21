@@ -1,8 +1,67 @@
 //! Assieme's brain, ported from the Python package `assieme/`.
 #![cfg(unix)]
 
+pub mod method_names;
+mod prelude;
 pub mod pyrules;
 pub mod server;
+
+pub mod actions;
+pub mod activity;
+pub mod adapters;
+pub mod agenttools;
+pub mod answers;
+pub mod antigravity;
+pub mod ask;
+pub mod askhook;
+pub mod bridge;
+pub mod brief;
+pub mod bringover;
+pub mod budget;
+pub mod cli;
+pub mod connect;
+pub mod container;
+pub mod detect;
+pub mod fixes;
+pub mod herdr;
+pub mod hook;
+pub mod improve;
+pub mod launch;
+pub mod limits;
+pub mod live;
+pub mod machine;
+pub mod mcpserver;
+pub mod mcptools;
+pub mod menubar;
+pub mod model;
+pub mod musicians;
+pub mod newteam;
+pub mod panes;
+pub mod permissions;
+pub mod plugin;
+pub mod preset;
+pub mod preview;
+pub mod process;
+pub mod prompts;
+pub mod quiet;
+pub mod remote;
+pub mod report;
+pub mod reports;
+pub mod review;
+pub mod rules;
+pub mod runtime;
+pub mod schedule;
+pub mod scripts;
+pub mod serve;
+pub mod service;
+pub mod settings;
+pub mod setup;
+pub mod status;
+pub mod tasks;
+pub mod team;
+pub mod teammap;
+pub mod tools;
+pub mod worktree;
 
 use std::ffi::OsString;
 use std::os::unix::net::UnixStream;
@@ -12,7 +71,11 @@ use std::time::Duration;
 
 /// Every socket method; each session replaces its `not_ported` entries.
 pub fn methods() -> server::Methods {
-    server::Methods::default()
+    let mut methods = server::Methods::default();
+    for &name in method_names::METHOD_NAMES {
+        methods.insert(name, server::not_ported(name));
+    }
+    methods
 }
 
 /// The steps of the 15-second loop; each session adds its own.

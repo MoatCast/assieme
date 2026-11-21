@@ -47,6 +47,9 @@ pub struct Call {
 
 pub type Handler = Box<dyn Fn(Value, &Call) -> Result<Value, BrainError> + Send + Sync>;
 
+/// Methods a module serves, for `Methods::insert`.
+pub type Handlers = Vec<(&'static str, Handler)>;
+
 /// The method table.
 #[derive(Default)]
 pub struct Methods(BTreeMap<&'static str, Handler>);
