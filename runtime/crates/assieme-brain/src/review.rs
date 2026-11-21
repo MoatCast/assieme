@@ -750,6 +750,11 @@ impl Review {
 
     fn undone(&self, id: &str) -> Result<(Value, String), ReviewError> {
         let _op = lock(&self.lock);
+        if !lock(&self.state).undos.contains_key(id)
+            && let Some(row) = live::recent_actions(self.log.as_deref(), 500).into_iter().find(|r| r["id"] == id)
+        {
+            self.remember(id, &row["restore"]); // after a brain restart the record is only in the Activity log
+        }
         let rec = lock(&self.state).undos.get(id).cloned().ok_or_else(|| err("This can no longer be undone here."))?;
         let Undo { project, base, branch, path, .. } = &rec;
         if tip(project, base) != rec.new {
@@ -1223,11 +1228,9 @@ mod tests {
             assert_eq!(w.core.calls("terminal.kill"), [json!({"terminal": "t1"})], "its agent was stopped");
             let uid = done["undo"].as_str().unwrap();
             let logged = std::fs::read_to_string(w.review.log.as_ref().unwrap()).unwrap();
-            let row: Value =
-                logged.lines().filter_map(|l| serde_json::from_str(l).ok()).find(|r: &Value| r["id"] == uid).unwrap();
-            // a brain restart: the record survives only in the logged row
+            assert!(logged.lines().any(|l| l.contains(uid) && l.contains("\"restore\"")), "the row carries `restore`");
+            // a brain restart: the record survives only in the logged row, which undo reads back
             lock(&w.review.state).undos.clear();
-            w.review.remember(uid, &row["restore"]);
 
             let (out, team) = w.review.undone(uid).unwrap();
             assert_eq!((out["role"].as_str(), team.as_str()), (Some("dev"), w.team.as_str()));
