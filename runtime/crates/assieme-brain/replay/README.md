@@ -1,14 +1,12 @@
-# Replay harness and ladder groundwork
+# Ladder groundwork
 
 Recordings stay on this Mac in `~/.local/share/assieme-dev/replay/`, never in the repository. BatchWise logs are never recorded.
-Use `python3` for every command. The comparison against the Python brain no longer works: that brain is deleted.
+Use `python3` for every command.
 
 | Step | Command |
 |---|---|
 | Record the inputs once | `python record.py snapshot ~/.local/share/assieme-dev/replay/first.tar` |
 | Record hook labels and screens (leave it running while agents work) | `python record.py watch 7200 ~/.local/share/assieme-dev/replay/watch.jsonl` |
-| Compare the two brains | `python replay.py ~/.local/share/assieme-dev/replay/first.tar` (needs `cargo build -p asm` in `runtime/`) |
-| The harness runs (made-up data) | `python check.py` |
 | Hook coverage | `python ladder.py coverage …/watch.jsonl` |
 | Freeze the labelled test set | `python ladder.py testset …/watch.jsonl …/testset.jsonl` |
 | The owner's labelling hour | `python ladder.py label …/watch.jsonl …/hand-labels.jsonl` |
