@@ -67,11 +67,14 @@ methods! { Ctx<'_>;
         "Handshake: protocol generation, core identity, methods and features. `framed: true` switches the connection to framed mode.",
         errors ["unsupported_generation"];
     "server.status" => server_status, Empty => StatusResult,
-        "This core's identity, version, pid, uptime, holder and terminal counts.",
+        "This core's identity, version, pid, uptime, holder and terminal counts, and its brain (assieme session only).",
         errors [];
     "server.stop" => server_stop, Empty => StopResult,
         "Stop the core and its programs. Kept terminals remain pending and get new shells when the core next starts.",
         errors [];
+    "brain.restart" => brain_restart, Empty => crate::brain::BrainStatus,
+        "Start the brain again, reading brain.json anew (assieme session only). Stopping the running one is not a failure; after the brain gave up it tries again.",
+        errors ["unavailable", "not_found"];
     "server.restart" => server_restart, RestartParams => StopResult,
         "Planned restart (e.g. after an update): screens are saved, programs keep running, the next core adopts them.",
         errors ["invalid_params"];
@@ -231,7 +234,12 @@ async fn server_status(core: Ctx<'_>, _: Empty) -> Result<StatusResult, RpcError
         installed_by: crate::client::installed_by().map(String::from),
         keeps_running_after_logout,
         logout_linger_user,
+        brain: crate::brain::status(),
     })
+}
+
+async fn brain_restart(core: Ctx<'_>, _: Empty) -> Result<crate::brain::BrainStatus, RpcError> {
+    crate::brain::restart(&core.paths.state.file_name().unwrap_or_default().to_string_lossy())
 }
 
 async fn server_stop(core: Ctx<'_>, _: Empty) -> Result<StopResult, RpcError> {

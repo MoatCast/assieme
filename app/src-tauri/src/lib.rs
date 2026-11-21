@@ -1,3 +1,6 @@
+// shortcut: not wired in until the cutover switches the app from the Python brain to Assieme's service.
+#[allow(dead_code)]
+mod assieme_service;
 mod bridge;
 mod cli_install;
 mod frame;

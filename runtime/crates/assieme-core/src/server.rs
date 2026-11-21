@@ -60,6 +60,7 @@ pub fn serve() -> io::Result<()> {
     unsafe { crate::restart::restore(&paths) };
     let info = load_identity(&paths.state, platform::machine_id())?;
     let socket = paths.socket.clone();
+    let session = paths.state.file_name().unwrap_or_default().to_string_lossy().into_owned();
     let _shutdown_watch = platform::monitor_host_shutdown();
     // Adopt the holder's terminals before anyone can talk to us.
     let core = Core::start(paths, info)?;
@@ -84,6 +85,7 @@ pub fn serve() -> io::Result<()> {
         tokio::spawn(core.clone().watch_foreground());
         tokio::spawn(core.clone().save_when_due());
         tokio::spawn(core.clone().expire_image_answers());
+        crate::brain::start(&session, &socket);
         let term = platform::termination();
         tokio::pin!(term);
         loop {

@@ -29,6 +29,27 @@
         ],
         "type": "object"
       },
+      "BrainStatus": {
+        "description": "`server.status.brain`. The state is a plain string so a new one never breaks a client.",
+        "properties": {
+          "pid": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "state": {
+            "description": "starting, running, waiting (to start again after an exit) or down (gave up; `brain.restart` tries again).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "type": "object"
+      },
       "Children": {
         "enum": [
           "any",
@@ -1136,6 +1157,17 @@
       },
       "StatusResult": {
         "properties": {
+          "brain": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrainStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The brain this core runs; null when it runs none (not the assieme session, or no brain.json)."
+          },
           "core": {
             "$ref": "#/components/schemas/CoreInfo"
           },
@@ -1702,7 +1734,7 @@
       }
     },
     {
-      "description": "This core's identity, version, pid, uptime, holder and terminal counts.",
+      "description": "This core's identity, version, pid, uptime, holder and terminal counts, and its brain (assieme session only).",
       "errors": [],
       "name": "server.status",
       "paramStructure": "by-name",
@@ -1724,6 +1756,34 @@
         "name": "result",
         "schema": {
           "$ref": "#/components/schemas/StopResult"
+        }
+      }
+    },
+    {
+      "description": "Start the brain again, reading brain.json anew (assieme session only). Stopping the running one is not a failure; after the brain gave up it tries again.",
+      "errors": [
+        {
+          "code": -32000,
+          "data": {
+            "kind": "unavailable"
+          },
+          "message": "unavailable"
+        },
+        {
+          "code": -32000,
+          "data": {
+            "kind": "not_found"
+          },
+          "message": "not_found"
+        }
+      ],
+      "name": "brain.restart",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "result",
+        "schema": {
+          "$ref": "#/components/schemas/BrainStatus"
         }
       }
     },

@@ -20,6 +20,11 @@ pub fn remember_exe() {
     build_id();
 }
 
+/// Our binary, as it was at startup.
+pub fn exe() -> std::io::Result<std::path::PathBuf> {
+    EXE.get().cloned().map_or_else(std::env::current_exe, Ok)
+}
+
 /// The package manager this asm came from, or "system package manager" as a
 /// compatibility marker when its folder isn't writable. None for a replaceable install.
 pub fn installed_by() -> Option<&'static str> {
