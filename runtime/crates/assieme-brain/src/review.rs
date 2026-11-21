@@ -26,7 +26,8 @@ impl Review {
         todo!("review.Review.new")
     }
 
-    pub fn worktree(&self, team: &str, role: &str) -> Option<String> {
+    /// An agent's project, base branch, branch and worktree folder; an error when it has no branch.
+    pub fn worktree(&self, team: &str, role: &str) -> Result<(String, String, String, String), ReviewError> {
         todo!("review.Review.worktree")
     }
 
