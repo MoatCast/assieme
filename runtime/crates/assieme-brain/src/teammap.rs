@@ -82,6 +82,11 @@ impl Brain {
     }
 
     /// Today's token use, read at most once per tick.
+    /// `(rows, agents, found)` of a team: `found` when it was started outside Assieme (`_resolve`, without its runtime).
+    pub fn resolve(&self, team: &str, now: Timestamp) -> (Vec<Value>, Vec<Agent>, bool) {
+        todo!("teammap.Brain._resolve")
+    }
+
     pub fn today(&self) -> Value {
         todo!("teammap.Brain.today")
     }
