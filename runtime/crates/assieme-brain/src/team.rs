@@ -79,7 +79,10 @@ pub fn stop(rt: &Runtime, name: &str) -> Result<usize, RuntimeError> {
 
 /// All the core accepts in a name.
 pub fn terminal_name(team_name: &str, role_name: &str) -> String {
-    format!("{team_name}-{role_name}").chars().map(|c| if c.is_alphanumeric() || "_.-".contains(c) { c } else { '-' }).collect()
+    format!("{team_name}-{role_name}")
+        .chars()
+        .map(|c| if c.is_alphanumeric() || "_.-".contains(c) { c } else { '-' })
+        .collect()
 }
 
 /// An agent with a parent gets its work from that parent: the whole task would have it do the same work again.
@@ -98,14 +101,24 @@ fn send_brief(rt: &Runtime, t: &str, role: &Role, task: Option<&str>, tm: &Team)
         ),
     ];
     if !role.owns.is_empty() {
-        parts.insert(1, format!("You own these files: {}. Edit only these; ask before changing any other file.", role.owns.join(", ")));
+        parts.insert(
+            1,
+            format!(
+                "You own these files: {}. Edit only these; ask before changing any other file.",
+                role.owns.join(", ")
+            ),
+        );
     }
     // Without the goal: the top agent has it as its task, and one with a parent would start on the whole of it
     // instead of waiting for its share. It is in `team_brief` for any agent that looks.
     parts.extend(Some(brief::text(&tm.name, false)).filter(|s| !s.is_empty()));
     // it waits for stops, not work
-    let kids: Vec<String> =
-        tm.roles.iter().filter(|r| r.parent.as_deref() == Some(&role.name) && r.name != preset::STEWARD).map(|r| format!("- {}", r.name)).collect();
+    let kids: Vec<String> = tm
+        .roles
+        .iter()
+        .filter(|r| r.parent.as_deref() == Some(&role.name) && r.name != preset::STEWARD)
+        .map(|r| format!("- {}", r.name))
+        .collect();
     if !kids.is_empty() {
         parts.push(format!(
             "These agents report to you and wait for you to send them work (with message_agent):\n{}\n\
@@ -136,11 +149,18 @@ fn send_brief(rt: &Runtime, t: &str, role: &Role, task: Option<&str>, tm: &Team)
 
 fn review_hint(role: &Role) -> String {
     // Assieme's own hooks are trusted at launch; this is someone else's new hook. The CLI adds the attach command.
-    format!("{} wants you to review new hooks once. Open {} in Terminals and choose.", launch::name_of(&role.agent), role.name)
+    format!(
+        "{} wants you to review new hooks once. Open {} in Terminals and choose.",
+        launch::name_of(&role.agent),
+        role.name
+    )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn start_role(
-    (tm, rt, ask): (&Team, &Runtime, &dyn Fn(&str) -> bool),
+    tm: &Team,
+    rt: &Runtime,
+    ask: &dyn Fn(&str) -> bool,
     role: &Role,
     task: Option<&str>,
     trusted: &mut BTreeSet<String>,
@@ -157,17 +177,33 @@ fn start_role(
     }
     if role.agent == "codex" {
         // Codex reads every rules file in its folder: one file for all the team's Codex agents working there.
-        let there: Vec<&Role> = tm.roles.iter().filter(|r| r.agent == "codex" && (r.name == role.name || worktree::folder(tm, r) == cwd)).collect();
+        let there: Vec<&Role> = tm
+            .roles
+            .iter()
+            .filter(|r| r.agent == "codex" && (r.name == role.name || worktree::folder(tm, r) == cwd))
+            .collect();
         if there.iter().any(|r| r.level.is_some()) {
             worktree::exclude(&tm.project, crate::permissions::RULES_FILE);
         }
         launch::d2::write_codex_rules(cwd, &there);
     }
     let name = terminal_name(&tm.name, &role.name);
-    let (ticket, port) = if role.container { (Some(crate::bridge::issue()), crate::bridge::port()) } else { (None, None) };
+    let (ticket, port) =
+        if role.container { (Some(crate::bridge::issue()), crate::bridge::port()) } else { (None, None) };
     let bridge = port.map(|p| format!("{p}/{}", ticket.as_deref().unwrap_or("")));
-    let argv = launch::argv(role, preset::rule_on(&tm.practices, "no-push"), Some(cwd), Some(&name), bridge.as_deref(), trusted.contains(&tm.project))?;
-    let labels = BTreeMap::from([(TEAM.into(), tm.name.clone()), (ROLE.into(), role.name.clone()), (KIND.into(), role.agent.clone())]);
+    let argv = launch::argv(
+        role,
+        preset::rule_on(&tm.practices, "no-push"),
+        Some(cwd),
+        Some(&name),
+        bridge.as_deref(),
+        trusted.contains(&tm.project),
+    )?;
+    let labels = BTreeMap::from([
+        (TEAM.into(), tm.name.clone()),
+        (ROLE.into(), role.name.clone()),
+        (KIND.into(), role.agent.clone()),
+    ]);
     let t = rt.start(&argv, cwd, &labels, Some(&name), parent)?;
     if let Some(ticket) = &ticket {
         crate::bridge::bind(ticket, &t);
@@ -239,7 +275,11 @@ pub fn start(
     }
     let missing = launch::missing_clis(&roles.iter().map(|r| (*r).clone()).collect::<Vec<_>>());
     if !missing.is_empty() {
-        return Err(TeamError(format!("not installed: {}. Install it, then start the team again.", missing.join(", "))).into());
+        return Err(TeamError(format!(
+            "not installed: {}. Install it, then start the team again.",
+            missing.join(", ")
+        ))
+        .into());
     }
     for r in roles.iter().filter(|r| r.container) {
         if let Some(p) = launch::d2::container_problem(&r.agent).filter(|p| !p.is_empty()) {
@@ -262,7 +302,8 @@ pub fn start(
         cwds.insert(r.name.clone(), worktree::ensure(tm, r)?);
     }
     let mut trusted = BTreeSet::new();
-    let mut addresses: BTreeMap<String, Option<String>> = live.iter().map(|(n, r)| (n.clone(), r["address"].as_str().map(String::from))).collect();
+    let mut addresses: BTreeMap<String, Option<String>> =
+        live.iter().map(|(n, r)| (n.clone(), r["address"].as_str().map(String::from))).collect();
     let mut out = vec![];
     for role in roles {
         // asked of this one agent, or the team's top
@@ -270,11 +311,14 @@ pub fn start(
         let s = match live.get(&role.name) {
             None => {
                 let parent = role.parent.as_deref().and_then(|p| addresses.get(p)).and_then(Option::as_deref);
-                let s = start_role((tm, rt, ask), role, mine, &mut trusted, parent, &cwds[&role.name])?;
+                let s = start_role(tm, rt, ask, role, mine, &mut trusted, parent, &cwds[&role.name])?;
                 if let (Some(p), true) = (parent, only.is_some() && task.is_none() && s.state == "running") {
                     // an agent added to a running team: its parent's first message is long gone. The parent may
                     // have gone: the new agent still started.
-                    let note = format!("assieme: {0} now reports to you and waits for work. Reach it with message_agent, as \"{0}\".", role.name);
+                    let note = format!(
+                        "assieme: {0} now reports to you and waits for work. Reach it with message_agent, as \"{0}\".",
+                        role.name
+                    );
                     let _ = rt.send(p, &note, 30.0);
                 }
                 s

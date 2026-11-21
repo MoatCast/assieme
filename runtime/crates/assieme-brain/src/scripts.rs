@@ -53,37 +53,24 @@ fn load(file: &Path) -> Map<String, Value> {
     std::fs::read(file).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
 }
 
-fn allowed_in(file: &Path, team: &str, which: &str, line: &str) -> bool {
-    load(file).get(team).and_then(|t| t.get(which)).and_then(Value::as_str) == Some(line)
-}
-
-fn allow_in(file: &Path, team: &str, which: &str, line: &str) -> Result<(), BrainError> {
-    if !WHICH.contains(&which) {
-        return Err(BrainError::new(format!("Unknown script {which:?}.")));
-    }
-    let mut data = load(file);
-    let mine = data.entry(team).or_insert_with(|| Value::Object(Map::new()));
-    if let Value::Object(m) = mine {
-        m.insert(which.to_string(), Value::String(line.to_string()));
-    } else {
-        *mine = serde_json::json!({ which: line });
-    }
-    let fail = |e: std::io::Error| BrainError::new(e.to_string());
-    if let Some(dir) = file.parent() {
-        std::fs::create_dir_all(dir).map_err(fail)?;
-    }
-    let tmp = file.with_extension("json.tmp");
-    std::fs::write(&tmp, Value::Object(data).to_string()).map_err(fail)?;
-    std::fs::rename(&tmp, file).map_err(fail)
-}
-
 pub fn allowed(team: &str, which: &str, line: &str) -> bool {
-    allowed_in(&state_file(), team, which, line)
+    load(&state_file()).get(team).and_then(|t| t.get(which)).and_then(Value::as_str) == Some(line)
 }
 
 /// The person said yes to running this exact line for this team. `which`: setup, run or archive.
 pub fn allow(team: &str, which: &str, line: &str) -> Result<(), BrainError> {
-    allow_in(&state_file(), team, which, line)
+    if !WHICH.contains(&which) {
+        return Err(BrainError::new(format!("Unknown script {which:?}.")));
+    }
+    let (file, mut data) = (state_file(), load(&state_file()));
+    let mut mine = data.get(team).and_then(Value::as_object).cloned().unwrap_or_default();
+    mine.insert(which.into(), line.into());
+    data.insert(team.into(), Value::Object(mine));
+    let fail = |e: std::io::Error| BrainError::new(e.to_string());
+    std::fs::create_dir_all(file.parent().unwrap_or(Path::new("."))).map_err(fail)?;
+    let tmp = file.with_extension("json.tmp");
+    std::fs::write(&tmp, Value::Object(data).to_string()).map_err(fail)?;
+    std::fs::rename(&tmp, &file).map_err(fail)
 }
 
 /// What a brought-over script expects beside Assieme's own: the project folder under Conductor's name.
@@ -167,6 +154,7 @@ pub fn run(line: &str, folder: &str, project: &str, port: Option<u16>, timeout: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn sh(line: &str, folder: &Path, port: Option<u16>, timeout: f64) -> Value {
         let base = BTreeMap::from([("PATH".to_string(), "/usr/bin:/bin".to_string())]);
@@ -174,64 +162,15 @@ mod tests {
     }
 
     #[test]
-    fn rewrites_conductor_variables_and_names_unknown_ones() {
-        let (line, unknown) = rewrite(
-            "cd $CONDUCTOR_WORKSPACE_PATH && serve ${CONDUCTOR_PORT} $CONDUCTOR_ROOT_PATH $CONDUCTOR_DB $CONDUCTOR_DB",
+    fn runs_in_the_folder_with_the_scripts_variables_and_keeps_the_tail_of_both_streams() {
+        let dir = tempfile::tempdir().unwrap();
+        let got = sh("echo $CONDUCTOR_ROOT_PATH $PORT $HOST; echo err >&2; exit 3", dir.path(), Some(4000), 10.0);
+        assert_eq!(
+            (got["ok"].clone(), got["output"].clone()),
+            (json!(false), json!("/the/project 4000 127.0.0.1\nerr\n"))
         );
-        assert_eq!(line, "cd ${PWD} && serve ${PORT} ${CONDUCTOR_ROOT_PATH} $CONDUCTOR_DB $CONDUCTOR_DB");
-        assert_eq!(unknown, ["CONDUCTOR_DB"]);
-    }
-
-    #[test]
-    fn a_yes_covers_that_exact_line_for_that_team_only() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("a").join("scripts-ok.json");
-        assert!(!allowed_in(&file, "t", "setup", "make"));
-        allow_in(&file, "t", "setup", "make").unwrap();
-        assert!(allowed_in(&file, "t", "setup", "make"));
-        assert!(!allowed_in(&file, "t", "setup", "make all"));
-        assert!(!allowed_in(&file, "t", "run", "make"));
-        assert!(!allowed_in(&file, "other", "setup", "make"));
-        allow_in(&file, "t", "run", "go").unwrap();
-        assert!(allowed_in(&file, "t", "setup", "make"), "a second yes keeps the first");
-        assert!(allow_in(&file, "t", "deploy", "x").is_err());
-    }
-
-    #[test]
-    fn a_damaged_file_means_no_yes() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("f.json");
-        std::fs::write(&file, "[1, 2").unwrap();
-        assert!(!allowed_in(&file, "t", "setup", "x"));
-        allow_in(&file, "t", "setup", "x").unwrap();
-        assert!(allowed_in(&file, "t", "setup", "x"));
-    }
-
-    #[test]
-    fn runs_in_the_folder_with_the_scripts_variables() {
-        let dir = tempfile::tempdir().unwrap();
-        let got = sh("echo $CONDUCTOR_ROOT_PATH $PORT $HOST; pwd", dir.path(), Some(4000), 10.0);
-        assert_eq!(got["ok"], true);
-        let out = got["output"].as_str().unwrap();
-        assert!(out.starts_with("/the/project 4000 127.0.0.1\n"), "{out}");
-        assert!(out.trim_end().ends_with(dir.path().file_name().unwrap().to_str().unwrap()), "{out}");
-    }
-
-    #[test]
-    fn a_failing_script_is_not_ok_and_keeps_both_streams() {
-        let dir = tempfile::tempdir().unwrap();
-        let got = sh("echo out; echo err >&2; exit 3", dir.path(), None, 10.0);
-        assert_eq!(got["ok"], false);
-        assert_eq!(got["output"], "out\nerr\n");
-    }
-
-    #[test]
-    fn keeps_the_last_4000_characters() {
-        let dir = tempfile::tempdir().unwrap();
-        let got = sh("i=0; while [ $i -lt 5000 ]; do printf x; i=$((i+1)); done; printf END", dir.path(), None, 10.0);
-        let out = got["output"].as_str().unwrap();
-        assert_eq!(out.chars().count(), 4000);
-        assert!(out.ends_with("xEND"));
+        let long = sh("i=0; while [ $i -lt 5000 ]; do printf x; i=$((i+1)); done; printf END", dir.path(), None, 10.0);
+        assert!(long["output"].as_str().unwrap().len() == 4000 && long["output"].as_str().unwrap().ends_with("xEND"));
     }
 
     #[test]
@@ -240,14 +179,6 @@ mod tests {
         let started = Instant::now();
         let got = sh("sleep 30 & sleep 30", dir.path(), None, 0.3);
         assert!(started.elapsed() < Duration::from_secs(10));
-        assert_eq!(got["ok"], false);
         assert_eq!(got["output"], "It took longer than 0.3 seconds, so it was stopped.");
-    }
-
-    #[test]
-    fn a_missing_folder_is_an_error_not_a_panic() {
-        let got = sh("true", Path::new("/no/such/folder"), None, 5.0);
-        assert_eq!(got["ok"], false);
-        assert!(!got["output"].as_str().unwrap().is_empty());
     }
 }

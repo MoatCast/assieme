@@ -46,10 +46,30 @@ const EMBEDDED: &[(&str, &str)] = &[
 pub const TOOL_ID: &str = r"^(server|plugin|skill|extension):[^\x00-\x1f\x7f]{1,200}$";
 /// A role's keys in team.toml, besides its brief (a file of its own).
 const ROLE_KEYS: [&str; 21] = [
-    "name", "agent", "job", "checkout", "parent", "model", "effort", "group", "kind", "level", "worktree", "branch",
-    "resume", "musician", "container", "share_signin", "tools_new", "tools_off", "tools_known", "owns", "rules",
+    "name",
+    "agent",
+    "job",
+    "checkout",
+    "parent",
+    "model",
+    "effort",
+    "group",
+    "kind",
+    "level",
+    "worktree",
+    "branch",
+    "resume",
+    "musician",
+    "container",
+    "share_signin",
+    "tools_new",
+    "tools_off",
+    "tools_known",
+    "owns",
+    "rules",
 ];
-const NEEDS_SAVE: &str = "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one.";
+const NEEDS_SAVE: &str =
+    "This folder has no saved version yet. Agents work from a saved version of your project, so it needs one.";
 const TOO_LARGE: &str = "This folder is very large. Choose the folder for just this project.";
 const SUGGEST_S: f64 = 170.0;
 const MAX_ROLES: usize = 8;
@@ -161,17 +181,26 @@ pub fn as_preset(folder: &Path, id: &str, label: Option<&str>) -> Result<Value, 
     let data = read_toml(&folder.join("team.toml")).unwrap_or_default();
     let label = label.or_else(|| data.get("label")?.as_str()).unwrap_or(id);
     // load orders parents first; the form keeps the file's order
-    let roles: Vec<Value> = data["role"].as_array().into_iter().flatten().filter_map(|r| tm.roles.iter().find(|x| Some(x.name.as_str()) == r["name"].as_str())).map(role_dict).collect();
+    let roles: Vec<Value> = data["role"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|r| tm.roles.iter().find(|x| Some(x.name.as_str()) == r["name"].as_str()))
+        .map(role_dict)
+        .collect();
     Ok(json!({"id": id, "label": label, "roles": roles}))
 }
 
 pub fn presets(teams: Option<&Path>) -> Value {
     let teams = teams.map_or_else(teams_dir, Path::to_path_buf);
-    let builtin: Vec<Value> = BUILTIN.iter().filter_map(|id| as_preset(&presets_dir().join(id), id, None).ok()).collect();
-    let mut saved: Vec<PathBuf> = std::fs::read_dir(&teams).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    let builtin: Vec<Value> =
+        BUILTIN.iter().filter_map(|id| as_preset(&presets_dir().join(id), id, None).ok()).collect();
+    let mut saved: Vec<PathBuf> =
+        std::fs::read_dir(&teams).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
     saved.sort_by_key(|p| std::cmp::Reverse(std::fs::metadata(p).and_then(|m| m.modified()).ok()));
     // a half-written or hand-edited folder: try the next one
-    let last = saved.iter().find_map(|f| as_preset(f, &f.file_name()?.to_string_lossy(), Some("Same as last time")).ok());
+    let last =
+        saved.iter().find_map(|f| as_preset(f, &f.file_name()?.to_string_lossy(), Some("Same as last time")).ok());
     // the Project step's recent folders: newest first, each once
     let mut recent: Vec<String> = vec![];
     for f in &saved {
@@ -179,7 +208,10 @@ pub fn presets(teams: Option<&Path>) -> Value {
         recent.extend(project.filter(|p| !p.is_empty() && !recent.contains(p)));
     }
     recent.truncate(3);
-    let kinds: Map<String, Value> = KINDS.iter().map(|(k, (_, c))| (k.to_string(), json!({"brief": kind_brief(k), "job": kind_job(k), "checkout": c}))).collect();
+    let kinds: Map<String, Value> = KINDS
+        .iter()
+        .map(|(k, (_, c))| (k.to_string(), json!({"brief": kind_brief(k), "job": kind_job(k), "checkout": c})))
+        .collect();
     json!({"presets": builtin, "practices": preset::practices(None), "last": last, "recent": recent, "models": model_options(),
            "practice_defaults": crate::settings::load(None)["practices"], "kinds": kinds, "permissions": d2::table()})
 }
@@ -201,8 +233,15 @@ pub fn model_options_at(cache: &Path) -> Value {
             json!({"id": m["slug"], "label": m["slug"], "about": m["description"].as_str().unwrap_or(""), "efforts": efforts})
         })
         .collect();
-    let common: Vec<&&str> = all.iter().filter(|e| !codex.is_empty() && codex.iter().all(|m| m["efforts"].as_array().is_some_and(|a| a.iter().any(|x| x == **e)))).collect();
-    let models: Vec<Value> = CLAUDE_MODELS.iter().map(|(i, n)| json!({"id": i, "label": n, "efforts": claude})).collect();
+    let common: Vec<&&str> = all
+        .iter()
+        .filter(|e| {
+            !codex.is_empty()
+                && codex.iter().all(|m| m["efforts"].as_array().is_some_and(|a| a.iter().any(|x| x == **e)))
+        })
+        .collect();
+    let models: Vec<Value> =
+        CLAUDE_MODELS.iter().map(|(i, n)| json!({"id": i, "label": n, "efforts": claude})).collect();
     let none = json!({"models": [], "efforts": []}); // their own default only
     json!({"claude": {"models": models, "efforts": claude}, "codex": {"models": codex, "efforts": common},
            "gemini": none, "opencode": none, "cursor": none, "antigravity": none})
@@ -216,7 +255,9 @@ pub fn model_options() -> Value {
 
 fn expanduser(path: &str) -> String {
     match path.strip_prefix("~") {
-        Some(rest) if rest.is_empty() || rest.starts_with('/') => format!("{}{rest}", std::env::var("HOME").unwrap_or_default()),
+        Some(rest) if rest.is_empty() || rest.starts_with('/') => {
+            format!("{}{rest}", std::env::var("HOME").unwrap_or_default())
+        }
         _ => path.to_string(),
     }
 }
@@ -225,7 +266,8 @@ pub fn project_check(path: &str) -> Value {
     use crate::setup::{self, SetupError};
     if !setup::git_ready() {
         // a remote machine: nothing to click here
-        let remote = !cfg!(target_os = "macos") || std::env::var_os("ASSIEME_ASM_SOCKET").is_some_and(|v| !v.is_empty());
+        let remote =
+            !cfg!(target_os = "macos") || std::env::var_os("ASSIEME_ASM_SOCKET").is_some_and(|v| !v.is_empty());
         return if remote {
             json!({"ok": false, "reason": "This machine needs git. Install it there, then choose the folder again."})
         } else {
@@ -265,12 +307,18 @@ pub fn validate(roles: &[Value]) -> Result<(), NewTeamError> {
         return Err(NewTeamError::new("roles", "Add at least one agent."));
     }
     let names: Vec<&str> = roles.iter().map(|r| str_of(r, "name").unwrap_or("")).collect();
-    let (name_re, branch_re, resume_re, tool_re) = (r"^[a-z0-9-]+$", r"^[A-Za-z0-9._/-]+$", r"^[A-Za-z0-9][A-Za-z0-9-]*$", TOOL_ID);
+    let (name_re, branch_re, resume_re, tool_re) =
+        (r"^[a-z0-9-]+$", r"^[A-Za-z0-9._/-]+$", r"^[A-Za-z0-9][A-Za-z0-9-]*$", TOOL_ID);
     let is = |re: &str, s: &str| Regex::new(re).is_ok_and(|r| r.is_match(s));
     for (i, r) in roles.iter().enumerate() {
         let get = |k: &str| str_of(r, k).filter(|s| !s.is_empty());
         let flag = |k: &str| matches!(r.get(k), None | Some(Value::Null | Value::Bool(_)));
-        let list_ok = |k: &str| r.get(k).is_none_or(|v| v.is_null() || v.as_array().is_some_and(|a| a.iter().all(|x| x.as_str().is_some_and(|s| is(tool_re, s)))));
+        let list_ok = |k: &str| {
+            r.get(k).is_none_or(|v| {
+                v.is_null()
+                    || v.as_array().is_some_and(|a| a.iter().all(|x| x.as_str().is_some_and(|s| is(tool_re, s))))
+            })
+        };
         let checkout = str_of(r, "checkout").unwrap_or("branch");
         let agent = str_of(r, "agent").unwrap_or("");
         let bad_tools = "That list of skills and servers can't be used.";
@@ -290,18 +338,28 @@ pub fn validate(roles: &[Value]) -> Result<(), NewTeamError> {
             Some("That conversation can't be picked up.".into()) // it goes on the agent's command line
         } else if !list_ok("tools_off") || !list_ok("tools_known") || !flag("tools_new") {
             Some(bad_tools.into())
-        } else if r.get("musician").is_some_and(|m| !m.is_null() && !m.as_str().is_some_and(|m| musicians::INSTRUMENTS.contains(&m))) {
+        } else if r
+            .get("musician")
+            .is_some_and(|m| !m.is_null() && !m.as_str().is_some_and(|m| musicians::INSTRUMENTS.contains(&m)))
+        {
             Some("That instrument isn't one Assieme draws.".into())
         } else if get("parent").is_some_and(|p| !names.contains(&p)) {
             Some(format!("Reports to '{}', which isn't in this team.", get("parent").unwrap_or("")))
         } else if str_of(r, "brief").is_none_or(|b| b.trim().is_empty()) {
             Some("Every agent needs a brief.".into())
         } else {
-            let owns: Vec<String> = r["owns"].as_array().into_iter().flatten().filter_map(|x| x.as_str().map(String::from)).collect();
+            let owns: Vec<String> =
+                r["owns"].as_array().into_iter().flatten().filter_map(|x| x.as_str().map(String::from)).collect();
             let rules: Vec<Value> = r["rules"].as_array().cloned().unwrap_or_default();
             launch::check_model_effort(agent, str_of(r, "model"), str_of(r, "effort"))
-                .or_else(|| str_of(r, "kind").filter(|k| kind_checkout(k).is_none()).map(|k| format!("Unknown role '{k}'.")))
-                .or_else(|| str_of(r, "level").filter(|l| !d2::levels().iter().any(|x| x == l)).map(|l| format!("Unknown permission level '{l}'.")))
+                .or_else(|| {
+                    str_of(r, "kind").filter(|k| kind_checkout(k).is_none()).map(|k| format!("Unknown role '{k}'."))
+                })
+                .or_else(|| {
+                    str_of(r, "level")
+                        .filter(|l| !d2::levels().iter().any(|x| x == l))
+                        .map(|l| format!("Unknown permission level '{l}'."))
+                })
                 .or_else(|| d2::check_owns(&owns))
                 .or_else(|| d2::check_rules(&rules))
         };
@@ -313,7 +371,10 @@ pub fn validate(roles: &[Value]) -> Result<(), NewTeamError> {
 }
 
 pub fn team_name(project: &str, taken: &BTreeSet<String>) -> String {
-    let base = Path::new(project.trim_end_matches('/')).file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let base = Path::new(project.trim_end_matches('/'))
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
     let slug = Regex::new("[^a-z0-9]+").expect("a fixed pattern").replace_all(&base, "-");
     let slug = slug.trim_matches('-');
     let base = if slug.is_empty() { "team" } else { slug };
@@ -362,7 +423,14 @@ fn instruments(roles: &[Value]) -> Vec<String> {
 
 /// Write the team folder `preset::load` reads. `scripts`: setup, run and archive lines brought over from another
 /// tool (step 30).
-pub fn save(project: &str, roles: &[Value], practices: &Map<String, Value>, name: &str, teams: &Path, scripts: Option<&BTreeMap<String, String>>) -> Result<PathBuf, BrainError> {
+pub fn save(
+    project: &str,
+    roles: &[Value],
+    practices: &Map<String, Value>,
+    name: &str,
+    teams: &Path,
+    scripts: Option<&BTreeMap<String, String>>,
+) -> Result<PathBuf, BrainError> {
     let scripts: BTreeMap<_, _> = scripts.into_iter().flatten().filter(|(_, v)| !v.is_empty()).collect();
     if let Some(k) = scripts.keys().find(|k| !preset::SCRIPTS.contains(&k.as_str())) {
         return Err(BrainError::new(format!("Unknown script {k}.")));
@@ -383,36 +451,52 @@ pub fn save(project: &str, roles: &[Value], practices: &Map<String, Value>, name
         std::fs::remove_dir_all(&folder).map_err(io)?;
     }
     std::fs::create_dir_all(&folder).map_err(io)?;
-    let on = |v: &Value| !matches!(v, Value::Null | Value::Bool(false)) && v.as_str() != Some("") && v.as_f64() != Some(0.0);
+    let on =
+        |v: &Value| !matches!(v, Value::Null | Value::Bool(false)) && v.as_str() != Some("") && v.as_f64() != Some(0.0);
     let mut file = toml::Table::from_iter([
         ("name".to_string(), name.into()),
         ("project".to_string(), preset::absolute(Path::new(project)).to_string_lossy().as_ref().into()),
         ("role".to_string(), toml::Value::Array(roles.iter().map(role_table).collect())),
     ]);
     if !practices.is_empty() {
-        file.insert("practices".into(), toml::Value::Table(practices.iter().map(|(k, v)| (k.clone(), on(v).into())).collect()));
+        file.insert(
+            "practices".into(),
+            toml::Value::Table(practices.iter().map(|(k, v)| (k.clone(), on(v).into())).collect()),
+        );
     }
     if !scripts.is_empty() {
-        file.insert("scripts".into(), toml::Value::Table(scripts.iter().map(|(k, v)| (k.to_string(), v.as_str().into())).collect()));
+        file.insert(
+            "scripts".into(),
+            toml::Value::Table(scripts.iter().map(|(k, v)| (k.to_string(), v.as_str().into())).collect()),
+        );
     }
     for r in &roles {
         let brief = str_of(r, "brief").unwrap_or("").trim_end_matches('\n');
-        std::fs::write(folder.join(format!("{}.md", str_of(r, "name").unwrap_or(""))), format!("{brief}\n")).map_err(io)?;
+        std::fs::write(folder.join(format!("{}.md", str_of(r, "name").unwrap_or(""))), format!("{brief}\n"))
+            .map_err(io)?;
     }
-    std::fs::write(folder.join("team.toml"), toml::to_string(&file).map_err(|e| BrainError::new(e.to_string()))?).map_err(io)?;
+    std::fs::write(folder.join("team.toml"), toml::to_string(&file).map_err(|e| BrainError::new(e.to_string()))?)
+        .map_err(io)?;
     Ok(folder)
 }
 
 /// The saved team and its roles as the form holds them, in the file's order.
 fn saved(folder: &Path) -> Result<(Team, Vec<Value>), BrainError> {
     let tm = preset::load(folder, false)?;
-    let order = read_toml(&folder.join("team.toml")).map(|d| d["role"].as_array().cloned().unwrap_or_default()).unwrap_or_default();
-    let roles = order.iter().filter_map(|r| tm.roles.iter().find(|x| Some(x.name.as_str()) == r["name"].as_str())).map(role_dict).collect();
+    let order = read_toml(&folder.join("team.toml"))
+        .map(|d| d["role"].as_array().cloned().unwrap_or_default())
+        .unwrap_or_default();
+    let roles = order
+        .iter()
+        .filter_map(|r| tm.roles.iter().find(|x| Some(x.name.as_str()) == r["name"].as_str()))
+        .map(role_dict)
+        .collect();
     Ok((tm, roles))
 }
 
 fn resave(tm: &Team, roles: &[Value], folder: &Path) -> Result<(), BrainError> {
-    save(&tm.project, roles, &tm.practices, &tm.name, folder.parent().unwrap_or(Path::new(".")), Some(&tm.scripts)).map(|_| ())
+    save(&tm.project, roles, &tm.practices, &tm.name, folder.parent().unwrap_or(Path::new(".")), Some(&tm.scripts))
+        .map(|_| ())
 }
 
 /// Take a role back out of a saved team, so it doesn't return at the next start and its name is free again.
@@ -432,8 +516,8 @@ pub fn forget_role(folder: &Path, name: &str) -> Result<(), BrainError> {
 /// Save the team again with one role's fields changed. `changes` holds the fields by their Python names.
 pub fn rewrite_role(folder: &Path, name: &str, changes: &Map<String, Value>) -> Result<(), BrainError> {
     let (tm, mut roles) = saved(folder)?;
-    if let Some(r) = roles.iter_mut().find(|r| r["name"] == name) {
-        r.as_object_mut().map(|m| m.extend(changes.clone()));
+    if let Some(m) = roles.iter_mut().find(|r| r["name"] == name).and_then(|r| r.as_object_mut()) {
+        m.extend(changes.clone());
     }
     resave(&tm, &roles, folder)
 }
@@ -459,7 +543,10 @@ fn gone_notes(roles: &[Role]) -> Vec<String> {
     roles
         .iter()
         .filter_map(|r| {
-            let (w, b) = (r.worktree.as_deref().filter(|w| !w.is_empty() && !Path::new(w).is_dir())?, r.branch.as_deref().filter(|b| !b.is_empty())?);
+            let (w, b) = (
+                r.worktree.as_deref().filter(|w| !w.is_empty() && !Path::new(w).is_dir())?,
+                r.branch.as_deref().filter(|b| !b.is_empty())?,
+            );
             let base = Path::new(w.trim_end_matches('/')).file_name()?.to_string_lossy().into_owned();
             Some(format!("{base}'s folder isn't there any more. Its branch {b} is kept: start gives it a new copy."))
         })
@@ -483,7 +570,12 @@ pub fn band(name: &str, teams: Option<&Path>) -> Value {
     let kinds: Vec<Option<&str>> = tm.roles.iter().map(|r| r.kind.as_deref()).collect();
     let (assigned, rules) = (musicians::assign(&tm.roles), musicians::rules(&kinds));
     // chosen_for: why the rule picked it, only while the person hasn't picked another
-    let one = |i: usize| (tm.roles[i].name.clone(), json!({"musician": assigned[i], "palette": musicians::palette(&kinds, i), "chosen_for": (assigned[i] == rules[i].0).then_some(&rules[i].1)}));
+    let one = |i: usize| {
+        (
+            tm.roles[i].name.clone(),
+            json!({"musician": assigned[i], "palette": musicians::palette(&kinds, i), "chosen_for": (assigned[i] == rules[i].0).then_some(&rules[i].1)}),
+        )
+    };
     Value::Object((0..tm.roles.len()).map(one).collect())
 }
 
@@ -493,11 +585,16 @@ pub fn set_musician(name: &str, role: &str, musician: &str, teams: Option<&Path>
     if !musicians::INSTRUMENTS.contains(&musician) {
         return Err(field("That instrument isn't one Assieme draws."));
     }
-    let tm = load_saved(name, teams, false).map_err(|_| field("This team was started from the command line, so it has no saved instruments."))?;
+    let tm = load_saved(name, teams, false)
+        .map_err(|_| field("This team was started from the command line, so it has no saved instruments."))?;
     if !tm.roles.iter().any(|r| r.name == role) {
         return Err(field(&format!("{role} is not in this team.")));
     }
-    rewrite_role(&teams.map_or_else(teams_dir, Path::to_path_buf).join(name), role, &change("musician", json!(musician)))?;
+    rewrite_role(
+        &teams.map_or_else(teams_dir, Path::to_path_buf).join(name),
+        role,
+        &change("musician", json!(musician)),
+    )?;
     Ok(json!({"ok": true}))
 }
 
@@ -517,11 +614,19 @@ const KEEP_DONE_S: f64 = 600.0;
 /// A start's progress record, as the snapshot shows it (`done_at` is dropped from it).
 fn record(team: &str, project: &str, roles: &[&str]) -> Shared {
     let roles: Vec<Value> = roles.iter().map(|r| json!({"role": r, "state": "starting", "detail": ""})).collect();
-    Arc::new(Mutex::new(json!({"team": team, "project": project, "done": false, "error": null, "done_at": null, "roles": roles})))
+    Arc::new(Mutex::new(
+        json!({"team": team, "project": project, "done": false, "error": null, "done_at": null, "roles": roles}),
+    ))
 }
 
 fn failed(r: &Value) -> bool {
-    r["done"] == true && (!r["error"].is_null() || r["roles"].as_array().into_iter().flatten().any(|x| ["not-reporting", "exited"].iter().any(|s| x["state"] == *s)))
+    r["done"] == true
+        && (!r["error"].is_null()
+            || r["roles"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|x| ["not-reporting", "exited"].iter().any(|s| x["state"] == *s)))
 }
 
 /// Starts teams in the background and remembers the ones starting. Checks and saves at once, then runs
@@ -548,7 +653,16 @@ impl Starter {
     /// `allow_scripts`: the brought-over scripts the person said yes to in New team, for this team's name.
     /// `name` is a scheduled run's own team name; New team leaves it to the project's folder name.
     #[allow(clippy::too_many_arguments)]
-    pub fn start(&self, project: &str, task: &str, roles: &[Value], practices: &Value, name: Option<&str>, scripts_: Option<&BTreeMap<String, String>>, allow_scripts: &[String]) -> Result<Value, BrainError> {
+    pub fn start(
+        &self,
+        project: &str,
+        task: &str,
+        roles: &[Value],
+        practices: &Value,
+        name: Option<&str>,
+        scripts_: Option<&BTreeMap<String, String>>,
+        allow_scripts: &[String],
+    ) -> Result<Value, BrainError> {
         validate(roles)?;
         let project = expanduser(project);
         let check = project_check(&project);
@@ -557,7 +671,12 @@ impl Starter {
         }
         let project = preset::absolute(Path::new(&project)).to_string_lossy().into_owned();
         // no live teams while the assieme core isn't running yet
-        let live: BTreeSet<String> = team::status(&self.rt, None).unwrap_or_default().iter().filter(|r| r["state"] == "live").filter_map(|r| r["team"].as_str().map(String::from)).collect();
+        let live: BTreeSet<String> = team::status(&self.rt, None)
+            .unwrap_or_default()
+            .iter()
+            .filter(|r| r["state"] == "live")
+            .filter_map(|r| r["team"].as_str().map(String::from))
+            .collect();
         let name = {
             // held only for bookkeeping: git work below must not block records()
             let mut st = lock(&self.recs);
@@ -569,12 +688,22 @@ impl Starter {
             let mine: BTreeSet<&str> = roles.iter().filter_map(|r| str_of(r, "name")).collect();
             let blocks = |other: &str| {
                 // worktrees are per role name: these would share one; else New team beside New team: one per project
-                roster(other, Some(&self.teams)).keys().any(|k| mine.contains(k.as_str())) || (!sched.contains(other) && !name.is_some_and(|n| sched.contains(n)))
+                roster(other, Some(&self.teams)).keys().any(|k| mine.contains(k.as_str()))
+                    || (!sched.contains(other) && !name.is_some_and(|n| sched.contains(n)))
             };
             if let Some(first) = live.iter().find(|n| self.project_of(n).as_deref() == Some(&project) && blocks(n)) {
-                return Err(NewTeamError::new("project", format!("This project already has a running team: {first}. Stop it first.")).into());
+                return Err(NewTeamError::new(
+                    "project",
+                    format!("This project already has a running team: {first}. Stop it first."),
+                )
+                .into());
             }
-            let taken: BTreeSet<String> = live.iter().cloned().chain(st.1.values().cloned()).chain(open.iter().filter_map(|r| r["team"].as_str().map(String::from))).collect();
+            let taken: BTreeSet<String> = live
+                .iter()
+                .cloned()
+                .chain(st.1.values().cloned())
+                .chain(open.iter().filter_map(|r| r["team"].as_str().map(String::from)))
+                .collect();
             if let Some(n) = name.filter(|n| taken.contains(*n)) {
                 return Err(NewTeamError::new("start", format!("{n} is still running.")).into());
             }
@@ -583,7 +712,8 @@ impl Starter {
             chosen
         };
         let built = (|| -> Result<(Team, BTreeMap<String, String>), NewTeamError> {
-            let folder = save(&project, roles, practices.as_object().unwrap_or(&Map::new()), &name, &self.teams, scripts_)?;
+            let folder =
+                save(&project, roles, practices.as_object().unwrap_or(&Map::new()), &name, &self.teams, scripts_)?;
             let tm = preset::load(&folder, true)?;
             for which in allow_scripts {
                 if let Some(line) = tm.scripts.get(which) {
@@ -592,11 +722,20 @@ impl Starter {
             }
             let missing = launch::missing_clis(&tm.roles);
             if !missing.is_empty() {
-                return Err(NewTeamError::new("start", format!("not installed: {}. Install it, then start again.", missing.join(", "))));
+                return Err(NewTeamError::new(
+                    "start",
+                    format!("not installed: {}. Install it, then start again.", missing.join(", ")),
+                ));
             }
             container_ready(&tm.roles)?;
             // Copies made by this start get the team's setup script; brought-over folders are already set up.
-            let fresh = tm.roles.iter().filter(|r| r.checkout != "read-only" && !r.worktree.as_deref().is_some_and(|d| Path::new(d).is_dir())).map(|r| (r.name.clone(), worktree::folder(&tm, r))).filter(|(_, f)| !Path::new(f).is_dir()).collect();
+            let fresh = tm
+                .roles
+                .iter()
+                .filter(|r| r.checkout != "read-only" && !r.worktree.as_deref().is_some_and(|d| Path::new(d).is_dir()))
+                .map(|r| (r.name.clone(), worktree::folder(&tm, r)))
+                .filter(|(_, f)| !Path::new(f).is_dir())
+                .collect();
             for r in &tm.roles {
                 worktree::ensure(&tm, r)?; // every worktree now, so a dirty one is reported to the form, not the log
             }
@@ -635,10 +774,14 @@ impl Starter {
     pub fn add_agent(&self, team_name: &str, role: &Value) -> Result<Value, NewTeamError> {
         let folder = self.teams.join(team_name);
         if !folder.join("team.toml").is_file() {
-            return Err(NewTeamError::new("start", "This team was started from the command line, so agents can't be added here."));
+            return Err(NewTeamError::new(
+                "start",
+                "This team was started from the command line, so agents can't be added here.",
+            ));
         }
         // no core running means nothing of this team is
-        let rows = self.rt.list(&BTreeMap::from([(team::TEAM.to_string(), team_name.to_string())]), false).unwrap_or_default();
+        let rows =
+            self.rt.list(&BTreeMap::from([(team::TEAM.to_string(), team_name.to_string())]), false).unwrap_or_default();
         if !rows.iter().any(|r| r["state"] == "live" && r["labels"][team::TEAM] == team_name) {
             return Err(NewTeamError::new("start", "This team has stopped. Start it again to add an agent."));
         }
@@ -656,17 +799,34 @@ impl Starter {
         all.pop();
         all.push(role.clone());
         validate(&all)?;
-        let new = Role { container: role["container"] == true, ..Role::new(str_of(&role, "name").unwrap_or(""), str_of(&role, "agent").unwrap_or("")) };
+        let new = Role {
+            container: role["container"] == true,
+            ..Role::new(str_of(&role, "name").unwrap_or(""), str_of(&role, "agent").unwrap_or(""))
+        };
         let missing = launch::missing_clis(std::slice::from_ref(&new));
         if !missing.is_empty() {
-            return Err(NewTeamError::new("start", format!("not installed: {}. Install it, then try again.", missing.join(", "))));
+            return Err(NewTeamError::new(
+                "start",
+                format!("not installed: {}. Install it, then try again.", missing.join(", ")),
+            ));
         }
         container_ready(std::slice::from_ref(&new))?;
         let name = new.name.clone();
         let io = |e: std::io::Error| NewTeamError::new("start", e.to_string());
-        std::fs::write(folder.join(format!("{name}.md")), format!("{}\n", str_of(&role, "brief").unwrap_or("").trim_end_matches('\n'))).map_err(io)?;
+        std::fs::write(
+            folder.join(format!("{name}.md")),
+            format!("{}\n", str_of(&role, "brief").unwrap_or("").trim_end_matches('\n')),
+        )
+        .map_err(io)?;
         let mut file = std::fs::read_to_string(folder.join("team.toml")).map_err(io)?;
-        file.push_str(&format!("\n{}", toml::to_string(&toml::Table::from_iter([("role".to_string(), toml::Value::Array(vec![role_table(&role)]))])).unwrap_or_default()));
+        file.push_str(&format!(
+            "\n{}",
+            toml::to_string(&toml::Table::from_iter([(
+                "role".to_string(),
+                toml::Value::Array(vec![role_table(&role)])
+            )]))
+            .unwrap_or_default()
+        ));
         std::fs::write(folder.join("team.toml"), file).map_err(io)?;
         let tm = preset::load(&folder, true)?;
         if let Err(e) = worktree::ensure(&tm, tm.roles.iter().find(|r| r.name == name).unwrap_or(&new)) {
@@ -678,12 +838,22 @@ impl Starter {
         let rt = self.rt.clone();
         std::thread::spawn(move || {
             let run = || -> Result<(), BrainError> {
-                let s = team::start(&tm, None, &rt, &|_| true, Some(&name))?.into_iter().next().ok_or_else(|| BrainError::new("no agent was started"))?;
+                let s = team::start(&tm, None, &rt, &|_| true, Some(&name))?
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| BrainError::new("no agent was started"))?;
                 fill(&rec, std::slice::from_ref(&s));
                 if s.state == "exited" {
                     forget_role(&folder, &name)?;
                 } else {
-                    crate::live::record(crate::live::Record { action: "add_agent", agent: &name, reason: "You added it to this team.", team: Some(&tm.name), address: s.address.as_deref(), ..Default::default() });
+                    crate::live::record(crate::live::Record {
+                        action: "add_agent",
+                        agent: &name,
+                        reason: "You added it to this team.",
+                        team: Some(&tm.name),
+                        address: s.address.as_deref(),
+                        ..Default::default()
+                    });
                 }
                 Ok(())
             };
@@ -700,7 +870,8 @@ impl Starter {
         for r in &st.0 {
             let mut r = lock(r);
             if r["team"] == team_name {
-                r["roles"] = r["roles"].as_array().into_iter().flatten().filter(|x| x["role"] != role).cloned().collect();
+                r["roles"] =
+                    r["roles"].as_array().into_iter().flatten().filter(|x| x["role"] != role).cloned().collect();
             }
         }
         st.0.retain(|r| lock(r)["roles"].as_array().is_some_and(|a| !a.is_empty()));
@@ -712,7 +883,13 @@ impl Starter {
             let r = lock(r);
             r["done"] == false || now() - r["done_at"].as_f64().unwrap_or(0.0) <= KEEP_DONE_S || failed(&r)
         });
-        st.0.iter().map(|r| lock(r).clone()).map(|mut r| { r.as_object_mut().map(|m| m.remove("done_at")); r }).collect()
+        st.0.iter()
+            .map(|r| lock(r).clone())
+            .map(|mut r| {
+                r.as_object_mut().map(|m| m.remove("done_at"));
+                r
+            })
+            .collect()
     }
 }
 
@@ -739,7 +916,12 @@ fn finish(rec: &Shared, outcome: std::thread::Result<Result<(), BrainError>>, on
     let error = match outcome {
         Ok(Ok(())) => None,
         Ok(Err(e)) => Some(e.message),
-        Err(p) => Some(p.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| p.downcast_ref::<String>().cloned()).unwrap_or_else(|| "something went wrong".into())),
+        Err(p) => Some(
+            p.downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| p.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "something went wrong".into()),
+        ),
     };
     if let Some(e) = &error {
         on_error(e);
@@ -761,7 +943,16 @@ fn setup_scripts(rec: &Shared, tm: &Team, fresh: &BTreeMap<String, String>) {
         let ok = got["ok"] == true;
         let reason = if ok { "Ran the team setup in its copy" } else { "The team setup didn't finish" };
         let detail = got["output"].as_str().unwrap_or("");
-        crate::live::record(crate::live::Record { action: "setup", agent: name, reason, failed: !ok, detail, team: Some(&tm.name), by: "assieme", ..Default::default() });
+        crate::live::record(crate::live::Record {
+            action: "setup",
+            agent: name,
+            reason,
+            failed: !ok,
+            detail,
+            team: Some(&tm.name),
+            by: "assieme",
+            ..Default::default()
+        });
     }
 }
 
@@ -780,13 +971,21 @@ fn models_text(agents: &[String], models: &Value) -> String {
         let ms = models[a]["models"].as_array().cloned().unwrap_or_default();
         if a == "claude" {
             let ids: Vec<&str> = ms.iter().filter_map(|m| m["id"].as_str()).collect();
-            out.push(format!("- claude models, strongest and most expensive first: {}. Efforts: {}", ids.join(", "), list(&models[a]["efforts"])));
+            out.push(format!(
+                "- claude models, strongest and most expensive first: {}. Efforts: {}",
+                ids.join(", "),
+                list(&models[a]["efforts"])
+            ));
         } else if ms.is_empty() {
             out.push(format!("- {a}: its own default only; leave model and effort out"));
         }
         for m in ms.iter().filter(|_| a != "claude") {
             let about = m["about"].as_str().filter(|s| !s.is_empty()).unwrap_or("no description");
-            out.push(format!("- {a} model {} ({about}). Efforts: {}", m["id"].as_str().unwrap_or(""), list(&m["efforts"])));
+            out.push(format!(
+                "- {a} model {} ({about}). Efforts: {}",
+                m["id"].as_str().unwrap_or(""),
+                list(&m["efforts"])
+            ));
         }
     }
     out.join("\n")
@@ -795,17 +994,32 @@ fn models_text(agents: &[String], models: &Value) -> String {
 /// Help me choose: the person's own Claude Code (else Codex), read-only in the project, suggests a team with each
 /// agent's model and thinking effort, among what New team offers on this machine. `size`, `review` and `budget`
 /// are New team's choices as the app sends them.
-pub fn suggest(project: &str, size: &Value, review: &Value, budget: &Value, task: &str, models: Option<&Value>) -> Result<Value, NewTeamError> {
+pub fn suggest(
+    project: &str,
+    size: &Value,
+    review: &Value,
+    budget: &Value,
+    task: &str,
+    models: Option<&Value>,
+) -> Result<Value, NewTeamError> {
     let (have, models) = (crate::ask::installed(), models.cloned().unwrap_or_else(model_options));
     let word = |kind: &str, v: &Value| {
         let s = v.as_str().map_or_else(|| v.to_string(), String::from);
-        let known = [("size", "small", "a small fix"), ("size", "feature", "a feature"), ("size", "large", "a large change"), ("review", "every", "every change"),
-            ("review", "end", "just the end result"), ("budget", "lean", "keep it lean (fewer agents, cheaper)"), ("budget", "fast", "speed matters more than cost")];
+        let known = [
+            ("size", "small", "a small fix"),
+            ("size", "feature", "a feature"),
+            ("size", "large", "a large change"),
+            ("review", "every", "every change"),
+            ("review", "end", "just the end result"),
+            ("budget", "lean", "keep it lean (fewer agents, cheaper)"),
+            ("budget", "fast", "speed matters more than cost"),
+        ];
         known.iter().find(|(k, w, _)| *k == kind && *w == s).map_or(s.clone(), |(_, _, t)| t.to_string())
     };
     let kinds: Vec<String> = KIND_JOBS.iter().map(|(k, v)| format!("- {k}: {v}")).collect();
     let task = task.trim();
-    let what = if task.is_empty() { format!("The change is {}.", word("size", size)) } else { format!("The task: {task}.") };
+    let what =
+        if task.is_empty() { format!("The change is {}.", word("size", size)) } else { format!("The task: {task}.") };
     let prompt = format!(
         "Suggest an agent team for the code in this folder. Read enough of the project to judge it.\n\n\
          {what} The person wants to review {}. Budget: {}.\n\n\
@@ -826,10 +1040,16 @@ pub fn suggest(project: &str, size: &Value, review: &Value, budget: &Value, task
     let pre = "Couldn't get a suggestion: ";
     let wrong = |m: String| NewTeamError::new("suggest", format!("{pre}{m}"));
     let text = ask(&prompt, project, "3 minutes").map_err(|e| ask_error(e, pre))?;
-    let data = crate::ask::first_json(&text).filter(|d| d.get("roles").is_some_and(Value::is_array)).ok_or_else(|| wrong("the answer wasn't a team.".into()))?;
+    let data = crate::ask::first_json(&text)
+        .filter(|d| d.get("roles").is_some_and(Value::is_array))
+        .ok_or_else(|| wrong("the answer wasn't a team.".into()))?;
     let raw = data["roles"].as_array().cloned().unwrap_or_default();
     if raw.is_empty() || raw.len() > MAX_ROLES {
-        return Err(wrong(if raw.is_empty() { "no agents in the answer.".into() } else { format!("more than {MAX_ROLES} agents.") }));
+        return Err(wrong(if raw.is_empty() {
+            "no agents in the answer.".into()
+        } else {
+            format!("more than {MAX_ROLES} agents.")
+        }));
     }
     let planner = raw.iter().find(|r| r["kind"] == "planner").and_then(|r| r["name"].as_str());
     let mut roles = vec![];
@@ -858,7 +1078,10 @@ pub fn improve_brief(project: &str, role: &Value) -> Result<Value, NewTeamError>
     let kind = str_of(role, "kind").filter(|k| kind_checkout(k).is_some());
     let mut lines = vec![
         kind.map_or_else(|| "Role: custom.".to_string(), |k| format!("Role: {k} ({}).", kind_job(k))),
-        format!("Its job in one line: {}", str_of(role, "job").filter(|j| !j.is_empty()).unwrap_or("(not written yet)")),
+        format!(
+            "Its job in one line: {}",
+            str_of(role, "job").filter(|j| !j.is_empty()).unwrap_or("(not written yet)")
+        ),
     ];
     let owns: Vec<&str> = role["owns"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
     if !owns.is_empty() {
@@ -878,8 +1101,11 @@ pub fn improve_brief(project: &str, role: &Value) -> Result<Value, NewTeamError>
     );
     let pre = "Couldn't improve the brief: ";
     let text = ask(&prompt, project, "3 minutes").map_err(|e| ask_error(e, pre))?;
-    let got = crate::ask::first_json(&text).and_then(|d| d.get("brief")?.as_str().map(String::from)).filter(|b| !b.trim().is_empty() && b.chars().count() <= 6000);
-    got.map(|b| json!({"brief": format!("{}\n", b.trim())})).ok_or_else(|| NewTeamError::new("suggest", format!("{pre}the answer wasn't a brief.")))
+    let got = crate::ask::first_json(&text)
+        .and_then(|d| d.get("brief")?.as_str().map(String::from))
+        .filter(|b| !b.trim().is_empty() && b.chars().count() <= 6000);
+    got.map(|b| json!({"brief": format!("{}\n", b.trim())}))
+        .ok_or_else(|| NewTeamError::new("suggest", format!("{pre}the answer wasn't a brief.")))
 }
 
 /// Add a rule: plain words to a rule on the program run, for the person to see before Add. Nothing is saved.
@@ -901,11 +1127,13 @@ pub fn rule_draft(project: &str, words: &str) -> Result<Value, NewTeamError> {
          If the words don't describe running a program, reply {{\"unclear\": \"one short sentence saying why\"}}"
     );
     let pre = "Couldn't turn that into a rule: ";
-    let text = crate::ask::ask_agent(&prompt, project, 120.0, Some("2 minutes"), false).map_err(|e| ask_error(e, pre))?;
+    let text =
+        crate::ask::ask_agent(&prompt, project, 120.0, Some("2 minutes"), false).map_err(|e| ask_error(e, pre))?;
     let data = crate::ask::first_json(&text).unwrap_or_default();
     if let Some(u) = data.get("unclear").and_then(Value::as_str) {
         return Err(NewTeamError::new("suggest", format!("{pre}{u}")));
     }
-    let program = d2::check_rule(data.get("decision"), data.get("program")).map_err(|e| NewTeamError::new("suggest", format!("{pre}{e}")))?;
+    let program = d2::check_rule(data.get("decision"), data.get("program"))
+        .map_err(|e| NewTeamError::new("suggest", format!("{pre}{e}")))?;
     Ok(json!({"decision": data["decision"], "program": program, "words": words}))
 }

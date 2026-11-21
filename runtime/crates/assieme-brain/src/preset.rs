@@ -108,7 +108,8 @@ const STEWARD_LINE: &str = "When you would stop, or need a decision only the per
 message_agent first. Call report only when steward tells you it needs the person.";
 
 /// The role's name, never its job's wording; the app's agentCount matches it.
-static RESEARCHER: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^(research|investigat)").expect("a fixed pattern"));
+static RESEARCHER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^(research|investigat)").expect("a fixed pattern"));
 
 /// The brief without the template's `---` header.
 fn body(text: &str) -> &str {
@@ -241,7 +242,8 @@ fn bigger(mut roles: Vec<Role>, chosen: &Map<String, Value>) -> Vec<Role> {
 
 /// A path as `os.path.abspath` makes it: made absolute, `.` and `..` folded away, no symlinks followed.
 pub fn absolute(path: &Path) -> PathBuf {
-    let full = if path.is_absolute() { path.to_path_buf() } else { std::env::current_dir().unwrap_or_default().join(path) };
+    let full =
+        if path.is_absolute() { path.to_path_buf() } else { std::env::current_dir().unwrap_or_default().join(path) };
     let mut out = PathBuf::new();
     for part in full.components() {
         match part {
@@ -298,9 +300,11 @@ pub fn load(folder: &Path, practices: bool) -> Result<Team, PresetError> {
     }
     let home = std::env::var("HOME").unwrap_or_default();
     let project = f.project.as_deref().unwrap_or(".");
-    let project = absolute(&folder.join(project.strip_prefix("~/").map_or_else(|| PathBuf::from(project), |r| Path::new(&home).join(r))));
+    let project = absolute(
+        &folder.join(project.strip_prefix("~/").map_or_else(|| PathBuf::from(project), |r| Path::new(&home).join(r))),
+    );
     for i in 0..f.role.len() {
-        check_role(&mut f.role[i], folder).map_err(&err)?;
+        check_role(&mut f.role[i], folder).map_err(err)?;
         if f.role[..i].iter().any(|r| r.name == f.role[i].name) {
             return Err(err(format!("duplicate role name '{}'", f.role[i].name)));
         }
@@ -318,8 +322,10 @@ pub fn load(folder: &Path, practices: bool) -> Result<Team, PresetError> {
     let mut roles = f.role;
     if practices {
         roles = bigger(roles, &f.practices);
-        let lines: Vec<String> = rules_on(&f.practices).iter().map(|r| format!("- {}", r["text"].as_str().unwrap_or(""))).collect();
-        let extra = if lines.is_empty() { String::new() } else { format!("\n\n## Team practices\n\n{}\n", lines.join("\n")) };
+        let lines: Vec<String> =
+            rules_on(&f.practices).iter().map(|r| format!("- {}", r["text"].as_str().unwrap_or(""))).collect();
+        let extra =
+            if lines.is_empty() { String::new() } else { format!("\n\n## Team practices\n\n{}\n", lines.join("\n")) };
         for r in &mut roles {
             r.brief = format!("{}{extra}", r.brief.trim_end_matches('\n'));
         }
@@ -330,5 +336,11 @@ pub fn load(folder: &Path, practices: bool) -> Result<Team, PresetError> {
         .filter(|(k, _)| SCRIPTS.contains(&k.as_str()))
         .filter_map(|(k, v)| v.as_str().filter(|s| !s.trim().is_empty()).map(|s| (k, s.to_string())))
         .collect();
-    Ok(Team { name: f.name, project: project.to_string_lossy().into_owned(), practices: f.practices, roles: parents_first(roles)?, scripts })
+    Ok(Team {
+        name: f.name,
+        project: project.to_string_lossy().into_owned(),
+        practices: f.practices,
+        roles: parents_first(roles)?,
+        scripts,
+    })
 }

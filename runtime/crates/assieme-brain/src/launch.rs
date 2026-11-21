@@ -121,7 +121,14 @@ pub mod d2 {
     pub fn extension_servers() -> BTreeMap<String, Vec<String>> {
         todo!("tools.extension_servers")
     }
-    pub fn container_run_argv(role: &Role, argv: &[String], env: &BTreeMap<String, String>, cwd: &str, name: &str, bridge: Option<&str>) -> Vec<String> {
+    pub fn container_run_argv(
+        role: &Role,
+        argv: &[String],
+        env: &BTreeMap<String, String>,
+        cwd: &str,
+        name: &str,
+        bridge: Option<&str>,
+    ) -> Vec<String> {
         todo!("container.run_argv")
     }
     pub fn container_problem(agent: &str) -> Option<String> {
@@ -129,22 +136,15 @@ pub mod d2 {
     }
 }
 
-type Which<'a> = &'a dyn Fn(&str) -> Option<PathBuf>;
-
 /// Programs that must be on this Mac: a container brings its own agent.
-pub fn missing_clis_with(roles: &[Role], which: Which) -> Vec<String> {
-    let set: BTreeSet<String> = roles
+pub fn missing_clis(roles: &[Role]) -> Vec<String> {
+    let set: BTreeSet<&str> = roles
         .iter()
         .filter(|r| !r.container)
         .filter_map(|r| cli_of(&r.agent))
-        .filter(|cli| which(cli).is_none())
-        .map(String::from)
+        .filter(|c| crate::setup::agent_path(c).is_none())
         .collect();
-    set.into_iter().collect()
-}
-
-pub fn missing_clis(roles: &[Role]) -> Vec<String> {
-    missing_clis_with(roles, &crate::setup::agent_path)
+    set.into_iter().map(String::from).collect()
 }
 
 /// Agent event -> status. Not Claude Code's Notification: it also fires after a minute of plain idling.
@@ -541,7 +541,7 @@ fn opencode_major(path: &str) -> u32 {
     major
 }
 
-fn opencode(role: &Role, cwd: &str, exe: Option<&str>, which: Which) -> Built {
+fn opencode(role: &Role, cwd: &str, exe: Option<&str>) -> Built {
     // OpenCode reads a whole config from its environment; the status plugin calls our hook.
     let m = mcp(exe);
     let mut config = json!({"plugin": [opencode_plugin()],
@@ -560,7 +560,8 @@ fn opencode(role: &Role, cwd: &str, exe: Option<&str>, which: Which) -> Built {
     if let Some(m) = &role.model {
         a.extend(["-m".into(), m.clone()]);
     }
-    let found = which("opencode").map_or_else(|| "opencode".to_string(), |p| p.to_string_lossy().into_owned());
+    let found = crate::setup::agent_path("opencode")
+        .map_or_else(|| "opencode".to_string(), |p| p.to_string_lossy().into_owned());
     if opencode_major(&found) >= 2 {
         a.push("--standalone".into()); // one shared server on a fixed port otherwise
     }
@@ -811,10 +812,9 @@ pub const BLOCK_PUSH: [(&str, &str); 3] = [
 /// A container role runs inside `docker run`; `terminal` names the container, `bridge` is the port its team tools
 /// reach the brain on. `trusted`: the person said yes to this project, for the kinds in ASKS_TRUST.
 /// A role with a permission level is always kept from pushing.
-pub fn argv_with(
+pub fn argv(
     role: &Role,
     block_push: bool,
-    which: Which,
     cwd: Option<&str>,
     terminal: Option<&str>,
     bridge: Option<&str>,
@@ -842,7 +842,7 @@ pub fn argv_with(
             "claude" => (claude(role, Some(cwd), exe), BTreeMap::new()),
             "codex" => (codex(role, exe, Some(cwd)), BTreeMap::new()),
             "gemini" => gemini(role, cwd, exe, trusted),
-            "opencode" => opencode(role, cwd, exe, which),
+            "opencode" => opencode(role, cwd, exe),
             "cursor" => cursor(role, cwd, exe, trusted),
             "antigravity" => antigravity(role, cwd, exe, trusted),
             other => return Err(BrainError::new(format!("Unknown agent {other:?}."))),
@@ -854,7 +854,7 @@ pub fn argv_with(
         return Ok(d2::container_run_argv(role, &a, &env, cwd, terminal.unwrap_or(&role.name), bridge));
     }
     let (mut a, extra) = build(None)?;
-    if let Some(found) = which(&a[0]) {
+    if let Some(found) = crate::setup::agent_path(&a[0]) {
         a[0] = found.to_string_lossy().into_owned();
     }
     let mut env: BTreeMap<String, String> = push.into_iter().chain(extra).collect();
@@ -880,17 +880,6 @@ pub fn argv_with(
     Ok(out)
 }
 
-pub fn argv(
-    role: &Role,
-    block_push: bool,
-    cwd: Option<&str>,
-    terminal: Option<&str>,
-    bridge: Option<&str>,
-    trusted: bool,
-) -> Result<Vec<String>, BrainError> {
-    argv_with(role, block_push, &crate::setup::agent_path, cwd, terminal, bridge, trusted)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -899,7 +888,9 @@ mod tests {
     fn repo() -> (tempfile::TempDir, String) {
         let d = tempfile::tempdir().unwrap();
         let p = std::fs::canonicalize(d.path()).unwrap().to_string_lossy().into_owned();
-        for a in [vec!["init", "-q", "-b", "main"], vec!["config", "user.name", "T"], vec!["config", "user.email", "t@t"]] {
+        for a in
+            [vec!["init", "-q", "-b", "main"], vec!["config", "user.name", "T"], vec!["config", "user.email", "t@t"]]
+        {
             assert!(run(&p, &a).ok);
         }
         std::fs::write(format!("{p}/f"), "x").unwrap();
@@ -922,10 +913,20 @@ mod tests {
         merge(&p, ".gemini/settings.json", ours().as_object().unwrap());
         let after: Vec<Value> = read(&p, ".gemini/settings.json")["hooks"]["AfterAgent"].as_array().unwrap().clone();
         assert_eq!(after.len(), 2, "ours replaced, never doubled: {after:?}");
-        merge(&p, ".cursor/hooks.json", json!({"version": 1, "hooks": {"stop": [{"command": hook_command("idle", None)}]}}).as_object().unwrap());
+        merge(
+            &p,
+            ".cursor/hooks.json",
+            json!({"version": 1, "hooks": {"stop": [{"command": hook_command("idle", None)}]}}).as_object().unwrap(),
+        );
         unmerge(&p);
-        assert_eq!(read(&p, ".gemini/settings.json")["hooks"]["AfterAgent"], json!([{"hooks": [{"command": "mine.sh"}]}]));
-        assert!(!Path::new(&format!("{p}/.cursor/hooks.json")).exists() && !Path::new(&format!("{p}/.cursor/cli.json")).exists());
+        assert_eq!(
+            read(&p, ".gemini/settings.json")["hooks"]["AfterAgent"],
+            json!([{"hooks": [{"command": "mine.sh"}]}])
+        );
+        assert!(
+            !Path::new(&format!("{p}/.cursor/hooks.json")).exists()
+                && !Path::new(&format!("{p}/.cursor/cli.json")).exists()
+        );
     }
 
     #[test]
