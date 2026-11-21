@@ -69,6 +69,26 @@ pub fn real(path: &str) -> String {
     }
 }
 
+/// `%Y-%m-%dT%H:%M:%SZ`, the time as the logs write it.
+pub fn stamp(t: Timestamp) -> String {
+    t.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
+}
+
+/// Python's `os.path.expanduser`: a leading `~` becomes $HOME.
+pub fn expanduser(p: &str) -> String {
+    match p.strip_prefix('~') {
+        Some(rest) if rest.is_empty() || rest.starts_with('/') => {
+            format!("{}{rest}", std::env::var("HOME").unwrap_or_default())
+        }
+        _ => p.to_string(),
+    }
+}
+
+/// `real` of a folder that may be missing or empty.
+pub fn real_opt(path: Option<&str>) -> Option<String> {
+    path.filter(|p| !p.is_empty()).map(real)
+}
+
 /// Written whole or not at all: a reader never sees half a file.
 pub fn write_json(path: &Path, data: &Value) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {

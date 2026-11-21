@@ -24,9 +24,7 @@ pub(crate) fn obj(v: Value) -> Map<String, Value> {
     v.as_object().cloned().unwrap_or_default()
 }
 
-fn stamp(t: Timestamp) -> String {
-    t.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
-}
+use crate::quiet::stamp;
 
 fn state() -> Value {
     let s = quiet::read_json(&quiet::path(&["fixes.json"]), json!({}));

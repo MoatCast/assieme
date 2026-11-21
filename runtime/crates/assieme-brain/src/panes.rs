@@ -16,9 +16,7 @@ const CHANGED: &str = "This question changed. Take a look.";
 pub const ANSWERED: &str = "You answered its question."; // never the question: the action log keeps no words of the agents'
 const RUN_GAP_MS: i64 = 120_000; // agents of one start are created within seconds of each other
 
-fn real(path: Option<&str>) -> Option<String> {
-    path.filter(|p| !p.is_empty()).map(crate::herdr::realpath)
-}
+use crate::quiet::real_opt as real;
 
 fn ms(r: &Value) -> i64 {
     r["created_ms"].as_i64().unwrap_or(0)
@@ -28,9 +26,7 @@ fn role_of(r: &Value) -> &str {
     r["labels"][team::ROLE].as_str().filter(|s| !s.is_empty()).unwrap_or_else(|| r["address"].as_str().unwrap_or(""))
 }
 
-fn stamp(t: Timestamp) -> String {
-    t.strftime("%Y-%m-%dT%H:%M:%SZ").to_string()
-}
+use crate::quiet::stamp;
 
 /// Terminal address -> the most recent log agent working in that terminal's folder.
 pub fn matching(rows: &[Value], agents: &[Agent]) -> BTreeMap<String, Agent> {

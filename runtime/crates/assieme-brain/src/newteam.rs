@@ -253,14 +253,7 @@ pub fn model_options() -> Value {
     model_options_at(&home.join("models_cache.json"))
 }
 
-fn expanduser(path: &str) -> String {
-    match path.strip_prefix("~") {
-        Some(rest) if rest.is_empty() || rest.starts_with('/') => {
-            format!("{}{rest}", std::env::var("HOME").unwrap_or_default())
-        }
-        _ => path.to_string(),
-    }
-}
+use crate::quiet::expanduser;
 
 pub fn project_check(path: &str) -> Value {
     use crate::setup::{self, SetupError};
