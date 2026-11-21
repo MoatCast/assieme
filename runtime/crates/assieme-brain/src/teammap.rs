@@ -20,10 +20,6 @@ impl Brain {
         todo!("teammap.Brain.new")
     }
 
-    pub fn terminals(&self) -> Vec<Value> {
-        todo!("teammap.Brain.terminals")
-    }
-
     pub fn limits(&self, now: Timestamp) -> Value {
         todo!("teammap.Brain.limits")
     }
@@ -81,13 +77,13 @@ impl Brain {
         todo!("teammap.Brain.tick")
     }
 
-    /// Today's token use, read at most once per tick.
     /// `(rows, agents, found)` of a team: `found` when it was started outside Assieme (`_resolve`, without its runtime).
     pub fn resolve(&self, team: &str, now: Timestamp) -> (Vec<Value>, Vec<Agent>, bool) {
         todo!("teammap.Brain._resolve")
     }
 
-    pub fn today(&self) -> Value {
+    /// Today's sessions, read at most once per tick.
+    pub fn today(&self) -> Arc<Vec<Session>> {
         todo!("teammap.Brain.today")
     }
 
@@ -97,12 +93,12 @@ impl Brain {
 }
 
 /// `report::aggregate` on this team's sessions, with agents and senders named by role.
-pub fn team_report(rows: &[Value], today: &Value, now: Timestamp) -> Value {
+pub fn team_report(rows: &[Value], today: &[Session], now: Timestamp) -> Value {
     todo!("teammap._team_report")
 }
 
 /// Teams of agents started outside Assieme. Closed sessions don't make a team.
-pub fn found_groups(agents: &[Agent], st_groups: &Map<String, Value>, taken_cwds: &BTreeSet<String>) -> Vec<Value> {
+pub fn found_groups(agents: &[Agent], st_groups: &Map<String, Value>, taken_cwds: &BTreeSet<String>) -> Vec<(String, Vec<Agent>)> {
     todo!("teammap.found_groups")
 }
 
