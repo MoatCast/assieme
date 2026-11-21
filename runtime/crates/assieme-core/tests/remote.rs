@@ -45,7 +45,8 @@ fn remote_sends_outlive_a_draft_but_not_a_lost_or_frozen_line() {
     use std::time::{Duration, Instant};
     let mut rohan = Session::new();
     rohan.env.extend(
-        [("ASM_QUIET_MS", "0"), ("ASM_DRAFT_MS", "1600"), ("ASM_HEARTBEAT_MS", "100")].map(|(k, v)| (k.into(), v.into())),
+        [("ASM_QUIET_MS", "0"), ("ASM_DRAFT_MS", "1600"), ("ASM_HEARTBEAT_MS", "100")]
+            .map(|(k, v)| (k.into(), v.into())),
     );
     let pid = rohan.json(&["server", "status"])["pid"].as_i64().unwrap() as i32;
     let mut s = Session::new();
