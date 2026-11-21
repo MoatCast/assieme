@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.21; see NOTICE.
 //! `asm run …`: flags after a template's task, and what a run that waited prints.
 
 use super::*;
@@ -86,7 +87,9 @@ pub(super) fn ran(r: &Value) -> Result<Option<Out>, RpcError> {
             (_, Some(sig)) => (Some(format!("{t} ended by signal {sig}")), 128 + sig as i32),
             _ => (Some(format!("{t} ended")), 1),
         },
-        _ if status == "blocked" => (Some(format!("{t} is blocked: read it, then answer with asm send or asm keys")), 0),
+        _ if status == "blocked" => {
+            (Some(format!("{t} is blocked: read it, then answer with asm send or asm keys")), 0)
+        }
         _ => (Some(format!("{t} is {status}: asm send {t} <text>")), 0),
     };
     let mut text = r["output"].as_str().unwrap_or_default().trim_end().to_string();

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.21; see NOTICE.
 //! `asm server …`: starting, stopping and restarting the core.
 
 use super::*;

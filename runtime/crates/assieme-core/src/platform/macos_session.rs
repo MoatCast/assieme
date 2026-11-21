@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.21; see NOTICE.
 //! Audit identity survives logout; a fresh GUI launcher supplies the new context.
 
 use super::LoginSession;

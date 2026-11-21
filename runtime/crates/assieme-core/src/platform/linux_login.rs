@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.21; see NOTICE.
 //! The first Linux SSH start needs the same exported settings as a login.
 //! Capture outside the protocol and before systemd removes the SSH session.
 

@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.21; see NOTICE.
 //! Kitty reply framing and per-viewer correlation, independent of input scheduling.
 #[cfg(test)]
 mod tests {

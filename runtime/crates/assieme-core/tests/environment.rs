@@ -142,7 +142,7 @@ fn fresh_restart_refuses_an_in_progress_handoff_without_a_socket() {
 }
 
 #[test]
-fn fresh_restart_warns_inside_a_herdr_terminal() {
+fn fresh_restart_warns_inside_an_assieme_terminal() {
     let s = Session::new();
     s.json(&["server", "start"]);
     let out = s.cmd().env("ASM_TERMINAL_ID", "t99").args(["server", "restart", "--fresh"]).output().unwrap();

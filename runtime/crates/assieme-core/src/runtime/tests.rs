@@ -734,6 +734,7 @@ fn status_events_on_crash_adoption(tail: &[u8]) -> Vec<Value> {
             app: String::new(),
             title: String::new(),
             msg: String::new(),
+            source: None,
         });
         core.subscribe(&mut st, Filter::default(), Sink::Plain { tx, behind: Arc::new(AtomicBool::new(false)) });
         id

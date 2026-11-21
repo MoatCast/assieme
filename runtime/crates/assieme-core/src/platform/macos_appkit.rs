@@ -1,3 +1,4 @@
+// Changed by Assieme: renamed and adapted from herdr-core v0.1.21; see NOTICE.
 //! Each holder keeps its coalition represented after its GUI children quit.
 
 use std::ffi::{c_char, c_void};
