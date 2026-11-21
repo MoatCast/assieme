@@ -101,7 +101,7 @@ async fn service_running() -> bool {
 #[tauri::command]
 async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
     let res = app.path().resource_dir().map_err(|e| e.to_string())?;
-    service::install(&res.join("python/bin/python3"), &[&res.join("asm-bin"), &res.join("hc-bin")])
+    service::install(&res.join("python/bin/python3"), &[&res.join("asm-bin")])
 }
 
 #[tauri::command]

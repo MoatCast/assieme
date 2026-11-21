@@ -59,8 +59,6 @@
     ],
     "resources": {
       "resources/python/": "python/",
-      "resources/hc/": "hc/",
-      "resources/hc-bin/": "hc-bin/",
       "resources/asm/": "asm/",
       "resources/asm-bin/": "asm-bin/",
       "../NOTICE": "NOTICE"

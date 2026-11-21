@@ -85,7 +85,7 @@ test("a host typed by hand with its port is one ssh target", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
   await flush();
   expect(r.remoteTest).toHaveBeenCalledWith("dev@10.0.4.12:2222");
-  screen.getByText("Can’t reach 10.0.4.12"); // an IP address stays whole, as hc names it
+  screen.getByText("Can’t reach 10.0.4.12"); // an IP address stays whole, as the core names it
   expect(screen.getByText(/Operation timed out/).className).toBe("rm-detail"); // the raw error is the small second line
   expect(screen.queryByRole("button", { name: "Open Terminal" })).toBeNull();
   screen.getByRole("button", { name: "Test again" });

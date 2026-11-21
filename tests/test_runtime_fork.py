@@ -55,3 +55,57 @@ def test_nothing_downloads_a_release():
 
 def test_the_brain_runs_asm():
     assert "['asm', 'server', 'start']" in (ROOT / 'assieme/runtime.py').read_text()
+
+
+# The only places `hc` may stay once Assieme runs on asm: each is (file, text on the line). The person's own herdr
+# keeps its `hc`, and code reading what agents typed or received accepts both.
+HC_ALLOWED = [
+    ('assieme/herdr.py', ''),  # the person's own herdr, HC_VALUED included
+    ('assieme/status.py', 'hc_path'),
+    ('assieme/status.py', "herdr install's own hc"),
+    ('assieme/status.py', "os.path.join(os.path.dirname(herdr), 'hc')"),
+    ('assieme/status.py', "setup.agent_path('hc')"),
+    ('assieme/status.py', "any `hc` command starts a core of its own"),
+    ('assieme/status.py', "os.environ.get('HC_SESSION')"),
+    ('assieme/status.py', "os.environ.get('HC_SOCKET')"),
+    ('assieme/status.py', 'None when hc is missing'),
+    ('assieme/status.py', "herdr: optional `hc ls --json` terminals"),
+    ('assieme/status.py', "'hc send builder --if idle"),  # reads both
+    ('assieme/status.py', "in ('asm', 'hc')"),
+    ('assieme/status.py', r'(?:asm|hc)\s+wait'),
+    ('assieme/teammap.py', "through the `hc` command"),  # HerdrRt
+    ('assieme/teammap.py', "['hc', *args]"),
+    ('assieme/teammap.py', "or 'hc failed'"),
+    ('assieme/teammap.py', "in the shape of `hc`'s rows"),
+    ('assieme/serve.py', "'hc': 'hc'"),
+    ('assieme/cli.py', "herdr-core (`hc ls --json`)"),
+    ('assieme/live.py', 'a nudge through `hc send`'),  # the live view nudges herdr terminals
+    ('assieme/live.py', 'f"hc attach'),
+    ('assieme/live.py', 'with `hc send`'),
+    ('assieme/live.py', "['hc', 'send'"),
+    ('assieme/adapters.py', 'herdr `hc`'),  # reads both
+    ('assieme/adapters.py', '<hc from='),
+    ('assieme/detect.py', "'asm', 'hc',"),
+    ('assieme/model.py', "hc (the person's herdr)"),
+    ('assieme/runtime.py', "their `hc` keeps its default"),
+    ('assieme/runtime.py', "startswith('HC_')"),
+    ('assieme/quiet.py', "Never an `hc`"),
+    ('assieme/quiet.py', "os.path.join(d, 'hc')"),  # removes the stand-in from before the switch
+    ('assieme/quiet.py', "('asm', 'hc', BLOCKER)"),
+    ('app/src-tauri/src/bridge.rs', 'herdr-core/{session}'),
+    ('app/src-tauri/src/bridge.rs', "person's own herdr-core"),
+    ('app/src/FirstRun.test.tsx', 'hc attach t2'),  # herdr text
+    ('app/src/FirstRun.test.tsx', 'hc: '),
+    ('app/src/Shell.test.tsx', 'hc: true'),
+    ('app/src/bridge.ts', 'hc: boolean'),  # serve's CLIS['hc']: the person's herdr
+]
+
+
+def test_no_bundled_hc():
+    out = subprocess.run(['git', 'grep', '-nP', r'\bhc\b|HC_|hc\.sock|hc-bin|<hc ', '--', 'assieme', 'app/src',
+                          'app/src-tauri', 'app/scripts'], cwd=ROOT, capture_output=True, text=True).stdout
+    left = [line for line in out.splitlines()
+            if not any(line.startswith(f + ':') and text in line.split(':', 2)[2] for f, text in HC_ALLOWED)]
+    assert left == []
+    conf = (ROOT / 'app/src-tauri/tauri.conf.json').read_text()
+    assert '"resources/hc' not in conf and '"hc/' not in conf and '"hc-bin/' not in conf

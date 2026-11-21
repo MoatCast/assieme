@@ -92,9 +92,9 @@ mod tests {
         let log = std::env::temp_dir().join(format!("assieme-svc-{}-log", std::process::id()));
         let _ = std::fs::remove_file(&log);
         let python = script("python3", &format!(r#"echo "$@ PATH=$PATH" > {}"#, log.display()));
-        install(&python, &[Path::new("/bundle/asm-bin"), Path::new("/bundle/hc-bin")]).unwrap();
+        install(&python, &[Path::new("/bundle/asm-bin"), Path::new("/bundle/more")]).unwrap();
         let got = std::fs::read_to_string(&log).unwrap();
-        assert!(got.starts_with("-P -m assieme service install PATH=/bundle/asm-bin:/bundle/hc-bin:"), "{got}");
+        assert!(got.starts_with("-P -m assieme service install PATH=/bundle/asm-bin:/bundle/more:"), "{got}");
     }
 
     #[test]

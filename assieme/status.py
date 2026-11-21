@@ -509,7 +509,7 @@ def _apply_herdr(agents, terminals):
 
 
 def hc_path():
-    """The person's herdr install's own hc, else theirs on the login PATH: the brain's PATH puts the bundled one first."""
+    """The person's herdr install's own hc, else theirs on the login PATH."""
     herdr = setup.agent_path('herdr')
     own = herdr and os.path.join(os.path.dirname(herdr), 'hc')
     return own if own and os.access(own, os.X_OK) else setup.agent_path('hc')
