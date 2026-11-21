@@ -1031,6 +1031,31 @@ pub fn to_json(agents: &[Agent], now: Timestamp) -> String {
     serde_json::to_string_pretty(&out).unwrap_or_default()
 }
 
-pub fn to_text(_agents: &[Agent], _now: Timestamp) -> String {
-    todo!("status.to_text")
+pub fn to_text(agents: &[Agent], now: Timestamp) -> String {
+    let (head, alerts) = summary(agents);
+    let at = now.to_zoned_datetime(jiff::tz::TimeZone::system()).strftime("%H:%M");
+    let mut lines = vec![format!("assieme status  {at}  {head}")];
+    lines.extend(stalls(agents, now).iter().map(|s| format!("  !! {}", s["text"].as_str().unwrap_or(""))));
+    lines.extend(alerts.iter().map(|x| format!("  ! {x}")));
+    lines.extend(warnings(agents, now).iter().map(|w| format!("  ! {}", w["line"].as_str().unwrap_or(""))));
+    lines.push(String::new());
+    lines.extend(table(agents, now));
+    lines.join("\n") + "\n"
+}
+
+/// The agents as columns. The person's own herdr is not read any more, so its column is gone.
+pub fn table(agents: &[Agent], now: Timestamp) -> Vec<String> {
+    let mut rows = vec![["STATE".to_string(), "AGENT".into(), "FOR".into(), "DETAIL".into()]];
+    for a in agents {
+        let since = a.last.map_or(0.0, |t| secs(now, t));
+        rows.push([a.state.clone(), a.name.clone(), ago(since), a.detail.clone()]);
+    }
+    let width = |i: usize| rows.iter().map(|r| r[i].chars().count()).max().unwrap_or(0);
+    let widths: Vec<usize> = (0..3).map(width).collect();
+    rows.iter()
+        .map(|r| {
+            let cells: Vec<String> = r[..3].iter().zip(&widths).map(|(c, w)| format!("{c:<w$}")).collect();
+            format!("{}  {}", cells.join("  "), r[3])
+        })
+        .collect()
 }

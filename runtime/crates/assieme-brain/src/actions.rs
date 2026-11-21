@@ -10,6 +10,8 @@ use crate::prelude::*;
 pub struct Action {
     pub description: &'static str,
     pub params: Vec<(&'static str, &'static str)>,
+    /// Python's default is False.
+    pub changes: bool,
 }
 
 /// Every action an assistant may run, by name.
