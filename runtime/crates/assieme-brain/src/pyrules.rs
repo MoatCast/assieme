@@ -436,6 +436,41 @@ fn fnmatch_regex(pat: &str) -> String {
     out
 }
 
+// --- shutil.which -----------------------------------------------------------------------------------------------
+
+/// `os.access(path, X_OK)`.
+pub fn executable(path: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let Ok(c) = std::ffi::CString::new(path.as_os_str().as_bytes()) else { return false };
+    unsafe { libc::access(c.as_ptr(), libc::X_OK) == 0 }
+}
+
+/// `shutil.which(name)`: a name with a slash is checked as it is; otherwise the first executable file of that name in
+/// PATH (the system default when PATH is unset).
+pub fn which(name: &str) -> Option<PathBuf> {
+    let usable = |p: &Path| p.exists() && executable(p) && !p.is_dir();
+    if name.contains('/') {
+        return usable(Path::new(name)).then(|| PathBuf::from(name));
+    }
+    let default = if cfg!(target_os = "macos") { "/usr/bin:/bin:/usr/sbin:/sbin" } else { "/bin:/usr/bin" };
+    let path = std::env::var("PATH").unwrap_or_else(|_| default.into());
+    if path.is_empty() {
+        return None;
+    }
+    let mut seen = vec![];
+    for dir in path.split(':') {
+        if seen.contains(&dir) {
+            continue;
+        }
+        seen.push(dir);
+        let candidate = if dir.is_empty() { PathBuf::from(name) } else { Path::new(dir).join(name) };
+        if usable(&candidate) {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 // --- repr ---------------------------------------------------------------------------------------------------------
 
 /// Python's `repr()` of a scalar JSON value (containers fall back to JSON).

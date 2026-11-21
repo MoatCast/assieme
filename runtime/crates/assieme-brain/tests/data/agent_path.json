@@ -1,0 +1,178 @@
+[
+ {
+  "in": {
+   "name": "claude",
+   "path": "<d>/bin1",
+   "login": ""
+  },
+  "out": "<d>/bin1/claude"
+ },
+ {
+  "in": {
+   "name": "claude",
+   "path": "<d>/bin2:<d>/bin1",
+   "login": ""
+  },
+  "out": "<d>/bin2/claude"
+ },
+ {
+  "in": {
+   "name": "codex",
+   "path": "<d>/bin1",
+   "login": ""
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "codex",
+   "path": "<d>/bin1",
+   "login": "<d>/login 1"
+  },
+  "out": "<d>/login 1/codex"
+ },
+ {
+  "in": {
+   "name": "gemini",
+   "path": "<d>/bin1",
+   "login": ""
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "gemini",
+   "path": "<d>/bin1",
+   "login": "<d>/login2"
+  },
+  "out": "<d>/login2/gemini"
+ },
+ {
+  "in": {
+   "name": "opencode",
+   "path": "<d>/bin1",
+   "login": "<d>/login 1:<d>/login2"
+  },
+  "out": "<d>/login2/opencode"
+ },
+ {
+  "in": {
+   "name": "agy",
+   "path": "<d>/bin1",
+   "login": ""
+  },
+  "out": "<d>/home/.local/bin/agy"
+ },
+ {
+  "in": {
+   "name": "agy",
+   "path": "",
+   "login": ""
+  },
+  "out": "<d>/home/.local/bin/agy"
+ },
+ {
+  "in": {
+   "name": "cursor-agent",
+   "path": "<d>/bin1",
+   "login": ""
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "nothing",
+   "path": "<d>/bin1",
+   "login": "<d>/login 1:<d>/login2"
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "oc-link",
+   "path": "",
+   "login": "<d>/login 1"
+  },
+  "out": "<d>/login 1/oc-link"
+ },
+ {
+  "in": {
+   "name": "broken",
+   "path": "",
+   "login": "<d>/login 1"
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "opencode",
+   "path": "",
+   "login": "::<d>/login2:"
+  },
+  "out": "<d>/login2/opencode"
+ },
+ {
+  "in": {
+   "name": "claude",
+   "path": "<d>/bin1:<d>/bin1",
+   "login": ""
+  },
+  "out": "<d>/bin1/claude"
+ },
+ {
+  "in": {
+   "name": "",
+   "path": "<d>/bin1",
+   "login": "<d>/login 1"
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "<d>/bin2/claude",
+   "path": "",
+   "login": ""
+  },
+  "out": "<d>/bin2/claude"
+ },
+ {
+  "in": {
+   "name": "<d>/bin1/codex",
+   "path": "",
+   "login": ""
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "codex",
+   "path": "<d>/bin1:<d>/login 1",
+   "login": ""
+  },
+  "out": "<d>/login 1/codex"
+ },
+ {
+  "in": {
+   "name": "claude",
+   "path": null,
+   "login": "<d>/login 1"
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "gemini",
+   "path": "<d>/missing",
+   "login": ""
+  },
+  "out": null
+ },
+ {
+  "in": {
+   "name": "codex",
+   "path": "",
+   "login": "<d>/login 1 "
+  },
+  "out": null
+ }
+]

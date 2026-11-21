@@ -34,7 +34,8 @@ pub static REFUSED: LazyLock<Regex> = LazyLock::new(|| {
     re(&format!("{}|^Permission (for this|to use)", parts.join("|")))
 });
 
-fn home() -> String {
+/// `os.path.expanduser("~")`: HOME without its trailing slashes.
+pub fn home() -> String {
     std::env::home_dir().and_then(|h| h.to_str().map(|h| h.trim_end_matches('/').to_string())).unwrap_or_default()
 }
 
