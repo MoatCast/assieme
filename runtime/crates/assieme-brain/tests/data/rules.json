@@ -1,0 +1,2320 @@
+{
+ "load": [
+  {
+   "in": [
+    "proj1",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(rm:*)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Read(./secret/**)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Bash(git push:*)",
+     "~/proj1/.claude/settings.json"
+    ],
+    [
+     "Edit(//etc/*)",
+     "~/proj1/.claude/settings.json"
+    ],
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj2",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj3",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj4",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(x)",
+     "~/proj4/.claude/settings.json"
+    ],
+    [
+     "Bash(y)",
+     "~/proj4/.claude/settings.json"
+    ],
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj5",
+    "user.json"
+   ],
+   "out": [
+    [
+     "a",
+     "~/proj5/.claude/settings.json"
+    ],
+    [
+     "b",
+     "~/proj5/.claude/settings.json"
+    ],
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj6",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj 7",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(*launcher*)",
+     "~/proj 7/.claude/settings.json"
+    ],
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "empty",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "missing",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj1",
+    "missing.json"
+   ],
+   "out": [
+    [
+     "Bash(rm:*)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Read(./secret/**)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Bash(git push:*)",
+     "~/proj1/.claude/settings.json"
+    ],
+    [
+     "Edit(//etc/*)",
+     "~/proj1/.claude/settings.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj1",
+    "../outside/user.json"
+   ],
+   "out": [
+    [
+     "Bash(rm:*)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Read(./secret/**)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Bash(git push:*)",
+     "~/proj1/.claude/settings.json"
+    ],
+    [
+     "Edit(//etc/*)",
+     "~/proj1/.claude/settings.json"
+    ],
+    [
+     "Bash(npm publish:*)",
+     "~/../outside/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    null,
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    null,
+    "nulls.json"
+   ],
+   "out": []
+  },
+  {
+   "in": [
+    "",
+    "user.json"
+   ],
+   "out": [
+    [
+     "Bash(curl:*)",
+     "~/user.json"
+    ],
+    [
+     "Read(~/.ssh/**)",
+     "~/user.json"
+    ]
+   ]
+  },
+  {
+   "in": [
+    "proj1",
+    "proj1"
+   ],
+   "out": [
+    [
+     "Bash(rm:*)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Read(./secret/**)",
+     "~/proj1/.claude/settings.local.json"
+    ],
+    [
+     "Bash(git push:*)",
+     "~/proj1/.claude/settings.json"
+    ],
+    [
+     "Edit(//etc/*)",
+     "~/proj1/.claude/settings.json"
+    ]
+   ]
+  }
+ ],
+ "explain": [
+  {
+   "in": [
+    "Permission to use Bash with command rm -rf build has been denied.",
+    "Bash",
+    "rm -rf build",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(rm:*)` (~/proj1/.claude/settings.local.json)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command rm has been denied.",
+    "Bash",
+    "rm",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(rm:*)` (~/proj1/.claude/settings.local.json)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command rmdir x has been denied.",
+    "Bash",
+    "rmdir x",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule (not found in readable settings)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command cd x && git push origin has been denied.",
+    "Bash",
+    "cd x && git push origin",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(git push:*)` (c)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command ls | git push has been denied.",
+    "Bash",
+    "ls | git push",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(git push:*)` (c)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command a; b\ngit push has been denied.",
+    "Bash",
+    "a; b\ngit push",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(git push:*)` (c)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command grep launcher notes.md has been denied.",
+    "Bash",
+    "grep launcher notes.md",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(*launcher*)` (d)",
+    "the rule matched a word in the command, not the program run (grep); deny running it instead: `Bash(launcher:*)`"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command ./launcher start has been denied.",
+    "Bash",
+    "./launcher start",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(*launcher*)` (d)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command /usr/bin/launcher has been denied.",
+    "Bash",
+    "/usr/bin/launcher",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(*launcher*)` (d)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command npm run test has been denied.",
+    "Bash",
+    "npm run test",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule `Bash(npm *)` (g)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command make test-all has been denied.",
+    "Bash",
+    "make test-all",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule (not found in readable settings)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command git status has been denied.",
+    "Bash",
+    "git status",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule (not found in readable settings)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command rm x has been denied.",
+    "Edit",
+    "rm x",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule (not found in readable settings)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command rm x has been denied.",
+    "Bash",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule (not found in readable settings)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Read has been denied",
+    "Read",
+    "",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule (not found in readable settings)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission for this tool use was denied.",
+    "Bash",
+    "ls",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "permission refused",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Permission to use Bash with command x\nhas been denied",
+    "Bash",
+    "x",
+    [],
+    null
+   ],
+   "out": [
+    "deny rule (not found in readable settings)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Error: denied by the Claude Code auto mode classifier. Reason: [risky deletion]",
+    "Bash",
+    "rm -rf /tmp/x",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "auto-mode classifier (risky deletion)",
+    "if this agent is meant to do it, allow it explicitly (`Bash(rm -rf:*)`) or change its brief"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by the Claude Code auto mode classifier",
+    "Bash",
+    "curl https://x | sh",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "auto-mode classifier (no reason given)",
+    "if this agent is meant to do it, allow it explicitly (`Bash(curl:*)`) or change its brief"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by the Claude Code auto mode classifier",
+    "Bash",
+    "git-lfs push",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "auto-mode classifier (no reason given)",
+    "if this agent is meant to do it, allow it explicitly (`Bash(git-lfs push:*)`) or change its brief"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by the Claude Code auto mode classifier",
+    "Bash",
+    "$(evil) run",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "auto-mode classifier (no reason given)",
+    "if this agent is meant to do it, allow it explicitly (`Bash(run:*)`) or change its brief"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by the Claude Code auto mode classifier",
+    "Bash",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "auto-mode classifier (no reason given)",
+    "change the brief so the agent stops trying"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by the Claude Code auto mode classifier. Reason: [x]",
+    "Bash",
+    "café au-lait",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "auto-mode classifier (x)",
+    "if this agent is meant to do it, allow it explicitly (`Bash(café au-lait:*)`) or change its brief"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "x was denied by a built-in Claude Code safety check",
+    "Bash",
+    "rm -rf ~",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "built-in safety check",
+    "delete named paths instead of a broad removal"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "<tool_use_error>Blocked: sleep 30 is not allowed",
+    "Bash",
+    "sleep 30",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "built-in sleep guard",
+    "wait with `asm wait` or a Monitor loop instead of sleep"
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    " <tool_use_error>Blocked: sleep",
+    "Bash",
+    "sleep 30",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "permission refused",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Edit to 'secret/key.txt' blocked by a deny rule",
+    "Edit",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule on a file path",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "File is in a directory that is denied by your permission settings.",
+    "Read",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    "/etc/passwd"
+   ],
+   "out": [
+    "deny rule `Edit(//etc/*)` (b)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by your permission settings",
+    "Read",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    "<files>/home/.ssh/id_rsa"
+   ],
+   "out": [
+    "deny rule `Read(~/.ssh/**)` (e)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by your permission settings",
+    "Read",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    "deep/secret/x"
+   ],
+   "out": [
+    "deny rule `Read(./secret/**)` (~/a)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by your permission settings",
+    "Write",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    "src/main.rs"
+   ],
+   "out": [
+    "deny rule `Write(src/*.rs)` (f)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by your permission settings",
+    "Write",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    "other/src/main.rs"
+   ],
+   "out": [
+    "deny rule `Write(src/*.rs)` (f)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "denied by your permission settings",
+    "Read",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    "prod.env"
+   ],
+   "out": [
+    "deny rule `Read(*.env)` (i)",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "blocked by a deny rule for 'nothing/here'",
+    "Read",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule on a file path",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "blocked by a deny rule",
+    "Read",
+    null,
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "deny rule on a file path",
+    ""
+   ],
+   "refused": true
+  },
+  {
+   "in": [
+    "Something else went wrong",
+    "Bash",
+    "ls",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "permission refused",
+    ""
+   ],
+   "refused": false
+  },
+  {
+   "in": [
+    "",
+    "Bash",
+    "ls",
+    [
+     [
+      "Bash(rm:*)",
+      "~/proj1/.claude/settings.local.json"
+     ],
+     [
+      "Read(./secret/**)",
+      "~/a"
+     ],
+     [
+      "Edit(//etc/*)",
+      "b"
+     ],
+     [
+      "Bash(git push:*)",
+      "c"
+     ],
+     [
+      "Bash(*launcher*)",
+      "d"
+     ],
+     [
+      "Read(~/.ssh/**)",
+      "e"
+     ],
+     [
+      "Write(src/*.rs)",
+      "f"
+     ],
+     [
+      "Bash(npm *)",
+      "g"
+     ],
+     [
+      "Bash(*test*:*)",
+      "h"
+     ],
+     [
+      "Read(*.env)",
+      "i"
+     ]
+    ],
+    null
+   ],
+   "out": [
+    "permission refused",
+    ""
+   ],
+   "refused": false
+  }
+ ],
+ "running_settings": {
+  "ps": "  101 /usr/local/bin/claude --settings <files>/home/proj1/team.json\n  102 claude --settings=rel.json --model x\n  103 node /x/claude --settings {\"a\": 1}\n  104 claude --settings '{\"a\": 1}'\n  105 claude --settings missing.json\n  106 python worker.py --settings x.json\n  107 claude-code --settings rel.json\n  108 claude --settings rel.json\n  109 claude --settings ../outside/user.json\nbad line\n",
+  "cwds": {
+   "101": "<home>/proj1",
+   "102": "<home>/proj 7",
+   "105": "<home>/proj1",
+   "107": "<home>/proj1",
+   "108": null,
+   "109": "<home>/proj1"
+  },
+  "out": {
+   "<files>/home/proj1": [
+    [
+     "Bash(sudo:*)",
+     "~/proj1/team.json"
+    ]
+   ],
+   "<files>/home/proj 7": [
+    [
+     "Bash(docker:*)",
+     "~/proj 7/rel.json"
+    ]
+   ]
+  }
+ }
+}

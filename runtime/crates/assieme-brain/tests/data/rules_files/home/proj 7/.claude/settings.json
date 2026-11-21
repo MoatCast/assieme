@@ -1,0 +1,1 @@
+{"permissions": {"deny": ["Bash(*launcher*)"], "allow": ["Bash(ls)"]}}
