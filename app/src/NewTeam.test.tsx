@@ -452,7 +452,9 @@ test("Same as last time comes first", async () => {
 });
 
 test("developer tools missing for the folder: install, then a recheck offers Continue", async () => {
-  b.checkProject.mockResolvedValueOnce({ ok: false, tools: true, reason: "x" });
+  // Every check finds the tools missing until they are installed: the 5 ms recheck runs on real time, so a single
+  // missing answer let a fast recheck take the Install button away before the click, under load.
+  b.checkProject.mockResolvedValue({ ok: false, tools: true, reason: "x" });
   b.installTools.mockResolvedValue({ ok: true });
   render(<NewTeam clis={both} recheckMs={5} onClose={vi.fn()} />);
   await flush();
