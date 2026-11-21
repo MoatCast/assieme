@@ -446,7 +446,7 @@ fn gemini_disabled(cwd: &str) -> Vec<String> {
 }
 
 /// The status plugin OpenCode loads: written beside the state files, as it is compiled into the binary.
-const OPENCODE_PLUGIN: &str = include_str!("../../../../assieme/opencode_status.js");
+const OPENCODE_PLUGIN: &str = include_str!("../assets/opencode_status.js");
 
 fn opencode_plugin() -> String {
     let path = crate::quiet::state_dir().join("opencode_status.js");

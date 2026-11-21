@@ -228,7 +228,7 @@ export default function ConnectMachine({ onClose, onUse, setUp, pollMs = 1000 }:
       return sheet(
         <div className="rm-card">
           <div className="rm-title"><Tick /><b className="rm-grow">Connected to {name}</b><code>{result.target}</code></div>
-          <p className="rm-text">Assieme isn’t set up there yet. Setting it up downloads what it needs (the runtime, uv and Python) into your home folder on {name}. Nothing runs as admin.</p>
+          <p className="rm-text">Assieme isn’t set up there yet. Setting it up copies Assieme’s program into your home folder on {name}. Nothing runs as admin.</p>
           <div className="rm-adds">
             <span><b>Runtime</b>Keeps the agents’ terminals alive there</span>
             <span><b>Assieme</b>Watches the team there</span>

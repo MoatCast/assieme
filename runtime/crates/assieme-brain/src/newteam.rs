@@ -31,15 +31,15 @@ pub const KIND_JOBS: &[(&str, &str)] = &[
 
 /// The built-in teams and briefs, compiled into the binary.
 const EMBEDDED: &[(&str, &str)] = &[
-    ("briefs/builder.md", include_str!("../../../../assieme/presets/briefs/builder.md")),
-    ("briefs/critic.md", include_str!("../../../../assieme/presets/briefs/critic.md")),
-    ("briefs/planner.md", include_str!("../../../../assieme/presets/briefs/planner.md")),
-    ("briefs/reviewer.md", include_str!("../../../../assieme/presets/briefs/reviewer.md")),
-    ("briefs/steward.md", include_str!("../../../../assieme/presets/briefs/steward.md")),
-    ("briefs/tester.md", include_str!("../../../../assieme/presets/briefs/tester.md")),
-    ("builder-reviewer/team.toml", include_str!("../../../../assieme/presets/builder-reviewer/team.toml")),
-    ("full/team.toml", include_str!("../../../../assieme/presets/full/team.toml")),
-    ("one-agent/team.toml", include_str!("../../../../assieme/presets/one-agent/team.toml")),
+    ("briefs/builder.md", include_str!("../assets/presets/briefs/builder.md")),
+    ("briefs/critic.md", include_str!("../assets/presets/briefs/critic.md")),
+    ("briefs/planner.md", include_str!("../assets/presets/briefs/planner.md")),
+    ("briefs/reviewer.md", include_str!("../assets/presets/briefs/reviewer.md")),
+    ("briefs/steward.md", include_str!("../assets/presets/briefs/steward.md")),
+    ("briefs/tester.md", include_str!("../assets/presets/briefs/tester.md")),
+    ("builder-reviewer/team.toml", include_str!("../assets/presets/builder-reviewer/team.toml")),
+    ("full/team.toml", include_str!("../assets/presets/full/team.toml")),
+    ("one-agent/team.toml", include_str!("../assets/presets/one-agent/team.toml")),
 ];
 
 /// A tool id's pattern.

@@ -20,8 +20,8 @@ const NOT_RUNNING: &str =
 const NOT_DONE: &str = "Not done: the person said no.";
 const TO_AUTOMATIC: &str = ", or turn this fix to Automatic in Settings";
 const CALL_TIMEOUT_S: u64 = 130; // starting a team creates worktrees first
-const TEAM_DESIGN: &str = include_str!("../../../../assieme/guide/team-design.md");
-const NUMBERS: &str = include_str!("../../../../assieme/guide/numbers.md");
+const TEAM_DESIGN: &str = include_str!("../assets/guide/team-design.md");
+const NUMBERS: &str = include_str!("../assets/guide/numbers.md");
 
 /// One request to the brain: over its socket, or from inside a container over the bridge (`ASSIEME_BRIDGE=host:port/ticket`).
 fn call(method: &str, params: Value, by: Option<&str>) -> Result<Value, String> {

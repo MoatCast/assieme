@@ -10,9 +10,9 @@ use serde_json::json;
 pub const AGENTS: &[&str] = &["claude", "codex", "gemini", "opencode", "cursor", "antigravity"];
 
 pub const SCRIPTS: [&str; 3] = ["setup", "run", "archive"];
-const PRACTICES: &str = include_str!("../../../../assieme/practices.toml");
-const CRITIC: &str = include_str!("../../../../assieme/presets/briefs/critic.md");
-const STEWARD_BRIEF: &str = include_str!("../../../../assieme/presets/briefs/steward.md");
+const PRACTICES: &str = include_str!("../assets/practices.toml");
+const CRITIC: &str = include_str!("../assets/presets/briefs/critic.md");
+const STEWARD_BRIEF: &str = include_str!("../assets/presets/briefs/steward.md");
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PresetError(pub String);

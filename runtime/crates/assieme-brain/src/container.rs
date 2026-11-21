@@ -24,7 +24,7 @@ impl From<ContainerError> for BrainError {
 // doesn't listen on.
 const HOST: &str = "host.docker.internal"; // how a container reaches this Mac
 const HOME: &str = "/home/node";
-const DOCKERFILE: &str = include_str!("../../../../assieme/container/Dockerfile");
+const DOCKERFILE: &str = include_str!("../assets/container/Dockerfile");
 // The sign-in files that can be shared, each read-only. Claude Code and Cursor keep theirs in the Mac's Keychain:
 // they sign in inside. Read-only: a sign-in that needs renewing asks again inside the container.
 const SIGNIN: [(&str, &[&str]); 3] = [
