@@ -1,0 +1,360 @@
+[
+ {
+  "method": "activity.list",
+  "keys": [
+   "filter",
+   "team"
+  ]
+ },
+ {
+  "method": "activity.undo",
+  "keys": [
+   "id"
+  ]
+ },
+ {
+  "method": "agent.detail",
+  "keys": [
+   "role",
+   "team"
+  ]
+ },
+ {
+  "method": "agent.remove",
+  "keys": [
+   "role",
+   "team"
+  ]
+ },
+ {
+  "method": "agent.restart",
+  "keys": [
+   "role",
+   "team"
+  ]
+ },
+ {
+  "method": "agent.set_musician",
+  "keys": [
+   "musician",
+   "role",
+   "team"
+  ]
+ },
+ {
+  "method": "agent.set_tools",
+  "keys": [
+   "role",
+   "team"
+  ]
+ },
+ {
+  "method": "agent.tools",
+  "keys": [
+   "role",
+   "team"
+  ]
+ },
+ {
+  "method": "board.add",
+  "keys": [
+   "role",
+   "team",
+   "title"
+  ]
+ },
+ {
+  "method": "board.move",
+  "keys": [
+   "id",
+   "status",
+   "team"
+  ]
+ },
+ {
+  "method": "board.remove",
+  "keys": [
+   "id",
+   "team"
+  ]
+ },
+ {
+  "method": "brain.snapshot",
+  "keys": []
+ },
+ {
+  "method": "brief.get",
+  "keys": [
+   "team"
+  ]
+ },
+ {
+  "method": "brief.remove",
+  "keys": [
+   "id",
+   "team"
+  ]
+ },
+ {
+  "method": "brief.save",
+  "keys": [
+   "goal",
+   "rules",
+   "team"
+  ]
+ },
+ {
+  "method": "bringover.import",
+  "keys": [
+   "id",
+   "ticked"
+  ]
+ },
+ {
+  "method": "bringover.workspaces",
+  "keys": [
+   "id"
+  ]
+ },
+ {
+  "method": "budget.set",
+  "keys": [
+   "at_limit",
+   "limits",
+   "team"
+  ]
+ },
+ {
+  "method": "container.build",
+  "keys": [
+   "agent"
+  ]
+ },
+ {
+  "method": "container.open",
+  "keys": []
+ },
+ {
+  "method": "container.status",
+  "keys": [
+   "agent"
+  ]
+ },
+ {
+  "method": "draft.take",
+  "keys": [
+   "id"
+  ]
+ },
+ {
+  "method": "groups.set",
+  "keys": [
+   "groups"
+  ]
+ },
+ {
+  "method": "herdr.find",
+  "keys": []
+ },
+ {
+  "method": "herdr.import",
+  "keys": [
+   "source"
+  ]
+ },
+ {
+  "method": "menu.state",
+  "keys": []
+ },
+ {
+  "method": "notifications.pause",
+  "keys": []
+ },
+ {
+  "method": "notifications.resume",
+  "keys": []
+ },
+ {
+  "method": "pane.act",
+  "keys": []
+ },
+ {
+  "method": "preview.list",
+  "keys": []
+ },
+ {
+  "method": "project.check",
+  "keys": [
+   "path"
+  ]
+ },
+ {
+  "method": "quiet.pairs",
+  "keys": [
+   "team"
+  ]
+ },
+ {
+  "method": "quiet.set",
+  "keys": []
+ },
+ {
+  "method": "review.open_editor",
+  "keys": [
+   "file",
+   "line",
+   "role",
+   "team"
+  ]
+ },
+ {
+  "method": "review.waiting",
+  "keys": []
+ },
+ {
+  "method": "schedule.list",
+  "keys": [
+   "teams"
+  ]
+ },
+ {
+  "method": "schedule.pause",
+  "keys": [
+   "id",
+   "paused"
+  ]
+ },
+ {
+  "method": "schedule.remove",
+  "keys": [
+   "id"
+  ]
+ },
+ {
+  "method": "schedule.stop",
+  "keys": [
+   "id"
+  ]
+ },
+ {
+  "method": "settings.get",
+  "keys": []
+ },
+ {
+  "method": "settings.set",
+  "keys": [
+   "key",
+   "value"
+  ]
+ },
+ {
+  "method": "setup.commands",
+  "keys": []
+ },
+ {
+  "method": "setup.connect_antigravity",
+  "keys": []
+ },
+ {
+  "method": "setup.install_agent",
+  "keys": [
+   "agent"
+  ]
+ },
+ {
+  "method": "setup.install_stop",
+  "keys": [
+   "address"
+  ]
+ },
+ {
+  "method": "setup.install_tools",
+  "keys": []
+ },
+ {
+  "method": "setup.signin_agent",
+  "keys": [
+   "agent"
+  ]
+ },
+ {
+  "method": "setup.status",
+  "keys": []
+ },
+ {
+  "method": "setup.terminal_state",
+  "keys": [
+   "address"
+  ]
+ },
+ {
+  "method": "team.band",
+  "keys": [
+   "team"
+  ]
+ },
+ {
+  "method": "team.improve_apply",
+  "keys": [
+   "ids",
+   "team"
+  ]
+ },
+ {
+  "method": "team.map",
+  "keys": [
+   "team"
+  ]
+ },
+ {
+  "method": "team.presets",
+  "keys": []
+ },
+ {
+  "method": "team.run_found",
+  "keys": [
+   "on",
+   "team"
+  ]
+ },
+ {
+  "method": "team.stop",
+  "keys": [
+   "team"
+  ]
+ },
+ {
+  "method": "team.view",
+  "keys": [
+   "team"
+  ]
+ },
+ {
+  "method": "teams.list",
+  "keys": []
+ },
+ {
+  "method": "tip.apply",
+  "keys": [
+   "team",
+   "tip"
+  ]
+ },
+ {
+  "method": "tools.find",
+  "keys": [
+   "kind",
+   "own_copy",
+   "project"
+  ]
+ },
+ {
+  "method": "tools.suggest",
+  "keys": [
+   "kind",
+   "own_copy",
+   "project",
+   "role_kind"
+  ]
+ }
+]
