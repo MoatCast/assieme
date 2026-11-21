@@ -492,6 +492,7 @@ def live_findings(agents, now):
     """What `status` and the fix cards show: only what is happening now, from each agent's log tail."""
     out = []
     active = [a for a in agents if a.state != 'exited']
+    memory_full = settings.threshold('memory_full')  # read once, not per agent
     for a in active:
         for x in loops(a.failures):
             if (now - x['times'][-1]).total_seconds() <= LOOP_LIVE:
@@ -512,7 +513,6 @@ def live_findings(agents, now):
                     message=f'assieme: you have run the full suite {len(times)} times this hour. From now on run a narrow '
                             'run for the files you changed, and the full suite once before you finish.'))
         rate, known = growth_now(a.samples), _known_memory(a)
-        memory_full = settings.threshold('memory_full')
         minutes = (memory_full * known - a.context) / rate * 60 if rate >= GROWTH_LIVE and known else None
         if minutes is not None and minutes <= FULL_SOON_MINUTES:
             when = f'in about {minutes:.0f} min' if minutes > 0 else None

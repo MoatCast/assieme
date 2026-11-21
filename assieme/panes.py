@@ -91,9 +91,9 @@ def _latest(rows):
     return [r for _, r in best.values()]
 
 
-def _memory_full(a):
+def _memory_full(a, share):
     limit = status.memory_limit(a) if a else None
-    return bool(limit and a.context > limit * settings.threshold('memory_full'))  # Settings › Fixes
+    return bool(limit and a.context > limit * share)
 
 
 def _fix(role, buttons, text, question=None):
@@ -111,6 +111,7 @@ def _program(argv):
 
 def view(team_name, rows, agents, now, read, answers, show_commands=False):
     rows = sorted(_latest(_current_run(rows)), key=lambda r: r.get('created_ms') or 0)
+    memory_full = settings.threshold('memory_full')  # Settings › Fixes; read once per view
     matched = match(rows, agents)
     addr = {a.name: t for t, a in matched.items()}
     stalls = status.stalls(agents, now)
@@ -135,7 +136,7 @@ def view(team_name, rows, agents, now, read, answers, show_commands=False):
         kind = (r.get('labels') or {}).get(team.KIND) or KIND_OF.get(argv0, 'claude')  # a container runs `docker`
         p = {'role': role, 'agent': kind, 'address': r['address'],
              'state': state, 'since_s': _since(r, a, state, now), 'detail': '', 'live': state != 'exited', 'fix': None,
-             'command': None, 'memory_full': _memory_full(a),
+             'command': None, 'memory_full': _memory_full(a, memory_full),
              # for fixes.check_outcomes only: Brain.map strips it, as a label can hold command arguments
              'refused': [(ts.strftime('%Y-%m-%dT%H:%M:%SZ'), label) for ts, label, _, _ in a.refused
                          if (now - ts).total_seconds() <= live.REFUSAL_WINDOW + fixes.CHECK_S] if a else [],

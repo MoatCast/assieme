@@ -15,7 +15,7 @@ pub struct CliStatus {
 }
 
 pub fn launcher(python: &Path) -> String {
-    format!("#!/bin/sh\n{MARK}\nexec \"{}\" -P -m assieme \"$@\"\n", python.display())
+    format!("#!/bin/sh\n{MARK}\nexec {} -P -m assieme \"$@\"\n", sh_quote(python)) // quoted: an app folder may hold " or $
 }
 
 /// ~/.local/bin when the login PATH has it, else /usr/local/bin.
@@ -102,6 +102,12 @@ mod tests {
     }
 
     #[test]
+    fn launcher_quotes_a_path_with_shell_characters() {
+        let text = launcher(Path::new("/Apps/it's \"$HOME\"/python3"));
+        assert!(text.contains("exec '/Apps/it'\\''s \"$HOME\"/python3' -P"), "{text}");
+    }
+
+    #[test]
     fn writes_launcher_in_local_bin_when_on_path() {
         let h = home("local");
         let py = Path::new("/Applications/Assieme.app/Contents/Resources/python/bin/python3");
@@ -109,7 +115,7 @@ mod tests {
         let got = install(py, &path, &h, "/nope/osascript").unwrap();
         assert_eq!(got, CliStatus { state: "installed", path: Some(h.join(".local/bin/assieme").display().to_string()) });
         let text = std::fs::read_to_string(h.join(".local/bin/assieme")).unwrap();
-        assert_eq!(text, format!("#!/bin/sh\n{MARK}\nexec \"{}\" -P -m assieme \"$@\"\n", py.display()));
+        assert_eq!(text, format!("#!/bin/sh\n{MARK}\nexec '{}' -P -m assieme \"$@\"\n", py.display()));
     }
 
     #[test]

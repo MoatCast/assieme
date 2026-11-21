@@ -401,8 +401,7 @@ class MemoryThresholdTest(unittest.TestCase):
         a = Agent('a', 'claude-code', '/x')
         a.context = 160_000  # 80% of 200K
         for share, full in ((0.75, True), (0.85, False)):
-            with mock.patch.object(panes.settings, 'threshold', lambda name, s=share: s):
-                self.assertIs(panes._memory_full(a), full)
+            self.assertIs(panes._memory_full(a, share), full)  # view() reads the share once from settings
 
 
 class MemoryLimitTest(unittest.TestCase):
