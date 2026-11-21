@@ -36,13 +36,23 @@ fn names(roles: &[String]) -> String {
 type Group = (String, String, Vec<String>);
 
 fn group_rules(practices: &Value, chosen: &Map<String, Value>) -> Vec<Group> {
-    let on: BTreeSet<String> = crate::preset::rules_on(chosen).iter().filter_map(|r| r["id"].as_str().map(String::from)).collect();
+    let on: BTreeSet<String> =
+        crate::preset::rules_on(chosen).iter().filter_map(|r| r["id"].as_str().map(String::from)).collect();
     let mut out = vec![];
     for g in practices["groups"].as_array().into_iter().flatten() {
-        let texts: Vec<String> =
-            g["rules"].as_array().into_iter().flatten().filter(|r| r["id"].as_str().is_some_and(|i| on.contains(i))).filter_map(|r| r["text"].as_str().map(String::from)).collect();
+        let texts: Vec<String> = g["rules"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|r| r["id"].as_str().is_some_and(|i| on.contains(i)))
+            .filter_map(|r| r["text"].as_str().map(String::from))
+            .collect();
         if !texts.is_empty() {
-            out.push((g["id"].as_str().unwrap_or("").to_string(), g["title"].as_str().unwrap_or("").to_string(), texts));
+            out.push((
+                g["id"].as_str().unwrap_or("").to_string(),
+                g["title"].as_str().unwrap_or("").to_string(),
+                texts,
+            ));
         }
     }
     out
@@ -59,7 +69,11 @@ fn delivered(team_name: &str, entries: &[Value], undone: &BTreeSet<String>) -> B
     let mut out = BTreeSet::new();
     for e in entries {
         let ok = e.get("ok").is_none_or(crate::pyrules::truthy);
-        if e["action"] != "improve" || e["team"] != team_name || !ok || e["id"].as_str().is_some_and(|i| undone.contains(i)) {
+        if e["action"] != "improve"
+            || e["team"] != team_name
+            || !ok
+            || e["id"].as_str().is_some_and(|i| undone.contains(i))
+        {
             continue;
         }
         for s in e["sent"].as_array().into_iter().flatten() {
@@ -92,14 +106,22 @@ fn members(rows: &[Value], terminals: &[Value]) -> Vec<(String, Member)> {
     for t in terminals {
         let address = t["address"].as_str().unwrap_or("").to_string();
         let r = rows.iter().find(|r| r["address"].as_str() == Some(address.as_str()));
-        let name = t["name"].as_str().filter(|n| !n.is_empty()).map(String::from).unwrap_or_else(|| r.map_or(address.clone(), role));
+        let name = t["name"]
+            .as_str()
+            .filter(|n| !n.is_empty())
+            .map(String::from)
+            .unwrap_or_else(|| r.map_or(address.clone(), role));
         put(&mut out, name, Member { address, cwd: t["cwd"].as_str().map(String::from), terminal: Some(t.clone()) });
     }
     let seen: BTreeSet<String> = out.iter().map(|(_, m)| m.address.clone()).collect();
     for r in rows {
         let address = r["address"].as_str().unwrap_or("");
         if !seen.contains(address) {
-            put(&mut out, role(r), Member { address: address.into(), cwd: r["cwd"].as_str().map(String::from), terminal: None });
+            put(
+                &mut out,
+                role(r),
+                Member { address: address.into(), cwd: r["cwd"].as_str().map(String::from), terminal: None },
+            );
         }
     }
     out
@@ -116,12 +138,26 @@ fn command_line(env: &Env, name: &str, t: &Value) -> Option<(String, Vec<String>
     let prog = prog.filter(|p| p == "claude" || p == "codex")?;
     let vars: Vec<String> = vars.into_keys().collect();
     let (got, notes) = herdr::agent_role(env, name, &prog, &args, &vars, false, "");
-    Some((got["checkout"].as_str().unwrap_or("").to_string(), notes.into_iter().filter(|(k, ..)| k == "wide").map(|(.., d)| d).collect()))
+    Some((
+        got["checkout"].as_str().unwrap_or("").to_string(),
+        notes.into_iter().filter(|(k, ..)| k == "wide").map(|(.., d)| d).collect(),
+    ))
 }
 
-fn finding(id: &str, title: &str, detail: &str, kind: &str, group: Option<&str>, to: &[String], restart: bool) -> Map<String, Value> {
+fn finding(
+    id: &str,
+    title: &str,
+    detail: &str,
+    kind: &str,
+    group: Option<&str>,
+    to: &[String],
+    restart: bool,
+) -> Map<String, Value> {
     let Value::Object(f) = json!({"id": id, "kind": kind, "title": title, "detail": detail, "group": group, "to": to, "restart": restart,
-                                  "copy": null, "draft": null}) else { unreachable!() };
+                                  "copy": null, "draft": null})
+    else {
+        unreachable!()
+    };
     f
 }
 
@@ -161,7 +197,8 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     let mut out = json!({"team": team_name, "found": got.is_some(), "findings": [], "in_place": []});
     let Some(got) = got else { return out };
     let Got { rows, agents, members, source } = got;
-    let reach: BTreeSet<&str> = members.iter().filter(|(_, m)| !m.address.starts_with("log:")).map(|(n, _)| n.as_str()).collect();
+    let reach: BTreeSet<&str> =
+        members.iter().filter(|(_, m)| !m.address.starts_with("log:")).map(|(n, _)| n.as_str()).collect();
     // A log row stands for every terminal in its folder: what its log shows is about all of them.
     let mut in_folder: Vec<(Option<String>, Vec<String>)> = vec![];
     for (n, m) in members {
@@ -183,10 +220,22 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     let (mut findings, mut in_place): (Vec<Map<String, Value>>, Vec<String>) = (vec![], vec![]);
 
     // Each agent its own folder (rule 2): needs a restart.
-    let shared: Vec<&Vec<String>> = in_folder.iter().filter(|(c, ns)| c.is_some() && ns.len() > 1).map(|(_, ns)| ns).collect();
+    let shared: Vec<&Vec<String>> =
+        in_folder.iter().filter(|(c, ns)| c.is_some() && ns.len() > 1).map(|(_, ns)| ns).collect();
     for ns in &shared {
-        let detail = format!("{} work in the same folder, so they can edit the same files. Give each its own branch.", names(ns));
-        findings.push(finding(&format!("folder:{}", ns[0]), "Agents share one folder", &detail, "review", None, &[], true));
+        let detail = format!(
+            "{} work in the same folder, so they can edit the same files. Give each its own branch.",
+            names(ns)
+        );
+        findings.push(finding(
+            &format!("folder:{}", ns[0]),
+            "Agents share one folder",
+            &detail,
+            "review",
+            None,
+            &[],
+            true,
+        ));
     }
     if in_folder.len() > 1 && shared.is_empty() {
         in_place.push("each agent has its own folder".into());
@@ -206,12 +255,31 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     let reads = |n: &str| matches!(herdr::kind_of(n), "reviewer" | "planner");
     for (n, checkout, wide) in &lines {
         if !wide.is_empty() {
-            let detail = format!("{n} runs with {}. Start it again with safe permissions: its own copy, and no pushes.", wide.join(", "));
-            findings.push(finding(&format!("permissions:{n}"), "An agent runs with wide permissions", &detail, "review", None, &[], true));
+            let detail = format!(
+                "{n} runs with {}. Start it again with safe permissions: its own copy, and no pushes.",
+                wide.join(", ")
+            );
+            findings.push(finding(
+                &format!("permissions:{n}"),
+                "An agent runs with wide permissions",
+                &detail,
+                "review",
+                None,
+                &[],
+                true,
+            ));
         }
         if reads(n) && checkout != "read-only" {
             let detail = format!("{n} reviews or plans but can edit files. Start it again read-only.");
-            findings.push(finding(&format!("reviewer:{n}"), "A reviewer can edit files", &detail, "review", None, &[], true));
+            findings.push(finding(
+                &format!("reviewer:{n}"),
+                "A reviewer can edit files",
+                &detail,
+                "review",
+                None,
+                &[],
+                true,
+            ));
         }
     }
     if !lines.is_empty() && lines.iter().all(|(_, _, w)| w.is_empty()) {
@@ -226,8 +294,10 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     let rep = (ports.report)(rows);
     let roles: BTreeSet<&String> = names_of.keys().collect();
     let has = |v: &Value, k: &str| v[k].as_str().is_some_and(|s| roles.contains(&s.to_string()));
-    let talk = rep["edges"].as_array().into_iter().flatten().any(|e| has(e, "from") && has(e, "to") && e["from"] != e["to"]);
-    let wasted: Vec<&Value> = rep["send_less"].as_array().into_iter().flatten().filter(|x| has(x, "from") && has(x, "to")).collect();
+    let talk =
+        rep["edges"].as_array().into_iter().flatten().any(|e| has(e, "from") && has(e, "to") && e["from"] != e["to"]);
+    let wasted: Vec<&Value> =
+        rep["send_less"].as_array().into_iter().flatten().filter(|x| has(x, "from") && has(x, "to")).collect();
     for x in &wasted {
         let from = x["from"].as_str().unwrap_or("");
         let share = (x["share"].as_f64().unwrap_or(0.0) * 100.0).round_ties_even();
@@ -237,14 +307,28 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
             x["wakes"],
             x["empty"]
         );
-        findings.push(finding(&format!("messages:{from}"), "Agents wake each other for nothing", &detail, "apply", Some("messages"), &names_of[from], false));
+        findings.push(finding(
+            &format!("messages:{from}"),
+            "Agents wake each other for nothing",
+            &detail,
+            "apply",
+            Some("messages"),
+            &names_of[from],
+            false,
+        ));
     }
     if talk && wasted.is_empty() {
         in_place.push("no wasted wake-ups".into());
     }
     let mine: Vec<Agent> = agents.iter().filter(|a| roles.contains(&a.name)).cloned().collect();
     let mut seen: BTreeSet<(&str, String)> = BTreeSet::new();
-    let all: Vec<Value> = rep["findings"].as_array().cloned().unwrap_or_default().into_iter().chain((ports.live_findings)(&mine)).collect();
+    let all: Vec<Value> = rep["findings"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .chain((ports.live_findings)(&mine))
+        .collect();
     for f in &all {
         let group = match f["kind"].as_str().unwrap_or("") {
             "loop" | "review" => "stopping",
@@ -272,14 +356,26 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
                 x["count"]
             );
             // never a one-click allow: widening a rule is the person's call
-            findings.push(finding(&format!("refused:{agent}:{command}"), "A command keeps being refused", &detail, "review", None, &[], false));
+            findings.push(finding(
+                &format!("refused:{agent}:{command}"),
+                "A command keeps being refused",
+                &detail,
+                "review",
+                None,
+                &[],
+                false,
+            ));
         }
     }
 
     // The practices themselves: a team started outside Assieme was given none, unless Improve gave them.
     let on = &ports.on;
     let given = delivered(team_name, &ports.entries, &ports.undone);
-    let lacking: Vec<String> = members.iter().map(|(n, _)| n.clone()).filter(|n| on.iter().any(|g| !given.contains(&(n.clone(), g.0.clone())))).collect();
+    let lacking: Vec<String> = members
+        .iter()
+        .map(|(n, _)| n.clone())
+        .filter(|n| on.iter().any(|g| !given.contains(&(n.clone(), g.0.clone()))))
+        .collect();
     if !on.is_empty() && !lacking.is_empty() {
         let it = if lacking.len() == 1 { "it doesn’t" } else { "they don’t" };
         let detail = format!(
@@ -288,7 +384,15 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
             on.len(),
             if on.len() != 1 { "s" } else { "" }
         );
-        findings.push(finding("practices", "Agents don’t have the team practices", &detail, "apply", Some("*"), &lacking, false));
+        findings.push(finding(
+            "practices",
+            "Agents don’t have the team practices",
+            &detail,
+            "apply",
+            Some("*"),
+            &lacking,
+            false,
+        ));
     } else if !on.is_empty() {
         in_place.push("team practices".into());
     }
@@ -296,9 +400,12 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
     for f in &mut findings {
         if f["kind"] == "apply" {
             let group = f["group"].as_str().unwrap_or("").to_string();
-            let groups: Vec<&Group> = if group == "*" { on.iter().collect() } else { on.iter().filter(|g| g.0 == group).collect() };
-            let to: Vec<String> = f["to"].as_array().into_iter().flatten().filter_map(|n| n.as_str().map(String::from)).collect();
-            let to: Vec<String> = to.into_iter().filter(|n| groups.iter().any(|g| !given.contains(&(n.clone(), g.0.clone())))).collect();
+            let groups: Vec<&Group> =
+                if group == "*" { on.iter().collect() } else { on.iter().filter(|g| g.0 == group).collect() };
+            let to: Vec<String> =
+                f["to"].as_array().into_iter().flatten().filter_map(|n| n.as_str().map(String::from)).collect();
+            let to: Vec<String> =
+                to.into_iter().filter(|n| groups.iter().any(|g| !given.contains(&(n.clone(), g.0.clone())))).collect();
             f.insert("groups".into(), json!(groups.iter().map(|g| &g.0).collect::<Vec<_>>()));
             if to.iter().any(|n| reach.contains(n.as_str())) {
                 f.insert("to".into(), json!(to.iter().filter(|n| reach.contains(n.as_str())).collect::<Vec<_>>()));
@@ -323,12 +430,22 @@ fn findings(ports: &Ports, team_name: &str, got: Option<&Got>) -> Value {
         }
     }
     out["in_place"] = json!(in_place);
-    out["findings"] = findings.into_iter().filter(|f| f["kind"] == "review" || f["to"].as_array().is_some_and(|t| !t.is_empty())).map(Value::Object).collect();
+    out["findings"] = findings
+        .into_iter()
+        .filter(|f| f["kind"] == "review" || f["to"].as_array().is_some_and(|t| !t.is_empty()))
+        .map(Value::Object)
+        .collect();
     out
 }
 
 /// `{team, found, findings, in_place}`. `terminals`: herdr's terminals for this team, none when None.
-pub fn check(brain: &Brain, team_name: &str, now: Option<Timestamp>, log: Option<&Path>, terminals: Option<&[Value]>) -> Result<Value, BrainError> {
+pub fn check(
+    brain: &Brain,
+    team_name: &str,
+    now: Option<Timestamp>,
+    log: Option<&Path>,
+    terminals: Option<&[Value]>,
+) -> Result<Value, BrainError> {
     let now = now.unwrap_or_else(Timestamp::now);
     let (rows, agents, found) = brain.resolve(team_name, now);
     let got = team_of(rows, agents, found, terminals.unwrap_or_default());
@@ -367,7 +484,8 @@ pub fn apply(
     let (rows, agents, found) = brain.resolve(team_name, now);
     let got = team_of(rows, agents, found, terminals.unwrap_or_default());
     with_real(brain, now, log, |ports| {
-        let hold = |to: &str, cwd: &str, text: &str| crate::quiet::hold_note(to, cwd, text, None, None, None, "assieme", "");
+        let hold =
+            |to: &str, cwd: &str, text: &str| crate::quiet::hold_note(to, cwd, text, None, None, None, "assieme", "");
         let record = |row: Record| crate::live::record(row);
         Ok(apply_with(ports, team_name, ids, got.as_ref(), now, log, &hold, &record))
     })
@@ -402,7 +520,8 @@ fn apply_with(
             if m.address.starts_with("log:") {
                 continue;
             }
-            let mine: Vec<&str> = wanted.iter().copied().filter(|g| !given.contains(&(role.to_string(), g.to_string()))).collect();
+            let mine: Vec<&str> =
+                wanted.iter().copied().filter(|g| !given.contains(&(role.to_string(), g.to_string()))).collect();
             let groups: Vec<&Group> = mine.iter().filter_map(|g| on.iter().find(|x| x.0 == *g)).collect();
             let text = note_text(&groups);
             hold(&m.address, cwd, &text);
@@ -419,7 +538,11 @@ fn apply_with(
         let who: BTreeSet<String> = sent.iter().filter_map(|s| s[0].as_str().map(String::from)).collect();
         let who: Vec<String> = who.into_iter().collect();
         let group = f["group"].as_str().unwrap_or("");
-        let what = if group == "*" { "the team practices".to_string() } else { format!("“{}”", on.iter().find(|g| g.0 == group).map_or("", |g| g.1.as_str())) };
+        let what = if group == "*" {
+            "the team practices".to_string()
+        } else {
+            format!("“{}”", on.iter().find(|g| g.0 == group).map_or("", |g| g.1.as_str()))
+        };
         let mut extra = Map::new();
         extra.insert("title".into(), json!(format!("Gave {} {what}", names(&who))));
         extra.insert("sent".into(), Value::Array(sent));
@@ -443,19 +566,32 @@ fn apply_with(
 pub fn undo(e: &Value, _rt: &Runtime) -> Result<(), BrainError> {
     let practices = crate::preset::practices(None);
     let held = crate::quiet::held();
-    undo_with(e, &practices, &held.into_values().flatten().collect::<Vec<_>>(), &crate::quiet::drop, &|to, cwd, text| {
-        crate::quiet::hold_note(to, cwd, text, None, None, None, "assieme", "")
-    });
+    undo_with(
+        e,
+        &practices,
+        &held.into_values().flatten().collect::<Vec<_>>(),
+        &crate::quiet::drop,
+        &|to, cwd, text| crate::quiet::hold_note(to, cwd, text, None, None, None, "assieme", ""),
+    );
     Ok(())
 }
 
 fn undo_with(e: &Value, practices: &Value, held: &[Value], drop: &dyn Fn(&[Value]), hold: &dyn Fn(&str, &str, &str)) {
     let title_of = |g: &str| {
-        practices["groups"].as_array().into_iter().flatten().find(|x| x["id"] == g).and_then(|x| x["title"].as_str()).unwrap_or(g).to_string()
+        practices["groups"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|x| x["id"] == g)
+            .and_then(|x| x["title"].as_str())
+            .unwrap_or(g)
+            .to_string()
     };
     for n in e["notes"].as_array().into_iter().flatten() {
-        let (address, cwd, text) = (n[0].as_str().unwrap_or(""), n[1].as_str().unwrap_or(""), n[2].as_str().unwrap_or(""));
-        let mine: Vec<Value> = held.iter().filter(|h| h["to"] == address && h["to_cwd"] == cwd && h["text"] == text).cloned().collect();
+        let (address, cwd, text) =
+            (n[0].as_str().unwrap_or(""), n[1].as_str().unwrap_or(""), n[2].as_str().unwrap_or(""));
+        let mine: Vec<Value> =
+            held.iter().filter(|h| h["to"] == address && h["to_cwd"] == cwd && h["text"] == text).cloned().collect();
         if !mine.is_empty() {
             drop(&mine);
             continue;
@@ -467,7 +603,14 @@ fn undo_with(e: &Value, practices: &Value, held: &[Value], drop: &dyn Fn(&[Value
             .filter(|s| s[1] == address && s[2] == cwd)
             .map(|s| format!("“{}”", title_of(s[3].as_str().unwrap_or(""))))
             .collect();
-        hold(address, cwd, &format!("assieme: your owner took back these team practices, so you no longer need to follow them: {}.", groups.join(", ")));
+        hold(
+            address,
+            cwd,
+            &format!(
+                "assieme: your owner took back these team practices, so you no longer need to follow them: {}.",
+                groups.join(", ")
+            ),
+        );
     }
 }
 

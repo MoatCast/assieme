@@ -70,7 +70,11 @@ impl Deps for Fake {
         self.0.lock().unwrap().records.push((row.action.into(), row.agent.into(), row.failed, title));
     }
     fn check_preset(&self, id: &str) -> Result<(), ScheduleError> {
-        if id == "full" || id.starts_with("saved:") { Ok(()) } else { Err(ScheduleError::new("preset", "Choose a team.")) }
+        if id == "full" || id.starts_with("saved:") {
+            Ok(())
+        } else {
+            Err(ScheduleError::new("preset", "Choose a team."))
+        }
     }
     fn roles(&self, id: &str, team: &str) -> Result<(Vec<Value>, Value), ScheduleError> {
         if id == "saved:broken" {
@@ -149,8 +153,13 @@ fn rig(now: &str) -> Rig {
     let starting: Box<dyn Fn() -> Vec<Value> + Send + Sync> = Box::new(move || st.lock().unwrap().start_log.clone());
     let al = alerts.clone();
     let announce: Box<Notify> = Box::new(move |t, b| al.lock().unwrap().push((t.into(), b.into())));
-    let mut s =
-        Scheduler::build(Box::new(Fake(state.clone())), start, starting, Some(announce), dir.path().join("schedules.json"));
+    let mut s = Scheduler::build(
+        Box::new(Fake(state.clone())),
+        start,
+        starting,
+        Some(announce),
+        dir.path().join("schedules.json"),
+    );
     let clock = Arc::new(Mutex::new(ts(now)));
     let c = clock.clone();
     s.now = Box::new(move || *c.lock().unwrap());
@@ -163,7 +172,14 @@ impl Rig {
         *self.clock.lock().unwrap() = ts(t);
     }
     fn add(&self) -> Value {
-        let rows = self.s.save("Night run", "/work/app", "full", "  Fix the bugs ", &json!({"kind": "day", "at": "02:00"}), None);
+        let rows = self.s.save(
+            "Night run",
+            "/work/app",
+            "full",
+            "  Fix the bugs ",
+            &json!({"kind": "day", "at": "02:00"}),
+            None,
+        );
         rows.unwrap()[0].clone()
     }
     fn item(&self) -> Value {
@@ -178,17 +194,25 @@ impl Rig {
 fn saving_validates_each_field_and_names_the_team_once() {
     let r = rig("2026-11-21T10:00:00Z");
     let every = json!({"kind": "day", "at": "02:00"});
-    let err = |name: &str, project: &str, preset: &str, task: &str| r.s.save(name, project, preset, task, &every, None).unwrap_err().0;
+    let err = |name: &str, project: &str, preset: &str, task: &str| {
+        r.s.save(name, project, preset, task, &every, None).unwrap_err().0
+    };
     assert_eq!(err("  ", "/p", "full", "t"), "name: Give it a name.");
     assert_eq!(err("n", "/p", "full", " "), "task: Say what the team should do.");
     assert_eq!(err("n", "/nope", "full", "t"), "project: Not a project.");
     assert_eq!(err("n", "/p", "weird", "t"), "preset: Choose a team.");
     assert_eq!(err("n", "/p", "saved:broken", "t"), "preset: This team can no longer be loaded: bad");
-    assert_eq!(r.s.save("n", "/p", "full", "t", &json!({"kind": "day"}), None).unwrap_err().0, "every: Give a time such as 02:00.");
+    assert_eq!(
+        r.s.save("n", "/p", "full", "t", &json!({"kind": "day"}), None).unwrap_err().0,
+        "every: Give a time such as 02:00."
+    );
     assert!(load_from(&r.s.file).is_empty());
 
     let row = r.add();
-    assert_eq!((row["team"].as_str(), row["task"].as_str(), row["project_name"].as_str()), (Some("night-run"), Some("Fix the bugs"), Some("app")));
+    assert_eq!(
+        (row["team"].as_str(), row["task"].as_str(), row["project_name"].as_str()),
+        (Some("night-run"), Some("Fix the bugs"), Some("app"))
+    );
     assert_eq!(row["state"], "waiting");
     assert_eq!(row["line"], "Next: tomorrow at 02:00.");
     assert_eq!(row["who"], "Claude Code, Sonnet");
@@ -208,9 +232,15 @@ fn editing_keeps_the_team_and_restarts_the_count_only_for_a_new_time() {
     assert_eq!(r.item()["created"], "2026-11-21T10:00:00Z");
     assert_eq!(r.item()["task"], "new task");
     r.s.save("Night run", "/work/app", "full", "new task", &json!({"kind": "day", "at": "05:00"}), Some(id)).unwrap();
-    assert_eq!((r.item()["created"].as_str(), r.item()["handled"].as_str()), (Some("2026-11-21T12:00:00Z"), Some("2026-11-21T12:00:00Z")));
+    assert_eq!(
+        (r.item()["created"].as_str(), r.item()["handled"].as_str()),
+        (Some("2026-11-21T12:00:00Z"), Some("2026-11-21T12:00:00Z"))
+    );
     assert_eq!(r.item()["team"], "night-run");
-    assert_eq!(r.s.save("x", "/work/app", "full", "t", &json!({"kind": "day", "at": "05:00"}), Some("gone")).unwrap_err().0, "name: This schedule was removed.");
+    assert_eq!(
+        r.s.save("x", "/work/app", "full", "t", &json!({"kind": "day", "at": "05:00"}), Some("gone")).unwrap_err().0,
+        "name: This schedule was removed."
+    );
 }
 
 #[test]
@@ -231,7 +261,10 @@ fn a_time_missed_while_asleep_runs_once() {
     assert_eq!(state.fresh, ["Fix the bugs"]);
     drop(state);
     let s = r.item();
-    assert_eq!((s["running"].clone(), s["handled"].clone(), s["last"]["result"].clone()), (json!(true), json!("2026-11-25T02:00:00Z"), json!("started")));
+    assert_eq!(
+        (s["running"].clone(), s["handled"].clone(), s["last"]["result"].clone()),
+        (json!(true), json!("2026-11-25T02:00:00Z"), json!("started"))
+    );
     assert_eq!(s["review_role"], "night-run-builder");
     r.s.tick(); // the same slot is not handled twice
     assert_eq!(r.state.lock().unwrap().started.len(), 1);
@@ -273,7 +306,9 @@ fn only_the_top_agent_ends_a_run_and_the_next_tick_stops_the_team() {
     assert_eq!(r.state.lock().unwrap().stops, ["night-run"]);
     assert_eq!(r.item()["running"], false);
     assert_eq!(r.item()["last"]["result"], "finished");
-    assert!(r.alerts.lock().unwrap()[0].1.starts_with("Its top agent said the work is done, so its 2 agents were stopped."));
+    assert!(
+        r.alerts.lock().unwrap()[0].1.starts_with("Its top agent said the work is done, so its 2 agents were stopped.")
+    );
     assert!(r.s.rows()[0]["line"].as_str().unwrap().starts_with("Last run today at 02:00 finished"));
 }
 
@@ -287,9 +322,12 @@ fn a_start_that_fails_is_recorded_and_tried_again_at_the_next_time() {
     let s = r.item();
     assert_eq!((s["running"].clone(), s["last"]["result"].clone()), (json!(false), json!("failed")));
     assert_eq!(s["last"]["detail"], "The project folder is gone");
-    assert_eq!(r.state.lock().unwrap().records.last().unwrap().2, true);
+    assert!(r.state.lock().unwrap().records.last().unwrap().2);
     assert_eq!(r.alerts.lock().unwrap()[0].0, "Couldn't start Night run");
-    assert_eq!(r.s.rows()[0]["line"], "Couldn’t start today at 02:00: The project folder is gone. Next: tomorrow at 02:00.");
+    assert_eq!(
+        r.s.rows()[0]["line"],
+        "Couldn’t start today at 02:00: The project folder is gone. Next: tomorrow at 02:00."
+    );
     let id = s["id"].as_str().unwrap().to_string();
     r.fail_start.store(false, Ordering::SeqCst);
     r.s.run_now(&id).unwrap();
@@ -351,9 +389,16 @@ fn the_socket_methods() {
     let r = rig("2026-11-21T10:00:00Z");
     let this = Arc::new(r.s);
     let methods: BTreeMap<_, _> = Scheduler::handlers(this).into_iter().collect();
-    assert_eq!(methods.keys().copied().collect::<Vec<_>>(), ["schedule.list", "schedule.pause", "schedule.remove", "schedule.run_now", "schedule.save", "schedule.stop"]);
+    assert_eq!(
+        methods.keys().copied().collect::<Vec<_>>(),
+        ["schedule.list", "schedule.pause", "schedule.remove", "schedule.run_now", "schedule.save", "schedule.stop"]
+    );
     let call = |m: &str, p: Value| methods[m](p, &crate::server::Call { by: By::You });
-    let saved = call("schedule.save", json!({"name": "N", "project": "/p", "preset": "full", "task": "t", "every": {"kind": "hours", "n": 2}})).unwrap();
+    let saved = call(
+        "schedule.save",
+        json!({"name": "N", "project": "/p", "preset": "full", "task": "t", "every": {"kind": "hours", "n": 2}}),
+    )
+    .unwrap();
     assert_eq!(saved[0]["when"], "Every 2 hours");
     let listed = call("schedule.list", json!({"teams": true})).unwrap();
     assert_eq!((listed["schedules"].as_array().unwrap().len(), listed["teams"][0]["id"].clone()), (1, json!("full")));
@@ -361,6 +406,11 @@ fn the_socket_methods() {
     let id = saved[0]["id"].as_str().unwrap();
     assert_eq!(call("schedule.pause", json!({"id": id})).unwrap()[0]["paused"], true); // `paused` defaults to true
     assert_eq!(call("schedule.pause", json!({"id": id, "paused": false})).unwrap()[0]["paused"], false);
-    assert_eq!(call("schedule.save", json!({"name": "", "project": "/p", "preset": "full", "task": "t", "every": {}})).unwrap_err().message, "name: Give it a name.");
+    assert_eq!(
+        call("schedule.save", json!({"name": "", "project": "/p", "preset": "full", "task": "t", "every": {}}))
+            .unwrap_err()
+            .message,
+        "name: Give it a name."
+    );
     assert_eq!(call("schedule.remove", json!({"id": id})).unwrap(), json!([]));
 }

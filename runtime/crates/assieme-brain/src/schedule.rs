@@ -109,7 +109,9 @@ fn who(roles: &[crate::preset::Role]) -> String {
         }
         out
     };
-    let name = |table: &[(&str, &str)], k: &str| table.iter().find(|(i, _)| *i == k).map_or(k.to_string(), |(_, n)| n.to_string());
+    let name = |table: &[(&str, &str)], k: &str| {
+        table.iter().find(|(i, _)| *i == k).map_or(k.to_string(), |(_, n)| n.to_string())
+    };
     let agents = unique(roles.iter().map(|r| name(crate::launch::NAMES, &r.agent)).collect());
     let models = unique(
         roles
@@ -150,8 +152,11 @@ impl Deps for Real {
                 d
             })
             .collect();
-        let practices =
-            if id.starts_with("saved:") { Value::Object(tm.practices) } else { crate::settings::load(None)["practices"].clone() };
+        let practices = if id.starts_with("saved:") {
+            Value::Object(tm.practices)
+        } else {
+            crate::settings::load(None)["practices"].clone()
+        };
         Ok((roles, practices))
     }
 
@@ -207,13 +212,20 @@ impl Deps for Real {
             s
         };
         let builtin = crate::newteam::BUILTIN.iter().map(|i| (i.to_string(), None));
-        let saved = saved.into_iter().filter(|d| !own.contains(d)).map(|d| (format!("saved:{d}"), Some(format!("{d} (saved)"))));
+        let saved = saved
+            .into_iter()
+            .filter(|d| !own.contains(d))
+            .map(|d| (format!("saved:{d}"), Some(format!("{d} (saved)"))));
         let mut out = vec![];
         for (id, label) in builtin.chain(saved) {
             let Ok(folder) = self.folder(&id) else { continue };
             let Ok(tm) = crate::preset::load(&folder, false) else { continue }; // half-written or hand-edited: not offered
             let label = label
-                .or_else(|| crate::newteam::as_preset(&folder, &id, None).ok().and_then(|p| p["label"].as_str().map(String::from)))
+                .or_else(|| {
+                    crate::newteam::as_preset(&folder, &id, None)
+                        .ok()
+                        .and_then(|p| p["label"].as_str().map(String::from))
+                })
                 .unwrap_or_else(|| id.clone());
             out.push(json!({"id": id, "label": label, "who": who(&tm.roles)}));
         }
@@ -229,7 +241,9 @@ fn file_path() -> PathBuf {
 
 fn load_from(file: &Path) -> Vec<Value> {
     match crate::quiet::read_json(file, json!([])) {
-        Value::Array(items) => items.into_iter().filter(|s| s.is_object() && s.get("id").is_some_and(crate::pyrules::truthy)).collect(),
+        Value::Array(items) => {
+            items.into_iter().filter(|s| s.is_object() && s.get("id").is_some_and(crate::pyrules::truthy)).collect()
+        }
         _ => vec![],
     }
 }
@@ -321,7 +335,7 @@ fn day_words(t: Timestamp, now: Timestamp, tz: &TimeZone) -> String {
         0 => "today".to_string(),
         1 => "tomorrow".to_string(),
         -1 => "yesterday".to_string(),
-        1..=6 => DAYS[t.weekday().to_monday_zero_offset() as usize].to_string(),
+        2..=6 => DAYS[t.weekday().to_monday_zero_offset() as usize].to_string(),
         _ => format!("{} {}", t.day(), MONTHS[t.month() as usize - 1]),
     };
     format!("{day} at {:02}:{:02}", t.hour(), t.minute())
@@ -331,7 +345,11 @@ fn day_words(t: Timestamp, now: Timestamp, tz: &TimeZone) -> String {
 
 fn parse_every(raw: &Value) -> Result<Value, ScheduleError> {
     let bad = |m: &str| ScheduleError::new("every", m);
-    let kind = raw.get("kind").and_then(Value::as_str).filter(|k| KINDS.contains(k)).ok_or_else(|| bad("Choose when it runs."))?;
+    let kind = raw
+        .get("kind")
+        .and_then(Value::as_str)
+        .filter(|k| KINDS.contains(k))
+        .ok_or_else(|| bad("Choose when it runs."))?;
     if kind == "day" || kind == "week" {
         let at = raw.get("at").map_or(String::new(), |a| a.as_str().map_or(a.to_string(), String::from));
         let ok = at.len() == 5
@@ -468,14 +486,21 @@ impl Scheduler {
             return Some(e.to_string());
         }
         let roles = rec["roles"].as_array().cloned().unwrap_or_default();
-        let bad: Vec<&Value> =
-            roles.iter().filter(|r| matches!(r["state"].as_str(), Some("exited" | "not-reporting" | "needs-you"))).collect();
+        let bad: Vec<&Value> = roles
+            .iter()
+            .filter(|r| matches!(r["state"].as_str(), Some("exited" | "not-reporting" | "needs-you")))
+            .collect();
         if !bad.is_empty() && bad.len() == roles.len() {
             let text: Vec<String> = bad
                 .iter()
                 .map(|r| {
                     let detail = r["detail"].as_str().map(str::trim).filter(|d| !d.is_empty());
-                    format!("{} {}{}", r["role"].as_str().unwrap_or(""), r["state"].as_str().unwrap_or(""), detail.map_or(String::new(), |d| format!(": {d}")))
+                    format!(
+                        "{} {}{}",
+                        r["role"].as_str().unwrap_or(""),
+                        r["state"].as_str().unwrap_or(""),
+                        detail.map_or(String::new(), |d| format!(": {d}"))
+                    )
                 })
                 .collect();
             return Some(text.join("; ").chars().take(300).collect());
@@ -567,7 +592,10 @@ impl Scheduler {
             s,
             "schedule_failed",
             &format!("Couldn't start {name}"),
-            &format!("{}. It tries again at its next time; fix this in Settings, Scheduled runs.", why.trim_end_matches('.')),
+            &format!(
+                "{}. It tries again at its next time; fix this in Settings, Scheduled runs.",
+                why.trim_end_matches('.')
+            ),
             false,
             true,
         );
@@ -576,16 +604,20 @@ impl Scheduler {
     fn run(&self, s: &Value, now: Timestamp) {
         let text = |k: &str| s[k].as_str().unwrap_or("").to_string();
         let (id, team, preset) = (text("id"), text("team"), text("preset"));
-        let started = self.deps.roles(&preset, &team).map_err(|e| e.message().to_string()).and_then(|(roles, practices)| {
-            let task = format!("{}\n\n{DONE_NOTE}", text("task").trim());
-            (self.start)(&text("project"), &task, &roles, &practices, Some(&team)).map_err(|e| e.message).map(|_| roles)
-        });
+        let started =
+            self.deps.roles(&preset, &team).map_err(|e| e.message().to_string()).and_then(|(roles, practices)| {
+                let task = format!("{}\n\n{DONE_NOTE}", text("task").trim());
+                (self.start)(&text("project"), &task, &roles, &practices, Some(&team))
+                    .map_err(|e| e.message)
+                    .map(|_| roles)
+            });
         let roles = match started {
             Ok(roles) => roles,
             Err(why) => return self.failed(s, Some(iso(now)), &why),
         };
         self.deps.fresh(&team, &text("task"));
-        let review = roles.iter().find(|r| r["checkout"].as_str().unwrap_or("branch") == "branch").map(|r| r["name"].clone());
+        let review =
+            roles.iter().find(|r| r["checkout"].as_str().unwrap_or("branch") == "branch").map(|r| r["name"].clone());
         let described = self.deps.described(&preset);
         self.update(&id, |x| {
             x.insert("running".into(), true.into());
@@ -601,7 +633,10 @@ impl Scheduler {
             s,
             "schedule_start",
             &format!("Started {}", text("name")),
-            &format!("{}. Its agents stop when they say they are done; their work waits in Review.", when_words(&s["every"])),
+            &format!(
+                "{}. Its agents stop when they say they are done; their work waits in Review.",
+                when_words(&s["every"])
+            ),
             true,
             false,
         );
@@ -710,8 +745,8 @@ impl Scheduler {
             self.deps.roles(preset, &team)?; // refuses a saved team that no longer loads
             let mut fields = json!({"name": name.chars().take(60).collect::<String>(), "project": project, "preset": preset,
                                     "task": task.trim(), "every": every});
-            if let Value::Object(d) = self.deps.described(preset) {
-                fields.as_object_mut().map(|f| f.extend(d));
+            if let (Value::Object(d), Some(f)) = (self.deps.described(preset), fields.as_object_mut()) {
+                f.extend(d);
             }
             let Value::Object(mut fields) = fields else { unreachable!() };
             match old {
@@ -730,7 +765,9 @@ impl Scheduler {
                     let mut item = json!({"id": uuid::Uuid::new_v4().simple().to_string()[..12], "team": team,
                                           "created": iso((self.now)()), "handled": null, "paused": false, "running": false,
                                           "done": false, "last": null});
-                    item.as_object_mut().map(|o| o.extend(fields));
+                    if let Some(o) = item.as_object_mut() {
+                        o.extend(fields);
+                    }
                     items.push(item);
                 }
             }
@@ -762,11 +799,18 @@ impl Scheduler {
         if let Some(s) = s {
             let name = s["name"].as_str().unwrap_or("");
             let mut extra = Map::new();
-            extra.insert("title".into(), format!("{} the schedule {name}", if paused { "Paused" } else { "Resumed" }).into());
+            extra.insert(
+                "title".into(),
+                format!("{} the schedule {name}", if paused { "Paused" } else { "Resumed" }).into(),
+            );
             self.deps.record(Record {
                 action: "schedule_pause",
                 agent: name,
-                reason: if paused { "It won’t start until you resume it." } else { "It runs again at its next time." },
+                reason: if paused {
+                    "It won’t start until you resume it."
+                } else {
+                    "It runs again at its next time."
+                },
                 team: s["team"].as_str(),
                 extra,
                 ..Record::default()
@@ -777,7 +821,10 @@ impl Scheduler {
 
     /// Stop button: ends the run going now. The schedule carries on at its next time.
     pub fn stop(&self, id: &str) -> Result<Value, ScheduleError> {
-        let s = load_from(&self.file).into_iter().find(|x| x["id"] == id).filter(|s| s["running"].as_bool().unwrap_or(false));
+        let s = load_from(&self.file)
+            .into_iter()
+            .find(|x| x["id"] == id)
+            .filter(|s| s["running"].as_bool().unwrap_or(false));
         let Some(s) = s else { return Err(ScheduleError::new("run", "This run has already ended.")) };
         if !self.finish(&s, "stopped") {
             return Err(ScheduleError::new("run", "Couldn't reach its agents. Try again in a moment."));
@@ -849,7 +896,8 @@ impl Scheduler {
                 if let Some(sk) = s["skipped"].as_str().filter(|s| !s.is_empty()) {
                     note = format!("Skipped {sk}: the last run was still going.").into();
                 }
-                let when = at.map_or("just now".to_string(), |a| a.to_zoned_datetime(tz.clone()).strftime("%H:%M").to_string());
+                let when = at
+                    .map_or("just now".to_string(), |a| a.to_zoned_datetime(tz.clone()).strftime("%H:%M").to_string());
                 format!("Running now, started {when}. Its agents stop when they say they are done.")
             } else if paused {
                 "Paused. It won’t start until you resume it.".to_string()
@@ -858,9 +906,14 @@ impl Scheduler {
                     let day = day_words(a, now, tz);
                     Some(match result.as_str()? {
                         "finished" => format!("Last run {day} finished; its work waits in Review."),
-                        "ended" => format!("Last run {day} stopped before it said it was done. What it committed waits in Review."),
+                        "ended" => format!(
+                            "Last run {day} stopped before it said it was done. What it committed waits in Review."
+                        ),
                         "stopped" => format!("Last run {day} was stopped by you. What it committed waits in Review."),
-                        "failed" => format!("Couldn’t start {day}: {}.", last["detail"].as_str().unwrap_or("").trim_end_matches('.')),
+                        "failed" => format!(
+                            "Couldn’t start {day}: {}.",
+                            last["detail"].as_str().unwrap_or("").trim_end_matches('.')
+                        ),
                         _ => return None,
                     })
                 });
@@ -887,14 +940,23 @@ impl Scheduler {
             ("schedule.list", |s, p| {
                 let mut out = json!({"schedules": s.rows()});
                 if crate::pyrules::truthy(&p["teams"]) {
-                    let own: BTreeSet<String> = load_from(&s.file).iter().filter_map(|x| x["team"].as_str().map(String::from)).collect();
+                    let own: BTreeSet<String> =
+                        load_from(&s.file).iter().filter_map(|x| x["team"].as_str().map(String::from)).collect();
                     out["teams"] = Value::Array(s.deps.options(&own));
                 }
                 Ok(out)
             }),
             ("schedule.save", |s, p| {
-                let text = |k: &str| p[k].as_str().map(String::from).ok_or_else(|| BrainError::new(format!("Missing {k}.")));
-                Ok(s.save(&text("name")?, &text("project")?, &text("preset")?, &text("task")?, &p["every"], p["id"].as_str())?)
+                let text =
+                    |k: &str| p[k].as_str().map(String::from).ok_or_else(|| BrainError::new(format!("Missing {k}.")));
+                Ok(s.save(
+                    &text("name")?,
+                    &text("project")?,
+                    &text("preset")?,
+                    &text("task")?,
+                    &p["every"],
+                    p["id"].as_str(),
+                )?)
             }),
             ("schedule.pause", |s, p| {
                 let id = p["id"].as_str().ok_or_else(|| BrainError::new("Missing id."))?;
@@ -903,7 +965,10 @@ impl Scheduler {
             }),
             ("schedule.remove", |s, p| Ok(s.remove(p["id"].as_str().ok_or_else(|| BrainError::new("Missing id."))?)?)),
             ("schedule.stop", |s, p| Ok(s.stop(p["id"].as_str().ok_or_else(|| BrainError::new("Missing id."))?)?)),
-            ("schedule.run_now", |s, p| Ok(s.run_now(p["id"].as_str().ok_or_else(|| BrainError::new("Missing id."))?)?)),
+            (
+                "schedule.run_now",
+                |s, p| Ok(s.run_now(p["id"].as_str().ok_or_else(|| BrainError::new("Missing id."))?)?),
+            ),
         ];
         table
             .into_iter()

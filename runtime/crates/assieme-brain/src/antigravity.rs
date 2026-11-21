@@ -12,8 +12,7 @@ use serde_json::json;
 use std::process::Command;
 
 const NAME: &str = "assieme";
-const DESCRIPTION: &str =
-    "Assieme's team tools for the agents it starts. In your own sessions they read team status and ask before changing anything.";
+const DESCRIPTION: &str = "Assieme's team tools for the agents it starts. In your own sessions they read team status and ask before changing anything.";
 
 pub fn plugin_dir() -> PathBuf {
     crate::quiet::state_dir().join("agy-plugin")
@@ -45,7 +44,9 @@ pub fn connected(agy: &Path) -> bool {
     let Ok(Some(out)) = crate::setup::run(cmd, None, TIMEOUT) else { return false };
     let listed = serde_json::from_slice::<Value>(&out.stdout).unwrap_or_else(|_| json!([]));
     let mine = listed.as_array().and_then(|l| l.iter().find(|p| p["name"] == NAME && p.is_object()));
-    let Some(path) = mine.filter(|m| crate::pyrules::truthy(&m["enabled"])).and_then(|m| m["path"].as_str()) else { return false };
+    let Some(path) = mine.filter(|m| crate::pyrules::truthy(&m["enabled"])).and_then(|m| m["path"].as_str()) else {
+        return false;
+    };
     let Ok(text) = std::fs::read_to_string(Path::new(path).join("mcp_config.json")) else { return false };
     serde_json::from_str::<Value>(&text).is_ok_and(|c| c["mcpServers"][NAME]["command"] == program())
 }
@@ -56,7 +57,9 @@ pub fn connect(rt: &Runtime) -> Result<Value, SetupError> {
         return Err(SetupError::Failed("Antigravity isn't installed yet.".into()));
     };
     let plugin = build_plugin(None).map_err(|e| SetupError::Failed(e.to_string()))?;
-    let quote = |s: &Path| shlex::try_quote(&s.to_string_lossy()).map_or_else(|_| s.to_string_lossy().into_owned(), |q| q.into_owned());
+    let quote = |s: &Path| {
+        shlex::try_quote(&s.to_string_lossy()).map_or_else(|_| s.to_string_lossy().into_owned(), |q| q.into_owned())
+    };
     crate::setup::start(rt, "antigravity", "connect", &format!("{} plugin install {}", quote(&agy), quote(&plugin)))
 }
 

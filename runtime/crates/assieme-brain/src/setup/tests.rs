@@ -31,10 +31,16 @@ fn strings(v: &Value) -> Vec<&str> {
 fn the_preview_lists_what_a_save_would_commit_and_writes_nothing() {
     let (_dir, p) = project();
     let root = Path::new(&p);
-    put(root, &["a.txt", "sub/b.txt", ".env", ".env.local", "node_modules/x.js", ".assieme/team.toml", "key.pem", "keep.md"]);
+    put(
+        root,
+        &["a.txt", "sub/b.txt", ".env", ".env.local", "node_modules/x.js", ".assieme/team.toml", "key.pem", "keep.md"],
+    );
     let preview = folder_preview(&p).unwrap();
     assert_eq!(strings(&preview["sample"]), ["a.txt", "keep.md", "sub/b.txt"]);
-    assert_eq!((preview["files"].clone(), preview["empty"].clone(), preview["first"].clone()), (json!(3), json!(false), json!(true)));
+    assert_eq!(
+        (preview["files"].clone(), preview["empty"].clone(), preview["first"].clone()),
+        (json!(3), json!(false), json!(true))
+    );
     assert_eq!(strings(&preview["left_out"]), [".env", ".env.local", "key.pem", "node_modules"]);
     assert!(!root.join(".git").exists(), "a preview must not create a repository");
     assert_eq!(uncommitted(&p).unwrap(), 3);
@@ -124,7 +130,12 @@ fn a_merge_in_progress_stops_the_save() {
     folder_save(&p).unwrap();
     std::fs::write(root.join(".git/MERGE_HEAD"), "0\n").unwrap();
     let err = folder_save(&p).unwrap_err();
-    assert_eq!(err, SetupError::Unfinished(Unfinished("A git merge or similar is in progress in this folder. Finish it first, then come back.".into())));
+    assert_eq!(
+        err,
+        SetupError::Unfinished(Unfinished(
+            "A git merge or similar is in progress in this folder. Finish it first, then come back.".into()
+        ))
+    );
     assert!(folder_preview(&p).is_err());
 }
 
@@ -176,7 +187,9 @@ fn signed_in_is_read_from_each_tools_own_words_and_unclear_counts_as_in() {
     assert_eq!(agents["antigravity"], json!({"installed": false, "signed_in": false}));
     // a program that crashes, or that the system can't start, is not "signed out"
     let paths = BTreeMap::from([("claude", Some(script(d, "c2", "exit 2"))), ("codex", Some(d.join("missing")))]);
-    assert!(signed_in(paths["claude"].as_ref().unwrap(), "claude") && signed_in(paths["codex"].as_ref().unwrap(), "codex"));
+    assert!(
+        signed_in(paths["claude"].as_ref().unwrap(), "claude") && signed_in(paths["codex"].as_ref().unwrap(), "codex")
+    );
     assert!(signed_in(Path::new("/nowhere"), "antigravity"));
 }
 

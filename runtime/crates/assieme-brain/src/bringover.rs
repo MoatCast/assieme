@@ -18,8 +18,14 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 /// Per repository: a slow or broken one is listed as unreadable and skipped.
 const LIMIT: Duration = Duration::from_secs(5);
 const DAYS: i64 = 30;
-const AGENT_PROGRAMS: [(&str, &str); 6] =
-    [("claude", "claude"), ("codex", "codex"), ("gemini", "gemini"), ("opencode", "opencode"), ("cursor-agent", "cursor"), ("agy", "antigravity")];
+const AGENT_PROGRAMS: [(&str, &str); 6] = [
+    ("claude", "claude"),
+    ("codex", "codex"),
+    ("gemini", "gemini"),
+    ("opencode", "opencode"),
+    ("cursor-agent", "cursor"),
+    ("agy", "antigravity"),
+];
 
 /// One workspace of another tool.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -104,7 +110,8 @@ fn rows(path: &Path, n: usize) -> Vec<Value> {
 }
 
 fn files(pattern: &str) -> Vec<PathBuf> {
-    let options = glob::MatchOptions { case_sensitive: true, require_literal_separator: true, require_literal_leading_dot: true };
+    let options =
+        glob::MatchOptions { case_sensitive: true, require_literal_separator: true, require_literal_leading_dot: true };
     let mut out: Vec<PathBuf> = glob::glob_with(pattern, options).map(|g| g.flatten().collect()).unwrap_or_default();
     out.sort();
     out
@@ -130,7 +137,9 @@ pub(crate) fn history(claude_dir: &Path, codex_dir: &Path, now: Timestamp, days:
         let Some(at) = mtime(&path).filter(|at| *at >= cutoff) else { continue };
         let rows = rows(&path, 200);
         let cwd = rows.iter().find_map(|r| r.get("cwd").and_then(text));
-        let model = rows.iter().find_map(|r| r.get("message").filter(|m| m.is_object()).and_then(|m| m.get("model")).filter(|m| m.is_string()));
+        let model = rows.iter().find_map(|r| {
+            r.get("message").filter(|m| m.is_object()).and_then(|m| m.get("model")).filter(|m| m.is_string())
+        });
         if let Some(cwd) = cwd.filter(|c| !c.is_empty()) {
             let session = path.file_stem().map_or(String::new(), |s| s.to_string_lossy().into_owned());
             out.push(Sess { kind: "claude".into(), cwd: cwd.into(), session, model: model.cloned(), at });
@@ -140,11 +149,20 @@ pub(crate) fn history(claude_dir: &Path, codex_dir: &Path, now: Timestamp, days:
         let Some(at) = mtime(&path).filter(|at| *at >= cutoff) else { continue };
         let rows: Vec<Value> = rows(&path, 50).into_iter().filter(|r| r["payload"].is_object()).collect();
         let meta = rows.iter().find(|r| r["type"] == "session_meta").map_or(json!({}), |r| r["payload"].clone());
-        let model = rows.iter().find(|r| r["type"] == "turn_context").map(|r| r["payload"].get("model").cloned().unwrap_or(Value::Null));
+        let model = rows
+            .iter()
+            .find(|r| r["type"] == "turn_context")
+            .map(|r| r["payload"].get("model").cloned().unwrap_or(Value::Null));
         let id = meta.get("id").filter(|i| crate::pyrules::truthy(i));
         if let (Some(cwd), Some(id)) = (meta["cwd"].as_str(), id) {
             let session = id.as_str().map_or_else(|| id.to_string(), String::from);
-            out.push(Sess { kind: "codex".into(), cwd: cwd.into(), session, model: model.filter(|m| !m.is_null()), at });
+            out.push(Sess {
+                kind: "codex".into(),
+                cwd: cwd.into(),
+                session,
+                model: model.filter(|m| !m.is_null()),
+                at,
+            });
         }
     }
     out
@@ -154,7 +172,11 @@ pub(crate) fn history(claude_dir: &Path, codex_dir: &Path, now: Timestamp, days:
 pub(crate) fn running_agents() -> Vec<Proc> {
     use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
     let Ok(mut sys) = System::new() else { return vec![] };
-    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing().with_cwd(UpdateKind::Always));
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing().with_cwd(UpdateKind::Always),
+    );
     let mut out = vec![];
     for p in sys.processes().values() {
         let name = p.name().to_string_lossy();
@@ -226,7 +248,11 @@ pub(crate) fn tool_of(folder: &str, home: &str) -> &'static str {
 
 fn base_branch(repo: &str, deadline: Instant) -> std::io::Result<Option<String>> {
     let head = git(repo, &["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], deadline)?;
-    let mut names: Vec<String> = if head.status.success() { vec![out(&head).strip_prefix("origin/").unwrap_or(&out(&head)).to_string()] } else { vec![] };
+    let mut names: Vec<String> = if head.status.success() {
+        vec![out(&head).strip_prefix("origin/").unwrap_or(&out(&head)).to_string()]
+    } else {
+        vec![]
+    };
     names.extend(["main".to_string(), "master".to_string()]);
     for name in names {
         if git(repo, &["rev-parse", "--verify", "--quiet", &format!("refs/heads/{name}")], deadline)?.status.success() {
@@ -259,7 +285,10 @@ fn inside(path: &str, folder: &str) -> bool {
 }
 
 fn branch_of(folder: &str) -> String {
-    git(folder, &["branch", "--show-current"], Instant::now() + LIMIT).ok().filter(|r| r.status.success()).map_or(String::new(), |r| out(&r))
+    git(folder, &["branch", "--show-current"], Instant::now() + LIMIT)
+        .ok()
+        .filter(|r| r.status.success())
+        .map_or(String::new(), |r| out(&r))
 }
 
 /// The main checkout of the repository `path` is in, or None.
@@ -273,7 +302,11 @@ fn project_of(path: &str) -> Option<String> {
 /// Assieme's agent kind for a command line another tool ran, or None.
 fn kind_of(program: Option<&str>) -> Option<&'static str> {
     let first = program.unwrap_or("").split_whitespace().next().map_or(String::new(), py_basename);
-    AGENT_PROGRAMS.iter().find(|(p, _)| *p == first).map(|(_, k)| *k).or_else(|| AGENT_PROGRAMS.iter().find(|(_, k)| *k == first).map(|(_, k)| *k))
+    AGENT_PROGRAMS
+        .iter()
+        .find(|(p, _)| *p == first)
+        .map(|(_, k)| *k)
+        .or_else(|| AGENT_PROGRAMS.iter().find(|(_, k)| *k == first).map(|(_, k)| *k))
 }
 
 // --- Claude Squad: ~/.claude-squad/state.json ------------------------------------------------------------------------
@@ -287,8 +320,20 @@ fn read_claude_squad(home: &Path) -> (Vec<Found>, Option<String>) {
     if !path.is_file() {
         return (vec![], None);
     }
-    let sorry = || (vec![], Some("Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work.".to_string()));
-    let Ok(state) = std::fs::read(&path).map_err(|_| ()).and_then(|b| crate::pyrules::json_loads_bytes(&b).map_err(|_| ())) else { return sorry() };
+    let sorry = || {
+        (
+            vec![],
+            Some(
+                "Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."
+                    .to_string(),
+            ),
+        )
+    };
+    let Ok(state) =
+        std::fs::read(&path).map_err(|_| ()).and_then(|b| crate::pyrules::json_loads_bytes(&b).map_err(|_| ()))
+    else {
+        return sorry();
+    };
     let Some(state) = state.as_object() else { return sorry() };
     let mut instances = state.get("instances").filter(|i| crate::pyrules::truthy(i)).cloned().unwrap_or(json!([]));
     if let Some(s) = instances.as_str() {
@@ -311,8 +356,14 @@ fn read_claude_squad(home: &Path) -> (Vec<Found>, Option<String>) {
             let program = i["program"].as_str().filter(|p| !p.is_empty()).unwrap_or("an unknown program");
             vec![format!("It ran {}, which Assieme doesn't run yet.", program.split_whitespace().next().unwrap_or(""))]
         };
-        let title = i["title"].as_str().filter(|t| !t.is_empty()).map_or_else(|| py_basename(folder.unwrap_or("")), String::from);
-        let branch = [&wt["branch_name"], &i["branch"]].into_iter().find_map(|b| b.as_str().filter(|b| !b.is_empty())).unwrap_or("");
+        let title = i["title"]
+            .as_str()
+            .filter(|t| !t.is_empty())
+            .map_or_else(|| py_basename(folder.unwrap_or("")), String::from);
+        let branch = [&wt["branch_name"], &i["branch"]]
+            .into_iter()
+            .find_map(|b| b.as_str().filter(|b| !b.is_empty()))
+            .unwrap_or("");
         let mut f = Found::new("claude-squad", &project, &title, folder.map(real), branch);
         f.kind = kind.map(String::from);
         f.running_elsewhere = i.get("status").and_then(Value::as_i64).unwrap_or(CS_RUNNING_UNTIL) < CS_RUNNING_UNTIL;
@@ -324,7 +375,8 @@ fn read_claude_squad(home: &Path) -> (Vec<Found>, Option<String>) {
 
 // --- Vibe Kanban: a SQLite database, opened read-only ----------------------------------------------------------------
 
-const VK_UNSUPPORTED: &str = "This Vibe Kanban version isn't supported yet. Its agents' copies are still listed under Other agent work.";
+const VK_UNSUPPORTED: &str =
+    "This Vibe Kanban version isn't supported yet. Its agents' copies are still listed under Other agent work.";
 
 /// What it needs from each table.
 const VK_NEEDS: [(&str, &[&str]); 6] = [
@@ -366,7 +418,9 @@ pub(crate) struct VkTask {
     branch: Option<String>,
 }
 
-type VibeRead = (Vec<Found>, BTreeMap<String, Vec<VkTask>>, BTreeMap<String, BTreeMap<String, String>>);
+/// Scripts per project: `setup`, `run` and `archive`, where it has them.
+type Scripts = BTreeMap<String, BTreeMap<String, String>>;
+type VibeRead = (Vec<Found>, BTreeMap<String, Vec<VkTask>>, Scripts);
 
 fn sql_text(v: &Sql) -> Option<String> {
     match v {
@@ -409,7 +463,8 @@ fn vibe_query(con: &rusqlite::Connection) -> rusqlite::Result<Option<VibeRead>> 
     let q = |sql: &str, params: &[&dyn rusqlite::ToSql]| -> rusqlite::Result<Vec<Vec<Sql>>> {
         let mut st = con.prepare(sql)?;
         let n = st.column_count();
-        let rows = st.query_map(params, |r| (0..n).map(|i| r.get::<_, Sql>(i)).collect::<rusqlite::Result<Vec<_>>>())?;
+        let rows =
+            st.query_map(params, |r| (0..n).map(|i| r.get::<_, Sql>(i)).collect::<rusqlite::Result<Vec<_>>>())?;
         rows.collect()
     };
     // id -> (path, setup, archive, dev server), the first row of an id keeping its place
@@ -424,11 +479,16 @@ fn vibe_query(con: &rusqlite::Connection) -> rusqlite::Result<Option<VibeRead>> 
     for (_, r) in &repos {
         let Some(path) = sql_text(&r[0]) else { continue };
         let given = [("setup", &r[1]), ("run", &r[3]), ("archive", &r[2])];
-        let got = given.into_iter().filter(|(_, v)| sql_truthy(v)).filter_map(|(k, v)| Some((k.to_string(), sql_text(v)?))).collect();
+        let got = given
+            .into_iter()
+            .filter(|(_, v)| sql_truthy(v))
+            .filter_map(|(k, v)| Some((k.to_string(), sql_text(v)?)))
+            .collect();
         scripts.insert(real(&path), got);
     }
     let resumable = cols("execution_processes")?.is_superset(&["id", "session_id"].map(String::from).into())
-        && cols("coding_agent_turns")?.is_superset(&["execution_process_id", "agent_session_id"].map(String::from).into());
+        && cols("coding_agent_turns")?
+            .is_superset(&["execution_process_id", "agent_session_id"].map(String::from).into());
     // id -> (project id, title, description, status)
     let mut task_rows: Vec<(String, Vec<Sql>)> = vec![];
     for r in q("SELECT id, project_id, title, description, status FROM tasks", &[])? {
@@ -438,13 +498,20 @@ fn vibe_query(con: &rusqlite::Connection) -> rusqlite::Result<Option<VibeRead>> 
         }
     }
     let task = |tid: &Sql| task_rows.iter().find(|(k, _)| *k == key(tid)).map(|(_, r)| r);
-    let (mut project_repo, mut newest_branch): (BTreeMap<String, String>, BTreeMap<String, Option<String>>) = (BTreeMap::new(), BTreeMap::new());
+    let (mut project_repo, mut newest_branch): (BTreeMap<String, String>, BTreeMap<String, Option<String>>) =
+        (BTreeMap::new(), BTreeMap::new());
     let mut found = vec![];
     let all = "SELECT id, task_id, container_ref, branch, archived, worktree_deleted FROM workspaces ORDER BY rowid";
     for w in q(all, &[])? {
-        let (wid, tid, container, branch, archived, deleted) = (&w[0], &w[1], sql_text(&w[2]), sql_text(&w[3]), &w[4], &w[5]);
-        let rid = q("SELECT repo_id FROM workspace_repos WHERE workspace_id = ?", &[wid])?.into_iter().next().map(|r| r[0].clone());
-        let Some(repo) = rid.and_then(|rid| repos.iter().find(|(k, _)| *k == key(&rid)).map(|(_, r)| r)) else { continue };
+        let (wid, tid, container, branch, archived, deleted) =
+            (&w[0], &w[1], sql_text(&w[2]), sql_text(&w[3]), &w[4], &w[5]);
+        let rid = q("SELECT repo_id FROM workspace_repos WHERE workspace_id = ?", &[wid])?
+            .into_iter()
+            .next()
+            .map(|r| r[0].clone());
+        let Some(repo) = rid.and_then(|rid| repos.iter().find(|(k, _)| *k == key(&rid)).map(|(_, r)| r)) else {
+            continue;
+        };
         let Some(project) = sql_text(&repo[0]).map(|p| real(&p)) else { continue };
         if let Some(t) = task(tid) {
             project_repo.insert(key(&t[0]), project.clone());
@@ -474,7 +541,11 @@ fn vibe_query(con: &rusqlite::Connection) -> rusqlite::Result<Option<VibeRead>> 
     }
     let mut tasks: BTreeMap<String, Vec<VkTask>> = BTreeMap::new();
     for (tid, r) in &task_rows {
-        let (Some(project), Some(status)) = (project_repo.get(&key(&r[0])), sql_text(&r[3]).as_deref().and_then(vk_status)) else { continue };
+        let (Some(project), Some(status)) =
+            (project_repo.get(&key(&r[0])), sql_text(&r[3]).as_deref().and_then(vk_status))
+        else {
+            continue;
+        };
         let task = VkTask {
             title: sql_text(&r[1]),
             description: sql_text(&r[2]).unwrap_or_default(),
@@ -487,14 +558,16 @@ fn vibe_query(con: &rusqlite::Connection) -> rusqlite::Result<Option<VibeRead>> 
 }
 
 /// (found, tasks per project, scripts per project, problem).
-fn read_vibe_kanban(home: &Path) -> (Vec<Found>, BTreeMap<String, Vec<VkTask>>, BTreeMap<String, BTreeMap<String, String>>, Option<String>) {
+fn read_vibe_kanban(home: &Path) -> (Vec<Found>, BTreeMap<String, Vec<VkTask>>, Scripts, Option<String>) {
     let path = home.join("Library/Application Support/ai.bloop.vibe-kanban/db.v2.sqlite");
     let unsupported = || (vec![], BTreeMap::new(), BTreeMap::new(), Some(VK_UNSUPPORTED.to_string()));
     if !path.is_file() {
         return (vec![], BTreeMap::new(), BTreeMap::new(), None);
     }
-    let Ok(con) = rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX)
-    else {
+    let Ok(con) = rusqlite::Connection::open_with_flags(
+        &path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ) else {
         return unsupported();
     };
     let _ = con.busy_timeout(LIMIT);
@@ -508,11 +581,12 @@ fn read_vibe_kanban(home: &Path) -> (Vec<Found>, BTreeMap<String, Vec<VkTask>>, 
 
 /// (found, scripts per project, problem). Its own database isn't documented, so it isn't read: the agent and its
 /// conversation come from the general scan.
-fn read_conductor(home: &Path) -> (Vec<Found>, BTreeMap<String, BTreeMap<String, String>>, Option<String>) {
+fn read_conductor(home: &Path) -> (Vec<Found>, Scripts, Option<String>) {
     let h = escaped(home);
     let mut folders = files(&format!("{h}/conductor/workspaces/*/*"));
     let repos = files(&format!("{h}/conductor/repos/*"));
-    let mains: BTreeSet<String> = folders.iter().chain(&repos).filter_map(|f| project_of(&f.to_string_lossy())).collect();
+    let mains: BTreeSet<String> =
+        folders.iter().chain(&repos).filter_map(|f| project_of(&f.to_string_lossy())).collect();
     for m in &mains {
         folders.extend(files(&format!("{}/.conductor/*", glob::Pattern::escape(m))));
     }
@@ -547,7 +621,13 @@ fn read_conductor(home: &Path) -> (Vec<Found>, BTreeMap<String, BTreeMap<String,
 
 /// (found, unreadable). A worktree is listed when it is not the main checkout or Assieme's own, has work in it, and
 /// either sits where a known tool keeps worktrees or had an agent in it.
-pub(crate) fn scan(repos: &[String], sessions: &[Sess], procs: &[Proc], home: &str, limit: Duration) -> (Vec<Found>, Vec<String>) {
+pub(crate) fn scan(
+    repos: &[String],
+    sessions: &[Sess],
+    procs: &[Proc],
+    home: &str,
+    limit: Duration,
+) -> (Vec<Found>, Vec<String>) {
     let home = real(home);
     let (mut found, mut unreadable) = (vec![], vec![]);
     for repo in repos {
@@ -569,7 +649,8 @@ pub(crate) fn scan(repos: &[String], sessions: &[Sess], procs: &[Proc], home: &s
                 if ahead == 0 && !dirty {
                     continue;
                 }
-                let mut here: Vec<&Sess> = sessions.iter().filter(|s| !s.cwd.is_empty() && inside(&s.cwd, path)).collect();
+                let mut here: Vec<&Sess> =
+                    sessions.iter().filter(|s| !s.cwd.is_empty() && inside(&s.cwd, path)).collect();
                 here.sort_by(|a, b| a.at.total_cmp(&b.at));
                 let there: Vec<&Proc> = procs.iter().filter(|p| !p.cwd.is_empty() && inside(&p.cwd, path)).collect();
                 let tool = tool_of(&real(path), &home);
@@ -638,7 +719,9 @@ static LAST: Mutex<BTreeMap<String, Arc<Group>>> = Mutex::new(BTreeMap::new());
 fn adopted(teams: &Path) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for path in files(&format!("{}/*/team.toml", escaped(teams))) {
-        let Some(doc) = std::fs::read_to_string(path).ok().and_then(|t| t.parse::<toml::Table>().ok()) else { continue };
+        let Some(doc) = std::fs::read_to_string(path).ok().and_then(|t| t.parse::<toml::Table>().ok()) else {
+            continue;
+        };
         for r in doc.get("role").and_then(|r| r.as_array()).into_iter().flatten() {
             if let Some(w) = r.get("worktree").and_then(|w| w.as_str()).filter(|w| !w.is_empty()) {
                 out.insert(real(w));
@@ -655,7 +738,10 @@ fn fill(f: &mut Found, base_of: &mut dyn FnMut(&str) -> Option<String>) {
         if let Some(folder) = f.folder.clone() {
             let now = branch_of(&folder);
             if !now.is_empty() && now != f.branch {
-                f.notes.push(format!("{} was on {}; its folder is on {now} now, so that branch is used.", f.name, f.branch));
+                f.notes.push(format!(
+                    "{} was on {}; its folder is on {now} now, so that branch is used.",
+                    f.name, f.branch
+                ));
                 f.branch = now;
             }
             f.dirty = !out(&git(&folder, &["status", "--porcelain"], deadline())?).is_empty();
@@ -698,7 +784,15 @@ fn summary(items: &[Found]) -> String {
 pub fn find(folder: Option<&str>) -> Value {
     let home = std::env::var("HOME").unwrap_or_default();
     let teams = crate::newteam::teams_dir();
-    find_with(&Inputs { home: &home, folder, teams: &teams, now: Timestamp::now(), sessions: None, procs: None, herdr_teams: None })
+    find_with(&Inputs {
+        home: &home,
+        folder,
+        teams: &teams,
+        now: Timestamp::now(),
+        sessions: None,
+        procs: None,
+        herdr_teams: None,
+    })
 }
 
 /// What `find` reads from this Mac, so a test can give its own.
@@ -715,7 +809,9 @@ pub(crate) struct Inputs<'a> {
 pub(crate) fn find_with(i: &Inputs) -> Value {
     let home = real(i.home);
     let home_path = Path::new(&home);
-    let sessions = i.sessions.clone().unwrap_or_else(|| history(&home_path.join(".claude/projects"), &home_path.join(".codex/sessions"), i.now, DAYS));
+    let sessions = i.sessions.clone().unwrap_or_else(|| {
+        history(&home_path.join(".claude/projects"), &home_path.join(".codex/sessions"), i.now, DAYS)
+    });
     let procs = i.procs.clone().unwrap_or_else(running_agents);
     let (squad, squad_problem) = read_claude_squad(home_path);
     let (vibe, tasks, vibe_scripts, vibe_problem) = read_vibe_kanban(home_path);
@@ -747,7 +843,11 @@ pub(crate) fn find_with(i: &Inputs) -> Value {
         bases.entry(p.to_string()).or_insert_with(|| base_branch(p, Instant::now() + LIMIT).ok().flatten()).clone()
     };
     for f in &mut readers {
-        let s = f.folder.as_ref().and_then(|folder| by_folder.iter().position(|(k, _)| k == folder)).map(|at| by_folder.remove(at).1);
+        let s = f
+            .folder
+            .as_ref()
+            .and_then(|folder| by_folder.iter().position(|(k, _)| k == folder))
+            .map(|at| by_folder.remove(at).1);
         if !unreadable.contains(&f.project) {
             // a repository that hung once isn't asked again
             fill(f, &mut base_of);
@@ -806,7 +906,8 @@ pub(crate) fn find_with(i: &Inputs) -> Value {
         last.insert(id, Arc::new(group));
     }
     drop(last);
-    let herdr_teams = i.herdr_teams.clone().unwrap_or_else(|| crate::herdr::find()["teams"].as_array().cloned().unwrap_or_default());
+    let herdr_teams =
+        i.herdr_teams.clone().unwrap_or_else(|| crate::herdr::find()["teams"].as_array().cloned().unwrap_or_default());
     for t in herdr_teams {
         let n = t["agents"].as_u64().unwrap_or(0) as usize;
         projects.push(json!({
@@ -820,12 +921,21 @@ pub(crate) fn find_with(i: &Inputs) -> Value {
 }
 
 fn group(id: &str) -> Result<Arc<Group>, BrainError> {
-    LAST.lock().unwrap_or_else(|e| e.into_inner()).get(id).cloned().ok_or_else(|| BrainError::new("That project isn't in the list any more. Look again."))
+    LAST.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(id)
+        .cloned()
+        .ok_or_else(|| BrainError::new("That project isn't in the list any more. Look again."))
 }
 
 fn becomes(f: &Found, n: usize) -> String {
     let name = |k: &str| crate::launch::NAMES.iter().find(|(i, _)| *i == k).map(|(_, n)| *n);
-    let who = [name(f.kind.as_deref().unwrap_or("claude")).map(String::from), f.model.clone()].into_iter().flatten().filter(|x| !x.is_empty()).collect::<Vec<_>>().join(", ");
+    let who = [name(f.kind.as_deref().unwrap_or("claude")).map(String::from), f.model.clone()]
+        .into_iter()
+        .flatten()
+        .filter(|x| !x.is_empty())
+        .collect::<Vec<_>>()
+        .join(", ");
     let work = if f.ahead > 0 {
         format!("{} not merged", plural(f.ahead as usize, "commit", "commits"))
     } else if f.dirty {
@@ -903,19 +1013,27 @@ pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Val
         });
         notes[at].1.extend(agent.map(String::from));
     };
-    let by_branch_task: BTreeMap<&str, &VkTask> = g.tasks.iter().filter_map(|t| Some((t.branch.as_deref().filter(|b| !b.is_empty())?, t))).collect();
+    let by_branch_task: BTreeMap<&str, &VkTask> =
+        g.tasks.iter().filter_map(|t| Some((t.branch.as_deref().filter(|b| !b.is_empty())?, t))).collect();
     let (mut roles, mut by_branch) = (vec![], BTreeMap::<String, String>::new());
     let clis: Vec<&str> = crate::launch::CLIS.iter().map(|(k, _)| *k).collect();
     for (n, f) in chosen.iter().enumerate() {
         let name = format!("builder-{}", n + 1);
         let agent = f.kind.as_deref().filter(|k| clis.contains(k)).unwrap_or("claude");
         match f.kind.as_deref() {
-            None => note("Which agent worked here isn't recorded, so they start with Claude Code. Change it if needed.", Some(&name)),
-            Some(k) if !clis.contains(&k) => note("They ran an agent Assieme doesn't start yet, so they start with Claude Code.", Some(&name)),
+            None => note(
+                "Which agent worked here isn't recorded, so they start with Claude Code. Change it if needed.",
+                Some(&name),
+            ),
+            Some(k) if !clis.contains(&k) => {
+                note("They ran an agent Assieme doesn't start yet, so they start with Claude Code.", Some(&name))
+            }
             _ => {}
         }
         let task = by_branch_task.get(f.branch.as_str());
-        let mut brief = task.map_or(String::new(), |t| format!("{}\n\n{}", t.title.clone().unwrap_or_default(), t.description).trim().to_string());
+        let mut brief = task.map_or(String::new(), |t| {
+            format!("{}\n\n{}", t.title.clone().unwrap_or_default(), t.description).trim().to_string()
+        });
         if brief.is_empty() {
             brief = (deps.kind_brief)("builder");
             note("No brief was found, so they get the standard builder brief. Check it before you start.", Some(&name));
@@ -931,11 +1049,16 @@ pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Val
         }
         match &f.session {
             Some(s) if RESUMES.contains(&agent) && f.kind.as_deref() == Some(agent) => role["resume"] = json!(s),
-            _ if f.folder.is_some() => note("No conversation was found to pick up, so they start a new one with their brief.", Some(&name)),
+            _ if f.folder.is_some() => {
+                note("No conversation was found to pick up, so they start a new one with their brief.", Some(&name))
+            }
             _ => {}
         }
         if f.running_elsewhere {
-            note(&format!("Still running in {tool}: stop them there first, or they are skipped at Start."), Some(&name));
+            note(
+                &format!("Still running in {tool}: stop them there first, or they are skipped at Start."),
+                Some(&name),
+            );
         }
         for t in &f.notes {
             note(t, Some(&name));
@@ -943,24 +1066,49 @@ pub(crate) fn draft_with(id: &str, ticked: &[String], deps: &Deps) -> Result<Val
         roles.push(role);
         by_branch.insert(f.branch.clone(), name);
     }
-    note(&format!("They start with Assieme's safe permissions: each works in its own folder and can't push. Wider permissions set in {tool} are not carried over."), None);
+    note(
+        &format!(
+            "They start with Assieme's safe permissions: each works in its own folder and can't push. Wider permissions set in {tool} are not carried over."
+        ),
+        None,
+    );
     let cards: Vec<Value> = g
         .tasks
         .iter()
         .filter(|t| t.status != "cancelled")
-        .map(|t| json!({"title": t.title, "status": t.status, "role": t.branch.as_ref().and_then(|b| by_branch.get(b))}))
+        .map(
+            |t| json!({"title": t.title, "status": t.status, "role": t.branch.as_ref().and_then(|b| by_branch.get(b))}),
+        )
         .collect();
     let cancelled = g.tasks.len() - cards.len();
     if cancelled > 0 {
-        note(&format!("{cancelled} cancelled task{} left off the board.", if cancelled != 1 { "s were" } else { " was" }), None);
+        note(
+            &format!(
+                "{cancelled} cancelled task{} left off the board.",
+                if cancelled != 1 { "s were" } else { " was" }
+            ),
+            None,
+        );
     }
-    let unknown: BTreeSet<String> = g.scripts.iter().filter(|(k, _)| script_words(k).is_some()).flat_map(|(_, v)| (deps.rewrite)(v).1).collect();
+    let unknown: BTreeSet<String> =
+        g.scripts.iter().filter(|(k, _)| script_words(k).is_some()).flat_map(|(_, v)| (deps.rewrite)(v).1).collect();
     if !unknown.is_empty() {
-        note(&format!("Its scripts use {}, which Assieme doesn't set.", unknown.into_iter().collect::<Vec<_>>().join(", ")), None);
+        note(
+            &format!(
+                "Its scripts use {}, which Assieme doesn't set.",
+                unknown.into_iter().collect::<Vec<_>>().join(", ")
+            ),
+            None,
+        );
     }
-    let scripts: Map<String, Value> =
-        g.scripts.iter().filter(|(k, _)| script_words(k).is_some()).map(|(k, v)| (k.clone(), json!((deps.rewrite)(v).0))).collect();
-    let running = chosen.iter().any(|f| f.running_elsewhere).then(|| format!("Still running in {tool}: stop it there first."));
+    let scripts: Map<String, Value> = g
+        .scripts
+        .iter()
+        .filter(|(k, _)| script_words(k).is_some())
+        .map(|(k, v)| (k.clone(), json!((deps.rewrite)(v).0)))
+        .collect();
+    let running =
+        chosen.iter().any(|f| f.running_elsewhere).then(|| format!("Still running in {tool}: stop it there first."));
     Ok(json!({"project": g.project, "task": "", "roles": roles, "cards": cards, "scripts": scripts,
               "notes": notes.iter().map(|(t, a)| json!({"text": t, "agents": a})).collect::<Vec<_>>(), "running": running,
               "from": "bringover", "tool": tool, "label": py_basename(&g.project)}))
@@ -976,9 +1124,13 @@ pub fn not_running(roles: &[Value], tool: &str) -> (Vec<Value>, Vec<Value>) {
 pub(crate) fn not_running_with(roles: &[Value], tool: &str, procs: &[Proc]) -> (Vec<Value>, Vec<Value>) {
     let (mut kept, mut skipped) = (vec![], vec![]);
     for r in roles {
-        let busy = r["worktree"].as_str().filter(|w| !w.is_empty()).is_some_and(|w| procs.iter().any(|p| !p.cwd.is_empty() && inside(&p.cwd, w)));
+        let busy = r["worktree"]
+            .as_str()
+            .filter(|w| !w.is_empty())
+            .is_some_and(|w| procs.iter().any(|p| !p.cwd.is_empty() && inside(&p.cwd, w)));
         if busy {
-            skipped.push(json!({"role": r["name"], "reason": format!("Still running in {tool}: stop it there first.")}));
+            skipped
+                .push(json!({"role": r["name"], "reason": format!("Still running in {tool}: stop it there first.")}));
         } else {
             kept.push(r.clone());
         }
@@ -1005,6 +1157,9 @@ pub fn started(
     started_with(team, project, roles, cards, scripts, origin, remember, &add, &set, &record);
 }
 
+/// A new card: its title and role.
+type AddCard<'a> = dyn Fn(&str, Option<&str>) -> Result<Value, BrainError> + 'a;
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn started_with(
     team: &str,
@@ -1014,7 +1169,7 @@ pub(crate) fn started_with(
     scripts: &BTreeMap<String, String>,
     origin: &Value,
     remember: &dyn Fn(&str, &str),
-    add: &dyn Fn(&str, Option<&str>) -> Result<Value, BrainError>,
+    add: &AddCard<'_>,
     set: &dyn Fn(&str, &str) -> Result<(), BrainError>,
     record: &dyn Fn(crate::live::Record),
 ) {
@@ -1027,7 +1182,8 @@ pub(crate) fn started_with(
     if let Some(run) = scripts.get("run").filter(|r| !r.is_empty()) {
         remember(project, run);
     }
-    let adopted: Vec<Value> = roles.iter().filter_map(|r| r["worktree"].as_str().filter(|w| !w.is_empty()).map(|w| json!(w))).collect();
+    let adopted: Vec<Value> =
+        roles.iter().filter_map(|r| r["worktree"].as_str().filter(|w| !w.is_empty()).map(|w| json!(w))).collect();
     let (tool, label) = (origin["tool"].as_str().unwrap_or(""), origin["label"].as_str().unwrap_or(""));
     let mut extra = Map::new();
     extra.insert("title".into(), json!(format!("Brought over {label} from {tool}")));

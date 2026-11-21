@@ -84,9 +84,15 @@ fn expanduser(p: &str) -> String {
 
 /// Runs a command in a process group of its own; None when it ran past `timeout`, when the whole group is killed (a git
 /// hook's children would otherwise keep its pipes open).
-pub(crate) fn run(mut cmd: Command, stdin: Option<Vec<u8>>, timeout: Duration) -> std::io::Result<Option<std::process::Output>> {
+pub(crate) fn run(
+    mut cmd: Command,
+    stdin: Option<Vec<u8>>,
+    timeout: Duration,
+) -> std::io::Result<Option<std::process::Output>> {
     use std::os::unix::process::CommandExt;
-    cmd.stdin(if stdin.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped());
+    cmd.stdin(if stdin.is_some() { Stdio::piped() } else { Stdio::null() })
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     cmd.process_group(0);
     let mut child = cmd.spawn()?;
     let group = child.id() as i32;
@@ -144,7 +150,8 @@ fn git_ready_with(found: Option<PathBuf>, darwin: bool) -> bool {
 
 /// Git works (Apple's stub is only asked about, never run).
 pub fn git_ready() -> bool {
-    let found = std::env::var_os("PATH").and_then(|p| std::env::split_paths(&p).map(|d| d.join("git")).find(|f| is_exec(f)));
+    let found =
+        std::env::var_os("PATH").and_then(|p| std::env::split_paths(&p).map(|d| d.join("git")).find(|f| is_exec(f)));
     git_ready_with(found, cfg!(target_os = "macos"))
 }
 
@@ -167,7 +174,11 @@ fn signed_in(path: &Path, name: &str) -> bool {
     if let Some(words) = signed_out_words(name) {
         cmd.env("NO_COLOR", "1");
         return match run(cmd, None, TIMEOUT) {
-            Ok(Some(o)) => !words.is_match(&format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr))),
+            Ok(Some(o)) => !words.is_match(&format!(
+                "{}{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            )),
             _ => true,
         };
     }
@@ -181,7 +192,8 @@ fn signed_in(path: &Path, name: &str) -> bool {
 fn status_with(paths: &BTreeMap<&str, Option<PathBuf>>) -> Value {
     // Side by side, so two hanging commands still answer in one timeout.
     let signed: BTreeMap<&str, bool> = std::thread::scope(|s| {
-        let tasks: Vec<_> = paths.iter().map(|(n, p)| (*n, p.as_deref().map(|p| s.spawn(move || signed_in(p, n))))).collect();
+        let tasks: Vec<_> =
+            paths.iter().map(|(n, p)| (*n, p.as_deref().map(|p| s.spawn(move || signed_in(p, n))))).collect();
         tasks.into_iter().map(|(n, t)| (n, t.is_some_and(|t| t.join().unwrap_or(false)))).collect()
     });
     let mut agents = Map::new();
@@ -212,15 +224,28 @@ fn install_tools() -> Value {
 
 /// What Set up this folder leaves out of the first version, by name.
 const EXCLUDE: [&str; 14] = [
-    ".env", ".env.*", "*.pem", "*.key", "*.p12", "id_rsa*", "id_ed25519*", "credentials*", "secrets*", "node_modules", ".venv", "venv",
-    "__pycache__", ".DS_Store",
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "id_rsa*",
+    "id_ed25519*",
+    "credentials*",
+    "secrets*",
+    "node_modules",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".DS_Store",
 ];
 const MAX_FILES: usize = 20000;
 const LIST_TIMEOUT: Duration = Duration::from_secs(15);
 /// Add and commit may run the person's hooks; just under the app's own 120 s.
 const SAVE_TIMEOUT: Duration = Duration::from_secs(110);
 /// What git leaves in its folder while a merge or similar is unfinished.
-const UNFINISHED: [&str; 6] = ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply"];
+const UNFINISHED: [&str; 6] =
+    ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply"];
 const ASSIEME_DIR: &str = ".assieme";
 const FIRST_MESSAGE: &str = "First version, saved by Assieme";
 const BEFORE_TEAM_MESSAGE: &str = "Saved by Assieme before starting a team";
@@ -247,7 +272,11 @@ fn git(cwd: &str, args: &[&str], timeout: Duration, stdin: Option<Vec<u8>>) -> R
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
     if !out.status.success() {
         let words = stderr.trim();
-        return Err(SetupError::failed(if words.is_empty() { format!("git {} failed.", args[0]) } else { words.to_string() }));
+        return Err(SetupError::failed(if words.is_empty() {
+            format!("git {} failed.", args[0])
+        } else {
+            words.to_string()
+        }));
     }
     Ok((out.stdout, stderr))
 }
@@ -319,7 +348,8 @@ fn plan(project: &str) -> Result<Plan, SetupError> {
     let in_repo = is_repo(project)?;
     if in_repo {
         let gitdir = repo_state(project)?.0;
-        let midway = UNFINISHED.iter().any(|m| Path::new(&gitdir).join(m).exists()) || !read(project, &["ls-files", "-u"])?.0.is_empty();
+        let midway = UNFINISHED.iter().any(|m| Path::new(&gitdir).join(m).exists())
+            || !read(project, &["ls-files", "-u"])?.0.is_empty();
         if midway {
             return Err(SetupError::Unfinished(Unfinished(
                 "A git merge or similar is in progress in this folder. Finish it first, then come back.".into(),
@@ -357,8 +387,10 @@ fn plan(project: &str) -> Result<Plan, SetupError> {
 
 pub fn folder_preview(project: &str) -> Result<Value, SetupError> {
     let plan = plan(&expanduser(project))?;
-    Ok(json!({"files": plan.files.len(), "sample": plan.files.iter().take(500).collect::<Vec<_>>(), "left_out": plan.left_out,
-              "empty": plan.files.is_empty(), "first": plan.first}))
+    Ok(
+        json!({"files": plan.files.len(), "sample": plan.files.iter().take(500).collect::<Vec<_>>(), "left_out": plan.left_out,
+              "empty": plan.files.is_empty(), "first": plan.first}),
+    )
 }
 
 /// How many files Save them first would commit.
@@ -490,7 +522,9 @@ pub(crate) fn start(rt: &Runtime, agent: &str, kind: &str, command: &str) -> Res
         }
     }
     let argv = ["/bin/sh".to_string(), "-c".to_string(), command.to_string()];
-    let address = rt.start(&argv, &expanduser("~"), &labels, Some(&format!("setup-{value}")), None).map_err(|e| SetupError::failed(e.message))?;
+    let address = rt
+        .start(&argv, &expanduser("~"), &labels, Some(&format!("setup-{value}")), None)
+        .map_err(|e| SetupError::failed(e.message))?;
     Ok(json!({"address": address}))
 }
 
@@ -574,7 +608,8 @@ fn container_open() -> Value {
 /// The `setup.*` methods.
 pub fn handlers(rt: Runtime) -> Handlers {
     let rt = Arc::new(rt);
-    let text = |p: &Value, k: &str| p[k].as_str().map(String::from).ok_or_else(|| BrainError::new(format!("Missing {k}.")));
+    let text =
+        |p: &Value, k: &str| p[k].as_str().map(String::from).ok_or_else(|| BrainError::new(format!("Missing {k}.")));
     let mut out: Handlers = vec![];
     let mut add = |name: &'static str, f: Box<dyn Fn(Value) -> Result<Value, BrainError> + Send + Sync>| {
         out.push((name, Box::new(move |p, _| f(p))));
@@ -596,7 +631,7 @@ pub fn handlers(rt: Runtime) -> Handlers {
     add("setup.folder_save", Box::new(move |p| Ok(folder_save(&text(&p, "project")?)?)));
     add("setup.folder_create", Box::new(move |p| Ok(folder_create(&text(&p, "path")?)?)));
     add("container.status", Box::new(move |p| Ok(container_status(&text(&p, "agent")?)?)));
-    let r = rt.clone();
+    let r = rt;
     add("container.build", Box::new(move |p| Ok(container_build(&r, &text(&p, "agent")?)?)));
     add("container.open", Box::new(|_| Ok(container_open())));
     out

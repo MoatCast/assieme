@@ -13,30 +13,109 @@ const KINDS: [&str; 2] = ["claude", "codex"];
 /// Agent kinds herdr knows (`herdr agent start --kind`): one of these that isn't Claude Code or Codex is left out with a
 /// note; any other program (a shell, a dev server) isn't an agent and is skipped.
 const HERDR_KINDS: [&str; 26] = [
-    "pi", "claude", "codex", "gemini", "cursor", "devin", "agy", "cline", "omp", "mastracode", "opencode", "copilot", "kimi",
-    "kiro", "droid", "amp", "grok", "hermes", "kilo", "qodercli", "qwen", "letta", "maki", "muse", "cursor-agent", "aider",
+    "pi",
+    "claude",
+    "codex",
+    "gemini",
+    "cursor",
+    "devin",
+    "agy",
+    "cline",
+    "omp",
+    "mastracode",
+    "opencode",
+    "copilot",
+    "kimi",
+    "kiro",
+    "droid",
+    "amp",
+    "grok",
+    "hermes",
+    "kilo",
+    "qodercli",
+    "qwen",
+    "letta",
+    "maki",
+    "muse",
+    "cursor-agent",
+    "aider",
 ];
 const MAX_BRIEF: u64 = 256 * 1024;
 
 /// Options that take a value; the rest are switches. Claude Code's tool and folder lists take several values.
 const VALUED_CLAUDE: [&str; 24] = [
-    "--model", "--effort", "--permission-mode", "--settings", "--mcp-config", "--append-system-prompt",
-    "--append-system-prompt-file", "--system-prompt", "--system-prompt-file", "--fallback-model", "--session-id", "--resume",
-    "-r", "--output-format", "--input-format", "--agents", "--name", "-n", "--add-dir", "--allowedTools", "--allowed-tools",
-    "--disallowedTools", "--disallowed-tools", "--plugin-dir",
+    "--model",
+    "--effort",
+    "--permission-mode",
+    "--settings",
+    "--mcp-config",
+    "--append-system-prompt",
+    "--append-system-prompt-file",
+    "--system-prompt",
+    "--system-prompt-file",
+    "--fallback-model",
+    "--session-id",
+    "--resume",
+    "-r",
+    "--output-format",
+    "--input-format",
+    "--agents",
+    "--name",
+    "-n",
+    "--add-dir",
+    "--allowedTools",
+    "--allowed-tools",
+    "--disallowedTools",
+    "--disallowed-tools",
+    "--plugin-dir",
 ];
 const VALUED_CODEX: [&str; 15] = [
-    "-m", "--model", "-c", "--config", "-s", "--sandbox", "-a", "--ask-for-approval", "-p", "--profile", "-C", "--cd", "-i",
-    "--image", "-o",
+    "-m",
+    "--model",
+    "-c",
+    "--config",
+    "-s",
+    "--sandbox",
+    "-a",
+    "--ask-for-approval",
+    "-p",
+    "--profile",
+    "-C",
+    "--cd",
+    "-i",
+    "--image",
+    "-o",
 ];
 const VALUED_MORE: [&str; 4] = ["--output-last-message", "--enable", "--disable", "--setting-sources"];
-const SEVERAL: [&str; 5] = ["--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--add-dir"];
+const SEVERAL: [&str; 5] =
+    ["--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--add-dir"];
 /// Read here, so they aren't listed as left out.
 const READ: [&str; 25] = [
-    "--model", "-m", "--effort", "--permission-mode", "--dangerously-skip-permissions", "--allow-dangerously-skip-permissions",
-    "--append-system-prompt", "--append-system-prompt-file", "--system-prompt", "--system-prompt-file", "--allowedTools",
-    "--allowed-tools", "--disallowedTools", "--disallowed-tools", "-s", "--sandbox", "-a", "--ask-for-approval", "--full-auto",
-    "--yolo", "--dangerously-bypass-approvals-and-sandbox", "-c", "--config", "--settings", "--mcp-config",
+    "--model",
+    "-m",
+    "--effort",
+    "--permission-mode",
+    "--dangerously-skip-permissions",
+    "--allow-dangerously-skip-permissions",
+    "--append-system-prompt",
+    "--append-system-prompt-file",
+    "--system-prompt",
+    "--system-prompt-file",
+    "--allowedTools",
+    "--allowed-tools",
+    "--disallowedTools",
+    "--disallowed-tools",
+    "-s",
+    "--sandbox",
+    "-a",
+    "--ask-for-approval",
+    "--full-auto",
+    "--yolo",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "-c",
+    "--config",
+    "--settings",
+    "--mcp-config",
 ];
 const WIDE_MODES: [&str; 4] = ["auto", "acceptEdits", "bypassPermissions", "dontAsk"];
 /// "${opts[@]}": options only known when the script runs.
@@ -60,13 +139,20 @@ fn home() -> String {
 }
 
 fn config_dir() -> PathBuf {
-    let base = std::env::var("XDG_CONFIG_HOME").ok().filter(|v| !v.is_empty()).unwrap_or_else(|| format!("{}/.config", home()));
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| format!("{}/.config", home()));
     PathBuf::from(base).join("herdr")
 }
 
 fn short(path: &str) -> String {
     let h = home();
-    if !path.is_empty() && format!("{path}/").starts_with(&format!("{h}/")) { format!("~{}", &path[h.len()..]) } else { path.to_string() }
+    if !path.is_empty() && format!("{path}/").starts_with(&format!("{h}/")) {
+        format!("~{}", &path[h.len()..])
+    } else {
+        path.to_string()
+    }
 }
 
 fn slug(s: &str) -> String {
@@ -76,7 +162,9 @@ fn slug(s: &str) -> String {
 
 /// The standard role a name suggests, for its brief and job.
 pub(crate) fn kind_of(name: &str) -> &'static str {
-    for (word, kind) in [("plan", "planner"), ("coord", "planner"), ("lead", "planner"), ("review", "reviewer"), ("test", "tester")] {
+    for (word, kind) in
+        [("plan", "planner"), ("coord", "planner"), ("lead", "planner"), ("review", "reviewer"), ("test", "tester")]
+    {
         if name.contains(word) {
             return kind;
         }
@@ -86,6 +174,10 @@ pub(crate) fn kind_of(name: &str) -> &'static str {
 
 // --- what the port asks of the rest of the brain ---------------------------------------------------------------------
 
+type Validate = dyn Fn(&Value) -> Result<(), String>;
+type EffortProblem = dyn Fn(&str, &str) -> Option<String>;
+type Checkout = dyn Fn(&str) -> (String, Option<String>);
+
 /// New team's answers, read once per import. Tests give their own.
 pub(crate) struct Env {
     /// {CLI: the model ids New team offers}. Codex's come from this Mac's own list; an empty one checks nothing.
@@ -94,11 +186,11 @@ pub(crate) struct Env {
     pub jobs: BTreeMap<String, String>,
     pub kind_brief: Box<dyn Fn(&str) -> String>,
     /// New team's refusal of one role, in words.
-    pub validate: Box<dyn Fn(&Value) -> Result<(), String>>,
+    pub validate: Box<Validate>,
     /// Why a thinking effort can't be used, or None.
-    pub effort_problem: Box<dyn Fn(&str, &str) -> Option<String>>,
+    pub effort_problem: Box<EffortProblem>,
     /// (the project's main checkout, the branch it is on) for a folder; the folder itself when it isn't in git.
-    pub checkout: Box<dyn Fn(&str) -> (String, Option<String>)>,
+    pub checkout: Box<Checkout>,
 }
 
 impl Env {
@@ -108,18 +200,23 @@ impl Env {
             .map(|o| {
                 o.iter()
                     .map(|(cli, v)| {
-                        let ids = v["models"].as_array().map(|m| m.iter().filter_map(|m| m["id"].as_str().map(String::from)).collect());
+                        let ids = v["models"]
+                            .as_array()
+                            .map(|m| m.iter().filter_map(|m| m["id"].as_str().map(String::from)).collect());
                         (cli.clone(), ids.unwrap_or_default())
                     })
                     .collect()
             })
             .unwrap_or_default();
-        let full = crate::newteam::as_preset(&crate::newteam::PRESETS_DIR.join("full"), "full", None).unwrap_or(json!({}));
+        let full =
+            crate::newteam::as_preset(&crate::newteam::PRESETS_DIR.join("full"), "full", None).unwrap_or(json!({}));
         let jobs = full["roles"]
             .as_array()
             .map(|r| {
                 r.iter()
-                    .filter_map(|r| Some((r["name"].as_str()?.split('-').next()?.to_string(), r["job"].as_str()?.to_string())))
+                    .filter_map(|r| {
+                        Some((r["name"].as_str()?.split('-').next()?.to_string(), r["job"].as_str()?.to_string()))
+                    })
                     .collect()
             })
             .unwrap_or_default();
@@ -144,7 +241,9 @@ fn checkout(cwd: &str) -> (String, Option<String>) {
     };
     let path = String::from_utf8_lossy(&common.stdout).trim().to_string();
     let main = if py_basename(&path) == ".git" { py_dirname(&path) } else { path };
-    let branch = git(&["branch", "--show-current"]).map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).filter(|b| !b.is_empty());
+    let branch = git(&["branch", "--show-current"])
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|b| !b.is_empty());
     (crate::quiet::real(&main), branch)
 }
 
@@ -156,7 +255,11 @@ pub(crate) fn py_basename(p: &str) -> String {
 
 pub(crate) fn py_dirname(p: &str) -> String {
     let head = &p[..p.rfind('/').map_or(0, |i| i + 1)];
-    if !head.is_empty() && head.chars().any(|c| c != '/') { head.trim_end_matches('/').to_string() } else { head.to_string() }
+    if !head.is_empty() && head.chars().any(|c| c != '/') {
+        head.trim_end_matches('/').to_string()
+    } else {
+        head.to_string()
+    }
 }
 
 fn py_normpath(p: &str) -> String {
@@ -204,7 +307,10 @@ fn splitlines(text: &str) -> Vec<String> {
     let mut cur = String::new();
     let mut chars = text.chars().peekable();
     while let Some(c) = chars.next() {
-        if matches!(c, '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{1c}' | '\u{1d}' | '\u{1e}' | '\u{85}' | '\u{2028}' | '\u{2029}') {
+        if matches!(
+            c,
+            '\n' | '\r' | '\u{b}' | '\u{c}' | '\u{1c}' | '\u{1d}' | '\u{1e}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+        ) {
             if c == '\r' && chars.peek() == Some(&'\n') {
                 chars.next();
             }
@@ -407,7 +513,11 @@ fn options(kind: &str, args: &[Word]) -> (BTreeMap<String, Vec<V>>, Vec<Word>) {
 
 fn unquote(v: &str) -> String {
     let c: Vec<char> = v.chars().collect();
-    if c.len() > 1 && c[0] == c[c.len() - 1] && (c[0] == '"' || c[0] == '\'') { c[1..c.len() - 1].iter().collect() } else { v.to_string() }
+    if c.len() > 1 && c[0] == c[c.len() - 1] && (c[0] == '"' || c[0] == '\'') {
+        c[1..c.len() - 1].iter().collect()
+    } else {
+        v.to_string()
+    }
 }
 
 /// A brief file's text. A relative path is read from the agent's folder (else the script's), as the agent would.
@@ -453,7 +563,8 @@ pub(crate) fn agent_role(
         args.to_vec()
     };
     let (opts, mut words) = options(kind, &args);
-    let first = |flags: &[&str]| -> Option<V> { flags.iter().find_map(|f| opts.get(*f).and_then(|v| v.first().cloned())) };
+    let first =
+        |flags: &[&str]| -> Option<V> { flags.iter().find_map(|f| opts.get(*f).and_then(|v| v.first().cloned())) };
     let mut role = json!({"name": name, "agent": kind, "job": "", "checkout": "branch", "parent": null, "brief": "",
                           "model": null, "effort": null});
 
@@ -470,9 +581,8 @@ pub(crate) fn agent_role(
         }
     }
     // `a or b`: the option when it says something, else the setting of the same meaning (taken out of `config`).
-    let mut or_config = |a: Option<V>, key: &str| -> Option<V> {
-        if truthy(&a) { a } else { config.remove(key).map(V::S) }
-    };
+    let mut or_config =
+        |a: Option<V>, key: &str| -> Option<V> { if truthy(&a) { a } else { config.remove(key).map(V::S) } };
     let model = or_config(first(&["--model", "-m"]), "model");
     let effort = or_config(first(&["--effort"]), "model_reasoning_effort");
     if let Some(V::S(m)) = model.as_ref().filter(|m| m.truthy()) {
@@ -608,7 +718,9 @@ fn model_problem(kind: &str, model: &str, known: &BTreeMap<String, BTreeSet<Stri
     if !OK.is_match(model) {
         return Some(format!("model {quoted}"));
     }
-    if (kind == "claude" && !ids.contains(model) && !model.starts_with("claude-")) || (kind == "codex" && !ids.is_empty() && !ids.contains(model)) {
+    if (kind == "claude" && !ids.contains(model) && !model.starts_with("claude-"))
+        || (kind == "codex" && !ids.is_empty() && !ids.contains(model))
+    {
         return Some(format!("model {quoted} isn't on this Mac's list"));
     }
     None
@@ -655,7 +767,11 @@ fn expand(s: &str, env: &Vars, inner: &[String]) -> Word {
             if op.ends_with('-') && !v.as_deref().is_some_and(|v| !v.is_empty()) {
                 v = expand(word, env, inner);
             } else if op.ends_with('+') {
-                v = if v.as_deref().is_some_and(|v| !v.is_empty()) { expand(word, env, inner) } else { Some(String::new()) };
+                v = if v.as_deref().is_some_and(|v| !v.is_empty()) {
+                    expand(word, env, inner)
+                } else {
+                    Some(String::new())
+                };
             }
             v
         };
@@ -713,8 +829,10 @@ fn words(text: &str, env: &Vars) -> Vec<Word> {
             continue;
         }
         // shortcut: a word found in single quotes is taken as literal; a mixed-quoted word may expand wrongly.
-        let restored = MARK.replace_all(&t, |m: &regex::Captures| format!("$({})", inner[m[1].parse::<usize>().unwrap_or(0)]));
-        let mut word = if masked.contains(&format!("'{t}'")) { Some(restored.into_owned()) } else { expand(&t, env, &inner) };
+        let restored =
+            MARK.replace_all(&t, |m: &regex::Captures| format!("$({})", inner[m[1].parse::<usize>().unwrap_or(0)]));
+        let mut word =
+            if masked.contains(&format!("'{t}'")) { Some(restored.into_owned()) } else { expand(&t, env, &inner) };
         if word.is_none() && ASSIGN.is_match(&t) {
             // PATH="$PATH": the name still counts
             word = Some(format!("{}=", t.split('=').next().unwrap_or("")));
@@ -765,7 +883,8 @@ type Member = (Word, Word, Vec<Word>, Vec<String>, Word, Word);
 /// The draft from the agents found, one per terminal or pane. The first agent known to report to no one has the team's
 /// task: its first message. `base`: the script's folder.
 fn team(env: &Env, members: Vec<Member>, project: Option<String>, mut notes: Vec<Note>, base: &str) -> Value {
-    let (mut roles, mut taken, mut cwds): (Vec<Map<String, Value>>, BTreeSet<String>, Vec<(String, String)>) = (vec![], BTreeSet::new(), vec![]);
+    let (mut roles, mut taken): (Vec<Map<String, Value>>, BTreeSet<String>) = (vec![], BTreeSet::new());
+    let mut cwds: Vec<(String, String)> = vec![];
     let mut task: Option<String> = None;
     // (role's herdr name, its parent as read)
     let mut links: Vec<(Word, Word)> = vec![];
@@ -850,7 +969,10 @@ fn team(env: &Env, members: Vec<Member>, project: Option<String>, mut notes: Vec
         }
     }
     let project = project.filter(|p| !p.is_empty()).unwrap_or_else(|| {
-        mains.iter().fold(None::<&(String, usize)>, |best, m| if best.is_none_or(|b| m.1 > b.1) { Some(m) } else { best }).map_or(String::new(), |m| m.0.clone())
+        mains
+            .iter()
+            .fold(None::<&(String, usize)>, |best, m| if best.is_none_or(|b| m.1 > b.1) { Some(m) } else { best })
+            .map_or(String::new(), |m| m.0.clone())
     });
     if mains.len() > 1 {
         let others: Vec<String> = mains.iter().filter(|(m, _)| *m != project).map(|(m, _)| short(m)).collect();
@@ -886,13 +1008,17 @@ fn sentence(kind: &str, n: usize, details: &[String]) -> Option<String> {
     Some(match kind {
         "refused" => format!("{c} couldn't be carried over as New team would refuse them, so they are left out."),
         "unknown-program" => format!("The program {c} ran is chosen when the script runs, so they are left out."),
-        "other-cli" => format!("{c} ran a CLI Assieme doesn't start yet ({}), so they are left out.", details.join(", ")),
+        "other-cli" => {
+            format!("{c} ran a CLI Assieme doesn't start yet ({}), so they are left out.", details.join(", "))
+        }
         "wide" => format!(
             "{c} ran with wider permissions ({}). They start with safe permissions instead: each edits its own copy and can't push.",
             details.join(", ")
         ),
         "exec" => format!("{c} ran once (codex exec) and stopped. Here they stay running and wait for work."),
-        "branch" => format!("{c} worked on their own branch. Here each gets a fresh branch of the project; the old branches stay as they are."),
+        "branch" => format!(
+            "{c} worked on their own branch. Here each gets a fresh branch of the project; the old branches stay as they are."
+        ),
         "model" => format!("The model or thinking effort of {c} couldn't be carried over, so they get the default."),
         "standard-brief" => format!(
             "No brief was found for {c}, so they get the standard brief for their role. Check it before you start."
@@ -905,8 +1031,20 @@ fn sentence(kind: &str, n: usize, details: &[String]) -> Option<String> {
     })
 }
 
-const KIND_ORDER: [&str; 12] =
-    ["refused", "unknown-program", "other-cli", "wide", "exec", "branch", "model", "standard-brief", "brief-part", "parent", "numbered", "extras"];
+const KIND_ORDER: [&str; 12] = [
+    "refused",
+    "unknown-program",
+    "other-cli",
+    "wide",
+    "exec",
+    "branch",
+    "model",
+    "standard-brief",
+    "brief-part",
+    "parent",
+    "numbered",
+    "extras",
+];
 /// Their details go in the sentence, not after each name.
 const IN_SENTENCE: [&str; 2] = ["wide", "other-cli"];
 
@@ -939,7 +1077,13 @@ fn grouped(records: &[Note]) -> Vec<Value> {
         }
         let labels: Vec<String> = agents
             .iter()
-            .map(|(a, ds)| if IN_SENTENCE.contains(&kind) || ds.is_empty() { a.clone() } else { format!("{a} ({})", ds.join("; ")) })
+            .map(|(a, ds)| {
+                if IN_SENTENCE.contains(&kind) || ds.is_empty() {
+                    a.clone()
+                } else {
+                    format!("{a} ({})", ds.join("; "))
+                }
+            })
             .collect();
         out.push(json!({"text": sentence(kind, agents.len(), &details), "agents": labels}));
     }
@@ -951,8 +1095,9 @@ fn sessions(cfg: &Path) -> Vec<(String, Vec<Value>)> {
     let mut found = vec![("default".to_string(), cfg.join("session.json"))];
     let folder = cfg.join("sessions");
     if folder.is_dir() {
-        let mut names: Vec<String> =
-            std::fs::read_dir(&folder).map(|d| d.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+        let mut names: Vec<String> = std::fs::read_dir(&folder)
+            .map(|d| d.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect())
+            .unwrap_or_default();
         names.sort();
         found.extend(names.into_iter().map(|n| (n.clone(), folder.join(n).join("session.json"))));
     }
@@ -969,14 +1114,22 @@ fn sessions(cfg: &Path) -> Vec<(String, Vec<Value>)> {
 fn agent_panes(ws: &Value) -> Vec<&Value> {
     let tabs = ws["tabs"].as_array().into_iter().flatten();
     let panes = tabs.filter_map(|t| t["panes"].as_object()).flat_map(|p| p.values());
-    panes.filter(|p| crate::pyrules::truthy(&p["managed_agent_kind"]) || crate::pyrules::truthy(&p["agent_session"]["agent"])).collect()
+    panes
+        .filter(|p| {
+            crate::pyrules::truthy(&p["managed_agent_kind"]) || crate::pyrules::truthy(&p["agent_session"]["agent"])
+        })
+        .collect()
 }
 
 fn from_workspace(env: &Env, ws: &Value) -> Value {
     let members: Vec<Member> = agent_panes(ws)
         .into_iter()
         .map(|p| {
-            let kind = p["managed_agent_kind"].as_str().filter(|k| !k.is_empty()).or_else(|| p["agent_session"]["agent"].as_str()).map(String::from);
+            let kind = p["managed_agent_kind"]
+                .as_str()
+                .filter(|k| !k.is_empty())
+                .or_else(|| p["agent_session"]["agent"].as_str())
+                .map(String::from);
             let name = p["agent_name"].as_str().filter(|n| !n.is_empty()).map(String::from).or_else(|| kind.clone());
             (name, kind, vec![], vec![], p["cwd"].as_str().map(String::from), Some(String::new()))
         })
@@ -993,7 +1146,8 @@ fn from_workspace(env: &Env, ws: &Value) -> Value {
 /// The agents a launch script starts with `hc run` or `herdr agent start`, helper functions followed one level.
 fn from_script(env: &Env, text: &str, path: &str) -> Value {
     static CONT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\\\n").unwrap());
-    static FUNC: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\s*)(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{\s*(#.*)?$").unwrap());
+    static FUNC: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^(\s*)(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{\s*(#.*)?$").unwrap());
     let capped: String = text.chars().take((MAX_BRIEF * 4) as usize).collect();
     let raw = splitlines(&CONT.replace_all(&capped, " "));
     let (mut lines, mut buf): (Vec<String>, Vec<String>) = (vec![], vec![]);
@@ -1008,10 +1162,11 @@ fn from_script(env: &Env, text: &str, path: &str) -> Value {
     }
     lines.extend(buf);
     let path = crate::quiet::real(path);
-    let mut vars: Vars = [("HOME", home()), ("0", path.clone()), ("BASH_SOURCE[0]", path.clone()), ("BASH_SOURCE", path.clone())]
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), Some(v)))
-        .collect();
+    let mut vars: Vars =
+        [("HOME", home()), ("0", path.clone()), ("BASH_SOURCE[0]", path.clone()), ("BASH_SOURCE", path.clone())]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), Some(v)))
+            .collect();
     let at = r"(?:^\s*|[;&|()`]\s*|\b(?:then|do|else)\s+)"; // where a command starts, not a word in its arguments
     let starts = Regex::new(&format!(r"(?s){at}(hc\s+run|herdr\s+agent\s+start)\s(.*)")).unwrap();
     let (mut funcs, mut walk): (Vec<(String, Vec<String>)>, Vec<String>) = (vec![], vec![]);
@@ -1021,7 +1176,9 @@ fn from_script(env: &Env, text: &str, path: &str) -> Value {
         if let Some(m) = FUNC.captures(&lines[i]) {
             let indent = m[1].chars().count();
             let end = (i + 1..lines.len())
-                .find(|&j| lines[j].trim() == "}" && lines[j].chars().count() - lines[j].trim_start().chars().count() <= indent)
+                .find(|&j| {
+                    lines[j].trim() == "}" && lines[j].chars().count() - lines[j].trim_start().chars().count() <= indent
+                })
                 .unwrap_or(lines.len() - 1);
             let body = &lines[(i + 1).min(end)..end];
             if body.iter().any(|x| starts.is_match(x)) {
@@ -1033,8 +1190,10 @@ fn from_script(env: &Env, text: &str, path: &str) -> Value {
         walk.push(lines[i].clone());
         i += 1;
     }
-    let calls: Vec<(String, Regex)> =
-        funcs.iter().map(|(n, _)| (n.clone(), Regex::new(&format!(r"(?s){at}{}\s+(.*)$", regex::escape(n))).unwrap())).collect();
+    let calls: Vec<(String, Regex)> = funcs
+        .iter()
+        .map(|(n, _)| (n.clone(), Regex::new(&format!(r"(?s){at}{}\s+(.*)$", regex::escape(n))).unwrap()))
+        .collect();
     let mut members: Vec<Member> = vec![];
     fn run(
         text: &[String],
@@ -1082,7 +1241,8 @@ fn assign(line: &str, env: &mut Vars) {
     if bad {
         return;
     }
-    let declare = ws.first().is_some_and(|w| matches!(w.as_str(), "export" | "local" | "readonly" | "declare" | "typeset"));
+    let declare =
+        ws.first().is_some_and(|w| matches!(w.as_str(), "export" | "local" | "readonly" | "declare" | "typeset"));
     for w in ws.iter().skip(usize::from(declare)) {
         if let Some(m) = NAME.captures(w) {
             let v = expand(&m[2], env, &inner);
@@ -1104,7 +1264,14 @@ fn script_member(tool: &str, ws: &[Word]) -> Member {
             }
             i += if ["--kind", "--pane", "--timeout"].iter().any(|f| is(i, f)) { 2 } else { 1 };
         }
-        return (name, kind, ws.get(i + 1..).unwrap_or_default().to_vec(), vec![], Some(String::new()), Some(String::new()));
+        return (
+            name,
+            kind,
+            ws.get(i + 1..).unwrap_or_default().to_vec(),
+            vec![],
+            Some(String::new()),
+            Some(String::new()),
+        );
     }
     let (mut name, mut cwd, mut parent, mut i) = (Some(String::new()), Some(String::new()), Some(String::new()), 0);
     while let Some(Some(w)) = ws.get(i) {
