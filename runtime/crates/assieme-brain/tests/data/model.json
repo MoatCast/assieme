@@ -1,0 +1,315 @@
+{
+ "parse_ts": [
+  {
+   "in": "2027-01-15T08:00:00Z",
+   "out": "1800000000000000000"
+  },
+  {
+   "in": "2027-01-15T08:00:00z",
+   "out": null
+  },
+  {
+   "in": "2027-01-15T08:00:00ZZ",
+   "out": null
+  },
+  {
+   "in": "2027-01-15T08:00:00.5Z",
+   "out": "1800000000500000000"
+  },
+  {
+   "in": "2027-01-15T08:00:00",
+   "out": "1800000000000000000"
+  },
+  {
+   "in": "2027-01-15T08:00:00+02:00",
+   "out": "1799992800000000000"
+  },
+  {
+   "in": "Z2027-01-15",
+   "out": null
+  },
+  {
+   "in": "2027-01-15Z",
+   "out": "1799971200000000000"
+  },
+  {
+   "in": "2027-W03-5T08Z",
+   "out": "1800604800000000000"
+  },
+  {
+   "in": "2027-01-15T24:00:00Z",
+   "out": "1800057600000000000"
+  },
+  {
+   "in": "yesterday",
+   "out": null
+  },
+  {
+   "in": "",
+   "out": null
+  },
+  {
+   "in": 12345,
+   "out": null
+  },
+  {
+   "in": 1.5,
+   "out": null
+  },
+  {
+   "in": null,
+   "out": null
+  },
+  {
+   "in": true,
+   "out": null
+  },
+  {
+   "in": [
+    "2027-01-15"
+   ],
+   "out": null
+  },
+  {
+   "in": {
+    "t": 1
+   },
+   "out": null
+  },
+  {
+   "in": "2027-01-15T08:00:00.123456789Z",
+   "out": "1800000000123456000"
+  },
+  {
+   "in": "2027-01-15 08:00:00Z",
+   "out": "1800000000000000000"
+  }
+ ],
+ "session": [
+  {
+   "in": [
+    [
+     "wake",
+     "human",
+     "human",
+     "fix the  tests\nplease",
+     true,
+     "2027-01-15T08:00:00Z",
+     "main"
+    ],
+    [
+     "call",
+     100,
+     5,
+     "2027-01-15T08:00:00Z"
+    ],
+    [
+     "call",
+     300,
+     0,
+     null
+    ]
+   ],
+   "out": {
+    "calls": 2,
+    "tokens": 400,
+    "output": 5,
+    "peak": 300,
+    "samples": [
+     [
+      "1800000000000000000",
+      100
+     ]
+    ],
+    "turns": [
+     {
+      "sender": "human",
+      "channel": "human",
+      "calls": 2,
+      "tokens": 400,
+      "text": "fix the tests please",
+      "ts": "1800000000000000000",
+      "changed": false,
+      "branch": "main"
+     }
+    ]
+   }
+  },
+  {
+   "in": [
+    [
+     "wake",
+     "a",
+     "asm",
+     "hidden text",
+     false,
+     null,
+     null
+    ],
+    [
+     "call",
+     10,
+     1,
+     "2027-01-15T08:00:00Z"
+    ]
+   ],
+   "out": {
+    "calls": 1,
+    "tokens": 10,
+    "output": 1,
+    "peak": 10,
+    "samples": [
+     [
+      "1800000000000000000",
+      10
+     ]
+    ],
+    "turns": [
+     {
+      "sender": "a",
+      "channel": "asm",
+      "calls": 1,
+      "tokens": 10,
+      "text": "",
+      "ts": null,
+      "changed": false,
+      "branch": null
+     }
+    ]
+   }
+  },
+  {
+   "in": [
+    [
+     "call",
+     50,
+     2,
+     "2027-01-15T08:00:00Z"
+    ],
+    [
+     "call",
+     70,
+     0,
+     "2027-01-15T08:00:00Z"
+    ]
+   ],
+   "out": {
+    "calls": 2,
+    "tokens": 120,
+    "output": 2,
+    "peak": 70,
+    "samples": [
+     [
+      "1800000000000000000",
+      50
+     ],
+     [
+      "1800000000000000000",
+      70
+     ]
+    ],
+    "turns": []
+   }
+  },
+  {
+   "in": [
+    [
+     "wake",
+     "b",
+     "team",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     true,
+     null,
+     null
+    ],
+    [
+     "wake",
+     "c",
+     "hc",
+     " \t lead\u001cand tail   ",
+     true,
+     "2027-01-15T08:00:00Z",
+     null
+    ],
+    [
+     "call",
+     5,
+     0,
+     null
+    ]
+   ],
+   "out": {
+    "calls": 1,
+    "tokens": 5,
+    "output": 0,
+    "peak": 5,
+    "samples": [],
+    "turns": [
+     {
+      "sender": "b",
+      "channel": "team",
+      "calls": 0,
+      "tokens": 0,
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "ts": null,
+      "changed": false,
+      "branch": null
+     },
+     {
+      "sender": "c",
+      "channel": "hc",
+      "calls": 1,
+      "tokens": 5,
+      "text": "lead and tail",
+      "ts": "1800000000000000000",
+      "changed": false,
+      "branch": null
+     }
+    ]
+   }
+  },
+  {
+   "in": [
+    [
+     "wake",
+     "d",
+     "spawn",
+     "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+     true,
+     "2027-01-15T08:00:00Z",
+     "b"
+    ]
+   ],
+   "out": {
+    "calls": 0,
+    "tokens": 0,
+    "output": 0,
+    "peak": 0,
+    "samples": [],
+    "turns": [
+     {
+      "sender": "d",
+      "channel": "spawn",
+      "calls": 0,
+      "tokens": 0,
+      "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+      "ts": "1800000000000000000",
+      "changed": false,
+      "branch": "b"
+     }
+    ]
+   }
+  },
+  {
+   "in": [],
+   "out": {
+    "calls": 0,
+    "tokens": 0,
+    "output": 0,
+    "peak": 0,
+    "samples": [],
+    "turns": []
+   }
+  }
+ ]
+}

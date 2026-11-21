@@ -300,6 +300,18 @@ pub fn splitlines(s: &str) -> Vec<&str> {
     out
 }
 
+// --- str.split ----------------------------------------------------------------------------------------------------
+
+/// `str.isspace` for one character: Unicode whitespace, and the separators \x1c to \x1f.
+pub fn isspace(c: char) -> bool {
+    c.is_whitespace() || ('\x1c'..='\x1f').contains(&c)
+}
+
+/// `str.split()` with no separator.
+pub fn split(s: &str) -> Vec<&str> {
+    s.split(isspace).filter(|w| !w.is_empty()).collect()
+}
+
 // --- glob.glob ----------------------------------------------------------------------------------------------------
 
 /// `glob.glob(pattern)`: a wildcard never matches a name starting with a dot, `**` is `*`. Sorted: Python's own
