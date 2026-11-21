@@ -23,8 +23,14 @@ pub struct Layout {
 
 impl Layout {
     pub fn new(resources: PathBuf, home: PathBuf, xdg_state_home: Option<String>) -> Layout {
-        let base = xdg_state_home.filter(|v| !v.is_empty()).map_or_else(|| home.join(".local/state"), PathBuf::from);
-        Layout { resources, home, state: base.join("assieme") }
+        let base = xdg_state_home
+            .filter(|v| !v.is_empty())
+            .map_or_else(|| home.join(".local/state"), PathBuf::from);
+        Layout {
+            resources,
+            home,
+            state: base.join("assieme"),
+        }
     }
 
     /// The job's program: it hands off to the installed core when there is one.
@@ -33,7 +39,8 @@ impl Layout {
     }
 
     pub fn plist(&self) -> PathBuf {
-        self.home.join(format!("Library/LaunchAgents/{LABEL}.plist"))
+        self.home
+            .join(format!("Library/LaunchAgents/{LABEL}.plist"))
     }
 
     pub fn core_socket(&self) -> PathBuf {
@@ -42,15 +49,26 @@ impl Layout {
 
     /// PATH for the job, the brain and every `asm` the app runs: the quiet-send stand-in, the app's asm-bin, the login PATH.
     fn path(&self, login_path: &str) -> String {
-        format!("{}:{}:{login_path}", self.state.join("bin").display(), self.resources.join("asm-bin").display())
+        format!(
+            "{}:{}:{login_path}",
+            self.state.join("bin").display(),
+            self.resources.join("asm-bin").display()
+        )
     }
 }
 
 /// The allow-listed environment, never the app's own.
-pub fn environment(layout: &Layout, login_path: &str, var: impl Fn(&str) -> Option<String>) -> Vec<(String, String)> {
+pub fn environment(
+    layout: &Layout,
+    login_path: &str,
+    var: impl Fn(&str) -> Option<String>,
+) -> Vec<(String, String)> {
     let mut env = vec![
         ("ASM_SESSION".to_string(), "assieme".to_string()),
-        ("ASM_SOCKET".into(), layout.core_socket().display().to_string()),
+        (
+            "ASM_SOCKET".into(),
+            layout.core_socket().display().to_string(),
+        ),
         ("HOME".into(), layout.home.display().to_string()),
         ("PATH".into(), layout.path(login_path)),
     ];
@@ -63,18 +81,27 @@ pub fn environment(layout: &Layout, login_path: &str, var: impl Fn(&str) -> Opti
 }
 
 fn xml(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 fn program_line(program: &Path) -> String {
-    format!("<key>ProgramArguments</key><array><string>{}</string>", xml(&program.display().to_string()))
+    format!(
+        "<key>ProgramArguments</key><array><string>{}</string>",
+        xml(&program.display().to_string())
+    )
 }
 
 /// The login job: `asm server start` once at login (RunAtLoad, no KeepAlive: the holder and the app restart the core).
 pub fn plist(layout: &Layout, env: &[(String, String)]) -> String {
     let log = xml(&layout.state.join("service.log").display().to_string());
-    let vars: String =
-        env.iter().map(|(k, v)| format!("<key>{}</key><string>{}</string>", xml(k), xml(v))).collect::<Vec<_>>().join("");
+    let vars: String = env
+        .iter()
+        .map(|(k, v)| format!("<key>{}</key><string>{}</string>", xml(k), xml(v)))
+        .collect::<Vec<_>>()
+        .join("");
     format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
          <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
@@ -98,7 +125,8 @@ struct BrainJson {
 
 /// The app moved, was renamed or updated: the job or `brain.json` names another Resources folder.
 pub fn needs_install(layout: &Layout) -> bool {
-    let job_ok = std::fs::read_to_string(layout.plist()).is_ok_and(|p| p.contains(&program_line(&layout.program())));
+    let job_ok = std::fs::read_to_string(layout.plist())
+        .is_ok_and(|p| p.contains(&program_line(&layout.program())));
     let brain_ok = std::fs::read(layout.state.join("brain.json"))
         .ok()
         .and_then(|b| serde_json::from_slice::<BrainJson>(&b).ok())
@@ -116,13 +144,20 @@ fn write(path: &Path, bytes: &[u8]) -> Result<(), String> {
 
 /// The core's brain is up or on its way: `starting` and `waiting` count as running, so a normal start never asks.
 fn brain_ok(status: &serde_json::Value) -> bool {
-    matches!(status["brain"]["state"].as_str(), Some("starting" | "running" | "waiting"))
+    matches!(
+        status["brain"]["state"].as_str(),
+        Some("starting" | "running" | "waiting")
+    )
 }
 
 /// The health check: the core answers and its brain is up or on its way; a running brain must answer too.
 pub fn running(layout: &Layout) -> bool {
-    let Ok(status) = bridge::call_at_with(&layout.core_socket(), "server.status", serde_json::json!({}), Duration::from_secs(2))
-    else {
+    let Ok(status) = bridge::call_at_with(
+        &layout.core_socket(),
+        "server.status",
+        serde_json::json!({}),
+        Duration::from_secs(2),
+    ) else {
         return false;
     };
     brain_ok(&status)
@@ -133,12 +168,16 @@ pub fn running(layout: &Layout) -> bool {
 /// The service at `sock` answers within `timeout`: any reply line counts, an error reply included. A service that
 /// launchd has loaded but that is stuck passes `running` and fails this.
 pub fn answers(sock: &Path, timeout: Duration) -> bool {
-    let Ok(mut s) = UnixStream::connect(sock) else { return false };
+    let Ok(mut s) = UnixStream::connect(sock) else {
+        return false;
+    };
     if s.set_read_timeout(Some(timeout)).is_err() || s.set_write_timeout(Some(timeout)).is_err() {
         return false;
     }
     // An unknown method: the brain replies with an error at once and does no work.
-    if s.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"service.ping\"}\n").is_err() {
+    if s.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"service.ping\"}\n")
+        .is_err()
+    {
         return false;
     }
     let mut line = String::new();
@@ -172,37 +211,80 @@ fn run(program: &Path, args: &[&std::ffi::OsStr], env: &[(String, String)]) -> R
     if out.status.success() {
         return Ok(());
     }
-    Err(format!("{} failed: {}", program.display(), String::from_utf8_lossy(&out.stderr).trim()))
+    Err(format!(
+        "{} failed: {}",
+        program.display(),
+        String::from_utf8_lossy(&out.stderr).trim()
+    ))
 }
 
 /// Install Assieme's service; safe to repeat. Boots out both jobs, bootstraps the new one, runs `asm server start` and
 /// waits for the core, then asks for `brain.restart` only when the brain is down or absent.
-pub fn install(layout: &Layout, login_path: &str, launchctl: &str, var: impl Fn(&str) -> Option<String>) -> Result<(), String> {
+pub fn install(
+    layout: &Layout,
+    login_path: &str,
+    launchctl: &str,
+    var: impl Fn(&str) -> Option<String>,
+) -> Result<(), String> {
     let program = layout.program();
     if !program.exists() {
-        return Err(format!("Assieme's runtime is missing at {}; rebuild the app with app/scripts/bundle.sh", program.display()));
+        return Err(format!(
+            "Assieme's runtime is missing at {}; rebuild the app with app/scripts/bundle.sh",
+            program.display()
+        ));
     }
-    let core = layout.resources.join("asm/Assieme Core.app/Contents/MacOS/assieme-core");
+    let core = layout
+        .resources
+        .join("asm/Assieme Core.app/Contents/MacOS/assieme-core");
     if !core.exists() {
-        return Err(format!("Assieme's core is missing at {}; rebuild the app with app/scripts/bundle.sh", core.display()));
+        return Err(format!(
+            "Assieme's core is missing at {}; rebuild the app with app/scripts/bundle.sh",
+            core.display()
+        ));
     }
     let env = environment(layout, login_path, var);
     // `asm` hands off to the installed `current` core, and an older one has no brain supervision: update it first.
     let dest = layout.home.join(".local/bin/assieme-core");
-    run(&core, &["--asm-install-bundle".as_ref(), core.as_os_str(), dest.as_os_str()], &env)?;
-    let path = env.iter().find(|(k, _)| k == "PATH").expect("PATH is in the list").1.clone();
-    write(&layout.state.join("brain.json"), &serde_json::to_vec(&BrainJson { path }).expect("plain strings"))?;
+    run(
+        &core,
+        &[
+            "--asm-install-bundle".as_ref(),
+            core.as_os_str(),
+            dest.as_os_str(),
+        ],
+        &env,
+    )?;
+    let path = env
+        .iter()
+        .find(|(k, _)| k == "PATH")
+        .expect("PATH is in the list")
+        .1
+        .clone();
+    write(
+        &layout.state.join("brain.json"),
+        &serde_json::to_vec(&BrainJson { path }).expect("plain strings"),
+    )?;
     let log = layout.state.join("service.log");
     if std::fs::metadata(&log).is_ok_and(|m| m.len() > LOG_LIMIT) {
         let _ = std::fs::rename(&log, layout.state.join("service.log.1"));
     }
     write(&layout.plist(), plist(layout, &env).as_bytes())?;
     // Or the Python brain comes back at the next login.
-    let _ = std::fs::remove_file(layout.home.join(format!("Library/LaunchAgents/{OLD_LABEL}.plist")));
-    let uid = Command::new("id").arg("-u").output().map_err(|e| e.to_string())?.stdout;
+    let _ = std::fs::remove_file(
+        layout
+            .home
+            .join(format!("Library/LaunchAgents/{OLD_LABEL}.plist")),
+    );
+    let uid = Command::new("id")
+        .arg("-u")
+        .output()
+        .map_err(|e| e.to_string())?
+        .stdout;
     let domain = format!("gui/{}", String::from_utf8_lossy(&uid).trim());
     for label in [OLD_LABEL, LABEL] {
-        let _ = Command::new(launchctl).args(["bootout", &format!("{domain}/{label}")]).output(); // not loaded is fine
+        let _ = Command::new(launchctl)
+            .args(["bootout", &format!("{domain}/{label}")])
+            .output(); // not loaded is fine
     }
     let mut tries = 0;
     loop {
@@ -225,9 +307,30 @@ pub fn install(layout: &Layout, login_path: &str, launchctl: &str, var: impl Fn(
         std::thread::sleep(Duration::from_millis(500));
     }
     run(&program, &["server".as_ref(), "start".as_ref()], &env)?;
-    let status = bridge::call_at(&layout.core_socket(), "server.status", serde_json::json!({}))?;
+    let mut status = bridge::call_at(
+        &layout.core_socket(),
+        "server.status",
+        serde_json::json!({}),
+    )?;
+    if status.get("brain").is_none() {
+        // A core from before the brain moved into it is still running: `start` leaves it be. Restart it on the
+        // `current` core just installed; its terminals keep running.
+        run(&program, &["server".as_ref(), "restart".as_ref()], &env)?;
+        status = bridge::call_at(
+            &layout.core_socket(),
+            "server.status",
+            serde_json::json!({}),
+        )?;
+        if status.get("brain").is_none() {
+            return Err("Assieme's runtime is still an older version after a restart. Quit Assieme and open it again.".into());
+        }
+    }
     if status["brain"].is_null() || status["brain"]["state"] == "down" {
-        bridge::call_at(&layout.core_socket(), "brain.restart", serde_json::json!({}))?;
+        bridge::call_at(
+            &layout.core_socket(),
+            "brain.restart",
+            serde_json::json!({}),
+        )?;
     }
     Ok(())
 }
@@ -255,7 +358,11 @@ mod tests {
     }
 
     fn layout(root: &Path, app: &str) -> Layout {
-        Layout::new(root.join(app).join("Contents/Resources"), root.join("home"), None)
+        Layout::new(
+            root.join(app).join("Contents/Resources"),
+            root.join("home"),
+            None,
+        )
     }
 
     fn var(name: &str) -> Option<String> {
@@ -267,12 +374,19 @@ mod tests {
     }
 
     fn core(l: &Layout) -> PathBuf {
-        l.resources.join("asm/Assieme Core.app/Contents/MacOS/assieme-core")
+        l.resources
+            .join("asm/Assieme Core.app/Contents/MacOS/assieme-core")
     }
 
     /// A core that answers server.status with `brain` and records every method.
     fn fake_core(sock: &Path, brain: Value) -> Arc<Mutex<Vec<String>>> {
+        fake_core_answers(sock, vec![json!({ "brain": brain })])
+    }
+
+    /// A core whose server.status answers come from `statuses` in turn, the last one repeating.
+    fn fake_core_answers(sock: &Path, statuses: Vec<Value>) -> Arc<Mutex<Vec<String>>> {
         let calls = Arc::new(Mutex::new(vec![]));
+        let answered = Arc::new(Mutex::new(0usize));
         let listener = UnixListener::bind(sock).unwrap();
         let seen = calls.clone();
         std::thread::spawn(move || {
@@ -285,19 +399,70 @@ mod tests {
                 let req: Value = serde_json::from_str(&line).unwrap();
                 let method = req["method"].as_str().unwrap().to_string();
                 seen.lock().unwrap().push(method.clone());
-                let result = if method == "server.status" { json!({"brain": brain}) } else { json!({"state": "starting"}) };
-                let _ = r.get_mut().write_all(format!("{}\n", json!({"id": 1, "result": result})).as_bytes());
+                let result = if method == "server.status" {
+                    let mut n = answered.lock().unwrap();
+                    *n += 1;
+                    statuses[(*n - 1).min(statuses.len() - 1)].clone()
+                } else {
+                    json!({"state": "starting"})
+                };
+                let _ = r
+                    .get_mut()
+                    .write_all(format!("{}\n", json!({"id": 1, "result": result})).as_bytes());
             }
         });
         calls
     }
 
+    /// The core running at install predates the brain's supervision (no `brain` in its status): restart it on the new
+    /// core, whose terminals keep running, instead of asking the old one for a method it lacks.
+    #[test]
+    fn install_restarts_a_core_older_than_the_brain() {
+        let r = root("old-core");
+        let l = layout(&r, "Assieme.app");
+        std::fs::create_dir_all(&l.state).unwrap();
+        let log = r.join("log");
+        script(
+            &core(&l),
+            &format!(r#"echo "core $*" >> {}"#, log.display()),
+        );
+        script(
+            &l.program(),
+            &format!(r#"echo "asm $*" >> {}"#, log.display()),
+        );
+        let launchctl = r.join("launchctl");
+        script(&launchctl, "true");
+        let calls = fake_core_answers(
+            &l.core_socket(),
+            vec![json!({}), json!({"brain": {"state": "starting"}})],
+        );
+        install(&l, "/usr/bin", launchctl.to_str().unwrap(), var).unwrap();
+        let got = std::fs::read_to_string(&log).unwrap();
+        let asm: Vec<&str> = got.lines().filter(|l| l.starts_with("asm ")).collect();
+        assert_eq!(asm, ["asm server start", "asm server restart"], "{got}");
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["server.status", "server.status"],
+            "no brain.restart for a starting brain"
+        );
+        let _ = std::fs::remove_dir_all(&r);
+    }
+
     #[test]
     fn the_environment_is_an_allow_list() {
-        let l = Layout::new("/A.app/Contents/Resources".into(), "/Users/me".into(), Some("/x/state".into()));
+        let l = Layout::new(
+            "/A.app/Contents/Resources".into(),
+            "/Users/me".into(),
+            Some("/x/state".into()),
+        );
         let env = environment(&l, "/opt/homebrew/bin:/usr/bin", var);
         let get = |k: &str| env.iter().find(|(n, _)| n == k).map(|(_, v)| v.as_str());
-        assert_eq!(get("PATH"), Some("/x/state/assieme/bin:/A.app/Contents/Resources/asm-bin:/opt/homebrew/bin:/usr/bin"));
+        assert_eq!(
+            get("PATH"),
+            Some(
+                "/x/state/assieme/bin:/A.app/Contents/Resources/asm-bin:/opt/homebrew/bin:/usr/bin"
+            )
+        );
         assert_eq!(get("ASM_SOCKET"), Some("/x/state/assieme/asm.sock"));
         assert_eq!(get("ASM_SESSION"), Some("assieme"));
         assert_eq!(get("HOME"), Some("/Users/me"));
@@ -308,9 +473,16 @@ mod tests {
 
     #[test]
     fn the_job_starts_the_server_once_at_login() {
-        let l = Layout::new("/My <App>.app/Contents/Resources".into(), "/Users/me".into(), None);
+        let l = Layout::new(
+            "/My <App>.app/Contents/Resources".into(),
+            "/Users/me".into(),
+            None,
+        );
         let p = plist(&l, &[("PATH".into(), "/a&b".into())]);
-        assert!(p.contains("<key>Label</key><string>dev.assieme.service</string>"), "{p}");
+        assert!(
+            p.contains("<key>Label</key><string>dev.assieme.service</string>"),
+            "{p}"
+        );
         assert!(
             p.contains("<string>/My &lt;App&gt;.app/Contents/Resources/asm-bin/asm</string><string>server</string><string>start</string>"),
             "{p}"
@@ -319,7 +491,11 @@ mod tests {
         assert!(!p.contains("KeepAlive"));
         assert!(p.contains("<key>PATH</key><string>/a&amp;b</string>"));
         assert!(p.contains("/Users/me/.local/state/assieme/service.log"));
-        let check = Command::new("plutil").arg("-lint").arg("-").stdin(std::process::Stdio::piped()).spawn();
+        let check = Command::new("plutil")
+            .arg("-lint")
+            .arg("-")
+            .stdin(std::process::Stdio::piped())
+            .spawn();
         if let Ok(mut lint) = check {
             lint.stdin.take().unwrap().write_all(p.as_bytes()).unwrap();
             assert!(lint.wait().unwrap().success(), "plutil rejects {p}");
@@ -330,15 +506,35 @@ mod tests {
     fn install_is_safe_to_repeat_and_restarts_only_a_missing_brain() {
         let r = root("install");
         let l = layout(&r, "Assieme.app");
-        assert!(install(&l, "/usr/bin", "/usr/bin/true", var).unwrap_err().contains("bundle.sh"));
+        assert!(
+            install(&l, "/usr/bin", "/usr/bin/true", var)
+                .unwrap_err()
+                .contains("bundle.sh")
+        );
         std::fs::create_dir_all(&l.state).unwrap();
         let log = r.join("log");
-        script(&core(&l), &format!(r#"echo "core $*" >> {}"#, log.display()));
-        script(&l.program(), &format!(r#"echo "asm $* USER=$USER SECRET=$SECRET PATH=$PATH" >> {}"#, log.display()));
+        script(
+            &core(&l),
+            &format!(r#"echo "core $*" >> {}"#, log.display()),
+        );
+        script(
+            &l.program(),
+            &format!(
+                r#"echo "asm $* USER=$USER SECRET=$SECRET PATH=$PATH" >> {}"#,
+                log.display()
+            ),
+        );
         let launchctl = r.join("launchctl");
-        script(&launchctl, &format!(r#"echo "launchctl $*" >> {}"#, log.display()));
+        script(
+            &launchctl,
+            &format!(r#"echo "launchctl $*" >> {}"#, log.display()),
+        );
         std::fs::create_dir_all(r.join("home/Library/LaunchAgents")).unwrap();
-        std::fs::write(r.join("home/Library/LaunchAgents/dev.assieme.brain.plist"), "old").unwrap();
+        std::fs::write(
+            r.join("home/Library/LaunchAgents/dev.assieme.brain.plist"),
+            "old",
+        )
+        .unwrap();
         let calls = fake_core(&l.core_socket(), Value::Null);
         assert!(needs_install(&l));
 
@@ -346,17 +542,42 @@ mod tests {
         let got = std::fs::read_to_string(&log).unwrap();
         let lines: Vec<&str> = got.lines().collect();
         assert!(lines[0].starts_with("core --asm-install-bundle "), "{got}");
-        assert!(lines[1].starts_with("launchctl bootout gui/") && lines[1].ends_with("/dev.assieme.brain"), "{got}");
+        assert!(
+            lines[1].starts_with("launchctl bootout gui/")
+                && lines[1].ends_with("/dev.assieme.brain"),
+            "{got}"
+        );
         assert!(lines[2].ends_with("/dev.assieme.service"), "{got}");
-        assert!(lines[3].starts_with("launchctl bootstrap gui/") && lines[3].ends_with("dev.assieme.service.plist"), "{got}");
-        assert!(lines[4].starts_with("asm server start USER=me SECRET= PATH="), "{got}");
-        assert!(lines[4].contains("/Assieme.app/Contents/Resources/asm-bin:/usr/bin"), "{got}");
-        assert!(!r.join("home/Library/LaunchAgents/dev.assieme.brain.plist").exists(), "the old job is gone for good");
-        assert_eq!(*calls.lock().unwrap(), ["server.status", "brain.restart"], "absent brain: restarted");
+        assert!(
+            lines[3].starts_with("launchctl bootstrap gui/")
+                && lines[3].ends_with("dev.assieme.service.plist"),
+            "{got}"
+        );
+        assert!(
+            lines[4].starts_with("asm server start USER=me SECRET= PATH="),
+            "{got}"
+        );
+        assert!(
+            lines[4].contains("/Assieme.app/Contents/Resources/asm-bin:/usr/bin"),
+            "{got}"
+        );
+        assert!(
+            !r.join("home/Library/LaunchAgents/dev.assieme.brain.plist")
+                .exists(),
+            "the old job is gone for good"
+        );
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["server.status", "brain.restart"],
+            "absent brain: restarted"
+        );
         assert!(!needs_install(&l));
 
         // Again: only a brain that is down is restarted.
-        for (state, want) in [("waiting", &["server.status"][..]), ("down", &["server.status", "brain.restart"])] {
+        for (state, want) in [
+            ("waiting", &["server.status"][..]),
+            ("down", &["server.status", "brain.restart"]),
+        ] {
             std::fs::remove_file(l.core_socket()).unwrap();
             let calls = fake_core(&l.core_socket(), json!({ "state": state }));
             install(&l, "/usr/bin", launchctl.to_str().unwrap(), var).unwrap();
@@ -370,7 +591,13 @@ mod tests {
 
     #[test]
     fn starting_and_waiting_count_as_running() {
-        for (state, ok) in [("starting", true), ("running", true), ("waiting", true), ("down", false), ("later", false)] {
+        for (state, ok) in [
+            ("starting", true),
+            ("running", true),
+            ("waiting", true),
+            ("down", false),
+            ("later", false),
+        ] {
             assert_eq!(brain_ok(&json!({"brain": {"state": state}})), ok, "{state}");
         }
         assert!(!brain_ok(&json!({"brain": null})));
@@ -383,7 +610,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&r);
     }
     fn listener(name: &str) -> (std::os::unix::net::UnixListener, PathBuf) {
-        let p = std::env::temp_dir().join(format!("assieme-svc-{}-{name}.sock", std::process::id()));
+        let p =
+            std::env::temp_dir().join(format!("assieme-svc-{}-{name}.sock", std::process::id()));
         let _ = std::fs::remove_file(&p);
         (std::os::unix::net::UnixListener::bind(&p).unwrap(), p)
     }
@@ -416,22 +644,34 @@ mod tests {
 
     #[test]
     fn answers_false_when_no_socket() {
-        assert!(!answers(Path::new("/nonexistent/assieme-brain.sock"), Duration::from_secs(1)));
+        assert!(!answers(
+            Path::new("/nonexistent/assieme-brain.sock"),
+            Duration::from_secs(1)
+        ));
     }
 
     #[test]
     fn login_path_comes_from_the_login_shell() {
         let r = root("loginsh");
         let shell = r.join("loginsh");
-        script(&shell, r#"[ "$1" = -lc ] && printf '/opt/homebrew/bin:/Users/me/.local/bin:/usr/bin'"#);
-        assert_eq!(login_path(shell.to_str().unwrap(), "/usr/bin:/bin"), "/opt/homebrew/bin:/Users/me/.local/bin:/usr/bin");
+        script(
+            &shell,
+            r#"[ "$1" = -lc ] && printf '/opt/homebrew/bin:/Users/me/.local/bin:/usr/bin'"#,
+        );
+        assert_eq!(
+            login_path(shell.to_str().unwrap(), "/usr/bin:/bin"),
+            "/opt/homebrew/bin:/Users/me/.local/bin:/usr/bin"
+        );
     }
 
     #[test]
     fn login_path_falls_back_with_common_folders() {
         let p = login_path("/nope/shell", "/usr/bin:/bin");
         assert!(p.starts_with("/usr/bin:/bin:"), "{p}");
-        assert!(p.contains("/opt/homebrew/bin") && p.contains("/.local/bin"), "{p}");
+        assert!(
+            p.contains("/opt/homebrew/bin") && p.contains("/.local/bin"),
+            "{p}"
+        );
     }
 
     #[test]
@@ -451,7 +691,10 @@ mod tests {
         fake_core(&l.core_socket(), json!({"state": "running"}));
         install(&l, "/usr/bin", launchctl.to_str().unwrap(), var).unwrap();
         let got = std::fs::read_to_string(&log).unwrap();
-        let (out, new) = (got.find("/dev.assieme.brain").expect("old job booted out"), got.find("bootstrap").unwrap());
+        let (out, new) = (
+            got.find("/dev.assieme.brain").expect("old job booted out"),
+            got.find("bootstrap").unwrap(),
+        );
         assert!(got.contains("bootout gui/") && out < new, "{got}");
         assert!(got.contains("/dev.assieme.service.plist"), "{got}");
         assert!(!old.exists());
@@ -463,13 +706,27 @@ mod tests {
         let l = layout(&r, "Assieme.app");
         std::fs::create_dir_all(&l.state).unwrap();
         let log = r.join("log");
-        script(&l.program(), &format!(r#"echo "server $*" >> {}"#, log.display()));
-        script(&core(&l), &format!(r#"echo "core $*" >> {}"#, log.display()));
+        script(
+            &l.program(),
+            &format!(r#"echo "server $*" >> {}"#, log.display()),
+        );
+        script(
+            &core(&l),
+            &format!(r#"echo "core $*" >> {}"#, log.display()),
+        );
         let calls = fake_core(&l.core_socket(), Value::Null);
         install(&l, "/usr/bin", "/usr/bin/true", var).unwrap();
         let got = std::fs::read_to_string(&log).unwrap();
-        let want = format!("core --asm-install-bundle {0} {1}/home/.local/bin/assieme-core\nserver server start\n", core(&l).display(), r.display());
+        let want = format!(
+            "core --asm-install-bundle {0} {1}/home/.local/bin/assieme-core\nserver server start\n",
+            core(&l).display(),
+            r.display()
+        );
         assert_eq!(got, want);
-        assert_eq!(*calls.lock().unwrap(), ["server.status", "brain.restart"], "the restart comes after the install");
+        assert_eq!(
+            *calls.lock().unwrap(),
+            ["server.status", "brain.restart"],
+            "the restart comes after the install"
+        );
     }
 }

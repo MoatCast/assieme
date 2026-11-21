@@ -10,8 +10,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
-use tauri::{Emitter, Manager, State};
 use tauri::ipc::{Channel, InvokeResponseBody};
+use tauri::{Emitter, Manager, State};
 
 /// Live terminal streams by id. Only `bridge.ts` calls these commands.
 #[derive(Default)]
@@ -26,12 +26,18 @@ fn timeout_for(timeout_s: Option<u64>) -> std::time::Duration {
 }
 
 #[tauri::command]
-async fn brain_call(method: String, params: Value, timeout_s: Option<u64>) -> Result<Value, String> {
+async fn brain_call(
+    method: String,
+    params: Value,
+    timeout_s: Option<u64>,
+) -> Result<Value, String> {
     // Socket I/O blocks: keep it off the async workers so a slow brain can't stall terminal commands.
     let timeout = timeout_for(timeout_s);
-    tauri::async_runtime::spawn_blocking(move || bridge::call_at_with(&bridge::brain_socket(), &method, params, timeout))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        bridge::call_at_with(&bridge::brain_socket(), &method, params, timeout)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -71,7 +77,12 @@ async fn terminal_input(streams: State<'_, Streams>, id: u32, data: Vec<u8>) -> 
 }
 
 #[tauri::command]
-async fn terminal_resize(streams: State<'_, Streams>, id: u32, cols: u16, rows: u16) -> Result<(), String> {
+async fn terminal_resize(
+    streams: State<'_, Streams>,
+    id: u32,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
     match streams.open.lock().unwrap().get(&id) {
         Some(s) => s.resize(cols, rows),
         None => Err(format!("no terminal stream {id}")),
@@ -89,16 +100,22 @@ async fn terminal_close(streams: State<'_, Streams>, id: u32) -> Result<(), Stri
 /// Read-only text of a terminal in any session: the only access to sessions other than `assieme`.
 #[tauri::command]
 async fn terminal_read(session: String, address: String) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || bridge::read_text_at(&bridge::core_socket(&session), &address))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        bridge::read_text_at(&bridge::core_socket(&session), &address)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Where everything lives: this app's Resources folder, the person's home and the state folder.
 fn layout(app: &tauri::AppHandle) -> Result<assieme_service::Layout, String> {
     let res = app.path().resource_dir().map_err(|e| e.to_string())?;
     let home = app.path().home_dir().map_err(|e| e.to_string())?;
-    Ok(assieme_service::Layout::new(res, home, std::env::var("XDG_STATE_HOME").ok()))
+    Ok(assieme_service::Layout::new(
+        res,
+        home,
+        std::env::var("XDG_STATE_HOME").ok(),
+    ))
 }
 
 fn install_service(layout: &assieme_service::Layout) -> Result<(), String> {
@@ -109,15 +126,21 @@ fn install_service(layout: &assieme_service::Layout) -> Result<(), String> {
 
 #[tauri::command]
 async fn service_running(app: tauri::AppHandle) -> bool {
-    let Ok(layout) = layout(&app) else { return false };
-    tauri::async_runtime::spawn_blocking(move || assieme_service::running(&layout)).await.unwrap_or(false)
+    let Ok(layout) = layout(&app) else {
+        return false;
+    };
+    tauri::async_runtime::spawn_blocking(move || assieme_service::running(&layout))
+        .await
+        .unwrap_or(false)
 }
 
 /// Install Assieme's service: the login job and its brain, with the runtime bundled inside the app.
 #[tauri::command]
 async fn service_install(app: tauri::AppHandle) -> Result<(), String> {
     let layout = layout(&app)?;
-    tauri::async_runtime::spawn_blocking(move || install_service(&layout)).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || install_service(&layout))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Command line tools (Settings › General): the launcher, which runs `asm cli` from this app.
@@ -148,7 +171,12 @@ async fn cli_remove(app: tauri::AppHandle) -> Result<cli_install::CliStatus, Str
 }
 
 #[tauri::command]
-async fn window_open(app: tauri::AppHandle, team: Option<String>, role: Option<String>, view: Option<String>) {
+async fn window_open(
+    app: tauri::AppHandle,
+    team: Option<String>,
+    role: Option<String>,
+    view: Option<String>,
+) {
     menubar::hide_panel(&app);
     menubar::open_window(&app, team.as_deref(), role.as_deref(), view.as_deref());
 }
@@ -166,8 +194,11 @@ async fn notifications_off() -> bool {
 /// The one fix macOS leaves to the person: its own page for notifications.
 #[tauri::command]
 async fn notification_settings_open() -> Result<(), String> {
-    std::process::Command::new("open").arg("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
-        .status().map(|_| ()).map_err(|e| e.to_string())
+    std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.Notifications-Settings.extension")
+        .status()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
 
 /// The Mac's standard menu, plus Settings… (⌘,) under About, New Team (⌘N) at the top of File, where Mac apps keep them,
@@ -177,15 +208,32 @@ fn app_menu(app: &tauri::AppHandle) -> tauri::Result<()> {
     use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
     let menu = Menu::default(app)?;
     for (i, item) in menu.items()?.into_iter().enumerate() {
-        let MenuItemKind::Submenu(sub) = item else { continue };
+        let MenuItemKind::Submenu(sub) = item else {
+            continue;
+        };
         if i == 0 {
-            sub.insert(&MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?, 2)?;
+            sub.insert(
+                &MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?,
+                2,
+            )?;
             sub.insert(&PredefinedMenuItem::separator(app)?, 3)?;
         } else if sub.text()? == "File" {
-            sub.insert(&MenuItem::with_id(app, "new-team", "New Team", true, Some("CmdOrCtrl+N"))?, 0)?;
+            sub.insert(
+                &MenuItem::with_id(app, "new-team", "New Team", true, Some("CmdOrCtrl+N"))?,
+                0,
+            )?;
             sub.insert(&PredefinedMenuItem::separator(app)?, 1)?;
         } else if sub.text()? == "View" {
-            sub.insert(&MenuItem::with_id(app, "palette", "Command Palette…", true, Some("CmdOrCtrl+K"))?, 0)?;
+            sub.insert(
+                &MenuItem::with_id(
+                    app,
+                    "palette",
+                    "Command Palette…",
+                    true,
+                    Some("CmdOrCtrl+K"),
+                )?,
+                0,
+            )?;
             sub.insert(&PredefinedMenuItem::separator(app)?, 1)?;
         }
     }
@@ -205,10 +253,10 @@ pub fn run() {
         .setup(|app| {
             app_menu(app.handle())?;
             // The app moved or updated: the job or brain.json names another Resources folder.
-            if let Ok(layout) = layout(app.handle()) {
-                if assieme_service::needs_install(&layout) {
-                    std::thread::spawn(move || drop(install_service(&layout)));
-                }
+            if let Ok(layout) = layout(app.handle())
+                && assieme_service::needs_install(&layout)
+            {
+                std::thread::spawn(move || drop(install_service(&layout)));
             }
             Ok(menubar::setup(app.handle())?)
         })
@@ -226,7 +274,9 @@ pub fn run() {
         // The main window starts hidden (tauri.conf.json) so it never shows a frame in the wrong theme. Once its page
         // has loaded, its CSS already has the theme: show it here, so a failing script can never leave no window.
         .on_page_load(|webview, payload| {
-            if webview.label() == "main" && payload.event() == tauri::webview::PageLoadEvent::Finished {
+            if webview.label() == "main"
+                && payload.event() == tauri::webview::PageLoadEvent::Finished
+            {
                 let _ = webview.window().show();
             }
         })
