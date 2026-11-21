@@ -65,6 +65,13 @@ dependencies = [
 [[package]]
 name = "assieme-brain"
 version = "0.1.21"
+dependencies = [
+ "assieme-core",
+ "libc",
+ "serde",
+ "serde_json",
+ "tokio",
+]
 
 [[package]]
 name = "assieme-core"
