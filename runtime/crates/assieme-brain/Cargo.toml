@@ -23,6 +23,7 @@ tempfile = "3"
 toml = { version = "1", default-features = false, features = ["parse", "display", "serde"] }
 tokio = { version = "1", features = ["rt", "net", "io-util", "time", "macros"] }
 uuid = { version = "1", features = ["v4"] }
+zip = { version = "9", default-features = false }
 
 # The brain is unix-only; this keeps the Windows type-check from compiling SQLite.
 [target.'cfg(unix)'.dependencies]
