@@ -1,0 +1,5922 @@
+{
+"agent_roles": [
+{
+"name": "builder-1",
+"kind": "claude",
+"args": [],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "claude",
+"args": [
+"hello",
+"world"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "hello world",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"hello",
+"world"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "hello world"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "claude",
+"args": [
+"--model",
+"opus"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": "opus",
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"lead",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--model",
+"opus"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "opus",
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "claude",
+"args": [
+"--model=sonnet",
+"do it"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "do it",
+"model": "sonnet",
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--model=sonnet",
+"do it"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "sonnet",
+"effort": null,
+"_task": "do it"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "claude",
+"args": [
+"--model",
+"claude-opus-4-5-20251101"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "claude",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": "claude-opus-4-5-20251101",
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--model",
+"claude-opus-4-5-20251101"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "claude-opus-4-5-20251101",
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "claude",
+"args": [
+"--model",
+"nonsense-model"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "claude",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard tester brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"model",
+"test-runner",
+"model 'nonsense-model' isn't on this Mac's list"
+],
+[
+"standard-brief",
+"test-runner",
+"tester brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--model",
+"nonsense-model"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"model",
+"builder",
+"model 'nonsense-model' isn't on this Mac's list"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "claude",
+"args": [
+"--model",
+"bad model!"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"model",
+"coordinator",
+"model 'bad model!'"
+],
+[
+"standard-brief",
+"coordinator",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--model",
+"bad model!"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"model",
+"builder",
+"model 'bad model!'"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "claude",
+"args": [
+"--effort",
+"high"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": "high"
+},
+"notes": [
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--effort",
+"high"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": "high",
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "claude",
+"args": [
+"--effort",
+"ludicrous"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"model",
+"planner",
+"effort 'ludicrous'"
+],
+[
+"standard-brief",
+"planner",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--effort",
+"ludicrous"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"model",
+"builder",
+"effort 'ludicrous'"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "claude",
+"args": [
+"--permission-mode",
+"plan",
+"review it"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "read-only",
+"parent": null,
+"brief": "review it",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--permission-mode",
+"plan",
+"review it"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "review it"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "claude",
+"args": [
+"--permission-mode",
+"bypassPermissions"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"dev",
+"permission mode \"bypassPermissions\""
+],
+[
+"standard-brief",
+"dev",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--permission-mode",
+"bypassPermissions"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"permission mode \"bypassPermissions\""
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "claude",
+"args": [
+"--permission-mode",
+"acceptEdits"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "claude",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"reviewer",
+"permission mode \"acceptEdits\""
+],
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--permission-mode",
+"acceptEdits"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"permission mode \"acceptEdits\""
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "claude",
+"args": [
+"--dangerously-skip-permissions",
+"go"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "claude",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "go",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"test-runner",
+"permission checks skipped"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--dangerously-skip-permissions",
+"go"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "go"
+},
+"notes": [
+[
+"wide",
+"builder",
+"permission checks skipped"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "claude",
+"args": [
+"--allowedTools",
+"Bash",
+"Edit",
+"--",
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"coordinator",
+"extra allowed tools"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--allowedTools",
+"Bash",
+"Edit",
+"--",
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"wide",
+"builder",
+"extra allowed tools"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "claude",
+"args": [
+"--allowedTools",
+"Bash,Edit",
+"prompt"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"builder-1",
+"extra allowed tools"
+],
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--allowedTools",
+"Bash,Edit",
+"prompt"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"extra allowed tools"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "claude",
+"args": [
+"--disallowedTools",
+"Edit",
+"Write"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"planner",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--disallowedTools",
+"Edit",
+"Write"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "claude",
+"args": [
+"--disallowed-tools",
+"Write,Read",
+"hi"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"lead",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--disallowed-tools",
+"Write,Read",
+"hi"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "claude",
+"args": [
+"--disallowedTools",
+"Bash"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"dev",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--disallowedTools",
+"Bash"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "claude",
+"args": [
+"--add-dir",
+"/a",
+"/b",
+"then text"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "claude",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+],
+[
+"extras",
+"reviewer",
+"--add-dir"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--add-dir",
+"/a",
+"/b",
+"then text"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--add-dir"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "claude",
+"args": [
+"--append-system-prompt",
+"Be brief.",
+"start"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "claude",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "Be brief.\n\nstart",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--append-system-prompt",
+"Be brief.",
+"start"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "Be brief.",
+"model": null,
+"effort": null,
+"_task": "start"
+},
+"notes": [
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "claude",
+"args": [
+"--system-prompt",
+"You are X."
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "You are X.",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--system-prompt",
+"You are X."
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "You are X.",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "claude",
+"args": [
+"--append-system-prompt-file",
+"nope.md"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"brief-part",
+"builder-1",
+"nope.md couldn't be read"
+],
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--append-system-prompt-file",
+"nope.md"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"brief-part",
+"builder",
+"/b/nope.md couldn't be read"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "claude",
+"args": [
+"--system-prompt-file",
+"/scripts/missing-brief.md",
+"go"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "go",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"brief-part",
+"planner",
+"/scripts/missing-brief.md couldn't be read"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--system-prompt-file",
+"/scripts/missing-brief.md",
+"go"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "go"
+},
+"notes": [
+[
+"brief-part",
+"builder",
+"/scripts/missing-brief.md couldn't be read"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "claude",
+"args": [
+"--settings",
+"x.json",
+"--mcp-config",
+"m.json",
+"go"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "go",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"lead",
+"its settings file and MCP servers"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--settings",
+"x.json",
+"--mcp-config",
+"m.json",
+"go"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "go"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"its settings file and MCP servers"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "claude",
+"args": [
+"--verbose",
+"--debug",
+"go"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "go",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"dev",
+"--debug, --verbose"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--verbose",
+"--debug",
+"go"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "go"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--debug, --verbose"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "claude",
+"args": [
+"--resume",
+"abc",
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "claude",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"reviewer",
+"--resume"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--resume",
+"abc",
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--resume"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "claude",
+"args": [
+"--output-format",
+"json",
+"-p",
+"task"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "claude",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "task",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"test-runner",
+"--output-format, -p"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--output-format",
+"json",
+"-p",
+"task"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "task"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--output-format, -p"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "claude",
+"args": [
+"a",
+null,
+"b"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "a b",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"brief-part",
+"coordinator",
+"first message chosen when the script runs"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"a",
+null,
+"b"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "a b"
+},
+"notes": [
+[
+"brief-part",
+"builder",
+"first message chosen when the script runs"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "claude",
+"args": [
+"--model",
+null
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--model",
+null
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "claude",
+"args": [
+"--append-system-prompt",
+null
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"brief-part",
+"planner",
+"part chosen when the script runs"
+],
+[
+"standard-brief",
+"planner",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--append-system-prompt",
+null
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"brief-part",
+"builder",
+"part chosen when the script runs"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "claude",
+"args": [
+"--effort",
+null,
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--effort",
+null,
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "claude",
+"args": [
+"--",
+"--model",
+"opus"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "--model opus",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--",
+"--model",
+"opus"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "--model opus"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "claude",
+"args": [
+"-",
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "claude",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "- x",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"-",
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "- x"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "claude",
+"args": [
+"--name",
+"n",
+"--session-id",
+"s"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "claude",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard tester brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"test-runner",
+"tester brief"
+],
+[
+"extras",
+"test-runner",
+"--name, --session-id"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--name",
+"n",
+"--session-id",
+"s"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--name, --session-id"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "claude",
+"args": [
+"\u0001",
+"go"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "go",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"coordinator",
+"options chosen when the script runs"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"\u0001",
+"go"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "go"
+},
+"notes": [
+[
+"extras",
+"builder",
+"options chosen when the script runs"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "claude",
+"args": [
+"--model",
+"opus",
+"\u0001"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "opus",
+"effort": null
+},
+"notes": [
+[
+"extras",
+"builder-1",
+"options chosen when the script runs"
+],
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--model",
+"opus",
+"\u0001"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "opus",
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"extras",
+"builder",
+"options chosen when the script runs"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "claude",
+"args": [
+"--allowedTools"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"planner",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--allowedTools"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "claude",
+"args": [
+"--add-dir"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"lead",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--add-dir"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "claude",
+"args": [
+"--unknown-flag=3",
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"dev",
+"--unknown-flag"
+]
+]
+},
+{
+"name": "builder",
+"kind": "claude",
+"args": [
+"--unknown-flag=3",
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--unknown-flag"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "codex",
+"args": [],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "codex",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "codex",
+"args": [
+"fix it"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "codex",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "fix it",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"fix it"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "fix it"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "codex",
+"args": [
+"exec",
+"fix it"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "fix it",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"exec",
+"coordinator",
+""
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"exec",
+"fix it"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "fix it"
+},
+"notes": [
+[
+"exec",
+"builder",
+""
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "codex",
+"args": [
+"e",
+"fix it"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "fix it",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"exec",
+"builder-1",
+""
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"e",
+"fix it"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "fix it"
+},
+"notes": [
+[
+"exec",
+"builder",
+""
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "codex",
+"args": [
+"-m",
+"gpt-5.5"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": "gpt-5.5",
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"planner",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-m",
+"gpt-5.5"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "gpt-5.5",
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "codex",
+"args": [
+"--model",
+"gpt-4"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"model",
+"lead",
+"model 'gpt-4' isn't on this Mac's list"
+],
+[
+"standard-brief",
+"lead",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--model",
+"gpt-4"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"model",
+"builder",
+"model 'gpt-4' isn't on this Mac's list"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "codex",
+"args": [
+"--model=gpt-5.4",
+"go"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "go",
+"model": "gpt-5.4",
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--model=gpt-5.4",
+"go"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "gpt-5.4",
+"effort": null,
+"_task": "go"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "codex",
+"args": [
+"-c",
+"model=gpt-5.5"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "codex",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": "gpt-5.5",
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+"model=gpt-5.5"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "gpt-5.5",
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "codex",
+"args": [
+"-c",
+"model=\"gpt-5.4\"",
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "codex",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": "gpt-5.4",
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+"model=\"gpt-5.4\"",
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "gpt-5.4",
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "codex",
+"args": [
+"-c",
+"model='nope'"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"model",
+"coordinator",
+"model 'nope' isn't on this Mac's list"
+],
+[
+"standard-brief",
+"coordinator",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+"model='nope'"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"model",
+"builder",
+"model 'nope' isn't on this Mac's list"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "codex",
+"args": [
+"-c",
+"model_reasoning_effort=high"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": "high"
+},
+"notes": [
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+"model_reasoning_effort=high"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": "high",
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "codex",
+"args": [
+"-c",
+"model_reasoning_effort=\"medium\"",
+"-c",
+"sandbox_mode=read-only"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": "medium"
+},
+"notes": [
+[
+"standard-brief",
+"planner",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+"model_reasoning_effort=\"medium\"",
+"-c",
+"sandbox_mode=read-only"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": "medium",
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "codex",
+"args": [
+"-s",
+"read-only",
+"look"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "read-only",
+"parent": null,
+"brief": "look",
+"model": null,
+"effort": null
+},
+"notes": []
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-s",
+"read-only",
+"look"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "read-only",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "look"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "codex",
+"args": [
+"--sandbox",
+"danger-full-access"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"dev",
+"full access outside its sandbox"
+],
+[
+"standard-brief",
+"dev",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--sandbox",
+"danger-full-access"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"full access outside its sandbox"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "codex",
+"args": [
+"--sandbox",
+"workspace-write"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "codex",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--sandbox",
+"workspace-write"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "codex",
+"args": [
+"-a",
+"never"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "codex",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard tester brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"test-runner",
+"no approval asked"
+],
+[
+"standard-brief",
+"test-runner",
+"tester brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-a",
+"never"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"no approval asked"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "codex",
+"args": [
+"--ask-for-approval",
+"on-request"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"coordinator",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--ask-for-approval",
+"on-request"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "codex",
+"args": [
+"--full-auto"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"builder-1",
+"\"--full-auto\""
+],
+[
+"standard-brief",
+"builder-1",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--full-auto"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"\"--full-auto\""
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "codex",
+"args": [
+"--yolo",
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"planner",
+"approvals and sandbox turned off"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--yolo",
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"wide",
+"builder",
+"approvals and sandbox turned off"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "codex",
+"args": [
+"--dangerously-bypass-approvals-and-sandbox"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"lead",
+"approvals and sandbox turned off"
+],
+[
+"standard-brief",
+"lead",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--dangerously-bypass-approvals-and-sandbox"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"approvals and sandbox turned off"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "codex",
+"args": [
+"-c",
+"sandbox_workspace_write.network_access=true"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"wide",
+"dev",
+"its own sandbox settings"
+],
+[
+"standard-brief",
+"dev",
+"builder brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+"sandbox_workspace_write.network_access=true"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"wide",
+"builder",
+"its own sandbox settings"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "codex",
+"args": [
+"-c",
+"foo=bar",
+"-c",
+"baz"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "codex",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+],
+[
+"extras",
+"reviewer",
+"foo"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+"foo=bar",
+"-c",
+"baz"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"foo"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "codex",
+"args": [
+"-c",
+null
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "codex",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard tester brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"test-runner",
+"a setting chosen when the script runs"
+],
+[
+"standard-brief",
+"test-runner",
+"tester brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-c",
+null
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"extras",
+"builder",
+"a setting chosen when the script runs"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "codex",
+"args": [
+"-C",
+"/somewhere",
+"go"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "go",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"coordinator",
+"-C"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-C",
+"/somewhere",
+"go"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "go"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"-C"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "builder-1",
+"kind": "codex",
+"args": [
+"-i",
+"a.png",
+"describe"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "builder-1",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "describe",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"builder-1",
+"-i"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-i",
+"a.png",
+"describe"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "describe"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"-i"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "planner",
+"kind": "codex",
+"args": [
+"--profile",
+"p",
+"--enable",
+"f"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "planner",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"planner",
+"planner brief"
+],
+[
+"extras",
+"planner",
+"--enable, --profile"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--profile",
+"p",
+"--enable",
+"f"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--enable, --profile"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "lead",
+"kind": "codex",
+"args": [
+"-m",
+null
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "lead",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"lead",
+"planner brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"-m",
+null
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "dev",
+"kind": "codex",
+"args": [
+"exec",
+"--model",
+"gpt-5.5",
+"x",
+null
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "dev",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": "gpt-5.5",
+"effort": null
+},
+"notes": [
+[
+"exec",
+"dev",
+""
+],
+[
+"brief-part",
+"dev",
+"first message chosen when the script runs"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"exec",
+"--model",
+"gpt-5.5",
+"x",
+null
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "gpt-5.5",
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"exec",
+"builder",
+""
+],
+[
+"brief-part",
+"builder",
+"first message chosen when the script runs"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "reviewer",
+"kind": "codex",
+"args": [
+"--config",
+"model=gpt-5.5"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "reviewer",
+"agent": "codex",
+"job": "Reviews.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard reviewer brief",
+"model": "gpt-5.5",
+"effort": null
+},
+"notes": [
+[
+"standard-brief",
+"reviewer",
+"reviewer brief"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--config",
+"model=gpt-5.5"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "gpt-5.5",
+"effort": null,
+"_task": ""
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "test-runner",
+"kind": "codex",
+"args": [
+"--search",
+"q"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "test-runner",
+"agent": "codex",
+"job": "Tests.",
+"checkout": "branch",
+"parent": null,
+"brief": "q",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"test-runner",
+"--search"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"--search",
+"q"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "q"
+},
+"notes": [
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"--search"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+},
+{
+"name": "coordinator",
+"kind": "codex",
+"args": [
+"\u0001",
+"x"
+],
+"env": [],
+"holds": false,
+"base": null,
+"role": {
+"name": "coordinator",
+"agent": "codex",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": null,
+"effort": null
+},
+"notes": [
+[
+"extras",
+"coordinator",
+"options chosen when the script runs"
+]
+]
+},
+{
+"name": "builder",
+"kind": "codex",
+"args": [
+"\u0001",
+"x"
+],
+"env": [
+"PATH",
+"FOO",
+"API_KEY"
+],
+"holds": true,
+"base": "/b",
+"role": {
+"name": "builder",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null,
+"_task": "x"
+},
+"notes": [
+[
+"extras",
+"builder",
+"options chosen when the script runs"
+],
+[
+"standard-brief",
+"builder",
+"builder brief"
+],
+[
+"extras",
+"builder",
+"API_KEY, FOO"
+]
+]
+}
+],
+"splits": [
+{
+"argv": [
+"claude"
+],
+"out": [
+"claude",
+[],
+{}
+]
+},
+{
+"argv": [
+"/usr/local/bin/claude",
+"--model",
+"opus"
+],
+"out": [
+"claude",
+[
+"--model",
+"opus"
+],
+{}
+]
+},
+{
+"argv": [
+"env",
+"FOO=1",
+"claude",
+"x"
+],
+"out": [
+"claude",
+[
+"x"
+],
+{
+"FOO": "1"
+}
+]
+},
+{
+"argv": [
+"A=1",
+"B=2",
+"codex",
+"x"
+],
+"out": [
+"codex",
+[
+"x"
+],
+{
+"A": "1",
+"B": "2"
+}
+]
+},
+{
+"argv": [
+"bash",
+"-c",
+"claude --model opus \"do things\""
+],
+"out": [
+"claude",
+[
+"--model",
+"opus",
+"do things"
+],
+{}
+]
+},
+{
+"argv": [
+"sh",
+"-c",
+"cd /x && FOO=bar codex exec \"hi\""
+],
+"out": [
+"sh",
+[
+"-c",
+"cd /x && FOO=bar codex exec \"hi\""
+],
+{}
+]
+},
+{
+"argv": [
+"zsh",
+"-c",
+"echo hi\nexec claude --effort high"
+],
+"out": [
+"claude",
+[
+"--effort",
+"high"
+],
+{}
+]
+},
+{
+"argv": [
+"bash",
+"-c",
+"echo only"
+],
+"out": [
+"bash",
+[
+"-c",
+"echo only"
+],
+{}
+]
+},
+{
+"argv": [
+"bash",
+"-c"
+],
+"out": [
+"bash",
+[
+"-c"
+],
+{}
+]
+},
+{
+"argv": [
+"npm",
+"run",
+"dev"
+],
+"out": [
+"npm",
+[
+"run",
+"dev"
+],
+{}
+]
+},
+{
+"argv": [
+"bash",
+"-c",
+"X=$(command -v claude); $X -p hi"
+],
+"out": [
+"bash",
+[
+"-c",
+"X=$(command -v claude); $X -p hi"
+],
+{}
+]
+},
+{
+"argv": [
+null
+],
+"out": [
+null,
+[],
+{}
+]
+},
+{
+"argv": [
+"claude",
+null
+],
+"out": [
+"claude",
+[
+null
+],
+{}
+]
+},
+{
+"argv": [],
+"out": [
+null,
+[],
+{}
+]
+},
+{
+"argv": [
+"bash",
+"-c",
+"aider --yes"
+],
+"out": [
+"aider",
+[
+"--yes"
+],
+{}
+]
+},
+{
+"argv": [
+"bash",
+"-c",
+"PATH=\"$PATH\" gemini"
+],
+"out": [
+"gemini",
+[],
+{}
+]
+},
+{
+"argv": [
+"env",
+"env",
+"X=1",
+"pi"
+],
+"out": [
+"pi",
+[],
+{
+"X": "1"
+}
+]
+}
+],
+"words": [
+{
+"text": "claude --model opus \"do it\"",
+"env": {},
+"out": [
+"claude",
+"--model",
+"opus",
+"do it"
+]
+},
+{
+"text": "FOO=$HOME/x claude",
+"env": {
+"HOME": "/h"
+},
+"out": [
+"FOO=/h/x",
+"claude"
+]
+},
+{
+"text": "echo 'a $B' c",
+"env": {
+"B": "1"
+},
+"out": [
+"echo",
+"a $B",
+"c"
+]
+},
+{
+"text": "echo ${A:-def} ${B:+yes} ${C:-} $D",
+"env": {
+"A": "",
+"B": "b"
+},
+"out": [
+"echo",
+"def",
+"yes",
+"",
+null
+]
+},
+{
+"text": "echo ${opts[@]} x",
+"env": {},
+"out": [
+"echo",
+"\u0001",
+"x"
+]
+},
+{
+"text": "a b | c d",
+"env": {},
+"out": [
+"a",
+"b"
+]
+},
+{
+"text": "a b && c",
+"env": {},
+"out": [
+"a",
+"b"
+]
+},
+{
+"text": "a b; c",
+"env": {},
+"out": [
+"a",
+"b"
+]
+},
+{
+"text": "a b > out",
+"env": {},
+"out": [
+"a",
+"b"
+]
+},
+{
+"text": "\"unterminated",
+"env": {},
+"out": []
+},
+{
+"text": "it's",
+"env": {},
+"out": []
+},
+{
+"text": "a\\ b c",
+"env": {},
+"out": [
+"a b",
+"c"
+]
+},
+{
+"text": "echo $(command -v claude) x",
+"env": {},
+"out": [
+"echo",
+"claude",
+"x"
+]
+},
+{
+"text": "echo $(dirname /a/b/c) $(basename /a/b/c/) $(which x)",
+"env": {},
+"out": [
+"echo",
+"/a/b",
+"c",
+"x"
+]
+},
+{
+"text": "echo $(cd /a/../b && pwd)",
+"env": {},
+"out": [
+"echo",
+"/b"
+]
+},
+{
+"text": "echo $(unknown thing)",
+"env": {},
+"out": [
+"echo",
+null
+]
+},
+{
+"text": "echo $(nested $(command -v x))",
+"env": {},
+"out": [
+"echo",
+null
+]
+},
+{
+"text": "PATH=\"$PATH\" run",
+"env": {},
+"out": [
+"PATH=",
+"run"
+]
+},
+{
+"text": "a#b c",
+"env": {},
+"out": [
+"a#b",
+"c"
+]
+},
+{
+"text": "\"a b\"c'd e'",
+"env": {},
+"out": [
+"a bcd e"
+]
+},
+{
+"text": "x ${BASH_SOURCE[0]} $0 ${1}",
+"env": {
+"BASH_SOURCE[0]": "/s/x.sh",
+"0": "/s/x.sh",
+"1": "one"
+},
+"out": [
+"x",
+"/s/x.sh",
+"/s/x.sh",
+"one"
+]
+},
+{
+"text": "~/bin/x ~ ~user",
+"env": {},
+"out": [
+"/Users/joaopedrogoncalves/bin/x",
+"/Users/joaopedrogoncalves",
+"~user"
+]
+},
+{
+"text": "echo \"$A and ${B:-none}\"",
+"env": {
+"A": "aa"
+},
+"out": [
+"echo",
+"aa and none"
+]
+},
+{
+"text": "echo '${NOPE}'",
+"env": {},
+"out": [
+"echo",
+"${NOPE}"
+]
+},
+{
+"text": "echo \"esc \\\" q \\\\ \\n\"",
+"env": {},
+"out": [
+"echo",
+"esc \" q \\ \\n"
+]
+},
+{
+"text": "",
+"env": {},
+"out": []
+},
+{
+"text": "   ",
+"env": {},
+"out": []
+},
+{
+"text": "a  b\tc",
+"env": {},
+"out": [
+"a",
+"b",
+"c"
+]
+},
+{
+"text": "2>&1 x",
+"env": {},
+"out": [
+"2"
+]
+},
+{
+"text": "x (y) z",
+"env": {},
+"out": [
+"x"
+]
+}
+],
+"scripts": [
+{
+"name": "hc",
+"text": "#!/bin/bash\nset -e\nDIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"\n# comment\nhc run --name lead --cwd /w/app --label x=y -- claude --model opus \"Plan the work\"\nhc run --name builder-1 --cwd /w/app/wt/one --parent lead -- codex exec \"Build it\"\nhc run --name reviewer --cwd /w/app/wt/two --parent lead --on foo -- claude --permission-mode plan\nhc run --name shell --cwd /w/app -- bash\nherdr agent start dev --kind claude --pane 3 -- --model sonnet\nherdr agent start other --kind gemini -- x\n",
+"draft": {
+"project": "/w/app",
+"task": "Plan the work",
+"roles": [
+{
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": "opus",
+"effort": null
+},
+{
+"name": "builder-1",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": "lead",
+"brief": "Build it",
+"model": null,
+"effort": null
+},
+{
+"name": "reviewer",
+"agent": "claude",
+"job": "Reviews.",
+"checkout": "read-only",
+"parent": "lead",
+"brief": "standard reviewer brief",
+"model": null,
+"effort": null
+},
+{
+"name": "dev",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "sonnet",
+"effort": null
+}
+],
+"notes": [
+{
+"text": "1 agent ran a CLI Assieme doesn't start yet (gemini), so they are left out.",
+"agents": [
+"other"
+]
+},
+{
+"text": "1 agent ran once (codex exec) and stopped. Here they stay running and wait for work.",
+"agents": [
+"builder-1"
+]
+},
+{
+"text": "1 agent worked on their own branch. Here each gets a fresh branch of the project; the old branches stay as they are.",
+"agents": [
+"builder-1 (branch-one)"
+]
+},
+{
+"text": "No brief was found for 3 agents, so they get the standard brief for their role. Check it before you start.",
+"agents": [
+"lead (planner brief)",
+"reviewer (reviewer brief)",
+"dev (builder brief)"
+]
+}
+]
+}
+},
+{
+"name": "func",
+"text": "#!/bin/bash\nROOT=/w/app\nstart() {\n  hc run --name \"$1\" --cwd \"$ROOT/wt/$1\" --parent lead -- claude --model haiku \"$2\"\n}\nhc run --name lead --cwd $ROOT -- claude \"Lead the team\"\nstart alpha \"do alpha\"\nstart beta \"do beta\"\nstart alpha \"again\"\n",
+"draft": {
+"project": "/w/app",
+"task": "Lead the team",
+"roles": [
+{
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+{
+"name": "alpha",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": "lead",
+"brief": "do alpha",
+"model": "haiku",
+"effort": null
+},
+{
+"name": "beta",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": "lead",
+"brief": "do beta",
+"model": "haiku",
+"effort": null
+},
+{
+"name": "alpha-2",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": "lead",
+"brief": "again",
+"model": "haiku",
+"effort": null
+}
+],
+"notes": [
+{
+"text": "3 agents worked on their own branch. Here each gets a fresh branch of the project; the old branches stay as they are.",
+"agents": [
+"alpha (branch-alpha)",
+"beta (branch-beta)",
+"alpha-2 (branch-alpha)"
+]
+},
+{
+"text": "No brief was found for 1 agent, so they get the standard brief for their role. Check it before you start.",
+"agents": [
+"lead (planner brief)"
+]
+}
+]
+}
+},
+{
+"name": "opts",
+"text": "opts=(--model opus)\nhc run --name a --cwd /w/x ${opts[@]} -- claude hi\nhc run --name b --cwd /w/x -- ${CLI} hi\nhc run --name --cwd /w/x -- claude\nhc run --cwd /w/y -- codex x\nif true; then hc run --name c --cwd /w/z -- claude; fi\necho \"hc run --name no --cwd /w -- claude\"\n",
+"draft": {
+"project": "/w/x",
+"task": "x",
+"roles": [
+{
+"name": "a",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "hi",
+"model": null,
+"effort": null
+},
+{
+"name": "agent-4",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+{
+"name": "c",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+}
+],
+"notes": [
+{
+"text": "The agents worked in 3 folders. This team uses /w/x; the others (/w/y, /w/z) are left as they are.",
+"agents": []
+},
+{
+"text": "The program 1 agent ran is chosen when the script runs, so they are left out.",
+"agents": [
+"b"
+]
+},
+{
+"text": "No brief was found for 2 agents, so they get the standard brief for their role. Check it before you start.",
+"agents": [
+"agent-4 (builder brief)",
+"c (builder brief)"
+]
+},
+{
+"text": "Who 1 agent reported to is unknown here, so they report to no one.",
+"agents": [
+"a (decided when the script runs)"
+]
+},
+{
+"text": "The names of 1 agent are chosen when the script runs, so they are numbered here.",
+"agents": [
+"agent-4"
+]
+}
+]
+}
+},
+{
+"name": "multi",
+"text": "hc run --name boss --cwd /w/one -- sh -c 'claude --model opus \"plan\n  and more\"'\nhc run --name refuse-me --cwd /w/one -- claude hi\nhc run --name boss --cwd /w/one -- codex x\nhc run --name \"\" --cwd /w/two -- claude\nhc run --name w --cwd /w/three/wt/w1 --parent nobody -- claude\n",
+"draft": {
+"project": "/w/one",
+"task": "",
+"roles": [
+{
+"name": "boss",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": "opus",
+"effort": null
+},
+{
+"name": "boss-2",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "x",
+"model": null,
+"effort": null
+},
+{
+"name": "agent-4",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+{
+"name": "w",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+}
+],
+"notes": [
+{
+"text": "The agents worked in 3 folders. This team uses /w/one; the others (/w/two, /w/three) are left as they are.",
+"agents": []
+},
+{
+"text": "1 agent couldn't be carried over as New team would refuse them, so they are left out.",
+"agents": [
+"refuse-me (No refusing here.)"
+]
+},
+{
+"text": "1 agent worked on their own branch. Here each gets a fresh branch of the project; the old branches stay as they are.",
+"agents": [
+"w (branch-w1)"
+]
+},
+{
+"text": "No brief was found for 3 agents, so they get the standard brief for their role. Check it before you start.",
+"agents": [
+"boss (builder brief)",
+"agent-4 (builder brief)",
+"w (builder brief)"
+]
+},
+{
+"text": "Who 1 agent reported to is unknown here, so they report to no one.",
+"agents": [
+"w (nobody isn't in this team)"
+]
+},
+{
+"text": "The names of 1 agent are chosen when the script runs, so they are numbered here.",
+"agents": [
+"agent-4"
+]
+}
+]
+}
+},
+{
+"name": "none",
+"text": "echo nothing here\n",
+"draft": {
+"project": "/scripts",
+"task": "",
+"roles": [],
+"notes": []
+}
+}
+],
+"workspaces": [
+{
+"workspace": {
+"id": 1,
+"custom_name": "one",
+"identity_cwd": "/w/app",
+"tabs": [
+{
+"panes": {
+"a": {
+"managed_agent_kind": "claude",
+"agent_name": "lead",
+"cwd": "/w/app"
+},
+"b": {
+"agent_session": {
+"agent": "codex"
+},
+"cwd": "/w/app/wt/b"
+},
+"c": {
+"cwd": "/w/app"
+}
+}
+},
+{
+"panes": {
+"d": {
+"managed_agent_kind": "pi",
+"cwd": "/w/other"
+}
+}
+}
+]
+},
+"draft": {
+"project": "/w/app",
+"task": "",
+"roles": [
+{
+"name": "lead",
+"agent": "claude",
+"job": "Plans.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard planner brief",
+"model": null,
+"effort": null
+},
+{
+"name": "codex",
+"agent": "codex",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+}
+],
+"notes": [
+{
+"text": "herdr doesn't save models, briefs or permissions, so each agent gets the default model, the standard brief for its role and its own branch. Check them before you start.",
+"agents": []
+},
+{
+"text": "1 agent ran a CLI Assieme doesn't start yet (pi), so they are left out.",
+"agents": [
+"pi"
+]
+},
+{
+"text": "1 agent worked on their own branch. Here each gets a fresh branch of the project; the old branches stay as they are.",
+"agents": [
+"codex (branch-b)"
+]
+},
+{
+"text": "No brief was found for 2 agents, so they get the standard brief for their role. Check it before you start.",
+"agents": [
+"lead (planner brief)",
+"codex (builder brief)"
+]
+}
+]
+},
+"panes": 3
+},
+{
+"workspace": {
+"id": 2,
+"tabs": []
+},
+"draft": {
+"project": "",
+"task": "",
+"roles": [],
+"notes": [
+{
+"text": "herdr doesn't save models, briefs or permissions, so each agent gets the default model, the standard brief for its role and its own branch. Check them before you start.",
+"agents": []
+}
+]
+},
+"panes": 0
+},
+{
+"workspace": {
+"id": 3,
+"tabs": [
+{
+"panes": {
+"a": {
+"managed_agent_kind": "claude"
+}
+}
+}
+]
+},
+"draft": {
+"project": "",
+"task": "",
+"roles": [
+{
+"name": "claude",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+}
+],
+"notes": [
+{
+"text": "herdr doesn't save models, briefs or permissions, so each agent gets the default model, the standard brief for its role and its own branch. Check them before you start.",
+"agents": []
+},
+{
+"text": "No brief was found for 1 agent, so they get the standard brief for their role. Check it before you start.",
+"agents": [
+"claude (builder brief)"
+]
+}
+]
+},
+"panes": 1
+},
+{
+"workspace": {
+"id": 4,
+"tabs": [
+{
+"panes": {
+"a": {
+"managed_agent_kind": "claude",
+"agent_name": "Name With Spaces!",
+"cwd": "/w/q"
+},
+"b": {
+"managed_agent_kind": "claude",
+"agent_name": "Name With Spaces!",
+"cwd": "/w/q"
+}
+}
+}
+]
+},
+"draft": {
+"project": "/w/q",
+"task": "",
+"roles": [
+{
+"name": "name-with-spaces",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+},
+{
+"name": "name-with-spaces-2",
+"agent": "claude",
+"job": "Builds.",
+"checkout": "branch",
+"parent": null,
+"brief": "standard builder brief",
+"model": null,
+"effort": null
+}
+],
+"notes": [
+{
+"text": "herdr doesn't save models, briefs or permissions, so each agent gets the default model, the standard brief for its role and its own branch. Check them before you start.",
+"agents": []
+},
+{
+"text": "No brief was found for 2 agents, so they get the standard brief for their role. Check it before you start.",
+"agents": [
+"name-with-spaces (builder brief)",
+"name-with-spaces-2 (builder brief)"
+]
+}
+]
+},
+"panes": 2
+}
+]
+}

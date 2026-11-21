@@ -1,0 +1,1332 @@
+{
+"history": {
+"now": 1800000000,
+"files": [
+{
+"path": "claude/-w-app/s1.jsonl",
+"age_days": 1,
+"content": "{\"type\": \"user\"}\n{\"cwd\": \"/w/app\", \"message\": {\"model\": \"opus\"}}\n"
+},
+{
+"path": "claude/-w-app/s2.jsonl",
+"age_days": 2,
+"content": "{\"cwd\": \"/w/app/wt/a\"}\n{\"message\": {\"model\": \"sonnet\"}}\n"
+},
+{
+"path": "claude/-w-app/old.jsonl",
+"age_days": 31,
+"content": "{\"cwd\": \"/w/old\"}\n"
+},
+{
+"path": "claude/-w-app/edge.jsonl",
+"age_days": 30,
+"content": "{\"cwd\": \"/w/edge\"}\n"
+},
+{
+"path": "claude/.hidden/s.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/hidden\"}\n"
+},
+{
+"path": "claude/-w-app/.dot.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/dotfile\"}\n"
+},
+{
+"path": "claude/-w-app/nocwd.jsonl",
+"age_days": 1,
+"content": "{\"type\": \"x\"}\n{\"cwd\": 5}\n{\"cwd\": null}\n"
+},
+{
+"path": "claude/-w-app/bad.jsonl",
+"age_days": 1,
+"content": "not json\n[1,2]\n\"str\"\n{\"cwd\": \"/w/after-bad\", \"message\": \"text\"}\n"
+},
+{
+"path": "claude/-w-app/model.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/m\", \"message\": {\"model\": 5}}\n{\"message\": {\"model\": \"haiku\"}}\n"
+},
+{
+"path": "claude/-w-app/crlf.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/crlf\"}\r\n{\"message\": {\"model\": \"x\"}}\r\n"
+},
+{
+"path": "claude/-w-app/cr.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/cr\"}\r{\"message\": {\"model\": \"y\"}}\r"
+},
+{
+"path": "claude/-w-app/bom.jsonl",
+"age_days": 1,
+"content": "﻿{\"cwd\": \"/w/bom\"}\n{\"cwd\": \"/w/after-bom\"}\n"
+},
+{
+"path": "claude/-w-app/uni.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/\\u00fcn\\u00ef\"}\n"
+},
+{
+"path": "claude/-w-app/late.jsonl",
+"age_days": 1,
+"content": "{\"n\": 0}\n{\"n\": 1}\n{\"n\": 2}\n{\"n\": 3}\n{\"n\": 4}\n{\"n\": 5}\n{\"n\": 6}\n{\"n\": 7}\n{\"n\": 8}\n{\"n\": 9}\n{\"n\": 10}\n{\"n\": 11}\n{\"n\": 12}\n{\"n\": 13}\n{\"n\": 14}\n{\"n\": 15}\n{\"n\": 16}\n{\"n\": 17}\n{\"n\": 18}\n{\"n\": 19}\n{\"n\": 20}\n{\"n\": 21}\n{\"n\": 22}\n{\"n\": 23}\n{\"n\": 24}\n{\"n\": 25}\n{\"n\": 26}\n{\"n\": 27}\n{\"n\": 28}\n{\"n\": 29}\n{\"n\": 30}\n{\"n\": 31}\n{\"n\": 32}\n{\"n\": 33}\n{\"n\": 34}\n{\"n\": 35}\n{\"n\": 36}\n{\"n\": 37}\n{\"n\": 38}\n{\"n\": 39}\n{\"n\": 40}\n{\"n\": 41}\n{\"n\": 42}\n{\"n\": 43}\n{\"n\": 44}\n{\"n\": 45}\n{\"n\": 46}\n{\"n\": 47}\n{\"n\": 48}\n{\"n\": 49}\n{\"n\": 50}\n{\"n\": 51}\n{\"n\": 52}\n{\"n\": 53}\n{\"n\": 54}\n{\"n\": 55}\n{\"n\": 56}\n{\"n\": 57}\n{\"n\": 58}\n{\"n\": 59}\n{\"n\": 60}\n{\"n\": 61}\n{\"n\": 62}\n{\"n\": 63}\n{\"n\": 64}\n{\"n\": 65}\n{\"n\": 66}\n{\"n\": 67}\n{\"n\": 68}\n{\"n\": 69}\n{\"n\": 70}\n{\"n\": 71}\n{\"n\": 72}\n{\"n\": 73}\n{\"n\": 74}\n{\"n\": 75}\n{\"n\": 76}\n{\"n\": 77}\n{\"n\": 78}\n{\"n\": 79}\n{\"n\": 80}\n{\"n\": 81}\n{\"n\": 82}\n{\"n\": 83}\n{\"n\": 84}\n{\"n\": 85}\n{\"n\": 86}\n{\"n\": 87}\n{\"n\": 88}\n{\"n\": 89}\n{\"n\": 90}\n{\"n\": 91}\n{\"n\": 92}\n{\"n\": 93}\n{\"n\": 94}\n{\"n\": 95}\n{\"n\": 96}\n{\"n\": 97}\n{\"n\": 98}\n{\"n\": 99}\n{\"n\": 100}\n{\"n\": 101}\n{\"n\": 102}\n{\"n\": 103}\n{\"n\": 104}\n{\"n\": 105}\n{\"n\": 106}\n{\"n\": 107}\n{\"n\": 108}\n{\"n\": 109}\n{\"n\": 110}\n{\"n\": 111}\n{\"n\": 112}\n{\"n\": 113}\n{\"n\": 114}\n{\"n\": 115}\n{\"n\": 116}\n{\"n\": 117}\n{\"n\": 118}\n{\"n\": 119}\n{\"n\": 120}\n{\"n\": 121}\n{\"n\": 122}\n{\"n\": 123}\n{\"n\": 124}\n{\"n\": 125}\n{\"n\": 126}\n{\"n\": 127}\n{\"n\": 128}\n{\"n\": 129}\n{\"n\": 130}\n{\"n\": 131}\n{\"n\": 132}\n{\"n\": 133}\n{\"n\": 134}\n{\"n\": 135}\n{\"n\": 136}\n{\"n\": 137}\n{\"n\": 138}\n{\"n\": 139}\n{\"n\": 140}\n{\"n\": 141}\n{\"n\": 142}\n{\"n\": 143}\n{\"n\": 144}\n{\"n\": 145}\n{\"n\": 146}\n{\"n\": 147}\n{\"n\": 148}\n{\"n\": 149}\n{\"n\": 150}\n{\"n\": 151}\n{\"n\": 152}\n{\"n\": 153}\n{\"n\": 154}\n{\"n\": 155}\n{\"n\": 156}\n{\"n\": 157}\n{\"n\": 158}\n{\"n\": 159}\n{\"n\": 160}\n{\"n\": 161}\n{\"n\": 162}\n{\"n\": 163}\n{\"n\": 164}\n{\"n\": 165}\n{\"n\": 166}\n{\"n\": 167}\n{\"n\": 168}\n{\"n\": 169}\n{\"n\": 170}\n{\"n\": 171}\n{\"n\": 172}\n{\"n\": 173}\n{\"n\": 174}\n{\"n\": 175}\n{\"n\": 176}\n{\"n\": 177}\n{\"n\": 178}\n{\"n\": 179}\n{\"n\": 180}\n{\"n\": 181}\n{\"n\": 182}\n{\"n\": 183}\n{\"n\": 184}\n{\"n\": 185}\n{\"n\": 186}\n{\"n\": 187}\n{\"n\": 188}\n{\"n\": 189}\n{\"n\": 190}\n{\"n\": 191}\n{\"n\": 192}\n{\"n\": 193}\n{\"n\": 194}\n{\"n\": 195}\n{\"n\": 196}\n{\"n\": 197}\n{\"n\": 198}\n{\"n\": 199}\n{\"cwd\": \"/w/after-200\"}\n"
+},
+{
+"path": "claude/-w-app/inside.jsonl",
+"age_days": 1,
+"content": "{\"n\": 0}\n{\"n\": 1}\n{\"n\": 2}\n{\"n\": 3}\n{\"n\": 4}\n{\"n\": 5}\n{\"n\": 6}\n{\"n\": 7}\n{\"n\": 8}\n{\"n\": 9}\n{\"n\": 10}\n{\"n\": 11}\n{\"n\": 12}\n{\"n\": 13}\n{\"n\": 14}\n{\"n\": 15}\n{\"n\": 16}\n{\"n\": 17}\n{\"n\": 18}\n{\"n\": 19}\n{\"n\": 20}\n{\"n\": 21}\n{\"n\": 22}\n{\"n\": 23}\n{\"n\": 24}\n{\"n\": 25}\n{\"n\": 26}\n{\"n\": 27}\n{\"n\": 28}\n{\"n\": 29}\n{\"n\": 30}\n{\"n\": 31}\n{\"n\": 32}\n{\"n\": 33}\n{\"n\": 34}\n{\"n\": 35}\n{\"n\": 36}\n{\"n\": 37}\n{\"n\": 38}\n{\"n\": 39}\n{\"n\": 40}\n{\"n\": 41}\n{\"n\": 42}\n{\"n\": 43}\n{\"n\": 44}\n{\"n\": 45}\n{\"n\": 46}\n{\"n\": 47}\n{\"n\": 48}\n{\"n\": 49}\n{\"n\": 50}\n{\"n\": 51}\n{\"n\": 52}\n{\"n\": 53}\n{\"n\": 54}\n{\"n\": 55}\n{\"n\": 56}\n{\"n\": 57}\n{\"n\": 58}\n{\"n\": 59}\n{\"n\": 60}\n{\"n\": 61}\n{\"n\": 62}\n{\"n\": 63}\n{\"n\": 64}\n{\"n\": 65}\n{\"n\": 66}\n{\"n\": 67}\n{\"n\": 68}\n{\"n\": 69}\n{\"n\": 70}\n{\"n\": 71}\n{\"n\": 72}\n{\"n\": 73}\n{\"n\": 74}\n{\"n\": 75}\n{\"n\": 76}\n{\"n\": 77}\n{\"n\": 78}\n{\"n\": 79}\n{\"n\": 80}\n{\"n\": 81}\n{\"n\": 82}\n{\"n\": 83}\n{\"n\": 84}\n{\"n\": 85}\n{\"n\": 86}\n{\"n\": 87}\n{\"n\": 88}\n{\"n\": 89}\n{\"n\": 90}\n{\"n\": 91}\n{\"n\": 92}\n{\"n\": 93}\n{\"n\": 94}\n{\"n\": 95}\n{\"n\": 96}\n{\"n\": 97}\n{\"n\": 98}\n{\"n\": 99}\n{\"n\": 100}\n{\"n\": 101}\n{\"n\": 102}\n{\"n\": 103}\n{\"n\": 104}\n{\"n\": 105}\n{\"n\": 106}\n{\"n\": 107}\n{\"n\": 108}\n{\"n\": 109}\n{\"n\": 110}\n{\"n\": 111}\n{\"n\": 112}\n{\"n\": 113}\n{\"n\": 114}\n{\"n\": 115}\n{\"n\": 116}\n{\"n\": 117}\n{\"n\": 118}\n{\"n\": 119}\n{\"n\": 120}\n{\"n\": 121}\n{\"n\": 122}\n{\"n\": 123}\n{\"n\": 124}\n{\"n\": 125}\n{\"n\": 126}\n{\"n\": 127}\n{\"n\": 128}\n{\"n\": 129}\n{\"n\": 130}\n{\"n\": 131}\n{\"n\": 132}\n{\"n\": 133}\n{\"n\": 134}\n{\"n\": 135}\n{\"n\": 136}\n{\"n\": 137}\n{\"n\": 138}\n{\"n\": 139}\n{\"n\": 140}\n{\"n\": 141}\n{\"n\": 142}\n{\"n\": 143}\n{\"n\": 144}\n{\"n\": 145}\n{\"n\": 146}\n{\"n\": 147}\n{\"n\": 148}\n{\"n\": 149}\n{\"n\": 150}\n{\"n\": 151}\n{\"n\": 152}\n{\"n\": 153}\n{\"n\": 154}\n{\"n\": 155}\n{\"n\": 156}\n{\"n\": 157}\n{\"n\": 158}\n{\"n\": 159}\n{\"n\": 160}\n{\"n\": 161}\n{\"n\": 162}\n{\"n\": 163}\n{\"n\": 164}\n{\"n\": 165}\n{\"n\": 166}\n{\"n\": 167}\n{\"n\": 168}\n{\"n\": 169}\n{\"n\": 170}\n{\"n\": 171}\n{\"n\": 172}\n{\"n\": 173}\n{\"n\": 174}\n{\"n\": 175}\n{\"n\": 176}\n{\"n\": 177}\n{\"n\": 178}\n{\"n\": 179}\n{\"n\": 180}\n{\"n\": 181}\n{\"n\": 182}\n{\"n\": 183}\n{\"n\": 184}\n{\"n\": 185}\n{\"n\": 186}\n{\"n\": 187}\n{\"n\": 188}\n{\"n\": 189}\n{\"n\": 190}\n{\"n\": 191}\n{\"n\": 192}\n{\"n\": 193}\n{\"n\": 194}\n{\"n\": 195}\n{\"n\": 196}\n{\"n\": 197}\n{\"n\": 198}\n{\"cwd\": \"/w/at-200\"}\n"
+},
+{
+"path": "claude/-w-app/two.txt",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/txt\"}\n"
+},
+{
+"path": "claude/-w-app/deep/x.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/deep\"}\n"
+},
+{
+"path": "claude/loose.jsonl",
+"age_days": 1,
+"content": "{\"cwd\": \"/w/loose\"}\n"
+},
+{
+"path": "claude/-w-app/rawbad.jsonl",
+"age_days": 1,
+"hex": "7b22637764223a20222f772f726177fffe227d0a"
+},
+{
+"path": "codex/2027/01/10/a.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"id\": \"abc\", \"cwd\": \"/w/cx\"}}\n{\"type\": \"turn_context\", \"payload\": {\"model\": \"gpt-5.5\"}}\n"
+},
+{
+"path": "codex/2027/01/10/b.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"id\": 7, \"cwd\": \"/w/cx7\"}}\n"
+},
+{
+"path": "codex/2027/01/10/c.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"cwd\": \"/w/noid\"}}\n"
+},
+{
+"path": "codex/2027/01/10/d.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"id\": \"d\", \"cwd\": 5}}\n"
+},
+{
+"path": "codex/2027/01/10/e.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": \"x\"}\n{\"type\": \"session_meta\", \"payload\": {\"id\": \"e\", \"cwd\": \"/w/second\"}}\n"
+},
+{
+"path": "codex/2027/01/10/f.jsonl",
+"age_days": 40,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"id\": \"f\", \"cwd\": \"/w/old\"}}\n"
+},
+{
+"path": "codex/2027/01/10/g.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"session_meta\", \"payload\": {\"id\": \"g\", \"cwd\": \"/w/at-50\"}}\n"
+},
+{
+"path": "codex/2027/01/10/h.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"x\", \"payload\": {}}\n{\"type\": \"session_meta\", \"payload\": {\"id\": \"h\", \"cwd\": \"/w/after-50\"}}\n"
+},
+{
+"path": "codex/2027/01/10/i.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"id\": \"i\", \"cwd\": \"/w/ctx\"}}\n{\"type\": \"turn_context\", \"payload\": {}}\n{\"type\": \"turn_context\", \"payload\": {\"model\": \"late\"}}\n"
+},
+{
+"path": "codex/2027/01/.h/j.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"id\": \"j\", \"cwd\": \"/w/h\"}}\n"
+},
+{
+"path": "codex/2027/01/x.jsonl",
+"age_days": 5,
+"content": "{\"type\": \"session_meta\", \"payload\": {\"id\": \"k\", \"cwd\": \"/w/shallow\"}}\n"
+}
+],
+"out": [
+{
+"kind": "claude",
+"cwd": "/w/after-bad",
+"session": "bad",
+"model": null,
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/after-bom",
+"session": "bom",
+"model": null,
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/cr",
+"session": "cr",
+"model": "y",
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/crlf",
+"session": "crlf",
+"model": "x",
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/edge",
+"session": "edge",
+"model": null,
+"at": 1797408000.0
+},
+{
+"kind": "claude",
+"cwd": "/w/at-200",
+"session": "inside",
+"model": null,
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/m",
+"session": "model",
+"model": "haiku",
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/raw��",
+"session": "rawbad",
+"model": null,
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/app",
+"session": "s1",
+"model": "opus",
+"at": 1799913600.0
+},
+{
+"kind": "claude",
+"cwd": "/w/app/wt/a",
+"session": "s2",
+"model": "sonnet",
+"at": 1799827200.0
+},
+{
+"kind": "claude",
+"cwd": "/w/ünï",
+"session": "uni",
+"model": null,
+"at": 1799913600.0
+},
+{
+"kind": "codex",
+"cwd": "/w/cx7",
+"session": "7",
+"model": null,
+"at": 1799568000.0
+},
+{
+"kind": "codex",
+"cwd": "/w/cx",
+"session": "abc",
+"model": "gpt-5.5",
+"at": 1799568000.0
+},
+{
+"kind": "codex",
+"cwd": "/w/second",
+"session": "e",
+"model": null,
+"at": 1799568000.0
+},
+{
+"kind": "codex",
+"cwd": "/w/at-50",
+"session": "g",
+"model": null,
+"at": 1799568000.0
+},
+{
+"kind": "codex",
+"cwd": "/w/ctx",
+"session": "i",
+"model": null,
+"at": 1799568000.0
+}
+]
+},
+"squad": [
+{
+"state": null,
+"out": {
+"found": [],
+"problem": null
+}
+},
+{
+"state": "{bad",
+"out": {
+"found": [],
+"problem": "Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."
+}
+},
+{
+"state": "[]",
+"out": {
+"found": [],
+"problem": "Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."
+}
+},
+{
+"state": "{\"instances\": [{\"title\": \"one\", \"program\": \"claude\", \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, {\"title\": \"two\", \"program\": \"codex --model x\", \"status\": 3, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, {\"title\": \"three\", \"program\": \"aider\", \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, {\"title\": null, \"program\": \"\", \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": null, \"branch_name\": \"feat\"}}, {\"title\": \"one\", \"program\": null, \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, \"junk\", {\"worktree\": \"x\"}, {\"worktree\": {\"repo_path\": \"\"}}, {\"title\": \"one\", \"program\": \"claude\", \"status\": 1, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": null}, \"branch\": \"fallback\"}, {\"title\": \"one\", \"program\": \"/usr/bin/gemini\", \"status\": 2, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, {\"title\": \"one\", \"program\": \"cursor-agent\", \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, {\"title\": \"one\", \"program\": \"agy --x\", \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, {\"title\": \"one\", \"program\": \"claude-code\", \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}, {\"title\": \"one\", \"program\": \"opencode run\", \"status\": 0, \"worktree\": {\"repo_path\": \"/r/app\", \"worktree_path\": \"/r/gone\", \"branch_name\": \"feat\"}}]}",
+"out": {
+"found": [
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": "claude",
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": []
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "two",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": "codex",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "three",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": [
+"It ran aider, which Assieme doesn't run yet."
+]
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": [
+"It ran an, which Assieme doesn't run yet."
+]
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": [
+"It ran an, which Assieme doesn't run yet."
+]
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "fallback",
+"ahead": 0,
+"dirty": false,
+"kind": "claude",
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": []
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": "gemini",
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": []
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": "cursor",
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": []
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": "antigravity",
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": []
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": [
+"It ran claude-code, which Assieme doesn't run yet."
+]
+},
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "one",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": "opencode",
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": []
+}
+],
+"problem": null
+}
+},
+{
+"state": "{\"instances\": \"[{\\\"title\\\": \\\"s\\\", \\\"program\\\": \\\"claude\\\", \\\"status\\\": 0, \\\"worktree\\\": {\\\"repo_path\\\": \\\"/r/app\\\", \\\"worktree_path\\\": \\\"/r/gone\\\", \\\"branch_name\\\": \\\"feat\\\"}}]\"}",
+"out": {
+"found": [
+{
+"tool": "claude-squad",
+"project": "/r/app",
+"name": "s",
+"folder": null,
+"branch": "feat",
+"ahead": 0,
+"dirty": false,
+"kind": "claude",
+"model": null,
+"session": null,
+"running_elsewhere": true,
+"notes": []
+}
+],
+"problem": null
+}
+},
+{
+"state": "{\"instances\": \"not json\"}",
+"out": {
+"found": [],
+"problem": "Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."
+}
+},
+{
+"state": "{\"instances\": {\"a\": 1}}",
+"out": {
+"found": [],
+"problem": null
+}
+},
+{
+"state": "{\"instances\": null}",
+"out": {
+"found": [],
+"problem": null
+}
+},
+{
+"state": "[\"list\"]",
+"out": {
+"found": [],
+"problem": "Couldn't read Claude Squad's sessions. Its agents' copies are still listed under Other agent work."
+}
+},
+{
+"state": "{}",
+"out": {
+"found": [],
+"problem": null
+}
+}
+],
+"vibe": [
+{
+"name": "full",
+"sql": "\nCREATE TABLE projects (id TEXT, name TEXT);\nCREATE TABLE repos (id TEXT, path TEXT, setup_script TEXT, archive_script TEXT, dev_server_script TEXT);\nCREATE TABLE tasks (id TEXT, project_id TEXT, title TEXT, description TEXT, status TEXT);\nCREATE TABLE workspaces (id TEXT, task_id TEXT, container_ref TEXT, branch TEXT, archived INTEGER, worktree_deleted INTEGER);\nCREATE TABLE workspace_repos (workspace_id TEXT, repo_id TEXT);\nCREATE TABLE sessions (id TEXT, workspace_id TEXT, executor TEXT);\n\nCREATE TABLE execution_processes (id TEXT, session_id TEXT);\nCREATE TABLE coding_agent_turns (execution_process_id TEXT, agent_session_id TEXT);\n\nINSERT INTO projects VALUES ('p1', 'Proj');\nINSERT INTO repos VALUES ('r1', '/r/app', 'npm i', NULL, 'npm run dev');\nINSERT INTO repos VALUES ('r2', '/r/other', NULL, NULL, NULL);\nINSERT INTO tasks VALUES ('t1', 'p1', 'Fix login', 'The login breaks', 'inprogress');\nINSERT INTO tasks VALUES ('t2', 'p1', 'Add docs', NULL, 'todo');\nINSERT INTO tasks VALUES ('t3', 'p1', 'Old idea', 'x', 'cancelled');\nINSERT INTO tasks VALUES ('t4', 'p1', 'Unknown state', 'x', 'weird');\nINSERT INTO tasks VALUES ('t5', 'p9', 'Other project', 'x', 'done');\nINSERT INTO workspaces VALUES ('w1', 't1', '/r/ws/w1', 'vk/fix-login', 0, 0);\nINSERT INTO workspaces VALUES ('w2', 't2', '/r/ws/w2', 'vk/docs', 0, 1);\nINSERT INTO workspaces VALUES ('w3', 't3', NULL, 'vk/old', 1, 0);\nINSERT INTO workspaces VALUES ('w4', 'tX', '/r/ws/w4', 'vk/orphan', 0, 0);\nINSERT INTO workspaces VALUES ('w5', 't1', '/r/ws/w5', 'vk/fix-login-2', 0, 0);\nINSERT INTO workspaces VALUES ('w6', 't5', '/r/ws/w6', 'vk/other', 0, 0);\nINSERT INTO workspace_repos VALUES ('w1', 'r1');\nINSERT INTO workspace_repos VALUES ('w2', 'r1');\nINSERT INTO workspace_repos VALUES ('w3', 'r1');\nINSERT INTO workspace_repos VALUES ('w4', 'r2');\nINSERT INTO workspace_repos VALUES ('w5', 'r1');\nINSERT INTO workspace_repos VALUES ('w6', 'r2');\nINSERT INTO sessions VALUES ('s1', 'w1', 'CLAUDE_CODE');\nINSERT INTO sessions VALUES ('s1b', 'w1', 'CODEX');\nINSERT INTO sessions VALUES ('s2', 'w2', 'cursor_agent');\nINSERT INTO sessions VALUES ('s5', 'w5', 'MYSTERY');\n\nINSERT INTO execution_processes VALUES ('e1', 's1b');\nINSERT INTO execution_processes VALUES ('e2', 's1b');\nINSERT INTO coding_agent_turns VALUES ('e1', 'agent-old');\nINSERT INTO coding_agent_turns VALUES ('e2', 'agent-new');\nINSERT INTO coding_agent_turns VALUES ('e2', NULL);\n",
+"out": {
+"found": [
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Fix login",
+"folder": null,
+"branch": "vk/fix-login",
+"ahead": 0,
+"dirty": false,
+"kind": "codex",
+"model": null,
+"session": "agent-new",
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Add docs",
+"folder": null,
+"branch": "vk/docs",
+"ahead": 0,
+"dirty": false,
+"kind": "cursor",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/other",
+"name": "w4",
+"folder": null,
+"branch": "vk/orphan",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Fix login",
+"folder": null,
+"branch": "vk/fix-login-2",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/other",
+"name": "Other project",
+"folder": null,
+"branch": "vk/other",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"tasks": {
+"/r/app": [
+{
+"title": "Fix login",
+"description": "The login breaks",
+"status": "doing",
+"branch": "vk/fix-login-2"
+},
+{
+"title": "Add docs",
+"description": "",
+"status": "todo",
+"branch": "vk/docs"
+},
+{
+"title": "Old idea",
+"description": "x",
+"status": "cancelled",
+"branch": "vk/old"
+}
+],
+"/r/other": [
+{
+"title": "Other project",
+"description": "x",
+"status": "done",
+"branch": "vk/other"
+}
+]
+},
+"scripts": {
+"/r/app": {
+"setup": "npm i",
+"run": "npm run dev"
+},
+"/r/other": {}
+},
+"problem": null
+}
+},
+{
+"name": "no resume tables",
+"sql": "\nCREATE TABLE projects (id TEXT, name TEXT);\nCREATE TABLE repos (id TEXT, path TEXT, setup_script TEXT, archive_script TEXT, dev_server_script TEXT);\nCREATE TABLE tasks (id TEXT, project_id TEXT, title TEXT, description TEXT, status TEXT);\nCREATE TABLE workspaces (id TEXT, task_id TEXT, container_ref TEXT, branch TEXT, archived INTEGER, worktree_deleted INTEGER);\nCREATE TABLE workspace_repos (workspace_id TEXT, repo_id TEXT);\nCREATE TABLE sessions (id TEXT, workspace_id TEXT, executor TEXT);\n\nINSERT INTO projects VALUES ('p1', 'Proj');\nINSERT INTO repos VALUES ('r1', '/r/app', 'npm i', NULL, 'npm run dev');\nINSERT INTO repos VALUES ('r2', '/r/other', NULL, NULL, NULL);\nINSERT INTO tasks VALUES ('t1', 'p1', 'Fix login', 'The login breaks', 'inprogress');\nINSERT INTO tasks VALUES ('t2', 'p1', 'Add docs', NULL, 'todo');\nINSERT INTO tasks VALUES ('t3', 'p1', 'Old idea', 'x', 'cancelled');\nINSERT INTO tasks VALUES ('t4', 'p1', 'Unknown state', 'x', 'weird');\nINSERT INTO tasks VALUES ('t5', 'p9', 'Other project', 'x', 'done');\nINSERT INTO workspaces VALUES ('w1', 't1', '/r/ws/w1', 'vk/fix-login', 0, 0);\nINSERT INTO workspaces VALUES ('w2', 't2', '/r/ws/w2', 'vk/docs', 0, 1);\nINSERT INTO workspaces VALUES ('w3', 't3', NULL, 'vk/old', 1, 0);\nINSERT INTO workspaces VALUES ('w4', 'tX', '/r/ws/w4', 'vk/orphan', 0, 0);\nINSERT INTO workspaces VALUES ('w5', 't1', '/r/ws/w5', 'vk/fix-login-2', 0, 0);\nINSERT INTO workspaces VALUES ('w6', 't5', '/r/ws/w6', 'vk/other', 0, 0);\nINSERT INTO workspace_repos VALUES ('w1', 'r1');\nINSERT INTO workspace_repos VALUES ('w2', 'r1');\nINSERT INTO workspace_repos VALUES ('w3', 'r1');\nINSERT INTO workspace_repos VALUES ('w4', 'r2');\nINSERT INTO workspace_repos VALUES ('w5', 'r1');\nINSERT INTO workspace_repos VALUES ('w6', 'r2');\nINSERT INTO sessions VALUES ('s1', 'w1', 'CLAUDE_CODE');\nINSERT INTO sessions VALUES ('s1b', 'w1', 'CODEX');\nINSERT INTO sessions VALUES ('s2', 'w2', 'cursor_agent');\nINSERT INTO sessions VALUES ('s5', 'w5', 'MYSTERY');\n",
+"out": {
+"found": [
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Fix login",
+"folder": null,
+"branch": "vk/fix-login",
+"ahead": 0,
+"dirty": false,
+"kind": "codex",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Add docs",
+"folder": null,
+"branch": "vk/docs",
+"ahead": 0,
+"dirty": false,
+"kind": "cursor",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/other",
+"name": "w4",
+"folder": null,
+"branch": "vk/orphan",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Fix login",
+"folder": null,
+"branch": "vk/fix-login-2",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/other",
+"name": "Other project",
+"folder": null,
+"branch": "vk/other",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"tasks": {
+"/r/app": [
+{
+"title": "Fix login",
+"description": "The login breaks",
+"status": "doing",
+"branch": "vk/fix-login-2"
+},
+{
+"title": "Add docs",
+"description": "",
+"status": "todo",
+"branch": "vk/docs"
+},
+{
+"title": "Old idea",
+"description": "x",
+"status": "cancelled",
+"branch": "vk/old"
+}
+],
+"/r/other": [
+{
+"title": "Other project",
+"description": "x",
+"status": "done",
+"branch": "vk/other"
+}
+]
+},
+"scripts": {
+"/r/app": {
+"setup": "npm i",
+"run": "npm run dev"
+},
+"/r/other": {}
+},
+"problem": null
+}
+},
+{
+"name": "no data",
+"sql": "\nCREATE TABLE projects (id TEXT, name TEXT);\nCREATE TABLE repos (id TEXT, path TEXT, setup_script TEXT, archive_script TEXT, dev_server_script TEXT);\nCREATE TABLE tasks (id TEXT, project_id TEXT, title TEXT, description TEXT, status TEXT);\nCREATE TABLE workspaces (id TEXT, task_id TEXT, container_ref TEXT, branch TEXT, archived INTEGER, worktree_deleted INTEGER);\nCREATE TABLE workspace_repos (workspace_id TEXT, repo_id TEXT);\nCREATE TABLE sessions (id TEXT, workspace_id TEXT, executor TEXT);\n",
+"out": {
+"found": [],
+"tasks": {},
+"scripts": {},
+"problem": null
+}
+},
+{
+"name": "missing table",
+"sql": "\nCREATE TABLE projects (id TEXT, name TEXT);\nCREATE TABLE repos (id TEXT, path TEXT, setup_script TEXT, archive_script TEXT, dev_server_script TEXT);\nCREATE TABLE tasks (id TEXT, project_id TEXT, title TEXT, description TEXT, status TEXT);\nCREATE TABLE workspaces (id TEXT, task_id TEXT, container_ref TEXT, branch TEXT, archived INTEGER, worktree_deleted INTEGER);\nCREATE TABLE workspace_repos (workspace_id TEXT, repo_id TEXT);\n\n",
+"out": {
+"found": [],
+"tasks": {},
+"scripts": {},
+"problem": "This Vibe Kanban version isn't supported yet. Its agents' copies are still listed under Other agent work."
+}
+},
+{
+"name": "missing column",
+"sql": "\nCREATE TABLE projects (id TEXT, name TEXT);\nCREATE TABLE repos (id TEXT, path TEXT, setup_script TEXT, archive_script TEXT, dev_server_script TEXT);\nCREATE TABLE tasks (id TEXT, project_id TEXT, title TEXT, description TEXT, status TEXT);\nCREATE TABLE workspaces (id TEXT, task_id TEXT, container_ref TEXT, branch TEXT, worktree_deleted INTEGER);\nCREATE TABLE workspace_repos (workspace_id TEXT, repo_id TEXT);\nCREATE TABLE sessions (id TEXT, workspace_id TEXT, executor TEXT);\n",
+"out": {
+"found": [],
+"tasks": {},
+"scripts": {},
+"problem": "This Vibe Kanban version isn't supported yet. Its agents' copies are still listed under Other agent work."
+}
+},
+{
+"name": "half resume tables",
+"sql": "\nCREATE TABLE projects (id TEXT, name TEXT);\nCREATE TABLE repos (id TEXT, path TEXT, setup_script TEXT, archive_script TEXT, dev_server_script TEXT);\nCREATE TABLE tasks (id TEXT, project_id TEXT, title TEXT, description TEXT, status TEXT);\nCREATE TABLE workspaces (id TEXT, task_id TEXT, container_ref TEXT, branch TEXT, archived INTEGER, worktree_deleted INTEGER);\nCREATE TABLE workspace_repos (workspace_id TEXT, repo_id TEXT);\nCREATE TABLE sessions (id TEXT, workspace_id TEXT, executor TEXT);\nCREATE TABLE execution_processes (id TEXT);\nINSERT INTO projects VALUES ('p1', 'Proj');\nINSERT INTO repos VALUES ('r1', '/r/app', 'npm i', NULL, 'npm run dev');\nINSERT INTO repos VALUES ('r2', '/r/other', NULL, NULL, NULL);\nINSERT INTO tasks VALUES ('t1', 'p1', 'Fix login', 'The login breaks', 'inprogress');\nINSERT INTO tasks VALUES ('t2', 'p1', 'Add docs', NULL, 'todo');\nINSERT INTO tasks VALUES ('t3', 'p1', 'Old idea', 'x', 'cancelled');\nINSERT INTO tasks VALUES ('t4', 'p1', 'Unknown state', 'x', 'weird');\nINSERT INTO tasks VALUES ('t5', 'p9', 'Other project', 'x', 'done');\nINSERT INTO workspaces VALUES ('w1', 't1', '/r/ws/w1', 'vk/fix-login', 0, 0);\nINSERT INTO workspaces VALUES ('w2', 't2', '/r/ws/w2', 'vk/docs', 0, 1);\nINSERT INTO workspaces VALUES ('w3', 't3', NULL, 'vk/old', 1, 0);\nINSERT INTO workspaces VALUES ('w4', 'tX', '/r/ws/w4', 'vk/orphan', 0, 0);\nINSERT INTO workspaces VALUES ('w5', 't1', '/r/ws/w5', 'vk/fix-login-2', 0, 0);\nINSERT INTO workspaces VALUES ('w6', 't5', '/r/ws/w6', 'vk/other', 0, 0);\nINSERT INTO workspace_repos VALUES ('w1', 'r1');\nINSERT INTO workspace_repos VALUES ('w2', 'r1');\nINSERT INTO workspace_repos VALUES ('w3', 'r1');\nINSERT INTO workspace_repos VALUES ('w4', 'r2');\nINSERT INTO workspace_repos VALUES ('w5', 'r1');\nINSERT INTO workspace_repos VALUES ('w6', 'r2');\nINSERT INTO sessions VALUES ('s1', 'w1', 'CLAUDE_CODE');\nINSERT INTO sessions VALUES ('s1b', 'w1', 'CODEX');\nINSERT INTO sessions VALUES ('s2', 'w2', 'cursor_agent');\nINSERT INTO sessions VALUES ('s5', 'w5', 'MYSTERY');\n",
+"out": {
+"found": [
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Fix login",
+"folder": null,
+"branch": "vk/fix-login",
+"ahead": 0,
+"dirty": false,
+"kind": "codex",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Add docs",
+"folder": null,
+"branch": "vk/docs",
+"ahead": 0,
+"dirty": false,
+"kind": "cursor",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/other",
+"name": "w4",
+"folder": null,
+"branch": "vk/orphan",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/app",
+"name": "Fix login",
+"folder": null,
+"branch": "vk/fix-login-2",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "vibe-kanban",
+"project": "/r/other",
+"name": "Other project",
+"folder": null,
+"branch": "vk/other",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"tasks": {
+"/r/app": [
+{
+"title": "Fix login",
+"description": "The login breaks",
+"status": "doing",
+"branch": "vk/fix-login-2"
+},
+{
+"title": "Add docs",
+"description": "",
+"status": "todo",
+"branch": "vk/docs"
+},
+{
+"title": "Old idea",
+"description": "x",
+"status": "cancelled",
+"branch": "vk/old"
+}
+],
+"/r/other": [
+{
+"title": "Other project",
+"description": "x",
+"status": "done",
+"branch": "vk/other"
+}
+]
+},
+"scripts": {
+"/r/app": {
+"setup": "npm i",
+"run": "npm run dev"
+},
+"/r/other": {}
+},
+"problem": null
+}
+},
+{
+"name": "not a database",
+"sql": null,
+"out": {
+"found": [],
+"tasks": {},
+"scripts": {},
+"problem": "This Vibe Kanban version isn't supported yet. Its agents' copies are still listed under Other agent work."
+}
+},
+{
+"name": "no file",
+"sql": false,
+"out": {
+"found": [],
+"tasks": {},
+"scripts": {},
+"problem": null
+}
+}
+],
+"summaries": [
+{
+"tool": "conductor",
+"items": [
+{
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"out": "1 workspace · Claude Code · 1 with unmerged work"
+},
+{
+"tool": "conductor",
+"items": [
+{
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "conductor",
+"project": "/p",
+"name": "b",
+"folder": null,
+"branch": "b2",
+"ahead": 0,
+"dirty": true,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"out": "2 workspaces · Claude Code · 1 with unmerged work"
+},
+{
+"tool": "conductor",
+"items": [
+{
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "conductor",
+"project": "/p",
+"name": "b",
+"folder": null,
+"branch": "b2",
+"ahead": 0,
+"dirty": true,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "conductor",
+"project": "/p",
+"name": "c",
+"folder": "/p/c",
+"branch": "b3",
+"ahead": 1,
+"dirty": false,
+"kind": "weird",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"out": "3 workspaces · Claude Code · 2 with unmerged work"
+},
+{
+"tool": "claude-squad",
+"items": [
+{
+"tool": "claude-squad",
+"project": "/p",
+"name": "d",
+"folder": "/p/d",
+"branch": "b4",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"out": "1 session"
+},
+{
+"tool": "conductor",
+"items": [
+{
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+{
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+}
+],
+"out": "3 workspaces · Claude Code · 3 with unmerged work"
+}
+],
+"becomes": [
+{
+"item": {
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 1,
+"out": "Becomes builder-1 · Claude Code, opus · 2 commits not merged"
+},
+{
+"item": {
+"tool": "conductor",
+"project": "/p",
+"name": "a",
+"folder": "/p/a",
+"branch": "b",
+"ahead": 2,
+"dirty": false,
+"kind": "claude",
+"model": "opus",
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 3,
+"out": "Becomes builder-3 · Claude Code, opus · 2 commits not merged"
+},
+{
+"item": {
+"tool": "conductor",
+"project": "/p",
+"name": "b",
+"folder": null,
+"branch": "b2",
+"ahead": 0,
+"dirty": true,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 1,
+"out": "Becomes builder-1 · Claude Code · uncommitted changes"
+},
+{
+"item": {
+"tool": "conductor",
+"project": "/p",
+"name": "b",
+"folder": null,
+"branch": "b2",
+"ahead": 0,
+"dirty": true,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 3,
+"out": "Becomes builder-3 · Claude Code · uncommitted changes"
+},
+{
+"item": {
+"tool": "conductor",
+"project": "/p",
+"name": "c",
+"folder": "/p/c",
+"branch": "b3",
+"ahead": 1,
+"dirty": false,
+"kind": "weird",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 1,
+"out": "Becomes builder-1 ·  · 1 commit not merged"
+},
+{
+"item": {
+"tool": "conductor",
+"project": "/p",
+"name": "c",
+"folder": "/p/c",
+"branch": "b3",
+"ahead": 1,
+"dirty": false,
+"kind": "weird",
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 3,
+"out": "Becomes builder-3 ·  · 1 commit not merged"
+},
+{
+"item": {
+"tool": "claude-squad",
+"project": "/p",
+"name": "d",
+"folder": "/p/d",
+"branch": "b4",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 1,
+"out": "Becomes builder-1 · Claude Code · nothing new yet"
+},
+{
+"item": {
+"tool": "claude-squad",
+"project": "/p",
+"name": "d",
+"folder": "/p/d",
+"branch": "b4",
+"ahead": 0,
+"dirty": false,
+"kind": null,
+"model": null,
+"session": null,
+"running_elsewhere": false,
+"notes": []
+},
+"n": 3,
+"out": "Becomes builder-3 · Claude Code · nothing new yet"
+}
+],
+"tools": [
+{
+"folder": "/h/conductor/workspaces/app/tokyo",
+"home": "/h",
+"out": "conductor"
+},
+{
+"folder": "/h/conductor",
+"home": "/h",
+"out": "conductor"
+},
+{
+"folder": "/x/.conductor/oslo",
+"home": "/h",
+"out": "conductor"
+},
+{
+"folder": "/h/.claude-squad/worktrees/x",
+"home": "/h",
+"out": "claude-squad"
+},
+{
+"folder": "/a/vibe-kanban/worktrees/abc/app",
+"home": "/h",
+"out": "vibe-kanban"
+},
+{
+"folder": "/tmp/.vibe-kanban-workspaces/x",
+"home": "/h",
+"out": "vibe-kanban"
+},
+{
+"folder": "/h/other/x",
+"home": "/h",
+"out": "other"
+},
+{
+"folder": "/h/conductorx/y",
+"home": "/h",
+"out": "other"
+},
+{
+"folder": "/h/conductor/",
+"home": "/h",
+"out": "conductor"
+}
+],
+"kinds": [
+{
+"program": "claude",
+"out": "claude"
+},
+{
+"program": "/usr/bin/codex --x",
+"out": "codex"
+},
+{
+"program": "cursor-agent",
+"out": "cursor"
+},
+{
+"program": "agy",
+"out": "antigravity"
+},
+{
+"program": "aider",
+"out": null
+},
+{
+"program": "",
+"out": null
+},
+{
+"program": null,
+"out": null
+},
+{
+"program": "gemini x",
+"out": "gemini"
+},
+{
+"program": "cursor",
+"out": "cursor"
+},
+{
+"program": "antigravity",
+"out": "antigravity"
+},
+{
+"program": " claude",
+"out": "claude"
+}
+]
+}
