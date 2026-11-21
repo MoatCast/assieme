@@ -59,6 +59,8 @@ enum Cmd {
     Mcp,
     /// The brain as a background service (the app talks to it).
     Serve,
+    /// Agent settings that still run the Python brain; exits 1 when there are any.
+    CheckConfigs,
     /// One request to this machine's brain: parameters as JSON on stdin, the reply on stdout.
     Call { method: String },
 }
@@ -123,6 +125,7 @@ pub fn main(args: Vec<String>) -> i32 {
         },
         Cmd::Mcp => crate::mcpserver::main(),
         Cmd::Serve => crate::run(vec![]),
+        Cmd::CheckConfigs => crate::configcheck::main(),
         Cmd::Call { method } => remote::call_main(&method, None),
     }
 }

@@ -19,6 +19,7 @@ pub mod brief;
 pub mod bringover;
 pub mod budget;
 pub mod cli;
+pub mod configcheck;
 pub mod connect;
 pub mod container;
 pub mod detect;
