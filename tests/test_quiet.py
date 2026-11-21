@@ -1,4 +1,4 @@
-"""A3 quiet send: the hc stand-in, the hold queue and delivery. Fake hc, temp state folder and PATH only."""
+"""A3 quiet send: the asm stand-in, the hold queue and delivery. Fake asm, temp state folder and PATH only."""
 import json
 import os
 import subprocess
@@ -34,8 +34,8 @@ class QuietTestCase(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         bin_dir = os.path.join(self.tmp.name, 'bin')
         os.makedirs(bin_dir)
-        open(os.path.join(bin_dir, 'hc'), 'w').close()
-        os.chmod(os.path.join(bin_dir, 'hc'), 0o755)
+        open(os.path.join(bin_dir, 'asm'), 'w').close()
+        os.chmod(os.path.join(bin_dir, 'asm'), 0o755)
         self.env = mock.patch.dict(os.environ, {'XDG_STATE_HOME': os.path.join(self.tmp.name, 'state'),
                                                 'PATH': os.path.join(self.tmp.name, 'state', 'assieme', 'bin') + os.pathsep + bin_dir})
         self.env.start()
@@ -106,6 +106,14 @@ class DeliverTest(QuietTestCase):
         self.assertIn('2 quiet notes held while you were busy', send[2])
         self.assertIn('suite done', send[2])
         self.assertEqual(quiet.held(), {})
+
+    def test_held_note_sent_with_asm(self):
+        self.hold(1, 'suite done')
+        programs = []
+        hc = FakeHC()
+        run = lambda cmd, **kw: programs.append(os.path.basename(cmd[0])) or hc(cmd, **kw)
+        self.assertEqual(quiet.deliver([Receiver('working')], run=run), [('coord', 1, 'busy')])
+        self.assertEqual(set(programs), {'asm'})
 
     def test_a_note_follows_its_agent_restarted_in_the_same_folder(self):
         quiet.hold_note('t7', RECEIVER, 'for the builder', None, None)  # held, then the agent came back as t9
@@ -203,13 +211,36 @@ class LiveQuietTest(QuietTestCase):
 class TeamTest(QuietTestCase):
     def test_on_installs_a_shim_that_runs_assieme(self):
         d = quiet.install()
-        with open(os.path.join(d, 'hc')) as f:
+        with open(os.path.join(d, 'asm')) as f:
             body = f.read()
         self.assertIn('-m assieme shim "$@"', body)
-        self.assertTrue(os.access(os.path.join(d, 'hc'), os.X_OK))
-        self.assertNotEqual(os.path.realpath(quiet.real_hc()), os.path.realpath(os.path.join(d, 'hc')))
+        self.assertTrue(os.access(os.path.join(d, 'asm'), os.X_OK))
+        self.assertNotEqual(os.path.realpath(quiet.real_asm()), os.path.realpath(os.path.join(d, 'asm')))
         quiet.uninstall()
-        self.assertFalse(os.path.exists(os.path.join(d, 'hc')))
+        self.assertFalse(os.path.exists(os.path.join(d, 'asm')))
+
+    def test_install_writes_asm_and_removes_hc(self):
+        d = quiet.shim_dir()
+        os.makedirs(d, exist_ok=True)
+        open(os.path.join(d, 'hc'), 'w').close()  # the stand-in from before the switch
+        self.assertEqual(quiet.install(), d)
+        self.assertTrue(os.access(os.path.join(d, 'asm'), os.X_OK))
+        self.assertFalse(os.path.exists(os.path.join(d, 'hc')), "the person's own hc must not be shadowed")
+        open(os.path.join(d, 'hc'), 'w').close()
+        quiet.uninstall()
+        self.assertEqual([n for n in ('asm', 'hc') if os.path.exists(os.path.join(d, n))], [])
+
+    def test_real_asm_skips_stand_in_and_hc(self):
+        only_hc, with_asm = (os.path.join(self.tmp.name, n) for n in ('only-hc', 'with-asm'))
+        for d, name in ((only_hc, 'hc'), (with_asm, 'asm')):
+            os.makedirs(d)
+            open(os.path.join(d, name), 'w').close()
+            os.chmod(os.path.join(d, name), 0o755)
+        shim = quiet.install()
+        with mock.patch.dict(os.environ, {'PATH': os.pathsep.join([shim, only_hc, with_asm])}):
+            self.assertEqual(quiet.real_asm(), os.path.join(with_asm, 'asm'))
+        with mock.patch.dict(os.environ, {'PATH': os.pathsep.join([shim, only_hc])}):
+            self.assertIsNone(quiet.real_asm())
 
     def test_install_writes_the_push_blocker_git_runs(self):
         d = quiet.install()
@@ -237,11 +268,11 @@ class EndToEndShellTest(unittest.TestCase):
             builder, coord, fake_bin = (os.path.join(root, n) for n in ('builder', 'coord', 'bin'))
             for d in (builder, coord, fake_bin):
                 os.makedirs(d)
-            log = os.path.join(root, 'hc.log')
-            with open(os.path.join(fake_bin, 'hc'), 'w') as f:
+            log = os.path.join(root, 'asm.log')
+            with open(os.path.join(fake_bin, 'asm'), 'w') as f:
                 f.write(f'#!/bin/sh\necho "$@" >> "{log}"\n'
                         f'if [ "$1" = get ]; then echo \'{{"cwd": "{coord}"}}\'; fi\n')
-            os.chmod(os.path.join(fake_bin, 'hc'), 0o755)
+            os.chmod(os.path.join(fake_bin, 'asm'), 0o755)
             env = dict(os.environ, XDG_STATE_HOME=os.path.join(root, 'state'),
                        PYTHONPATH=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             with mock.patch.dict(os.environ, env):
@@ -250,9 +281,9 @@ class EndToEndShellTest(unittest.TestCase):
                 quiet.heartbeat()
             env['PATH'] = shim + os.pathsep + fake_bin + os.pathsep + os.environ['PATH']
             sh = lambda c: subprocess.run(['sh', '-c', c], cwd=builder, env=env, capture_output=True, text=True)
-            held = sh('hc send coord "suite done"')
-            sh('hc ls --json')
-            sh('hc send coord "Ready for review?"')
+            held = sh('asm send coord "suite done"')
+            sh('asm ls --json')
+            sh('asm send coord "Ready for review?"')
             with open(log) as f:
                 calls = f.read().splitlines()
             with mock.patch.dict(os.environ, env):

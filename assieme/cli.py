@@ -298,7 +298,7 @@ Undo with `assieme quiet off`.""")
         print('Quiet send is off: the asm stand-in is removed. Held notes are still delivered while assieme runs.')
     else:
         ps, held = quiet.pairs(), quiet.held()
-        print(f"stand-in installed: {'yes' if os.path.exists(os.path.join(quiet.shim_dir(), 'hc')) else 'no'}")
+        print(f"stand-in installed: {'yes' if os.path.exists(os.path.join(quiet.shim_dir(), 'asm')) else 'no'}")
         print(f"deliverer running: {'yes' if quiet.deliverer_alive() else 'no (start assieme or assieme watch)'}")
         print(f"quiet pairs: {', '.join(p['label'] for p in ps) or 'none'}")
         print(f"notes held: {sum(len(v) for v in held.values())}")

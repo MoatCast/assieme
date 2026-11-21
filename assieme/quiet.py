@@ -3,8 +3,8 @@
 How it fits together:
 - The owner marks a sender -> receiver pair quiet (Settings or a saving tip in the app, one key in the live view).
   Pairs live in quiet.json.
-- Agents keep typing `hc send`. A small `hc` shim holds notes on quiet pairs in a queue and passes everything else to
-  the real hc. Agents started in Assieme get it from the core's PATH; for others, `assieme quiet on` prints the line.
+- Agents keep typing `asm send`. A small `asm` stand-in holds notes on quiet pairs in a queue and passes everything
+  else to the real asm. Agents started in Assieme get it from the core's PATH; for others, `assieme quiet on` prints the line.
 - The live view and `assieme watch` deliver held notes as one batch while the receiver is busy (so the note
   joins its current turn), or after MAX_HOLD if it stays idle: one wake instead of many.
 
@@ -137,24 +137,24 @@ def _drop(delivered):
 
 # --- the shim ------------------------------------------------------------------------------------------------
 
-def real_hc():
-    """The first `hc` on PATH that is not our shim."""
+def real_asm():
+    """The first `asm` on PATH that is not our stand-in. Never an `hc`: that is the person's own herdr."""
     shim = os.path.realpath(shim_dir())
     for d in os.environ.get('PATH', '').split(os.pathsep):
         if d and os.path.realpath(d) != shim:
-            p = shutil.which('hc', path=d)
+            p = shutil.which('asm', path=d)
             if p:
                 return p
     return None
 
 
 def shim_main(argv, run=subprocess.run, cwd=None, now=None):
-    """`hc ...` as the agents see it. Returns the exit code. Only `hc send` on a quiet pair is ever held."""
-    hc = real_hc()
-    if not hc:
-        sys.stderr.write('assieme: real hc not found on PATH\n')
+    """`asm ...` as the agents see it. Returns the exit code. Only `asm send` on a quiet pair is ever held."""
+    asm = real_asm()
+    if not asm:
+        sys.stderr.write('assieme: real asm not found on PATH\n')
         return 127
-    passthrough = lambda args: run([hc] + args).returncode
+    passthrough = lambda args: run([asm] + args).returncode
     if not argv or argv[0] != 'send':
         return passthrough(argv)
     args = list(argv[1:])
@@ -169,7 +169,7 @@ def shim_main(argv, run=subprocess.run, cwd=None, now=None):
     if urgent(text):
         return passthrough(['send'] + args)
     try:
-        info = json.loads(run([hc, 'get', target, '--json'], capture_output=True, text=True, timeout=10).stdout or '{}')
+        info = json.loads(run([asm, 'get', target, '--json'], capture_output=True, text=True, timeout=10).stdout or '{}')
     except (ValueError, OSError, subprocess.SubprocessError):
         info = {}
     sender_cwd = _real(cwd or os.getcwd())
@@ -177,7 +177,7 @@ def shim_main(argv, run=subprocess.run, cwd=None, now=None):
         return passthrough(['send'] + args)
     _hold({'at': now or time.time(), 'from_cwd': sender_cwd, 'from': os.path.basename(sender_cwd),
            'to': target, 'to_cwd': _real(info['cwd']), 'text': text,
-           'session': os.environ.get('HC_SESSION'), 'socket': os.environ.get('HC_SOCKET'),
+           'session': os.environ.get('ASM_SESSION'), 'socket': os.environ.get('ASM_SOCKET'),
            'role': (info.get('labels') or {}).get('assieme.role'), 'team': (info.get('labels') or {}).get('assieme.team')})
     sys.stdout.write(json.dumps({'held': True, 'for': target,
                                  'note': 'quiet send: delivered with its next turn, not waking it now'}) + '\n')
@@ -200,24 +200,24 @@ def hold_note(to, to_cwd, text, session, socket, now=None, sender='assieme', fro
 
 
 def _env(note):
-    """The core a note must go back through. A plain `hc send` would reach the default session."""
-    return os.environ | {'HC_SESSION': note['session'], 'HC_SOCKET': note['socket']} if note.get('session') else None
+    """The core a note must go back through. A plain `asm send` would reach the default session."""
+    return os.environ | {'ASM_SESSION': note['session'], 'ASM_SOCKET': note['socket']} if note.get('session') else None
 
 
-def _still_there(hc, note, run):
+def _still_there(asm, note, run):
     """Terminal addresses get reused: the note goes only if this address is still the agent it was held for."""
     try:
-        r = run([hc, 'get', note['to'], '--json'], capture_output=True, text=True, timeout=10, env=_env(note))
+        r = run([asm, 'get', note['to'], '--json'], capture_output=True, text=True, timeout=10, env=_env(note))
         return r.returncode == 0 and _real(json.loads(r.stdout or '{}').get('cwd')) == note['to_cwd']
     except (ValueError, OSError, subprocess.SubprocessError):
         return False
 
 
-def _moved_to(hc, note, run, others):
+def _moved_to(asm, note, run, others):
     """Where an agent restarted in the same folder now is: the one live terminal there that no other held note is for.
     None when there is none, or several (never guess which agent a note was for)."""
     try:
-        r = run([hc, 'ls', '--json'], capture_output=True, text=True, timeout=10, env=_env(note))
+        r = run([asm, 'ls', '--json'], capture_output=True, text=True, timeout=10, env=_env(note))
         ts = json.loads(r.stdout or '{}').get('terminals') or [] if r.returncode == 0 else []
     except (ValueError, OSError, subprocess.SubprocessError, AttributeError):
         return None
@@ -231,7 +231,7 @@ def deliver(agents, now=None, run=subprocess.run, on_batch=None, on_give_up=None
     now = now or time.time()
     heartbeat()
     by_cwd = {_real(a.cwd): a for a in agents if getattr(a, 'cwd', None)}
-    hc = real_hc()
+    asm = real_asm()
     sent = []
     for to_cwd, all_notes in held().items():
         a = by_cwd.get(to_cwd)
@@ -242,18 +242,18 @@ def deliver(agents, now=None, run=subprocess.run, on_batch=None, on_give_up=None
             batches.setdefault((n.get('session'), n['to']), []).append(n)  # agents sharing a folder each get theirs
         for notes in batches.values():
             overdue = now - min(n['at'] for n in notes) >= MAX_HOLD
-            if not hc or not (busy or overdue):
+            if not asm or not (busy or overdue):
                 continue
             to = notes[-1]['to']
-            if not gone and not _still_there(hc, notes[-1], run):
-                to = _moved_to(hc, notes[-1], run, {k[1] for k in batches} - {to})
+            if not gone and not _still_there(asm, notes[-1], run):
+                to = _moved_to(asm, notes[-1], run, {k[1] for k in batches} - {to})
             if gone or not to:
                 if now - min(n['at'] for n in notes) >= GIVE_UP_AFTER:
                     _drop(notes)
                     if on_give_up:
                         on_give_up(notes)
                 continue
-            res = run([hc, 'send', to, batch_text(notes)], capture_output=True, text=True, timeout=60,
+            res = run([asm, 'send', to, batch_text(notes)], capture_output=True, text=True, timeout=60,
                       env=_env(notes[-1]))
             if res.returncode == 0:
                 _drop(notes)
@@ -283,12 +283,16 @@ def shim_dir():
 
 
 def install():
-    """Write the hc shim. Returns its folder, which goes first on the agents' PATH."""
+    """Write the asm stand-in. Returns its folder, which goes first on the agents' PATH."""
     d = shim_dir()
     os.makedirs(d, exist_ok=True)
-    p = os.path.join(d, 'hc')
+    try:
+        os.remove(os.path.join(d, 'hc'))  # the stand-in from before the switch would shadow the person's own herdr
+    except OSError:
+        pass
+    p = os.path.join(d, 'asm')
     with open(p, 'w') as f:
-        f.write(f'#!/bin/sh\n# assieme quiet send: holds notes on quiet pairs, passes everything else to the real hc.\n'
+        f.write(f'#!/bin/sh\n# assieme quiet send: holds notes on quiet pairs, passes everything else to the real asm.\n'
                 f'exec "{sys.executable}" -P -m assieme shim "$@"\n')  # -P: never import from the worktree
     os.chmod(p, 0o755)
     p = os.path.join(d, BLOCKER)  # git runs this for assieme-push-blocked:// remotes (see launch.BLOCK_PUSH)
@@ -299,7 +303,7 @@ def install():
 
 
 def uninstall():
-    for name in ('hc', BLOCKER):
+    for name in ('asm', 'hc', BLOCKER):
         try:
             os.remove(os.path.join(shim_dir(), name))
         except OSError:
