@@ -1,5 +1,6 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
+import { EXPLAIN } from "./Explain";
 import PlanBars, { hhmm } from "./PlanBars";
 
 afterEach(cleanup);
@@ -15,6 +16,12 @@ test("bar shows percent", () => {
 test("reached shows back at", () => {
   render(<PlanBars limits={{ codex: { used: 100, reached: true, resets_at: AT_15 } }} />);
   expect(screen.getByText("Back at 15:00").parentElement?.className).toBe("plan-bar reached");
+});
+
+test("a ? explains plan limits", () => {
+  render(<PlanBars limits={{ claude: { used: 40, reached: false, resets_at: AT_15 } }} />);
+  fireEvent.click(screen.getByRole("button", { name: "What are plan limits?" }));
+  expect(screen.getByRole("note").textContent).toBe(EXPLAIN["plan-limits"]);
 });
 
 test("no limits no bars", () => {

@@ -1,4 +1,7 @@
-.plan-bars { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; font-size: 12px; line-height: 16px; }
+/* The "?" sits right of the bars, so the bars' columns stay aligned (power-tools spec § 5). */
+.plan-use { display: flex; align-items: center; gap: 2px; margin-top: 8px; }
+.plan-use .explain-text { left: auto; right: 0; }
+.plan-bars { display: flex; flex-direction: column; flex-grow: 1; gap: 5px; font-size: 12px; line-height: 16px; }
 .plan-bar { display: flex; align-items: center; gap: 8px; color: var(--quiet-slate); }
 .plan-name { width: 52px; flex-shrink: 0; }
 .plan-track { display: flex; flex-grow: 1; height: 4px; border-radius: 2px; background: var(--quiet-line); }
