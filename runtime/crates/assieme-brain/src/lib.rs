@@ -117,6 +117,10 @@ pub fn run(args: Vec<OsString>) -> i32 {
         eprintln!("Another program answers on {}; it is left as it is.", socket.display());
         return 4;
     }
+    // Agents find `asm` here first: rewrite it for this binary, which also replaces a stand-in from an older install.
+    if let Err(e) = quiet::install() {
+        eprintln!("asm brain: can't write the asm stand-in: {e}");
+    }
     let _ = std::fs::remove_file(&socket); // a stale file from a brain that died
     let old = unsafe { libc::umask(0o177) }; // created 0600: only this user can talk to the brain
     let bound = std::os::unix::net::UnixListener::bind(&socket);
