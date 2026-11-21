@@ -27,7 +27,9 @@ pub fn read(r: &mut impl Read) -> io::Result<Option<(u32, u8, Vec<u8>)>> {
     let channel = u32::from_le_bytes(h[0..4].try_into().unwrap());
     let len = u32::from_le_bytes(h[5..9].try_into().unwrap()) as usize;
     if len > MAX_PAYLOAD {
-        return Err(io::Error::other(format!("frame of {len} bytes is too large")));
+        return Err(io::Error::other(format!(
+            "frame of {len} bytes is too large"
+        )));
     }
     let mut payload = vec![0; len];
     r.read_exact(&mut payload)?;

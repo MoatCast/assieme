@@ -14,7 +14,11 @@ fn connect(sock: &Path) -> Result<UnixStream, String> {
 
 fn reply_result(v: Value) -> Result<Value, String> {
     if let Some(e) = v.get("error") {
-        return Err(e.get("message").and_then(Value::as_str).unwrap_or("error").to_string());
+        return Err(e
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("error")
+            .to_string());
     }
     Ok(v.get("result").cloned().unwrap_or(Value::Null))
 }
@@ -23,7 +27,9 @@ fn state_home() -> PathBuf {
     std::env::var_os("XDG_STATE_HOME")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/state"))
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/state")
+        })
 }
 
 pub fn brain_socket() -> PathBuf {
@@ -40,17 +46,29 @@ pub fn core_socket(session: &str) -> PathBuf {
 }
 
 /// Like `call_at`, giving up when the service doesn't answer within `timeout`.
-pub fn call_at_with(sock: &Path, method: &str, params: Value, timeout: std::time::Duration) -> Result<Value, String> {
+pub fn call_at_with(
+    sock: &Path,
+    method: &str,
+    params: Value,
+    timeout: std::time::Duration,
+) -> Result<Value, String> {
     let mut s = connect(sock)?;
-    s.set_read_timeout(Some(timeout)).map_err(|e| e.to_string())?;
-    s.set_write_timeout(Some(timeout)).map_err(|e| e.to_string())?;
+    s.set_read_timeout(Some(timeout))
+        .map_err(|e| e.to_string())?;
+    s.set_write_timeout(Some(timeout))
+        .map_err(|e| e.to_string())?;
     let req = json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
-    s.write_all(format!("{req}\n").as_bytes()).map_err(|e| e.to_string())?;
+    s.write_all(format!("{req}\n").as_bytes())
+        .map_err(|e| e.to_string())?;
     let mut line = String::new();
-    BufReader::new(&s).read_line(&mut line).map_err(|e| match e.kind() {
-        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut => format!("{method} timed out"),
-        _ => e.to_string(),
-    })?;
+    BufReader::new(&s)
+        .read_line(&mut line)
+        .map_err(|e| match e.kind() {
+            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut => {
+                format!("{method} timed out")
+            }
+            _ => e.to_string(),
+        })?;
     reply_result(serde_json::from_str(&line).map_err(|e| format!("bad reply: {e}"))?)
 }
 
@@ -61,8 +79,15 @@ pub fn call_at(sock: &Path, method: &str, params: Value) -> Result<Value, String
 
 /// A terminal's screen and history as text: the only access to sessions other than `assieme`.
 pub fn read_text_at(sock: &Path, address: &str) -> Result<String, String> {
-    let r = call_at(sock, "terminal.read", json!({"terminal": address, "lines": 2000}))?;
-    Ok(r.get("text").and_then(Value::as_str).unwrap_or_default().to_string())
+    let r = call_at(
+        sock,
+        "terminal.read",
+        json!({"terminal": address, "lines": 2000}),
+    )?;
+    Ok(r.get("text")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string())
 }
 
 pub struct Stream {
@@ -85,21 +110,28 @@ impl Stream {
         let s = connect(sock)?;
         let mut w = s.try_clone().map_err(|e| e.to_string())?;
         let mut r = BufReader::new(s);
-        w.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"hello\",\"params\":{\"framed\":true}}\n")
-            .map_err(|e| e.to_string())?;
+        w.write_all(
+            b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"hello\",\"params\":{\"framed\":true}}\n",
+        )
+        .map_err(|e| e.to_string())?;
         let mut line = String::new();
         r.read_line(&mut line).map_err(|e| e.to_string())?;
         reply_result(serde_json::from_str(&line).map_err(|e| format!("bad hello reply: {e}"))?)?;
         let attach = json!({"jsonrpc": "2.0", "id": 2, "method": "terminal.attach",
             "params": {"terminal": address, "cols": cols, "rows": rows, "observe": observe}});
-        w.write_all(&frame::encode(0, DATA, attach.to_string().as_bytes())).map_err(|e| e.to_string())?;
+        w.write_all(&frame::encode(0, DATA, attach.to_string().as_bytes()))
+            .map_err(|e| e.to_string())?;
         let channel = loop {
             match frame::read(&mut r).map_err(|e| e.to_string())? {
                 Some((0, DATA, p)) => {
-                    let v: Value = serde_json::from_slice(&p).map_err(|e| format!("bad attach reply: {e}"))?;
+                    let v: Value =
+                        serde_json::from_slice(&p).map_err(|e| format!("bad attach reply: {e}"))?;
                     if v.get("id") == Some(&json!(2)) {
                         let res = reply_result(v)?;
-                        break res.get("channel").and_then(Value::as_u64).ok_or("attach gave no channel")? as u32;
+                        break res
+                            .get("channel")
+                            .and_then(Value::as_u64)
+                            .ok_or("attach gave no channel")? as u32;
                     }
                 }
                 Some(_) => {}
@@ -115,12 +147,21 @@ impl Stream {
                         let n = p.len() as u32;
                         on_data(p);
                         // Return the credit at once, so the core keeps streaming past its 256 KiB window.
-                        if credit.lock().unwrap().write_all(&frame::encode(channel, CREDIT, &n.to_le_bytes())).is_err() {
+                        if credit
+                            .lock()
+                            .unwrap()
+                            .write_all(&frame::encode(channel, CREDIT, &n.to_le_bytes()))
+                            .is_err()
+                        {
                             break "lost".to_string();
                         }
                     }
                     Ok(Some((ch, CLOSE, p))) if ch == channel => {
-                        break if p.is_empty() { "closed".into() } else { String::from_utf8_lossy(&p).into_owned() };
+                        break if p.is_empty() {
+                            "closed".into()
+                        } else {
+                            String::from_utf8_lossy(&p).into_owned()
+                        };
                     }
                     Ok(Some(_)) => {}
                     Ok(None) | Err(_) => break "lost".to_string(),
@@ -132,7 +173,11 @@ impl Stream {
     }
 
     fn send(&self, kind: u8, payload: &[u8]) -> Result<(), String> {
-        self.writer.lock().unwrap().write_all(&frame::encode(self.channel, kind, payload)).map_err(|e| e.to_string())
+        self.writer
+            .lock()
+            .unwrap()
+            .write_all(&frame::encode(self.channel, kind, payload))
+            .map_err(|e| e.to_string())
     }
 
     pub fn input(&self, data: &[u8]) -> Result<(), String> {
@@ -147,7 +192,11 @@ impl Stream {
 
     pub fn close(&self) {
         let _ = self.send(CLOSE, b"");
-        let _ = self.writer.lock().unwrap().shutdown(std::net::Shutdown::Both);
+        let _ = self
+            .writer
+            .lock()
+            .unwrap()
+            .shutdown(std::net::Shutdown::Both);
     }
 }
 
@@ -180,15 +229,22 @@ mod tests {
             let mut line = String::new();
             r.read_line(&mut line).unwrap();
             assert!(line.contains("\"framed\":true"), "hello first: {line}");
-            w.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"framed\":true}}\n").unwrap();
+            w.write_all(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"framed\":true}}\n")
+                .unwrap();
             let (ch, _, attach) = frame::read(&mut r).unwrap().unwrap();
             assert_eq!(ch, 0);
             tx.send((0, DATA, attach)).unwrap();
-            w.write_all(&frame::encode(0, DATA, br#"{"jsonrpc":"2.0","id":2,"result":{"channel":1}}"#)).unwrap();
+            w.write_all(&frame::encode(
+                0,
+                DATA,
+                br#"{"jsonrpc":"2.0","id":2,"result":{"channel":1}}"#,
+            ))
+            .unwrap();
             let mut sent = 0;
             while sent < total {
                 let n = (total - sent).min(16 * 1024);
-                w.write_all(&frame::encode(1, DATA, &vec![b'x'; n])).unwrap();
+                w.write_all(&frame::encode(1, DATA, &vec![b'x'; n]))
+                    .unwrap();
                 sent += n;
             }
             while let Ok(Some(f)) = frame::read(&mut r) {
@@ -204,9 +260,17 @@ mod tests {
         let got = Arc::new(Mutex::new(0));
         let g = got.clone();
         let (ctx, crx) = mpsc::channel();
-        let s = Stream::open(sock, "t1", 120, 40, observe, move |b| *g.lock().unwrap() += b.len(), move |why| {
-            let _ = ctx.send(why);
-        })
+        let s = Stream::open(
+            sock,
+            "t1",
+            120,
+            40,
+            observe,
+            move |b| *g.lock().unwrap() += b.len(),
+            move |why| {
+                let _ = ctx.send(why);
+            },
+        )
         .unwrap();
         (s, got, crx)
     }
@@ -219,7 +283,13 @@ mod tests {
         let (_, _, attach) = rx.recv_timeout(Duration::from_secs(5)).unwrap();
         let attach: Value = serde_json::from_slice(&attach).unwrap();
         assert_eq!(attach["method"], "terminal.attach");
-        assert_eq!((attach["params"]["terminal"].as_str(), attach["params"]["observe"].as_bool()), (Some("t1"), Some(true)));
+        assert_eq!(
+            (
+                attach["params"]["terminal"].as_str(),
+                attach["params"]["observe"].as_bool()
+            ),
+            (Some("t1"), Some(true))
+        );
         let mut credited = 0;
         while credited < 300 * 1024 {
             let (ch, kind, p) = rx.recv_timeout(Duration::from_secs(5)).unwrap();
@@ -238,9 +308,15 @@ mod tests {
         let (s, _, _) = open(&sock, false);
         rx.recv_timeout(Duration::from_secs(5)).unwrap();
         s.resize(120, 40).unwrap();
-        assert_eq!(rx.recv_timeout(Duration::from_secs(5)).unwrap(), (1, RESIZE, vec![120, 0, 40, 0]));
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            (1, RESIZE, vec![120, 0, 40, 0])
+        );
         s.input(b"hi").unwrap();
-        assert_eq!(rx.recv_timeout(Duration::from_secs(5)).unwrap(), (1, DATA, b"hi".to_vec()));
+        assert_eq!(
+            rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+            (1, DATA, b"hi".to_vec())
+        );
         s.close();
         assert_eq!(rx.recv_timeout(Duration::from_secs(5)).unwrap().1, CLOSE);
     }
@@ -257,7 +333,12 @@ mod tests {
             r.read_line(&mut line).unwrap();
             w.write_all(b"{\"id\":1,\"result\":{}}\n").unwrap();
             frame::read(&mut r).unwrap();
-            w.write_all(&frame::encode(0, DATA, br#"{"id":2,"result":{"channel":1}}"#)).unwrap();
+            w.write_all(&frame::encode(
+                0,
+                DATA,
+                br#"{"id":2,"result":{"channel":1}}"#,
+            ))
+            .unwrap();
             // then the core goes away
         });
         let (_s, _, closed) = open(&sock, true);
@@ -276,7 +357,12 @@ mod tests {
             r.read_line(&mut line).unwrap();
             w.write_all(b"{\"id\":1,\"result\":{}}\n").unwrap();
             frame::read(&mut r).unwrap();
-            w.write_all(&frame::encode(0, DATA, br#"{"id":2,"error":{"message":"t1 has finished"}}"#)).unwrap();
+            w.write_all(&frame::encode(
+                0,
+                DATA,
+                br#"{"id":2,"error":{"message":"t1 has finished"}}"#,
+            ))
+            .unwrap();
         });
         let r = Stream::open(&sock, "t1", 80, 24, true, |_| {}, |_| {});
         assert_eq!(r.err().unwrap(), "t1 has finished");
@@ -301,7 +387,10 @@ mod tests {
     fn brain_call_error_is_string() {
         let sock = temp_sock("brain-err");
         let _rx = fake_line_server(&sock, "{\"id\":1,\"error\":{\"message\":\"nope\"}}\n");
-        assert_eq!(call_at(&sock, "brain.snapshot", serde_json::json!({})).unwrap_err(), "nope");
+        assert_eq!(
+            call_at(&sock, "brain.snapshot", serde_json::json!({})).unwrap_err(),
+            "nope"
+        );
     }
 
     #[test]
@@ -313,8 +402,18 @@ mod tests {
             std::thread::sleep(Duration::from_secs(5)); // never answers in time
         });
         let t = std::time::Instant::now();
-        let err = call_at_with(&sock, "brain.snapshot", serde_json::json!({}), Duration::from_millis(300)).unwrap_err();
-        assert!(t.elapsed() < Duration::from_secs(2), "took {:?}", t.elapsed());
+        let err = call_at_with(
+            &sock,
+            "brain.snapshot",
+            serde_json::json!({}),
+            Duration::from_millis(300),
+        )
+        .unwrap_err();
+        assert!(
+            t.elapsed() < Duration::from_secs(2),
+            "took {:?}",
+            t.elapsed()
+        );
         assert!(err.contains("timed out"), "{err}");
     }
 
@@ -322,7 +421,10 @@ mod tests {
     fn brain_call_result() {
         let sock = temp_sock("brain-ok");
         let rx = fake_line_server(&sock, "{\"id\":1,\"result\":{\"ok\":true}}\n");
-        assert_eq!(call_at(&sock, "brain.snapshot", serde_json::json!({})).unwrap()["ok"], true);
+        assert_eq!(
+            call_at(&sock, "brain.snapshot", serde_json::json!({})).unwrap()["ok"],
+            true
+        );
         assert!(rx.recv().unwrap().contains("\"method\":\"brain.snapshot\""));
     }
 
@@ -334,7 +436,10 @@ mod tests {
         let rx = fake_line_server(&sock, "{\"id\":1,\"result\":{\"text\":\"hello\"}}\n");
         assert_eq!(read_text_at(&sock, "t4").unwrap(), "hello");
         let req: Value = serde_json::from_str(&rx.recv().unwrap()).unwrap();
-        assert_eq!((req["method"].as_str(), req["params"]["terminal"].as_str()), (Some("terminal.read"), Some("t4")));
+        assert_eq!(
+            (req["method"].as_str(), req["params"]["terminal"].as_str()),
+            (Some("terminal.read"), Some("t4"))
+        );
     }
 }
 
@@ -352,14 +457,25 @@ mod real {
         let got = Arc::new(Mutex::new(Vec::new()));
         let g = got.clone();
         let (tx, rx) = mpsc::channel();
-        let s = Stream::open(&core_socket("assieme"), &address, 100, 30, true, move |b| g.lock().unwrap().extend(b), move |w| {
-            let _ = tx.send(w);
-        })
+        let s = Stream::open(
+            &core_socket("assieme"),
+            &address,
+            100,
+            30,
+            true,
+            move |b| g.lock().unwrap().extend(b),
+            move |w| {
+                let _ = tx.send(w);
+            },
+        )
         .unwrap();
         std::thread::sleep(Duration::from_secs(4));
         let text = String::from_utf8_lossy(&got.lock().unwrap()).to_string();
         assert!(text.contains("tick"), "no live output: {text:?}");
         s.close();
-        assert!(rx.recv_timeout(Duration::from_secs(3)).is_ok(), "close not reported");
+        assert!(
+            rx.recv_timeout(Duration::from_secs(3)).is_ok(),
+            "close not reported"
+        );
     }
 }
