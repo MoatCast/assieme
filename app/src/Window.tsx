@@ -66,6 +66,17 @@ function changes(before: TeamMap, after: TeamMap, beforeModel: ListModel, afterM
 /** A row with no pane yet (an agent still starting) still opens a panel. */
 const bare = (role: string): Pane => ({ role, agent: "claude", address: "", state: "working", since_s: null, detail: "", live: false, fix: null });
 
+/** "Last at 20:33" today; "Last on 8 Nov" on an earlier day, so an old entry never reads as today's. */
+export function lastActivity(at?: string | null, day?: string | null, today = localDay(new Date())): string {
+  if (!at) return "";
+  if (!day || day === today) return `Last at ${at}`;
+  const [y, m, d] = day.split("-").map(Number);
+  return `Last on ${new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+}
+
+const localDay = (t: Date) =>
+  `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+
 export default function Window({ team, starting, open, pollMs = 5000, boardKey = 0, paletteKey = 0, onNewTeam, onNewTask, onMerged, onDiscarded,
   onOpenFixes = () => {}, onBringOver = () => {}, onSettings = () => {}, onAddAgent }: {
   team: string | null;
@@ -311,7 +322,7 @@ export default function Window({ team, starting, open, pollMs = 5000, boardKey =
     overview: fixed ? `${fixed} fixed today` : "",
     terminals: live ? `${live} running` : "",
     board: map.open_tasks ? `${map.open_tasks} open task${map.open_tasks === 1 ? "" : "s"}` : "",
-    activity: map.last_at ? `Last at ${map.last_at}` : "",
+    activity: lastActivity(map.last_at, map.last_day),
   };
   const selectedPane = sel?.kind === "agent" ? map.panes.find((p) => p.role === sel.role) ?? bare(sel.role) : null;
 

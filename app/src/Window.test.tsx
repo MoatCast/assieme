@@ -18,7 +18,7 @@ vi.mock("./Terminals", () => ({ default: () => <div data-testid="panel-terminals
 vi.mock("./Board", () => ({ default: () => <div data-testid="panel-board" /> }));
 vi.mock("./Activity", () => ({ default: () => <div data-testid="panel-activity" /> }));
 
-import Window, { initialSelection } from "./Window";
+import Window, { initialSelection, lastActivity } from "./Window";
 import { listModel } from "./listModel";
 
 const flush = () => act(async () => {});
@@ -399,4 +399,14 @@ test("after a merge stops the agent, Team overview still says what was merged", 
   await flush();
   expect(screen.getByTestId("panel-overview")).toBeTruthy();
   expect(screen.getByText("Merged into main · 1 commit")).toBeTruthy();
+});
+
+test("Activity's last time says the day when it isn't today", () => {
+  const cases: [string | null, string | null, string][] = [
+    ["20:33", "2026-11-21", "Last at 20:33"],
+    ["20:33", "2026-11-08", "Last on 8 Nov"],
+    ["20:33", null, "Last at 20:33"],
+    [null, "2026-11-08", ""],
+  ];
+  for (const [at, day, want] of cases) expect(lastActivity(at, day, "2026-11-21")).toBe(want);
 });

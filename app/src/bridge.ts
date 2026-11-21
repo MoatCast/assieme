@@ -351,6 +351,8 @@ export type TeamMap = {
   /** Minutes since the running team's first agent started; null once it stopped. */
   running_min?: number | null;
   last_at?: string | null;
+  /** The day of `last_at`, YYYY-MM-DD in the Mac's time zone. */
+  last_day?: string | null;
   spend: { tokens: number; waste_share: number } | null;
   /** Plan limits by agent kind, per account; a kind with no data in its logs is left out. */
   limits?: Record<string, Limit>;
