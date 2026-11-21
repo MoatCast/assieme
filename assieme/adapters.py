@@ -146,9 +146,12 @@ def claude_code(root, since, show_text=False, user_settings=None, cwd_rules=None
             except (OSError, ValueError):
                 pass
             parent, agent = agent, f"{agent}/{meta.get('agentType') or 'subagent'}"
-        s = _claude_session(path, agent, parent, since, show_text,
-                            lambda cwd: rule_cache.setdefault(cwd, rules.load(cwd, user_settings)
-                                                               + (cwd_rules or {}).get(cwd, []) + list(extra_rules)))
+        try:
+            s = _claude_session(path, agent, parent, since, show_text,
+                                lambda cwd: rule_cache.setdefault(cwd, rules.load(cwd, user_settings)
+                                                                   + (cwd_rules or {}).get(cwd, []) + list(extra_rules)))
+        except (AttributeError, TypeError, KeyError, ValueError, OSError):
+            continue  # one damaged log loses that session, never the whole report
         if s.calls:
             yield s
 
@@ -214,7 +217,10 @@ def codex(root, since, show_text=False):
     """~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl. Spawned subagents name their parent thread."""
     sessions = {}
     for path in _recent(glob.glob(os.path.join(root, '**', '*.jsonl'), recursive=True), since):
-        thread_id, parent_id, s = _codex_session(path, since, show_text)
+        try:
+            thread_id, parent_id, s = _codex_session(path, since, show_text)
+        except (AttributeError, TypeError, KeyError, ValueError, OSError):
+            continue  # one damaged log loses that session, never the whole report
         sessions[thread_id or path] = (parent_id, s)
     for parent_id, s in sessions.values():
         if parent_id and s.turns and s.turns[0].channel == 'spawn':

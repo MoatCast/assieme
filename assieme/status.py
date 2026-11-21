@@ -404,7 +404,7 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
         if a.name not in codex_agents or a.last > codex_agents[a.name].last:
             codex_agents[a.name] = a
     for a in by_thread.values():
-        if a.parent_thread in by_thread:
+        if a.parent_thread and a.parent_thread in by_thread:  # a log with no thread id is no one's parent
             by_thread[a.parent_thread].children.append(a)
     agents += [a for a in codex_agents.values() if not (a.name.endswith('/guardian') and a.state != 'working')]
 

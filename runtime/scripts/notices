@@ -24,8 +24,10 @@ jq -r '.packages[] | select(.source != null) | "\(.name) \(.version)\t\(.license
         printf '\n==== %s (%s)\n\n' "$crate" "$license"
         find "$dir" -maxdepth 1 -type f \( -iname 'license*' -o -iname 'notice*' -o -iname 'copying*' \) | LC_ALL=C sort >"$work/licenses"
         if [ ! -s "$work/licenses" ]; then
-            echo "error: $crate has no license text; add an explicit notice before shipping" >&2
-            exit 1
+            # a crate that ships no license file: its notice is kept here instead
+            own="distribution/notices/crates/${crate%% *}.txt"
+            [ -f "$own" ] || { echo "error: $crate has no license text; add $own before shipping" >&2; exit 1; }
+            echo "$own" >"$work/licenses"
         fi
         while IFS= read -r file; do
             printf '\n--- %s\n\n' "$(basename "$file")"

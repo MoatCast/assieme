@@ -13,7 +13,12 @@ libc = "0.2"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha1 = "0.11"
 tokio = { version = "1", features = ["rt", "net", "io-util", "time", "macros"] }
+
+# The brain is unix-only; this keeps the Windows type-check from compiling SQLite.
+[target.'cfg(unix)'.dependencies]
+rusqlite = { version = "0.43", features = ["bundled"] }
 
 [lints]
 workspace = true
