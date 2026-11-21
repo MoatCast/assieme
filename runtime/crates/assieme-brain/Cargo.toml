@@ -7,10 +7,12 @@ publish.workspace = true
 
 [dependencies]
 assieme-core = { path = "../assieme-core" }
+clap = { version = "4", features = ["derive"] }
 glob = "0.3"
 jiff = "1"
 libc = "0.2"
 regex = "1"
+rmcp = { version = "3", features = ["server", "macros", "transport-io", "elicitation"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha1 = "0.11"
