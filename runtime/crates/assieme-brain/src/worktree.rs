@@ -423,12 +423,23 @@ mod tests {
     #[test]
     fn a_gone_brought_over_folder_gives_a_new_copy_starting_from_its_branch() {
         let (_d, p) = repo();
-        assert!(run(&p, &["branch", "feature"]).ok);
+        for args in [
+            &["checkout", "-q", "-b", "feature"][..],
+            &["commit", "-q", "--allow-empty", "-m", "f"],
+            &["checkout", "-q", "-"],
+        ] {
+            assert!(run(&p, args).ok, "{args:?}");
+        }
         let r = Role { worktree: Some(format!("{p}-gone")), branch: Some("feature".into()), ..role("builder") };
         let tm = team(&p);
         assert_eq!(branch_of(&tm, &r), "assieme/t/builder");
         let path = ensure(&tm, &r).unwrap();
         assert_eq!(run(&path, &["branch", "--show-current"]).out, "assieme/t/builder");
+        assert_eq!(
+            run(&path, &["rev-parse", "HEAD"]).out,
+            run(&p, &["rev-parse", "feature"]).out,
+            "starts from feature"
+        );
     }
 
     #[test]

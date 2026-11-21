@@ -1106,6 +1106,11 @@ mod tests {
     }
 
     fn world(team: &str, live: bool) -> World {
+        world_as(team, if live { Some("idle") } else { None })
+    }
+
+    /// `state`: the agent's terminal is live and in that state, or there is none.
+    fn world_as(team: &str, state: Option<&str>) -> World {
         let tmp = Temp::new();
         let (project, teams, sock) = (tmp.git_repo("proj"), tmp.0.join("teams"), tmp.0.join("core.sock"));
         std::fs::create_dir_all(teams.join(team)).unwrap();
@@ -1113,7 +1118,10 @@ mod tests {
         let dev = project.join(".assieme/worktrees/dev");
         sh(&project, &["worktree", "add", "-q", "-b", &format!("assieme/{team}/dev"), dev.to_str().unwrap()]);
         let labels = json!({TEAM: team, ROLE: "dev"});
-        let rows = if live { json!([{"address": "t1", "labels": labels, "state": "live"}]) } else { json!([]) };
+        let rows = match state {
+            Some(s) => json!([{"address": "t1", "labels": labels, "state": "live", "status": {"state": s}}]),
+            None => json!([]),
+        };
         let core = FakeCore::start(
             &sock,
             [("terminal.list", json!({"terminals": rows})), ("terminal.kill", json!(null))].into(),
@@ -1231,6 +1239,7 @@ mod tests {
             assert!(logged.lines().any(|l| l.contains(uid) && l.contains("\"restore\"")), "the row carries `restore`");
             // a brain restart: the record survives only in the logged row, which undo reads back
             lock(&w.review.state).undos.clear();
+            sh(&w.project, &["update-ref", "refs/remotes/origin/main", &before]); // pushed before, not since
 
             let (out, team) = w.review.undone(uid).unwrap();
             assert_eq!((out["role"].as_str(), team.as_str()), (Some("dev"), w.team.as_str()));
@@ -1240,13 +1249,15 @@ mod tests {
         }
     }
 
-    /// An undo that would take someone else's work with it, or run into a restarted agent, is refused.
+    /// An undo that would take someone else's work with it, rewrite what was pushed, or run into a restarted agent,
+    /// is refused.
     #[test]
     fn refuses_to_undo_over_later_changes() {
-        let (w, again) = (world("moved", false), world("restarted", false));
+        let (w, again, pushed) = (world("moved", false), world("restarted", false), world("pushed", false));
         for (w, make_later, says) in [
             (&w, (|w: &World| commit(&w.project, "later", "x\n")) as fn(&World), "moved on"),
             (&again, |w| drop(sh(&w.project, &["branch", &format!("assieme/{}/dev", w.team)])), "started again"),
+            (&pushed, |w| drop(sh(&w.project, &["update-ref", "refs/remotes/origin/main", "main"])), "reached origin"),
         ] {
             commit(&w.dev, "a", "a\n");
             let uid = w.merge().unwrap()["undo"].as_str().unwrap().to_string();
@@ -1255,6 +1266,28 @@ mod tests {
             let e = w.review.undone(&uid).unwrap_err();
             assert!(e.message.contains(says), "{}", e.message);
             assert_eq!(w.main(), after, "main was left alone");
+        }
+    }
+
+    /// Failed or running tests and a working agent hold a merge back, unless the person merges anyway.
+    #[test]
+    fn waits_for_tests_and_the_agent_unless_forced() {
+        for (name, state, tests, says) in [
+            ("bad", None, Some("bad"), "tests have not passed"),
+            ("running", None, Some("running"), "tests have not passed"),
+            ("working", Some("working"), None, "still working"),
+        ] {
+            let w = world_as(&format!("hold-{name}"), state);
+            commit(&w.dev, "a", "a\n");
+            if let Some(t) = tests {
+                lock(&w.review.state).tests.insert((w.project.display().to_string(), w.tip()), json!({"state": t}));
+            }
+            let main = w.main();
+            let e = w.merge().unwrap_err();
+            assert!(e.message.contains(says), "{name}: {}", e.message);
+            assert_eq!(w.main(), main, "{name}: main moved");
+            w.review.merged(&w.team, "dev", &w.tip(), true).unwrap();
+            assert_ne!(w.main(), main, "{name}: merge anyway");
         }
     }
 

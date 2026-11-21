@@ -265,6 +265,26 @@ mod tests {
             let mut b = Backoff { next, exits: vec![t; before] };
             assert_eq!(b.exited(ran, t + s(at)), want, "case {i}");
         }
+        let mut b = Backoff { next: None, exits: vec![] };
+        let waits: Vec<_> = (0..4).map(|_| b.exited(s(0), t).unwrap().as_secs()).collect();
+        assert_eq!((waits, b.next), (vec![1, 2, 4, 8], Some(s(16))));
+        let mut b = Backoff { next: Some(s(32)), exits: vec![] };
+        b.exited(s(0), t);
+        assert_eq!(b.next, Some(LONGEST_DELAY));
+    }
+
+    #[test]
+    fn the_log_is_set_aside_only_over_5_mb() {
+        let dir = std::env::temp_dir().join(format!("asm-brain-log-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (log, old) = (dir.join("brain.log"), dir.join("brain.log.1"));
+        for (size, moved) in [(10, false), (LOG_LIMIT, false), (LOG_LIMIT + 1, true)] {
+            std::fs::File::create(&log).unwrap().set_len(size).unwrap(); // sparse: no 5 MB written
+            let _ = std::fs::remove_file(&old);
+            open_log(&log).unwrap();
+            assert_eq!(old.exists(), moved, "{size}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

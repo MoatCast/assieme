@@ -396,9 +396,7 @@ pub fn opencode(role: &Role, cwd: &str, test: Option<Vec<String>>) -> Option<Val
     role.level.as_ref()?;
     let (allow, deny, allowed, blocked) = program_lists(role, cwd, test);
     let mut bash = Map::from_iter([("*".to_string(), json!("ask"))]);
-    // shortcut: OpenCode's last matching pattern wins, but this map is sorted, not in insertion order (no serde_json
-    // preserve_order); denies and allows of different programs can't clash that way, so only a level's allow and a
-    // broader rule of the person's could differ. Upgrade by enabling preserve_order.
+    // OpenCode's last matching pattern wins: the map keeps insertion order (preserve_order), so denies come last.
     for (decision, list) in [("allow", allow), ("deny", deny)] {
         for p in list {
             let line = p.join(" ");
@@ -571,5 +569,150 @@ mod tests {
             prog(&["--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=true"])
         );
         assert_eq!(codex_args(&role("read-only")), prog(&["--sandbox", "read-only"]));
+    }
+
+    /// Each kind's (allow, deny) as program lines, and its whole deny text, for a role; None without a level.
+    fn lists(kind: &str, r: &Role, test: Option<Program>) -> Option<(Vec<String>, Vec<String>, String)> {
+        let inner =
+            |s: &str, pre: &str, post: &str| s.strip_prefix(pre).and_then(|x| x.strip_suffix(post)).map(String::from);
+        let strs = |v: &Value| {
+            v.as_array().into_iter().flatten().filter_map(Value::as_str).map(String::from).collect::<Vec<_>>()
+        };
+        let (allow, deny, text) = match kind {
+            "claude" => {
+                let (a, d) = claude(r, "/w", test);
+                if a.is_empty() && d.is_empty() {
+                    return None;
+                }
+                let bash = |v: &[String]| v.iter().filter_map(|x| inner(x, "Bash(", ":*)")).collect();
+                (bash(&a), bash(&d), d.join("\n"))
+            }
+            "opencode" => {
+                let o = opencode(r, "/w", test)?;
+                let pick = |want: &str| {
+                    o["bash"]
+                        .as_object()
+                        .into_iter()
+                        .flatten()
+                        .filter(|(k, v)| *v == want && !k.ends_with(" *"))
+                        .map(|(k, _)| k.clone())
+                        .collect()
+                };
+                (pick("allow"), pick("deny"), o.to_string())
+            }
+            "gemini" => {
+                let t = gemini_policy(r, "/w", test)?;
+                let (mut a, mut d) = (vec![], vec![]);
+                for block in t.split("[[rule]]").skip(1) {
+                    let Some(line) = block.lines().find_map(|l| l.strip_prefix("commandPrefix = ")) else { continue };
+                    let cmd: String = serde_json::from_str(line).unwrap_or_default();
+                    if block.contains("decision = \"allow\"") { a.push(cmd) } else { d.push(cmd) }
+                }
+                (a, d, t)
+            }
+            "cursor" => {
+                let o = cursor(r, "/w", test)?;
+                let shell = |v: &Value| {
+                    strs(v)
+                        .iter()
+                        .filter_map(|x| inner(x, "Shell(", ")"))
+                        .map(|x| x.trim_end_matches('*').replacen(':', " ", 1))
+                        .collect()
+                };
+                (shell(&o["allow"]), shell(&o["deny"]), o["deny"].to_string())
+            }
+            _ => {
+                let o = antigravity(r, "/w", test)?;
+                let cmd = |v: &Value| strs(v).iter().filter_map(|x| inner(x, "command(", ")")).collect();
+                (cmd(&o["allow"]), cmd(&o["deny"]), o["deny"].to_string())
+            }
+        };
+        Some((allow, deny, text))
+    }
+
+    #[test]
+    fn every_agent_kind_allows_and_blocks_what_its_level_says() {
+        let rules =
+            vec![json!({"decision": "block", "program": ["rm"]}), json!({"decision": "allow", "program": ["./go.sh"]})];
+        // a program line, then for safe, read-only and trusted: allowed (A), denied (D) or left to ask (-)
+        let table = [
+            ("git push", "DDD"),
+            ("/usr/bin/git push", "DDD"),
+            ("git commit", "ADA"),
+            ("git status", "-A-"),
+            ("npm install", "DDA"),
+            ("wget", "DDA"),
+            ("curl", "DDA"),
+            ("security", "DDD"),
+            ("cargo test", "AAA"),
+            ("rm", "DDD"),
+            ("go.sh", "AAA"),
+        ];
+        for kind in ["claude", "opencode", "gemini", "cursor", "antigravity"] {
+            assert!(lists(kind, &Role::new("r", kind), None).is_none(), "{kind} without a level");
+            for (i, level) in ["safe", "read-only", "trusted"].into_iter().enumerate() {
+                let mut r = role(level);
+                r.rules = rules.clone();
+                let (allow, deny, text) = lists(kind, &r, Some(prog(&["cargo", "test"]))).expect("a level");
+                for (line, want) in table {
+                    let got = match (allow.iter().any(|a| a == line), deny.iter().any(|d| d == line)) {
+                        (_, true) => 'D', // a deny wins in every kind
+                        (true, false) => 'A',
+                        _ => '-',
+                    };
+                    assert_eq!(got, want.as_bytes()[i] as char, "{kind} {level}: {line}");
+                }
+                assert!(text.contains(".ssh"), "{kind} {level}: secrets");
+                let net = ["webfetch\":\"deny", "web_fetch", "WebFetch(*)", "read_url(*)"];
+                if kind != "claude" {
+                    assert_eq!(net.iter().any(|n| text.contains(n)), level != "trusted", "{kind} {level}: network");
+                }
+            }
+        }
+        assert_eq!(opencode(&role("read-only"), "/w", None).unwrap()["edit"], "deny");
+        assert_eq!(opencode(&role("safe"), "/w", None).unwrap()["edit"], "allow");
+        assert!(cursor(&role("read-only"), "/w", None).unwrap()["deny"].to_string().contains("Write(**)"));
+        let o = opencode(&role("safe"), "/w", None).unwrap();
+        assert_eq!(o["bash"].as_object().and_then(|m| m.keys().next()).map(String::as_str), Some("*")); // asks first
+    }
+
+    #[test]
+    fn owned_paths_and_rules_are_checked() {
+        let owns = |p: &str| check_owns(&[p.to_string()]).is_none();
+        for (p, ok) in [
+            ("src/**", true),
+            ("a b.txt", true),
+            ("/etc", false),
+            ("../x", false),
+            ("a/../b", false),
+            ("", false),
+            ("$(rm)", false),
+        ] {
+            assert_eq!(owns(p), ok, "{p}");
+        }
+        assert!(check_owns(&["src".into(), "/etc".into()]).is_some_and(|e| e.contains("/etc")));
+        assert!(check_rules(&[json!({"decision": "allow", "program": ["make", "lint"]})]).is_none());
+        assert!(check_rules(&[json!("rm")]).is_some_and(|e| e.contains("needs a decision")));
+        assert!(check_rules(&[json!({"decision": "allow", "program": ["bash"]})]).is_some());
+        assert_eq!(levels(), ["safe", "read-only", "trusted"]);
+        let t = table();
+        assert_eq!(t["items"]["secrets"]["notes"]["codex"], "only the keychain command, for now");
+        assert_eq!(t["items"]["push"]["notes"], json!({}));
+        assert_eq!(t["levels"][1]["blocked"][1], "edit");
+    }
+
+    #[test]
+    fn rules_files_are_written_and_removed() {
+        let dir = tempfile::tempdir().unwrap();
+        let cwd = dir.path().to_string_lossy().into_owned();
+        let path = write_gemini_policy(&cwd, &role("safe"), None).expect("written");
+        assert!(std::fs::read_to_string(&path).unwrap().contains("git push"));
+        assert_eq!(write_gemini_policy(&cwd, &Role::new("r", "gemini"), None), None);
+        assert!(!Path::new(&path).exists());
+        let codex = dir.path().join(RULES_FILE);
+        write_codex_rules(&cwd, &[&role("safe")]);
+        assert!(std::fs::read_to_string(&codex).unwrap().contains("forbidden"));
+        write_codex_rules(&cwd, &[&Role::new("r", "codex")]);
+        assert!(!codex.exists());
     }
 }
