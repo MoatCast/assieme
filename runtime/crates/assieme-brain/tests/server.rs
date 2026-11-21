@@ -139,7 +139,12 @@ fn a_failing_step_does_not_stop_the_loop() {
     let mut every = Loop::default();
     every.step("broken", Box::new(|| panic!("step failed")));
     let r = ran.clone();
-    every.step("counts", Box::new(move || drop(r.fetch_add(1, Ordering::SeqCst))));
+    every.step(
+        "counts",
+        Box::new(move || {
+            r.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
     every.start(Duration::from_millis(20));
     let at = Instant::now();
     while ran.load(Ordering::SeqCst) < 3 {
