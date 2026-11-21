@@ -185,11 +185,6 @@ pub struct Record<'a> {
     pub extra: Map<String, Value>,
 }
 
-/// The interactive loop. Returns the exit code.
-pub fn run(claude_dir: &Path, codex_dir: &Path, hours: f64, use_herdr: bool) -> i32 {
-    todo!("live.run")
-}
-
 /// What a suggestion holds: the alert in plain words, who it is about, and the fix (an action Assieme carries out,
 /// or a hint when the fix is the person's to make).
 fn suggestion(
@@ -456,14 +451,4 @@ pub fn record_given_up(notes: &[Value], now: Option<Timestamp>) -> Option<Value>
         now,
         ..Record::default()
     }))
-}
-
-/// `assieme watch`. Returns the exit code.
-pub fn watch(claude_dir: &Path, codex_dir: &Path, hours: f64, use_herdr: bool) -> i32 {
-    todo!("live.watch")
-}
-
-/// One round of `assieme watch`. Returns what it did, one line each.
-pub fn watch_once(claude_dir: &Path, codex_dir: &Path, hours: f64, use_herdr: bool, announcing: bool) -> Vec<String> {
-    todo!("live.watch_once")
 }

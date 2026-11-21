@@ -1,12 +1,8 @@
-"""assieme            live view (the default)
-assieme status     one snapshot of team health
-assieme watch      notifications only, no screen
-assieme report     who woke whom, what it cost, what was refused
+"""assieme status     one snapshot of team health
 assieme team       start, list and stop a team from a preset
 assieme quiet      quiet send: the asm stand-in on or off
 """
 import argparse
-import datetime as dt
 import json
 import os
 import sys
@@ -14,7 +10,7 @@ import time
 import traceback
 
 from . import scripts as scripts_mod
-from . import actions, activity, adapters, answers, bridge, bringover, connect, detect, live, machine, mcptools, menubar, newteam, preset, preview, process, quiet, remote, report, review, rules, runtime, schedule, serve, service, setup, status, tasks, team, teammap, worktree
+from . import actions, activity, answers, bridge, bringover, connect, live, machine, mcptools, menubar, newteam, preset, preview, quiet, remote, review, runtime, schedule, serve, settings, setup, status, tasks, team, teammap, worktree
 
 
 def main(argv=None):
@@ -23,28 +19,13 @@ def main(argv=None):
         return quiet.shim_main(argv[1:])
     if argv[:1] == ['call'] and len(argv) == 2:  # the Mac's brain asking this machine's, over the core's line
         return remote.call_main(argv[1])
-    p = argparse.ArgumentParser(prog='assieme', description='Run with no command for the live view: team health, '
-                                'what needs you, and one-key fixes. Commands give snapshots and reports.')
-    sub = p.add_subparsers(dest='cmd')  # no command: the live view
-    r = sub.add_parser('report', help='summarise the last N hours of local agent logs')
-    r.add_argument('--hours', type=float, default=24)
-    fmt = r.add_mutually_exclusive_group()
-    fmt.add_argument('--json', action='store_true')
-    fmt.add_argument('--md', action='store_true', help='Markdown (the default)')
-    r.add_argument('--claude-dir', default=os.path.expanduser('~/.claude/projects'))
-    r.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
-    r.add_argument('--generic', action='append', default=[], metavar='FILE', help='normalised-events JSONL (repeatable)')
-    r.add_argument('--show-text', action='store_true', help='include wake snippets and command arguments (off: names only)')
-    r.add_argument('--rules', action='append', default=[], metavar='FILE',
-                   help='a Claude Code settings file whose deny rules explain refusals (repeatable); '
-                        "running agents' --settings files are found automatically")
-    r.add_argument('--metrics', metavar='FILE', help='paid-compute readings, JSONL (default: boxes.jsonl in the state folder)')
-    r.add_argument('--prs', action='store_true', help='also ask `gh` about merged pull requests (goes over the network)')
+    p = argparse.ArgumentParser(prog='assieme', description='The brain behind the Assieme app. Commands give snapshots '
+                                'and start the background service.')
+    sub = p.add_subparsers(dest='cmd')
     s = sub.add_parser('status', help='live health of each agent: working, stuck, waiting on you, ...')
     s.add_argument('--hours', type=float, default=12, help='agents with log activity in this window')
     s.add_argument('--json', action='store_true')
     s.add_argument('--watch', type=float, nargs='?', const=5, metavar='SECONDS', help='refresh until Ctrl-C')
-    s.add_argument('--no-herdr', action='store_true', help="don't ask herdr-core (`hc ls --json`) for its view")
     s.add_argument('--claude-dir', default=os.path.expanduser('~/.claude/projects'))
     s.add_argument('--codex-dir', default=os.path.expanduser('~/.codex/sessions'))
     s.add_argument('--show-text', action='store_true', help='show command arguments (off: program names only)')
@@ -61,15 +42,9 @@ def main(argv=None):
     tl.add_argument('--json', action='store_true')
     tk = tsub.add_parser('stop', help='stop every running agent of a team')
     tk.add_argument('name')
-    sv = sub.add_parser('service', help='run the brain in the background at login (launchd)')
-    sv.add_argument('switch', choices=['install', 'uninstall', 'status'])
     sub.add_parser('mcp', help='the MCP server for assistants and for agents in a team (stdio)')
-    sub.add_parser('serve', help='the brain as a background service (the app talks to it); runs `watch` too')
-    w = sub.add_parser('watch', help='no screen: a desktop notification when something needs you or a team stalls')
-    w.add_argument('--hours', type=float, default=12)
+    sub.add_parser('serve', help='the brain as a background service (the app talks to it)')
     args = p.parse_args(argv)
-    if args.cmd == 'service':
-        return _service(args.switch)
     if args.cmd == 'serve':
         return _serve()
     if args.cmd == 'mcp':
@@ -79,47 +54,16 @@ def main(argv=None):
         return _quiet(args.switch)
     if args.cmd == 'team':
         return _team(args)
-    if args.cmd == 'watch':
-        return live.watch(os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions'), args.hours)
     if args.cmd is None:
-        return live.run(os.path.expanduser('~/.claude/projects'), os.path.expanduser('~/.codex/sessions'))
-    if args.cmd == 'status':
-        return _status(args)
-
-    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=args.hours)
-    sessions = []
-    if os.path.isdir(args.claude_dir):
-        extra = [r for f in args.rules for r in rules.load_file(f)]
-        sessions += adapters.claude_code(args.claude_dir, since, args.show_text,
-                                         cwd_rules=rules.running_settings(), extra_rules=extra)
-    if os.path.isdir(args.codex_dir):
-        sessions += adapters.codex(args.codex_dir, since, args.show_text)
-    if os.path.isdir(os.path.expanduser('~/.gemini/tmp')):
-        sessions += adapters.gemini(os.path.expanduser('~/.gemini'), since, args.show_text)
-    if os.path.isfile(os.path.expanduser('~/.local/share/opencode/opencode.db')):
-        sessions += adapters.opencode(os.path.expanduser('~/.local/share/opencode/opencode.db'), since, args.show_text)
-    for path in args.generic:
-        sessions += adapters.generic(path, since, args.show_text)
-
-    now = dt.datetime.now(dt.timezone.utc)
-    r = report.aggregate(sessions, now, args.hours, adapters.box_metrics(args.metrics or adapters.box_path(), since),
-                         machine.read(since))
-    weight = process.report({s.cwd for s in sessions}, since, now, process.run_gh if args.prs else None)
-    r['process'] = {'items': [{k: v for k, v in i.items() if k != 'sha'} for i in weight['items']],
-                    'gates': {**detect.gate_hours(sessions), **weight['gates']}}
-    gate = process.gate_finding(detect.gate_hours(sessions), weight['gates'])
-    r['findings'] += weight['findings'] + ([gate] if gate else [])
-    r['detectors'].append(weight['detector'])
-    meta = {'hours': args.hours, 'since': since.strftime('%Y-%m-%dT%H:%M:%SZ')}
-    sys.stdout.write(report.to_json(r, meta) + '\n' if args.json else report.to_md(r, meta, args.show_text))
-    return 0
+        p.print_help()
+        return 0
+    return _status(args)
 
 
 def _status(args):
     while True:
         now = status.now_utc()
-        agents = status.collect(args.claude_dir, args.codex_dir, now, args.hours, args.show_text,
-                                None if args.no_herdr else status.herdr_terminals(), status.running_cwds())
+        agents = status.collect(args.claude_dir, args.codex_dir, now, args.hours, args.show_text, status.running_cwds())
         out = status.to_json(agents, now) + '\n' if args.json else status.to_text(agents, now)
         if not args.watch:
             sys.stdout.write(out)
@@ -132,21 +76,16 @@ def _status(args):
             return 0
 
 
-def _service(switch):
-    if switch == 'install':
-        try:
-            print(f'The brain runs in the background now and at every login ({service.install()}).')
-        except RuntimeError as e:  # the app shows this: a sentence, not a traceback
-            print(f"Couldn't start the background service: {e}", file=sys.stderr)
-            return 1
-    elif switch == 'uninstall':
-        service.uninstall()
-        print('The background brain is stopped and removed.')
-    else:
-        up = service.running()
-        print('running' if up else 'not running')
-        return 0 if up else 1
-    return 0
+def _notify_and_deliver(claude, codex, announcing, hours=12):
+    """One round of the serve tick: notifications (plain ones only when the app isn't showing its own) and held quiet notes."""
+    now = status.now_utc()
+    agents = status.collect(claude, codex, now, hours, running=status.running_cwds())
+    st = settings.load()
+    paused = status.parse_ts(st['notify_paused_until'])
+    if announcing and not (paused and paused > now):
+        live.announce(status.owner_queue(agents, now), status.stalls(agents, now), now, switches=st['notify'])
+    quiet.deliver(agents, on_batch=lambda notes, why: live.record_delivery(notes, why, now),
+                  on_give_up=lambda notes: live.record_given_up(notes, now))
 
 
 def _prune_tickets(rt):
@@ -189,7 +128,7 @@ def _serve():
         return got | ({'skipped': skipped} if skipped else {})
 
     def tick():
-        for step in (lambda: live.watch_once(claude, codex, announcing=not menu.app_watching()),
+        for step in (lambda: _notify_and_deliver(claude, codex, not menu.app_watching()),
                      lambda: brain.tick(announce=None if menu.app_watching() else live.notify),
                      lambda: machine.tick(status.now_utc()),
                      sched.tick,
@@ -293,7 +232,7 @@ agents, before it starts them, then restart them:
 
     export PATH="{d}:$PATH"
 
-Nothing changes until you also mark a pair quiet in the live view (`assieme`, then the pair's number).
+Nothing changes until you also mark a pair quiet in the Assieme app.
 Undo with `assieme quiet off`.""")
     elif switch == 'off':
         quiet.uninstall()
@@ -301,7 +240,7 @@ Undo with `assieme quiet off`.""")
     else:
         ps, held = quiet.pairs(), quiet.held()
         print(f"stand-in installed: {'yes' if os.path.exists(os.path.join(quiet.shim_dir(), 'asm')) else 'no'}")
-        print(f"deliverer running: {'yes' if quiet.deliverer_alive() else 'no (start assieme or assieme watch)'}")
+        print(f"deliverer running: {'yes' if quiet.deliverer_alive() else 'no (start the Assieme app)'}")
         print(f"quiet pairs: {', '.join(p['label'] for p in ps) or 'none'}")
         print(f"notes held: {sum(len(v) for v in held.values())}")
     return 0

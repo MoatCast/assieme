@@ -291,28 +291,6 @@ def _codex_session(path, since, show_text):
     return thread_id, parent_id, s
 
 
-def generic(path, since, show_text=False):
-    """One JSONL file of normalised events, for any other tool:
-
-    {"ts": "...", "agent": "a", "type": "wake", "from": "b", "text": "..."}
-    {"ts": "...", "agent": "a", "type": "call", "input_tokens": 1200, "output_tokens": 80}
-    {"ts": "...", "agent": "a", "type": "refusal", "command": "git push"}
-    """
-    sessions = collections.OrderedDict()
-    for o in _rows(path):
-        ts = parse_ts(o.get('ts'))
-        if not ts or ts < since or not o.get('agent'):
-            continue
-        s = sessions.setdefault(o['agent'], Session(str(o['agent']), 'generic'))
-        if o.get('type') == 'wake':
-            s.wake(str(o.get('from') or HUMAN), 'generic', str(o.get('text') or ''), show_text, ts)
-        elif o.get('type') == 'call':
-            s.call(int(o.get('input_tokens') or 0), int(o.get('output_tokens') or 0), ts)
-        elif o.get('type') == 'refusal':
-            s.refusals[(command_label('cmd', str(o.get('command') or ''), show_text), str(o.get('why') or 'reported'))] += 1
-    yield from (s for s in sessions.values() if s.calls)
-
-
 def _gemini_text(content):
     """A Gemini message's text: a string, or a list of parts with `text`."""
     if isinstance(content, str):

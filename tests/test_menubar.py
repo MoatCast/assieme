@@ -284,18 +284,19 @@ class FallbackTest(Case):
         self.assertTrue(self.m.app_watching(NOW + dt.timedelta(seconds=30)))
         self.assertFalse(self.m.app_watching(NOW + dt.timedelta(seconds=90)))
 
-    def test_watch_once_stays_quiet_when_told_or_paused(self):
+    def test_the_tick_stays_quiet_when_told_or_paused(self):
+        from assieme import cli
         with mock.patch.object(live.status, 'collect', return_value=[]), \
              mock.patch.object(live.status, 'running_cwds', return_value=set()), \
-             mock.patch.object(live.status, 'herdr_terminals', return_value=[]), \
              mock.patch.object(live, 'announce', return_value=[('t', 'b')]) as said, \
              mock.patch.object(live.quiet, 'deliver', return_value=[]):
-            self.assertEqual(live.watch_once('/c', '/x', announcing=False), [])
-            settings.set_value('notify_paused_until', '2026-11-08T13:00:00Z')
-            self.assertEqual(live.watch_once('/c', '/x'), [])
+            cli._notify_and_deliver('/c', '/x', False)
+            settings.set_value('notify_paused_until', '2099-11-08T13:00:00Z')
+            cli._notify_and_deliver('/c', '/x', True)
             said.assert_not_called()
             settings.set_value('notify_paused_until', None)
-            self.assertEqual(len(live.watch_once('/c', '/x')), 1)
+            cli._notify_and_deliver('/c', '/x', True)
+            said.assert_called_once()
 
 
 class SettingsTest(Case):

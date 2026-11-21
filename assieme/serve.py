@@ -1,7 +1,7 @@
 """`assieme serve`: the brain as a background service.
 
-Answers newline JSON-RPC on a Unix socket only this user can open, and runs one round of `assieme watch`
-(notifications, quiet-send delivery) every 15 seconds. The app reads `brain.snapshot` through it.
+Answers newline JSON-RPC on a Unix socket only this user can open, and runs one round of notifications and
+quiet-send delivery every 15 seconds. The app reads `brain.snapshot` through it.
 """
 import json
 import os
@@ -12,7 +12,7 @@ import traceback
 
 from . import launch, limits, runtime, settings, setup, status, team, teammap
 
-CLIS = {**launch.CLIS, 'asm': 'asm', 'hc': 'hc', 'herdr': 'herdr'}  # hc: the person's own herdr
+CLIS = {**launch.CLIS, 'asm': 'asm', 'herdr': 'herdr'}
 
 
 def brain_socket_path():
@@ -21,8 +21,7 @@ def brain_socket_path():
 
 
 def snapshot(claude_dir, codex_dir, now, rt, which=setup.agent_path, hours=12, starting=()):
-    agents = status.collect(claude_dir, codex_dir, now, hours, herdr=status.herdr_terminals(),
-                            running=status.running_cwds())
+    agents = status.collect(claude_dir, codex_dir, now, hours, running=status.running_cwds())
     agents = [a for a in agents if not teammap.is_own_session(a)]
     head, alerts = status.summary(agents)
     try:
@@ -33,7 +32,7 @@ def snapshot(claude_dir, codex_dir, now, rt, which=setup.agent_path, hours=12, s
     found = teammap.found_groups(agents, st['groups'], {t.get('cwd') for t in teams if t['state'] == 'live'})
     return {'at': now.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'clis': {k: bool(which(v)) for k, v in CLIS.items()},
-            'agents': [a.as_dict(now) | {'cwd': a.cwd, 'herdr_address': a.herdr_address,
+            'agents': [a.as_dict(now) | {'cwd': a.cwd,
                                          'group': teammap.group_of(a, st['groups'])} for a in agents],
             'found_teams': sorted(found), 'first_run_done': st['first_run_done'],
             'alerts': alerts, 'queue': status.owner_queue(agents, now), 'stalls': status.stalls(agents, now),

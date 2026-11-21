@@ -59,22 +59,3 @@ def tick(now, file=None, sampler=sample):
         return True
     except (OSError, ValueError, KeyError, subprocess.SubprocessError):
         return False
-
-
-def read(since, file=None):
-    """Samples since then, each with `at` as a datetime. Nothing if the sampler never ran."""
-    try:
-        with open(file or path()) as f:
-            lines = f.readlines()
-    except OSError:
-        return []
-    out = []
-    for line in lines:
-        try:
-            r = json.loads(line)
-            r['at'] = parse_ts(r.get('at'))
-            if r['at'] and r['at'] >= since and {'free_pct', 'load', 'cpus'} <= set(r):
-                out.append(r)
-        except (ValueError, AttributeError):
-            continue
-    return out

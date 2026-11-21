@@ -2,13 +2,12 @@
 import datetime as dt
 import json
 import os
-import subprocess
 import tempfile
 import time
 import unittest
 from types import SimpleNamespace
 
-from assieme import adapters, detect, live, machine, panes, process, report, status
+from assieme import adapters, detect, live, machine, panes, report, status
 from assieme.model import HUMAN, Job, Session
 
 NOW = dt.datetime(2099, 1, 2, 12, 0, tzinfo=dt.timezone.utc)
@@ -499,10 +498,7 @@ class Report(unittest.TestCase):
         r = report.aggregate([a, b], NOW, 24)
         self.assertEqual(find(r, 'overlap')[0]['count'], 1)
         self.assertEqual(r['agents']['a']['share_last_hour'], 0.5)
-        md = report.to_md(r, {'hours': 24, 'since': 'x'})
-        self.assertIn(find(r, 'overlap')[0]['line'], md)
-        self.assertIn('## Detectors', md)
-        self.assertIn('F10 paid compute', md)
+        self.assertIn('F10 paid compute', {d['id'] for d in r['detectors']})
         json.dumps(report.aggregate([a, b], NOW, 24), default=str)
 
     def test_report_works_without_a_clock(self):
@@ -657,96 +653,7 @@ class StatusLog(unittest.TestCase):
         self.assertEqual(a.samples[0], (t, 9))
 
 
-def git(cwd, *args, when=None):
-    env = {**os.environ, 'GIT_AUTHOR_NAME': 'a', 'GIT_AUTHOR_EMAIL': 'a@a', 'GIT_COMMITTER_NAME': 'a', 'GIT_COMMITTER_EMAIL': 'a@a'}
-    if when:
-        env.update(GIT_AUTHOR_DATE=when.isoformat(), GIT_COMMITTER_DATE=when.isoformat())
-    subprocess.run(['git', '-C', cwd, *args], check=True, capture_output=True, env=env)
-
-
-REAL_NOW = dt.datetime.now(dt.timezone.utc)
-
-
-def repo(d, hours_open, lines=1):
-    """A main branch with one merged item: a first commit `hours_open` before its merge, and one fix commit."""
-    git(d, 'init', '-b', 'main')
-    t = REAL_NOW - dt.timedelta(hours=hours_open + 1)
-    with open(os.path.join(d, 'a'), 'w') as f:
-        f.write('base\n')
-    git(d, 'add', '.')
-    git(d, 'commit', '-m', 'base', when=t)
-    git(d, 'switch', '-c', 'feat')
-    with open(os.path.join(d, 'b'), 'w') as f:
-        f.write('x\n' * lines)
-    git(d, 'add', '.')
-    git(d, 'commit', '-m', 'add it', when=t)
-    with open(os.path.join(d, 'c'), 'w') as f:
-        f.write('')
-    git(d, 'add', '.')
-    git(d, 'commit', '-m', 'fix it', when=t + dt.timedelta(hours=1))
-    git(d, 'switch', 'main')
-    git(d, 'merge', '--no-ff', '-m', 'Merge feat', 'feat', when=REAL_NOW - dt.timedelta(hours=1))
-
-
-class ProcessWeight(unittest.TestCase):
-    def test_a_slow_small_merge_is_flagged(self):
-        with tempfile.TemporaryDirectory() as d:
-            repo(d, 6, 3)
-            r = process.report([d], REAL_NOW - dt.timedelta(days=2), REAL_NOW)
-        self.assertEqual(len(r['items']), 1)
-        item = r['items'][0]
-        self.assertEqual((item['commits'], item['fixes'], item['lines']), (2, 1, 3))
-        self.assertAlmostEqual(item['hours'], 6, delta=0.1)
-        f = r['findings'][0]
-        self.assertEqual(f['kind'], 'process')
-        self.assertTrue(f['why'] and f['fix'])
-        self.assertEqual(r['detector']['fired'], 1)
-
-    def test_a_big_or_quick_merge_stays_quiet(self):
-        with tempfile.TemporaryDirectory() as d:
-            repo(d, 6, 500)
-            self.assertEqual(process.report([d], REAL_NOW - dt.timedelta(days=2), REAL_NOW)['findings'], [])
-        with tempfile.TemporaryDirectory() as d:
-            repo(d, 2, 3)
-            r = process.report([d], REAL_NOW - dt.timedelta(days=2), REAL_NOW)
-            self.assertEqual(r['findings'], [])
-            self.assertIn('1 merged', r['detector']['reason'])
-
-    def test_worktrees_of_one_repo_count_once_and_gone_folders_are_skipped(self):
-        with tempfile.TemporaryDirectory() as d:
-            repo(d, 6, 3)
-            wt = os.path.join(d, 'wt')
-            git(d, 'worktree', 'add', wt, '-b', 'other')
-            r = process.report([d, wt, os.path.join(d, 'gone'), None], REAL_NOW - dt.timedelta(days=2), REAL_NOW)
-        self.assertEqual(len(r['items']), 1)
-
-    def test_pull_requests_add_reviews_and_gate_hours(self):
-        calls = []
-
-        def gh(cmd, cwd):
-            calls.append(cmd)
-            return json.dumps([{'number': 7, 'createdAt': '2099-01-01T00:00:00Z', 'mergedAt': '2099-01-01T08:00:00Z',
-                                'additions': 3, 'deletions': 1, 'mergeCommit': {'oid': 'abc'},
-                                'commits': [{'messageHeadline': 'add'}, {'messageHeadline': 'fix: x'}],
-                                'reviews': [{}, {}, {}],
-                                'statusCheckRollup': [{'name': 'ci', 'startedAt': '2099-01-01T00:00:00Z',
-                                                       'completedAt': '2099-01-01T02:00:00Z'}, {'context': 'old'}]}])
-        with tempfile.TemporaryDirectory() as d:
-            repo(d, 2, 3)
-            r = process.report([d], REAL_NOW - dt.timedelta(days=2), REAL_NOW, gh=gh)
-        pr = [i for i in r['items'] if i.get('reviews') is not None][0]
-        self.assertEqual((pr['reviews'], pr['checks'], pr['lines'], pr['fixes']), (3, 2, 4, 1))
-        self.assertEqual(r['gates']['ci'], 2.0)
-        self.assertTrue(r['findings'])  # 8 h for 4 lines
-        self.assertEqual(calls[0][:3], ['gh', 'pr', 'list'])
-
-    def test_a_failing_gh_is_not_fatal(self):
-        def gh(cmd, cwd):
-            raise OSError('no gh')
-        with tempfile.TemporaryDirectory() as d:
-            repo(d, 6, 3)
-            self.assertEqual(len(process.report([d], REAL_NOW - dt.timedelta(days=2), REAL_NOW, gh=gh)['items']), 1)
-
+class GateHours(unittest.TestCase):
     def test_gate_hours_from_logs_name_the_costliest(self):
         s = session()
         s.jobs += [job(120, 60), job(50, 20, 'cargo')]
@@ -755,10 +662,6 @@ class ProcessWeight(unittest.TestCase):
         self.assertEqual(gates['pytest'], 1.0)
         self.assertEqual(gates['cargo'], 0.5)
         self.assertEqual(gates['refused: deny rule `Bash(git push:*)`'], 2.0)
-        f = process.gate_finding(gates, {'ci': 0.5})
-        self.assertIn('refused: deny rule', f['what'])
-        self.assertTrue(f['why'] and f['fix'])
-        self.assertIsNone(process.gate_finding({'pytest': 0.1}, {}))
 
 
 class Sampler(unittest.TestCase):
@@ -774,10 +677,9 @@ class Sampler(unittest.TestCase):
             self.assertTrue(machine.tick(ago(10), p, lambda: {'free_pct': 50, 'load': 1, 'cpus': 8}))
             self.assertFalse(machine.tick(ago(10) + dt.timedelta(seconds=30), p, lambda: {'free_pct': 1, 'load': 1, 'cpus': 8}))
             self.assertTrue(machine.tick(ago(5), p, lambda: {'free_pct': 9, 'load': 1, 'cpus': 8}))
-            rows = machine.read(ago(60), p)
+            rows = [json.loads(line) for line in open(p)]
         self.assertEqual([r['free_pct'] for r in rows], [50, 9])
-        self.assertEqual(rows[0]['at'], ago(10))
-        self.assertEqual(machine.read(ago(60), '/nonexistent/file'), [])
+        self.assertEqual(rows[0]['at'], ago(10).strftime('%Y-%m-%dT%H:%M:%SZ'))
 
     def test_the_file_is_capped(self):
         with tempfile.TemporaryDirectory() as d:
@@ -786,7 +688,7 @@ class Sampler(unittest.TestCase):
                 f.write((json.dumps({'at': iso(ago(100)), 'free_pct': 50, 'load': 1, 'cpus': 8}) + '\n') * 30000)
             machine.tick(ago(1), p, lambda: {'free_pct': 9, 'load': 1, 'cpus': 8})
             self.assertLess(os.path.getsize(p), machine.MAX_BYTES)
-            self.assertEqual(machine.read(ago(60), p)[-1]['free_pct'], 9)
+            self.assertEqual(json.loads(open(p).readlines()[-1])['free_pct'], 9)
 
 
 if __name__ == '__main__':

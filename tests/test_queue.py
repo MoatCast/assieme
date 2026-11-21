@@ -54,11 +54,10 @@ class QueueTest(unittest.TestCase):
         self.assertEqual((q['agent'], q['kind'], q['seconds'], q['blocks']),
                          ('steward', 'a question', 600, ['builder', 'coord']))
 
-    def test_live_view_lists_it_under_needs_you(self):
+    def test_suggestions_list_it_as_needing_you(self):
         sugg = live.suggest(self.agents, self.stalls, {'steward': 't2'}, self.queue)
-        text = live.render(self.agents, self.stalls, sugg, NOW)
-        self.assertIn('Needs you (1):', text)
-        self.assertIn('[1] steward: a question, waiting 10 min; holds up builder, coord  -> answer it in hc attach t2', text)
+        mine = [s for s in sugg if s.yours]
+        self.assertEqual([s.text for s in mine], ['steward: a question, waiting 10 min; holds up builder, coord'])
 
     def test_notifies_once_and_survives_restart(self):
         sent = []

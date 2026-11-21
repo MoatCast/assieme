@@ -9,10 +9,9 @@ import json
 import os
 import re
 import shlex
-import socket
 import subprocess
 
-from . import detect, rules, settings, setup
+from . import detect, rules, settings
 from .adapters import CODEX_REFUSED, _output_text, _strip_common_prefix, box_metrics, box_path, command_label, program, wake_sender
 from .model import HUMAN, parse_ts
 
@@ -94,9 +93,6 @@ class Agent:
         self.peers = set()        # agents it messaged or was woken by: its team
         self.thread = self.parent_thread = None
         self.children = []
-        self.herdr = None
-        self.herdr_address = None  # its terminal in the user's own herdr, for a read-only view
-        self.herdr_space = None  # the herdr workspace it runs in: its team, wherever its folder is
         self.cwd = None           # working folder, to tell a running agent from a closed one
         self.asked = False        # its latest reply ends with a question
         self.turn_by = None       # who started its current or last turn: an agent name or HUMAN
@@ -112,7 +108,7 @@ class Agent:
 
     def as_dict(self, now):
         return {'agent': self.name, 'source': self.source, 'state': self.state, 'detail': self.detail,
-                'seconds': int((now - self.last).total_seconds()) if self.last else None, 'herdr': self.herdr}
+                'seconds': int((now - self.last).total_seconds()) if self.last else None}
 
 
 def _claude(agent, rows, show_text, rules_for=lambda cwd: []):
@@ -350,8 +346,8 @@ def _ago(seconds):
     return f'{m} min' if m < 120 else f'{m // 60} h'
 
 
-def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, running=None, rules_for=None):
-    """Read recent logs -> list of Agent with health states. herdr: optional `hc ls --json` terminals."""
+def collect(claude_dir, codex_dir, now, hours=12, show_text=False, running=None, rules_for=None):
+    """Read recent logs -> list of Agent with health states."""
     cutoff = now.timestamp() - hours * 3600
     agents = []
     if rules_for is None:  # the agent's own settings and the user's; live view adds running agents' --settings files
@@ -420,37 +416,27 @@ def collect(claude_dir, codex_dir, now, hours=12, show_text=False, herdr=None, r
             a.state, a.detail = 'stuck', f'subagent {lost[0].detail}'
 
     if running is not None:  # a folder with no Claude or Codex process: the session was closed
-        # unless herdr runs it live: an agent that moved into another folder still logs that one
-        in_herdr = {id(_by_cwd(agents, t.get('cwd'), t.get('agent'))) for t in herdr or [] if t.get('state') == 'live'}
         for a in agents:
-            if (a.cwd and a.cwd not in running and id(a) not in in_herdr and (now - a.last).total_seconds() > EXIT_GRACE
+            if (a.cwd and a.cwd not in running and (now - a.last).total_seconds() > EXIT_GRACE
                     and a.state in ('idle', 'stuck', 'idle, work waiting')):
                 a.state, a.detail = 'exited', ''
     for a in agents:  # it ended its turn with a question, in a turn a person started: the person owes an answer
         if a.state == 'idle' and a.asked and a.turn_by == HUMAN:
             a.state, a.ask_kind = 'waiting on you', 'a question in its reply'
             a.detail = f'asked you a question {_ago((now - a.ask_since).total_seconds())} ago'
-    alias = _aliases(agents, herdr)
+    alias = _aliases(agents)
     _work_waiting(agents, now, alias)
-    if herdr:
-        _apply_herdr(agents, herdr)
     _wait_edges(agents, alias)
     agents.sort(key=lambda a: (ORDER.index(a.state), a.name))
     return agents
 
 
-def _aliases(agents, herdr):
-    """Every name an agent is addressed by: our name, its short form, and herdr's address and agent name."""
+def _aliases(agents):
+    """Every name an agent is addressed by: our name and its short forms."""
     alias = {a.name: a for a in agents}
     for a in agents:
         alias.setdefault(a.name.split(':')[-1], a)
         alias.setdefault(a.name.split('-')[-1], a)
-    for t in herdr or []:
-        a = _by_cwd(agents, t.get('cwd'))
-        if a:
-            for k in (t.get('address'), t.get('agent')):
-                if k:
-                    alias.setdefault(k, a)
     return alias
 
 
@@ -466,87 +452,6 @@ def _work_waiting(agents, now, alias):
                     and (r.turn_start is None or ts > r.turn_start) and (r.last is None or ts > r.last)):
                 r.state = 'idle, work waiting'
                 r.detail = f'message from {sender.name} {_ago((now - ts).total_seconds())} ago started no turn'
-
-
-def _by_cwd(agents, cwd, kind=None):
-    """The agent working in `cwd`; with herdr's `kind` (claude-code, codex), a session of that kind first."""
-    if not cwd:
-        return None
-    if kind:
-        same = _by_cwd([a for a in agents if a.source == kind], cwd)
-        if same:
-            return same
-    paths = {cwd, os.path.realpath(cwd)}  # Claude Code names a folder by its resolved path: /tmp is /private/tmp
-    keys = {re.sub(r'[^A-Za-z0-9]', '-', p) for p in paths}
-    for a in agents:
-        if a.source == 'claude-code' and os.path.basename(os.path.dirname(a.path)) in keys:
-            return a
-    for a in agents:
-        if getattr(a, 'cwd', None) in paths:
-            return a
-    return None
-
-
-def _apply_herdr(agents, terminals):
-    """herdr's own status is shown beside ours. Only 'blocked' adds what logs cannot see: a permission prompt."""
-    for t in terminals:
-        a = _by_cwd(agents, t.get('cwd'), t.get('agent'))
-        if not a or t.get('state') != 'live':
-            continue
-        st = t.get('status') if isinstance(t.get('status'), dict) else {}
-        a.herdr = st.get('state') or 'unreported'  # the agent never sent herdr its status
-        a.herdr_address = t.get('address')
-        if (t.get('labels') or {}).get('herdr.space'):  # `where` is "<workspace> / <name>"
-            a.herdr_space = (t.get('where') or '').split(' / ')[0] or t['labels']['herdr.space']
-        if a.herdr in ('idle', 'done') and a.state in ('working', 'stuck') and not a.pending:
-            # the agent itself told herdr it finished; Codex can leave a turn open in its log (seen after /compact)
-            a.state, a.detail = 'idle', 'herdr: done'
-        if a.herdr == 'blocked' and a.state in ('working', 'stuck', 'idle'):
-            a.state, a.detail = 'waiting on you', f"herdr: {st.get('kind') or 'prompt'}"
-            a.ask_kind = {'permission': 'a permission prompt', 'question': 'a question', 'auth': 'a sign-in'}.get(
-                st.get('kind'), 'a prompt')
-            a.ask_since = a.ask_since or a.last
-
-
-def hc_path():
-    """The person's herdr install's own hc, else theirs on the login PATH."""
-    herdr = setup.agent_path('herdr')
-    own = herdr and os.path.join(os.path.dirname(herdr), 'hc')
-    return own if own and os.access(own, os.X_OK) else setup.agent_path('hc')
-
-
-def herdr_core_up():
-    """Whether the person's herdr core is listening. Asked first because any `hc` command starts a core of its own."""
-    session = os.environ.get('HC_SESSION') or 'default'
-    path = os.environ.get('HC_SOCKET') or os.path.expanduser(f'~/.local/state/herdr-core/{session}/{session}.sock')
-    with socket.socket(socket.AF_UNIX) as s:
-        s.settimeout(1)
-        try:
-            s.connect(path)
-            return True
-        except OSError:
-            return False
-
-
-def _hc_json(*args):
-    out = subprocess.run([hc_path() or 'hc', *args, '--json'], capture_output=True, text=True, timeout=5, check=False).stdout
-    return json.loads(out)
-
-
-def herdr_terminals():
-    """Live herdr-core terminals with their reported status; [] when herdr's core isn't running (asking would start
-    one), None when hc is missing. Never fatal."""
-    if not herdr_core_up():
-        return []
-    try:
-        terminals = _hc_json('ls').get('terminals') or []
-        for t in terminals:
-            if t.get('state') == 'live':
-                got = _hc_json('get', t['address']) or {}
-                t['status'], t['labels'] = got.get('status'), got.get('labels')  # `ls` has neither
-        return terminals
-    except (OSError, ValueError, subprocess.SubprocessError, AttributeError, KeyError, TypeError):
-        return None
 
 
 def summary(agents):
@@ -571,11 +476,11 @@ def to_text(agents, now):
 
 
 def table(agents, now):
-    rows = [('STATE', 'AGENT', 'FOR', 'DETAIL', 'HERDR')]
+    rows = [('STATE', 'AGENT', 'FOR', 'DETAIL')]
     for a in agents:
-        rows.append((a.state, a.name, _ago((now - a.last).total_seconds()), a.detail, a.herdr or '-'))
-    widths = [max(len(r[i]) for r in rows) for i in range(4)]
-    return ['  '.join(c.ljust(w) for c, w in zip(r[:4], widths)) + '  ' + r[4] for r in rows]
+        rows.append((a.state, a.name, _ago((now - a.last).total_seconds()), a.detail))
+    widths = [max(len(r[i]) for r in rows) for i in range(3)]
+    return ['  '.join(c.ljust(w) for c, w in zip(r[:3], widths)) + '  ' + r[3] for r in rows]
 
 
 def to_json(agents, now):

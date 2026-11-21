@@ -80,8 +80,7 @@ class EndToEndTest(unittest.TestCase):
         flag = next(f for f in r['flags'] if 'refused' in f)
         self.assertIn("'Bash: hc' refused 3 times by deny rule `Bash(*cloud-launch*)`", flag)
         self.assertIn('not the program run (hc); deny running it instead: `Bash(cloud-launch:*)`', flag)
-        md = report.to_md(r, {'hours': 24, 'since': 'x'})
-        self.assertNotIn('do not use', md)  # the message itself is never shown
+        self.assertNotIn('do not use', str(r))  # the message itself is never shown
 
 
 if __name__ == '__main__':

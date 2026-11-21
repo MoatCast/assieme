@@ -12,7 +12,6 @@ calls, and ported the shared helpers. Each session fills in the bodies of the mo
 | limits | A |
 | report | A |
 | reports | A |
-| process | A |
 | live | A |
 | teammap | B |
 | panes | B |
@@ -61,7 +60,6 @@ calls, and ported the shared helpers. Each session fills in the bodies of the mo
 | settings | foundation |
 | runtime | foundation |
 | rules | foundation |
-| service | foundation |
 
 ## Names the foundation ported inside other sessions' modules
 

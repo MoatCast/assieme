@@ -156,11 +156,3 @@ pub fn aggregate(
            "send_less": send_less, "empty_tokens": edges.iter().map(|x| &x.1).filter(routine).map(|e| e.empty_tokens).sum::<i64>(),
            "refusals": refusals, "flags": flags})
 }
-
-pub fn to_json(r: &Value, meta: &Value) -> String {
-    todo!("report.to_json")
-}
-
-pub fn to_md(r: &Value, meta: &Value, show_text: bool) -> String {
-    todo!("report.to_md")
-}

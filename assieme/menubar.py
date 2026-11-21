@@ -240,7 +240,7 @@ class Menubar:
         st = settings.load()
         with self.brain.one_view():
             teams = self._teams(now)
-            agents = self.brain._collect(now, self.brain.terminals())
+            agents = self.brain._collect(now)
         stalls = status.stalls(agents, now)
         # The brain's plain notifications take over if the app quits: they mustn't repeat what's been shown.
         live.announce(status.owner_queue(agents, now), stalls, now, notifier=lambda *_: None, switches=st['notify'])

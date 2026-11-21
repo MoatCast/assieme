@@ -89,14 +89,6 @@ class FindingsTest(ImproveCase):
         settings.set_value('practices.machine', False)
         self.assertEqual(len(self.ids(self.check(Brain([found_row('a')])))['practices']['groups']), 4)
 
-    def test_a_restart_fix_opens_the_running_herdr_team_in_new_team(self):
-        rows = [found_row('x', cwd=ROOT), found_row('y', cwd=ROOT)]
-        running = {'shop': [terminal('x', 'claude', cwd=ROOT), terminal('y', 'claude', cwd=ROOT)], 'other': [terminal('z', 'codex')]}
-        with mock.patch.object(improve.herdr, '_running', lambda: (running, None)):
-            got = improve.check(Brain(rows), 'shop', NOW, self.log)
-        self.assertEqual(self.ids(got)['folder:x']['draft'], 'running:shop')
-        self.assertIsNone(self.ids(got)['practices']['draft'])
-
     def test_an_agent_outside_herdr_gets_the_rules_to_paste(self):
         f = self.ids(self.check(Brain([found_row('a', address='log:a')])))['practices']
         self.assertEqual(f['kind'], 'review')
@@ -154,20 +146,15 @@ class ApplyTest(ImproveCase):
         self.assertIn('Check whether it should be allowed, or change the brief so it stops trying.', f['detail'])
         self.assertNotIn('allow it explicitly', f['detail'])
 
-    def test_apply_reads_the_team_and_herdr_once(self):
-        calls = {'resolve': 0, 'running': 0}
+    def test_apply_reads_the_team_once(self):
+        calls = []
 
         class Counting(Brain):
             def _resolve(self, name, now):
-                calls['resolve'] += 1
+                calls.append(name)
                 return super()._resolve(name, now)
-
-        def running():
-            calls['running'] += 1
-            return {'shop': [terminal('a', 'claude')]}, None
-        with mock.patch.object(improve.herdr, '_running', running):
-            improve.apply(Counting([found_row('a')]), 'shop', ['practices'], NOW, self.log)
-        self.assertEqual(calls, {'resolve': 1, 'running': 1})
+        improve.apply(Counting([found_row('a')]), 'shop', ['practices'], NOW, self.log)
+        self.assertEqual(calls, ['shop'])
 
     def test_review_findings_are_never_applied(self):
         rows = [found_row('x', cwd=ROOT), found_row('y', cwd=ROOT)]

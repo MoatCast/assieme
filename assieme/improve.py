@@ -46,16 +46,6 @@ def delivered(team_name, log=None):
             and e.get('ok', True) and e.get('id') not in undone for role, _, _, group in e.get('sent') or []}
 
 
-def _herdr_terminals(addresses):
-    """(the step 21 import source of this team, its herdr terminals): every agent terminal of the herdr team that holds
-    one of these addresses, so agents sharing a folder (one log, one row) are each seen."""
-    teams, _ = herdr._running()
-    for key, ts in teams.items():
-        if any(t.get('address') in addresses for t in ts):
-            return f'running:{key}', ts
-    return None, []
-
-
 def _members(rows, terminals):
     """{name: {address, cwd, row}}: each herdr terminal by its herdr name, then each log-only agent by its role."""
     out, by_address = {}, {r['address']: r for r in rows}
@@ -87,27 +77,26 @@ def _finding(id_, title, detail, *, kind='apply', group=None, to=(), restart=Fal
 
 
 def _team(brain, team_name, now, terminals):
-    """(rows, agents, members, import source) of a found team, or None for a team started in Assieme."""
+    """(rows, agents, members) of a found team, or None for a team started in Assieme."""
     rows, agents, found, _ = brain._resolve(team_name, now)
     rows = [r for r in rows if r.get('state') == 'live']
     if not found or not rows:
         return None
-    source, terms = (None, terminals) if terminals is not None else _herdr_terminals({r['address'] for r in rows})
-    return rows, agents, _members(rows, terms), source
+    return rows, agents, _members(rows, terminals or [])
 
 
 def check(brain, team_name, now=None, log=None, terminals=None):
-    """{team, found, findings, in_place}. `terminals`: herdr's terminals for this team, read when None."""
+    """{team, found, findings, in_place}. `terminals`: herdr terminals of this team, when given."""
     now = now or status.now_utc()
     return _findings(brain, team_name, _team(brain, team_name, now, terminals), now, log)
 
 
 def _findings(brain, team_name, got, now, log):
-    """`check` on a team already read by `_team`, so `apply` reads the team and herdr only once."""
+    """`check` on a team already read by `_team`, so `apply` reads the team only once."""
     out = {'team': team_name, 'found': got is not None, 'findings': [], 'in_place': []}
     if not got:
         return out
-    rows, agents, members, source = got
+    rows, agents, members = got
     reach = {n for n, m in members.items() if not m['address'].startswith('log:')}
     # A log row stands for every terminal in its folder: what its log shows is about all of them.
     in_folder = {}
@@ -195,8 +184,6 @@ def _findings(brain, team_name, got, now, log):
                 one = len(f['to']) == 1
                 f['detail'] += (f" Assieme can’t send {'it' if one else 'them'} messages, because {'it runs' if one else 'they run'} "
                                 "in a terminal Assieme doesn’t control, so paste these rules into the next message.")
-        elif f['restart']:
-            f['draft'] = source
     out['findings'] = [f for f in findings if f['kind'] == 'review' or f['to']]
     return out
 

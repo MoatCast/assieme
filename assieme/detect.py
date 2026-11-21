@@ -1,7 +1,7 @@
 """F5 context meter additions, F6 heavy-job guard, F7 retry loops and F10 paid compute: reading commands, and the checks.
 
 No command, output or message text is kept here: only program names, counts, times and a fingerprint of a failure.
-Every finding says what is wrong, why it matters and the one thing that fixes it. F8 is in process.py.
+Every finding says what is wrong, why it matters and the one thing that fixes it.
 """
 import collections
 import datetime as dt

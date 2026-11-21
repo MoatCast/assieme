@@ -8,15 +8,15 @@ from unittest import mock
 
 from assieme import activity, adapters, live, newteam, panes, quiet, settings, status, team, teammap
 from assieme.status import Agent
-from tests.test_teammap import FakeRt, MapCase, NoAnswers, Today, log_agent, row
+from tests.test_teammap import FakeRt, MapCase, NoAnswers, log_agent, row
 
 NOW = dt.datetime(2026, 11, 8, 12, 0, tzinfo=dt.timezone.utc)
 
 
 class OneBadRowTest(MapCase):
     def test_a_quiet_row_from_the_command_line_can_be_stopped(self):
-        s = live.Suggestion('x', 'a', action='quiet', pair=('/w/a', '/w/b', 'a -> b'))
-        live.run_action(s)
+        quiet.set_pair('/w/a', '/w/b', 'a -> b')
+        live.record('quiet', 'a', 'x', pair=['/w/a', '/w/b', 'a -> b'])
         [r] = activity.list_rows(now=status.now_utc())['rows']
         self.assertEqual(r['undo'], {'label': 'Stop'})
         self.assertTrue(activity.undo(r['id'], FakeRt())['ok'])
@@ -56,7 +56,7 @@ class CorruptLogTest(unittest.TestCase):
     def test_each_tick_step_runs_even_if_the_first_fails(self):
         from assieme import cli
         with mock.patch.object(cli.serve, 'serve') as srv, mock.patch.object(cli.serve, 'brain_socket_path', return_value='/s/b.sock'), \
-                mock.patch.object(cli.live, 'watch_once', side_effect=ValueError('bad log')), \
+                mock.patch.object(cli, '_notify_and_deliver', side_effect=ValueError('bad log')), \
                 mock.patch.object(cli.teammap.Brain, 'tick') as second, mock.patch.object(cli.machine, 'tick'), mock.patch('traceback.print_exc'):
             cli.main(['serve'])
             srv.call_args.kwargs['tick']()
@@ -80,12 +80,12 @@ class SameNameTest(MapCase):
 
     def agent(self):
         a = Agent('mine', 'claude-code', '/l.jsonl')
-        a.cwd, a.state, a.last, a.herdr_address = '/w/shop', 'working', NOW, 't7'
+        a.cwd, a.state, a.last = '/w/shop', 'working', NOW
         return a
 
     def run_with(self, b, fn):
         with mock.patch.object(status, 'collect', return_value=[self.agent()]), \
-                mock.patch.object(status, 'herdr_terminals', return_value=[]), mock.patch.object(status, 'running_cwds', return_value={'/w/shop'}):
+                mock.patch.object(status, 'running_cwds', return_value={'/w/shop'}):
             return fn(b)
 
     def test_a_stopped_team_doesnt_hide_a_found_team_of_that_name(self):
@@ -103,18 +103,10 @@ class SameNameTest(MapCase):
         self.assertFalse(m['found'])
 
     def test_stopped_team_with_no_found_namesake_says_stopped(self):
-        with mock.patch.object(status, 'collect', return_value=[]), mock.patch.object(status, 'herdr_terminals', return_value=[]), \
-                mock.patch.object(status, 'running_cwds', return_value=set()):
+        with mock.patch.object(status, 'collect', return_value=[]), mock.patch.object(status, 'running_cwds', return_value=set()):
             m = self.brain([row('a', state='finished')]).map('shop')
         self.assertTrue(m['stopped'])
         self.assertFalse(m['found'])
-
-    def test_a_press_on_the_found_team_goes_through_its_own_hc(self):
-        b = self.brain([row('a', state='finished')])
-        b.herdr = mock.Mock()
-        with mock.patch.object(panes, 'act', return_value={'ok': True}) as act:
-            self.run_with(b, lambda x: x.act('shop', 'mine', 'f', 'b'))
-        self.assertIs(act.call_args.args[5], b.herdr)
 
 
 class StopAddedAgentTest(MapCase):

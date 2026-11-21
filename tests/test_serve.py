@@ -2,7 +2,6 @@
 import datetime as dt
 import json
 import os
-import re
 import shutil
 import socket
 import tempfile
@@ -33,17 +32,16 @@ def agent(name, cwd):
     return a
 
 
-class WatchOnceTest(unittest.TestCase):
-    def test_watch_once_announces_and_delivers(self):
+class NotifyAndDeliverTest(unittest.TestCase):
+    def test_a_tick_announces_and_delivers(self):
+        from assieme import cli
         with mock.patch.object(live.status, 'collect', return_value=[]), \
              mock.patch.object(live.status, 'running_cwds', return_value=set()), \
-             mock.patch.object(live.status, 'herdr_terminals', return_value=[]), \
-             mock.patch.object(live, 'announce', return_value=[('builder waits', 'on you')]), \
-             mock.patch.object(live.quiet, 'deliver', return_value=[('coord', 2, 'idle')]):
-            lines = live.watch_once('/c', '/x', 12, True)
-        self.assertEqual(len(lines), 2)
-        self.assertIn('builder waits: on you', lines[0])
-        self.assertIn('delivered 2 quiet note(s) to coord', lines[1])
+             mock.patch.object(live, 'announce', return_value=[('builder waits', 'on you')]) as said, \
+             mock.patch.object(live.quiet, 'deliver', return_value=[('coord', 2, 'idle')]) as delivered:
+            cli._notify_and_deliver('/c', '/x', True)
+        said.assert_called_once()
+        delivered.assert_called_once()
 
 
 class SnapshotTest(unittest.TestCase):
@@ -51,17 +49,16 @@ class SnapshotTest(unittest.TestCase):
         p = mock.patch.object(serve.status, 'collect', return_value=[agent('builder', '/p'), agent('coord', '/p')])
         p.start()
         self.addCleanup(p.stop)
-        for name in ('herdr_terminals', 'running_cwds'):
-            q = mock.patch.object(serve.status, name, return_value=[] if name == 'herdr_terminals' else set())
-            q.start()
-            self.addCleanup(q.stop)
+        q = mock.patch.object(serve.status, 'running_cwds', return_value=set())
+        q.start()
+        self.addCleanup(q.stop)
 
     def test_snapshot_shape(self):
         rows = [{'address': 't1', 'state': 'live', 'status': {'state': 'idle'},
                  'labels': {'assieme.team': 'demo', 'assieme.role': 'coordinator'}}]
         s = serve.snapshot('/c', '/x', NOW, FakeRt(rows), which=lambda c: None if c == 'codex' else '/bin/' + c)
         self.assertEqual(s['clis'], {'claude': True, 'codex': False, 'gemini': True, 'opencode': True, 'cursor': True,
-                                     'antigravity': True, 'asm': True, 'hc': True, 'herdr': True})
+                                     'antigravity': True, 'asm': True, 'herdr': True})
         self.assertEqual(set(s), {'at', 'clis', 'agents', 'alerts', 'queue', 'stalls', 'teams', 'starting', 'found_teams', 'first_run_done', 'limits'})
         self.assertEqual(s['starting'], [])
         self.assertEqual([a['agent'] for a in s['agents']], ['builder', 'coord'])
@@ -179,31 +176,3 @@ class CliServeTest(unittest.TestCase):
         self.assertTrue({'brain.snapshot', 'pane.act', 'project.check', 'team.presets', 'team.start', 'team.suggest', 'team.view', 'team.map',
                          'activity.undo', 'settings.set', 'review.merge', 'review.undo'} <= set(handlers))
         self.assertTrue(callable(srv.call_args.kwargs['tick']))
-
-
-class HerdrAddressTest(unittest.TestCase):
-    def test_apply_herdr_records_terminal_address(self):
-        from assieme import status
-        a = agent('builder', '/p')
-        status._apply_herdr([a], [{'cwd': '/p', 'state': 'live', 'address': 't9', 'status': {'state': 'idle'}}])
-        self.assertEqual(a.herdr_address, 't9')
-
-    def test_a_folder_reached_through_a_symlink_is_the_same_agent(self):
-        import tempfile
-        from assieme import status
-        with tempfile.TemporaryDirectory() as d:
-            real = os.path.join(os.path.realpath(d), 'proj')
-            os.makedirs(real)
-            os.symlink(real, os.path.join(d, 'link'))
-            a = status.Agent('proj', 'claude-code', f"/logs/{re.sub(r'[^A-Za-z0-9]', '-', real)}/s.jsonl")  # Claude Code's resolved name
-            status._apply_herdr([a], [{'cwd': os.path.join(d, 'link'), 'state': 'live', 'address': 't9', 'status': {'state': 'idle'}}])
-            self.assertEqual(a.herdr_address, 't9')
-
-    def test_snapshot_passes_herdr_address(self):
-        a = agent('builder', '/p')
-        a.herdr_address = 't9'
-        with mock.patch.object(serve.status, 'collect', return_value=[a]), \
-             mock.patch.object(serve.status, 'herdr_terminals', return_value=[]), \
-             mock.patch.object(serve.status, 'running_cwds', return_value=set()):
-            s = serve.snapshot('/c', '/x', NOW, FakeRt(), which=lambda c: '/bin/' + c)
-        self.assertEqual(s['agents'][0]['herdr_address'], 't9')
